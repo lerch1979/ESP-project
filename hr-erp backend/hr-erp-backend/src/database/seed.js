@@ -1,0 +1,251 @@
+const bcrypt = require('bcryptjs');
+const { query } = require('./connection');
+const { logger } = require('../utils/logger');
+
+/**
+ * Adatbázis feltöltése tesztadatokkal
+ */
+async function seedDatabase() {
+  try {
+    logger.info('🌱 Adatbázis seed indítása...');
+
+    // 1. Tenant létrehozása
+    logger.info('Tenant-ok létrehozása...');
+    const tenantResult = await query(`
+      INSERT INTO tenants (name, slug, email, phone, is_active)
+      VALUES 
+        ('ABC Kereskedelmi Kft.', 'abc-kft', 'info@abc-kft.hu', '+36 1 234 5678', true),
+        ('XYZ Szolgáltató Zrt.', 'xyz-zrt', 'info@xyz-zrt.hu', '+36 1 987 6543', true)
+      RETURNING id, name
+    `);
+
+    const tenant1Id = tenantResult.rows[0].id;
+    const tenant2Id = tenantResult.rows[1].id;
+    logger.info(`✓ ${tenantResult.rows.length} tenant létrehozva`);
+
+    // 2. Szerepkörök lekérése
+    const rolesResult = await query('SELECT id, slug FROM roles');
+    const roles = {};
+    rolesResult.rows.forEach(role => {
+      roles[role.slug] = role.id;
+    });
+
+    // Felhasználók létrehozása
+    logger.info('Felhasználók létrehozása...');
+    const passwordHash = await bcrypt.hash('password123', 10);
+
+    const usersResult = await query(`
+      INSERT INTO users (tenant_id, email, password_hash, first_name, last_name, is_active)
+      VALUES 
+        -- Szuperadmin (első tenanthoz rendelve)
+        ($2, 'admin@hr-erp.com', $1, 'Admin', 'User', true),
+        
+        -- ABC Kft. felhasználók
+        ($2, 'kiss.janos@abc-kft.hu', $1, 'Kiss', 'János', true),
+        ($2, 'nagy.eva@abc-kft.hu', $1, 'Nagy', 'Éva', true),
+        ($2, 'toth.anna@abc-kft.hu', $1, 'Tóth', 'Anna', true),
+        
+        -- XYZ Zrt. felhasználók
+        ($3, 'kovacs.peter@xyz-zrt.hu', $1, 'Kovács', 'Péter', true),
+        ($3, 'szabo.maria@xyz-zrt.hu', $1, 'Szabó', 'Mária', true),
+        
+        -- Külső alvállalkozók
+        ($2, 'vizvezetek@example.com', $1, 'Vízvezeték', 'Kft.', true),
+        ($2, 'it-support@example.com', $1, 'IT', 'Support', true)
+      RETURNING id, email, tenant_id
+    `, [passwordHash, tenant1Id, tenant2Id]);
+
+    logger.info(`✓ ${usersResult.rows.length} felhasználó létrehozva`);
+
+    // User ID-k
+    const adminId = usersResult.rows[0].id;
+    const kissJanosId = usersResult.rows[1].id;
+    const nagyEvaId = usersResult.rows[2].id;
+    const tothAnnaId = usersResult.rows[3].id;
+    const kovacsPeterId = usersResult.rows[4].id;
+    const szaboMariaId = usersResult.rows[5].id;
+    const vizvezetekId = usersResult.rows[6].id;
+    const itSupportId = usersResult.rows[7].id;
+
+    // 4. Szerepkörök hozzárendelése egyenként
+    logger.info('Szerepkörök hozzárendelése...');
+    
+    // Szuperadmin (első tenanthoz)
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`, 
+      [adminId, roles.superadmin, tenant1Id]);
+    
+    // ABC Kft.
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [kissJanosId, roles.admin, tenant1Id]);
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [nagyEvaId, roles.task_owner, tenant1Id]);
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [tothAnnaId, roles.user, tenant1Id]);
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [vizvezetekId, roles.contractor, tenant1Id]);
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [itSupportId, roles.contractor, tenant1Id]);
+    
+    // XYZ Zrt.
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [kovacsPeterId, roles.admin, tenant2Id]);
+    await query(`INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3)`,
+      [szaboMariaId, roles.user, tenant2Id]);
+
+    logger.info('✓ Szerepkörök hozzárendelve');
+
+    // 5. Ticket kategóriák létrehozása
+    logger.info('Ticket kategóriák létrehozása...');
+    const categoriesResult = await query(`
+      INSERT INTO ticket_categories (tenant_id, name, slug, color, icon)
+      VALUES 
+        ($1, 'HR', 'hr', '#3730a3', '👥'),
+        ($1, 'Technikai', 'technical', '#5b21b6', '🔧'),
+        ($1, 'Pénzügyi', 'finance', '#831843', '💰'),
+        ($1, 'Általános', 'general', '#64748b', '📋')
+      RETURNING id, slug
+    `, [tenant1Id]);
+
+    const categories = {};
+    categoriesResult.rows.forEach(cat => {
+      categories[cat.slug] = cat.id;
+    });
+
+    logger.info('✓ Kategóriák létrehozva');
+
+    // 6. Prioritások és státuszok lekérése
+    const prioritiesResult = await query('SELECT id, slug FROM priorities');
+    const priorities = {};
+    prioritiesResult.rows.forEach(p => {
+      priorities[p.slug] = p.id;
+    });
+
+    const statusesResult = await query('SELECT id, slug FROM ticket_statuses');
+    const statuses = {};
+    statusesResult.rows.forEach(s => {
+      statuses[s.slug] = s.id;
+    });
+
+    // 7. Ticketek létrehozása egyenként
+    logger.info('Ticketek létrehozása...');
+    
+    // Ticket 1 - Vízvezeték javítás
+    await query(`
+      INSERT INTO tickets (
+        tenant_id, ticket_number, title, description, 
+        category_id, status_id, priority_id, created_by, assigned_to
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [
+      tenant1Id, '#1243', 'Vízvezeték javítás - A épület',
+      'Az A épület 2. emeletén a mosdóban szivárgás észlelhető. A csap alatt folyamatosan csöpög a víz.',
+      categories.technical, statuses.in_progress, priorities.urgent, tothAnnaId, vizvezetekId
+    ]);
+    
+    // Ticket 2 - HR dokumentum
+    await query(`
+      INSERT INTO tickets (
+        tenant_id, ticket_number, title, description, 
+        category_id, status_id, priority_id, created_by, assigned_to
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [
+      tenant1Id, '#1242', 'HR dokumentum igénylés',
+      'Kérném az elmúlt 3 hónap bérszámfejtésének összesítését.',
+      categories.hr, statuses.new, priorities.normal, tothAnnaId, null
+    ]);
+    
+    // Ticket 3 - Számítógép javítás
+    await query(`
+      INSERT INTO tickets (
+        tenant_id, ticket_number, title, description, 
+        category_id, status_id, priority_id, created_by, assigned_to
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [
+      tenant1Id, '#1241', 'Számítógép javítás',
+      'A számítógép nem indul el, fekete képernyő jelenik meg.',
+      categories.technical, statuses.completed, priorities.normal, tothAnnaId, itSupportId
+    ]);
+    
+    // Ticket 4 - Bútor csere
+    await query(`
+      INSERT INTO tickets (
+        tenant_id, ticket_number, title, description, 
+        category_id, status_id, priority_id, created_by, assigned_to
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, [
+      tenant1Id, '#1240', 'Bútor csere - B iroda',
+      'Az irodai székek cseréje szükséges, ergonómiai problémák miatt.',
+      categories.technical, statuses.waiting_material, priorities.normal, tothAnnaId, vizvezetekId
+    ]);
+
+    logger.info('✓ Ticketek létrehozva');
+
+    // 8. Megjegyzések hozzáadása
+    logger.info('Megjegyzések hozzáadása...');
+    const ticketsResult = await query(
+      'SELECT id, ticket_number FROM tickets WHERE tenant_id = $1 ORDER BY created_at',
+      [tenant1Id]
+    );
+
+    // Első tickethez (#1243 - Vízvezeték)
+    await query(`
+      INSERT INTO ticket_comments (ticket_id, user_id, comment)
+      VALUES 
+        ($1, $2, 'Jegy átadva a Vízvezeték Kft.-nek. Kérem, foglalkozzanak vele sürgősen!'),
+        ($1, $3, 'Holnap reggel 9-kor kimegyünk a helyszínt felmérni. 📸'),
+        ($1, $3, 'Helyszíni szemle kész. Csövet kell cserélni, alkatrészt rendeltem. Várható megoldás: 2-3 nap.')
+    `, [ticketsResult.rows[0].id, kissJanosId, vizvezetekId]);
+
+    logger.info('✓ Megjegyzések hozzáadva');
+
+    // 9. Ticket history bejegyzések
+    logger.info('Ticket történet bejegyzések...');
+    for (const ticket of ticketsResult.rows) {
+      await query(`
+        INSERT INTO ticket_history (ticket_id, user_id, action, new_value)
+        VALUES ($1, $2, 'created', $3)
+      `, [ticket.id, tothAnnaId, ticket.ticket_number]);
+    }
+
+    logger.info('✓ Történet bejegyzések létrehozva');
+
+    logger.info('✅ Seed befejezve!');
+    logger.info('');
+    logger.info('📝 Teszt bejelentkezési adatok:');
+    logger.info('-----------------------------------');
+    logger.info('Szuperadmin:');
+    logger.info('  Email: admin@hr-erp.com');
+    logger.info('  Jelszó: password123');
+    logger.info('');
+    logger.info('ABC Kft. Admin:');
+    logger.info('  Email: kiss.janos@abc-kft.hu');
+    logger.info('  Jelszó: password123');
+    logger.info('');
+    logger.info('Felhasználó:');
+    logger.info('  Email: toth.anna@abc-kft.hu');
+    logger.info('  Jelszó: password123');
+    logger.info('');
+    logger.info('Alvállalkozó:');
+    logger.info('  Email: vizvezetek@example.com');
+    logger.info('  Jelszó: password123');
+    logger.info('-----------------------------------');
+
+  } catch (error) {
+    logger.error('❌ Seed hiba:', error);
+    throw error;
+  }
+}
+
+// Futtatás, ha közvetlenül hívjuk
+if (require.main === module) {
+  seedDatabase()
+    .then(() => {
+      logger.info('Seed sikeresen befejezve');
+      process.exit(0);
+    })
+    .catch(error => {
+      logger.error('Seed sikertelen:', error);
+      process.exit(1);
+    });
+}
+
+module.exports = { seedDatabase };

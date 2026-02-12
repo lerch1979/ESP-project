@@ -1,0 +1,11 @@
+<svg width="300" height="80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Főcím -->
+  <text x="150" y="35" font-family="'Roboto', sans-serif" font-size="32" font-weight="900" text-anchor="middle" fill="#2c5f2d">
+    HOUSING SOLUTIONS
+  </text>
+  
+  <!-- Alcím -->
+  <text x="150" y="60" font-family="'Roboto', sans-serif" font-size="14" font-weight="400" text-anchor="middle" fill="#6b7280">
+    A SZÁLLÁSOK SZAKÉRTŐJE
+  </text>
+</svg>
