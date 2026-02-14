@@ -45,7 +45,7 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
     try {
       const [employeesRes, usersRes, categoriesRes, statusesRes, prioritiesRes] = await Promise.allSettled([
         api.get('/users?role=accommodated_employee'),
-        api.get('/users'),
+        api.get('/users?role=contractor'),  // CSAK contractor-ok
         api.get('/categories'),
         api.get('/statuses'),
         api.get('/priorities'),
