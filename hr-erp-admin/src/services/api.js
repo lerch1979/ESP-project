@@ -84,4 +84,41 @@ export const ticketsAPI = {
   },
 };
 
+// Tenants API
+export const tenantsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/tenants', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/tenants/${id}`);
+    return response.data;
+  },
+
+  create: async (tenantData) => {
+    const response = await api.post('/tenants', tenantData);
+    return response.data;
+  },
+
+  update: async (id, tenantData) => {
+    const response = await api.put(`/tenants/${id}`, tenantData);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/tenants/${id}`);
+    return response.data;
+  },
+
+  bulkImport: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/tenants/bulk', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};
+
 export default api;

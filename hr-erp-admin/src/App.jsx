@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import TicketDetail from './pages/TicketDetail';
 import Users from './pages/Users';
+import Tenants from './pages/Tenants';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="tickets" element={<Tickets />} />
           <Route path="tickets/:id" element={<TicketDetail />} />
           <Route path="users" element={<Users />} />
+          <Route path="tenants" element={<Tenants />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
