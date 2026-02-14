@@ -244,7 +244,7 @@ function Accommodations() {
                     <TableCell sx={{ fontWeight: 600 }}>Cím</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Típus</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Kapacitás</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Jelenlegi bérlő</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Jelenlegi alvállalkozó</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Havi díj</TableCell>
                   </TableRow>
@@ -282,7 +282,7 @@ function Accommodations() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {acc.current_tenant_name || '-'}
+                          {acc.current_contractor_name || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>

@@ -44,9 +44,9 @@ const COLUMN_MAP = {
 };
 
 /**
- * Bérlők listázása (szűrőkkel, lapozással)
+ * Alvállalkozók listázása (szűrőkkel, lapozással)
  */
-const getTenants = async (req, res) => {
+const getContractors = async (req, res) => {
   try {
     const { search, is_active, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
@@ -74,27 +74,27 @@ const getTenants = async (req, res) => {
       : '';
 
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM tenants t ${whereClause}`,
+      `SELECT COUNT(*) as total FROM contractors t ${whereClause}`,
       params
     );
 
-    const tenantsQuery = `
+    const contractorsQuery = `
       SELECT
         t.*,
-        (SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id AND u.is_active = true) as user_count
-      FROM tenants t
+        (SELECT COUNT(*) FROM users u WHERE u.contractor_id = t.id AND u.is_active = true) as user_count
+      FROM contractors t
       ${whereClause}
       ORDER BY t.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
     params.push(parseInt(limit), parseInt(offset));
-    const tenantsResult = await query(tenantsQuery, params);
+    const contractorsResult = await query(contractorsQuery, params);
 
     res.json({
       success: true,
       data: {
-        tenants: tenantsResult.rows,
+        contractors: contractorsResult.rows,
         pagination: {
           total: parseInt(countResult.rows[0].total),
           page: parseInt(page),
@@ -104,55 +104,55 @@ const getTenants = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Bérlők lekérési hiba:', error);
+    logger.error('Alvállalkozók lekérési hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Bérlők lekérési hiba'
+      message: 'Alvállalkozók lekérési hiba'
     });
   }
 };
 
 /**
- * Egy bérlő részletei
+ * Egy alvállalkozó részletei
  */
-const getTenantById = async (req, res) => {
+const getContractorById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const tenantQuery = `
+    const contractorQuery = `
       SELECT
         t.*,
-        (SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id AND u.is_active = true) as user_count
-      FROM tenants t
+        (SELECT COUNT(*) FROM users u WHERE u.contractor_id = t.id AND u.is_active = true) as user_count
+      FROM contractors t
       WHERE t.id = $1
     `;
 
-    const result = await query(tenantQuery, [id]);
+    const result = await query(contractorQuery, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Bérlő nem található'
+        message: 'Alvállalkozó nem található'
       });
     }
 
     res.json({
       success: true,
-      data: { tenant: result.rows[0] }
+      data: { contractor: result.rows[0] }
     });
   } catch (error) {
-    logger.error('Bérlő lekérési hiba:', error);
+    logger.error('Alvállalkozó lekérési hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Bérlő lekérési hiba'
+      message: 'Alvállalkozó lekérési hiba'
     });
   }
 };
 
 /**
- * Új bérlő létrehozása
+ * Új alvállalkozó létrehozása
  */
-const createTenant = async (req, res) => {
+const createContractor = async (req, res) => {
   try {
     const { name, email, phone, address } = req.body;
 
@@ -174,7 +174,7 @@ const createTenant = async (req, res) => {
 
     // Check slug uniqueness
     const existingSlug = await query(
-      'SELECT id FROM tenants WHERE slug = $1',
+      'SELECT id FROM contractors WHERE slug = $1',
       [slug]
     );
 
@@ -184,7 +184,7 @@ const createTenant = async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO tenants (name, slug, email, phone, address)
+      INSERT INTO contractors (name, slug, email, phone, address)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
@@ -197,36 +197,36 @@ const createTenant = async (req, res) => {
       address || null,
     ]);
 
-    logger.info('Új bérlő létrehozva', { tenantId: result.rows[0].id, name });
+    logger.info('Új alvállalkozó létrehozva', { contractorId: result.rows[0].id, name });
 
     res.status(201).json({
       success: true,
-      message: 'Bérlő sikeresen létrehozva',
-      data: { tenant: result.rows[0] }
+      message: 'Alvállalkozó sikeresen létrehozva',
+      data: { contractor: result.rows[0] }
     });
   } catch (error) {
-    logger.error('Bérlő létrehozási hiba:', error);
+    logger.error('Alvállalkozó létrehozási hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Bérlő létrehozási hiba'
+      message: 'Alvállalkozó létrehozási hiba'
     });
   }
 };
 
 /**
- * Bérlő frissítése
+ * Alvállalkozó frissítése
  */
-const updateTenant = async (req, res) => {
+const updateContractor = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, address, is_active } = req.body;
 
-    // Check tenant exists
-    const existing = await query('SELECT * FROM tenants WHERE id = $1', [id]);
+    // Check contractor exists
+    const existing = await query('SELECT * FROM contractors WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Bérlő nem található'
+        message: 'Alvállalkozó nem található'
       });
     }
 
@@ -250,7 +250,7 @@ const updateTenant = async (req, res) => {
       // Regenerate slug if name changes
       const newSlug = generateSlug(name.trim());
       const slugCheck = await query(
-        'SELECT id FROM tenants WHERE slug = $1 AND id != $2',
+        'SELECT id FROM contractors WHERE slug = $1 AND id != $2',
         [newSlug, id]
       );
       const finalSlug = slugCheck.rows.length > 0 ? `${newSlug}-${Date.now()}` : newSlug;
@@ -292,68 +292,68 @@ const updateTenant = async (req, res) => {
 
     params.push(id);
     const updateQuery = `
-      UPDATE tenants SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      UPDATE contractors SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramIndex}
       RETURNING *
     `;
 
     const result = await query(updateQuery, params);
 
-    logger.info('Bérlő frissítve', { tenantId: id });
+    logger.info('Alvállalkozó frissítve', { contractorId: id });
 
     res.json({
       success: true,
-      message: 'Bérlő sikeresen frissítve',
-      data: { tenant: result.rows[0] }
+      message: 'Alvállalkozó sikeresen frissítve',
+      data: { contractor: result.rows[0] }
     });
   } catch (error) {
-    logger.error('Bérlő frissítési hiba:', error);
+    logger.error('Alvállalkozó frissítési hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Bérlő frissítési hiba'
+      message: 'Alvállalkozó frissítési hiba'
     });
   }
 };
 
 /**
- * Bérlő törlése (soft delete)
+ * Alvállalkozó törlése (soft delete)
  */
-const deleteTenant = async (req, res) => {
+const deleteContractor = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await query('SELECT id FROM tenants WHERE id = $1', [id]);
+    const existing = await query('SELECT id FROM contractors WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Bérlő nem található'
+        message: 'Alvállalkozó nem található'
       });
     }
 
     await query(
-      'UPDATE tenants SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      'UPDATE contractors SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [id]
     );
 
-    logger.info('Bérlő deaktiválva', { tenantId: id });
+    logger.info('Alvállalkozó deaktiválva', { contractorId: id });
 
     res.json({
       success: true,
-      message: 'Bérlő sikeresen deaktiválva'
+      message: 'Alvállalkozó sikeresen deaktiválva'
     });
   } catch (error) {
-    logger.error('Bérlő törlési hiba:', error);
+    logger.error('Alvállalkozó törlési hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Bérlő törlési hiba'
+      message: 'Alvállalkozó törlési hiba'
     });
   }
 };
 
 /**
- * Tömeges bérlő importálás Excel/CSV fájlból
+ * Tömeges alvállalkozó importálás Excel/CSV fájlból
  */
-const bulkImportTenants = async (req, res) => {
+const bulkImportContractors = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -406,7 +406,7 @@ const bulkImportTenants = async (req, res) => {
 
         const slug = generateSlug(row.name.trim());
         const slugCheck = await client.query(
-          'SELECT id FROM tenants WHERE slug = $1',
+          'SELECT id FROM contractors WHERE slug = $1',
           [slug]
         );
 
@@ -417,7 +417,7 @@ const bulkImportTenants = async (req, res) => {
 
         try {
           const result = await client.query(
-            `INSERT INTO tenants (name, slug, email, phone, address)
+            `INSERT INTO contractors (name, slug, email, phone, address)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING id, name`,
             [
@@ -435,14 +435,14 @@ const bulkImportTenants = async (req, res) => {
       }
     });
 
-    logger.info('Tömeges bérlő import', {
+    logger.info('Tömeges alvállalkozó import', {
       imported: imported.length,
       errors: errors.length
     });
 
     res.json({
       success: true,
-      message: `${imported.length} bérlő sikeresen importálva`,
+      message: `${imported.length} alvállalkozó sikeresen importálva`,
       data: {
         imported: imported.length,
         errors
@@ -458,10 +458,10 @@ const bulkImportTenants = async (req, res) => {
 };
 
 module.exports = {
-  getTenants,
-  getTenantById,
-  createTenant,
-  updateTenant,
-  deleteTenant,
-  bulkImportTenants,
+  getContractors,
+  getContractorById,
+  createContractor,
+  updateContractor,
+  deleteContractor,
+  bulkImportContractors,
 };

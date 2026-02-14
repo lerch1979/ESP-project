@@ -40,10 +40,10 @@ router.get('/', accommodationController.getAccommodations);
 router.get('/:id', accommodationController.getAccommodationById);
 
 /**
- * GET /api/v1/accommodations/:id/tenants
- * Szálláshely bérlő történet
+ * GET /api/v1/accommodations/:id/contractors
+ * Szálláshely alvállalkozó történet
  */
-router.get('/:id/tenants', accommodationController.getAccommodationTenants);
+router.get('/:id/contractors', accommodationController.getAccommodationContractors);
 
 /**
  * POST /api/v1/accommodations

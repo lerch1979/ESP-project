@@ -106,9 +106,9 @@ const getAccommodations = async (req, res) => {
     const accommodationsQuery = `
       SELECT
         a.*,
-        t.name as current_tenant_name
+        t.name as current_contractor_name
       FROM accommodations a
-      LEFT JOIN tenants t ON a.current_tenant_id = t.id
+      LEFT JOIN contractors t ON a.current_contractor_id = t.id
       ${whereClause}
       ORDER BY a.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -148,11 +148,11 @@ const getAccommodationById = async (req, res) => {
     const accommodationQuery = `
       SELECT
         a.*,
-        t.name as current_tenant_name,
-        t.email as current_tenant_email,
-        t.phone as current_tenant_phone
+        t.name as current_contractor_name,
+        t.email as current_contractor_email,
+        t.phone as current_contractor_phone
       FROM accommodations a
-      LEFT JOIN tenants t ON a.current_tenant_id = t.id
+      LEFT JOIN contractors t ON a.current_contractor_id = t.id
       WHERE a.id = $1
     `;
 
@@ -183,7 +183,7 @@ const getAccommodationById = async (req, res) => {
  */
 const createAccommodation = async (req, res) => {
   try {
-    const { name, address, type, capacity, current_tenant_id, status, monthly_rent, notes } = req.body;
+    const { name, address, type, capacity, current_contractor_id, status, monthly_rent, notes } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -213,42 +213,42 @@ const createAccommodation = async (req, res) => {
       });
     }
 
-    // If tenant is assigned, verify it exists
-    if (current_tenant_id) {
-      const tenantCheck = await query('SELECT id FROM tenants WHERE id = $1', [current_tenant_id]);
-      if (tenantCheck.rows.length === 0) {
+    // If contractor is assigned, verify it exists
+    if (current_contractor_id) {
+      const contractorCheck = await query('SELECT id FROM contractors WHERE id = $1', [current_contractor_id]);
+      if (contractorCheck.rows.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'A megadott bérlő nem található'
+          message: 'A megadott alvállalkozó nem található'
         });
       }
     }
 
     const insertQuery = `
-      INSERT INTO accommodations (name, address, type, capacity, current_tenant_id, status, monthly_rent, notes)
+      INSERT INTO accommodations (name, address, type, capacity, current_contractor_id, status, monthly_rent, notes)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
-    const finalStatus = current_tenant_id ? 'occupied' : (status || 'available');
+    const finalStatus = current_contractor_id ? 'occupied' : (status || 'available');
 
     const result = await query(insertQuery, [
       name.trim(),
       address || null,
       type || 'studio',
       capacity || 1,
-      current_tenant_id || null,
+      current_contractor_id || null,
       finalStatus,
       monthly_rent || null,
       notes || null,
     ]);
 
-    // If tenant assigned, create history record
-    if (current_tenant_id) {
+    // If contractor assigned, create history record
+    if (current_contractor_id) {
       await query(
-        `INSERT INTO accommodation_tenants (accommodation_id, tenant_id, check_in)
+        `INSERT INTO accommodation_contractors (accommodation_id, contractor_id, check_in)
          VALUES ($1, $2, CURRENT_DATE)`,
-        [result.rows[0].id, current_tenant_id]
+        [result.rows[0].id, current_contractor_id]
       );
     }
 
@@ -274,7 +274,7 @@ const createAccommodation = async (req, res) => {
 const updateAccommodation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, type, capacity, current_tenant_id, status, monthly_rent, notes } = req.body;
+    const { name, address, type, capacity, current_contractor_id, status, monthly_rent, notes } = req.body;
 
     // Check exists
     const existing = await query('SELECT * FROM accommodations WHERE id = $1', [id]);
@@ -308,13 +308,13 @@ const updateAccommodation = async (req, res) => {
       });
     }
 
-    // If changing tenant, verify new tenant exists
-    if (current_tenant_id !== undefined && current_tenant_id !== null) {
-      const tenantCheck = await query('SELECT id FROM tenants WHERE id = $1', [current_tenant_id]);
-      if (tenantCheck.rows.length === 0) {
+    // If changing contractor, verify new contractor exists
+    if (current_contractor_id !== undefined && current_contractor_id !== null) {
+      const contractorCheck = await query('SELECT id FROM contractors WHERE id = $1', [current_contractor_id]);
+      if (contractorCheck.rows.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'A megadott bérlő nem található'
+          message: 'A megadott alvállalkozó nem található'
         });
       }
     }
@@ -348,18 +348,18 @@ const updateAccommodation = async (req, res) => {
       paramIndex++;
     }
 
-    if (current_tenant_id !== undefined) {
-      fields.push(`current_tenant_id = $${paramIndex}`);
-      params.push(current_tenant_id || null);
+    if (current_contractor_id !== undefined) {
+      fields.push(`current_contractor_id = $${paramIndex}`);
+      params.push(current_contractor_id || null);
       paramIndex++;
 
-      // Auto-update status based on tenant assignment
-      if (current_tenant_id) {
+      // Auto-update status based on contractor assignment
+      if (current_contractor_id) {
         fields.push(`status = $${paramIndex}`);
         params.push('occupied');
         paramIndex++;
       } else if (!status) {
-        // If tenant removed and no explicit status, set to available
+        // If contractor removed and no explicit status, set to available
         fields.push(`status = $${paramIndex}`);
         params.push('available');
         paramIndex++;
@@ -400,27 +400,27 @@ const updateAccommodation = async (req, res) => {
 
     const result = await query(updateQuery, params);
 
-    // Handle tenant history updates
-    const newTenantId = current_tenant_id !== undefined ? current_tenant_id : oldAccommodation.current_tenant_id;
-    const oldTenantId = oldAccommodation.current_tenant_id;
+    // Handle contractor history updates
+    const newContractorId = current_contractor_id !== undefined ? current_contractor_id : oldAccommodation.current_contractor_id;
+    const oldContractorId = oldAccommodation.current_contractor_id;
 
-    if (current_tenant_id !== undefined && oldTenantId !== newTenantId) {
-      // Close old tenant's record
-      if (oldTenantId) {
+    if (current_contractor_id !== undefined && oldContractorId !== newContractorId) {
+      // Close old contractor's record
+      if (oldContractorId) {
         await query(
-          `UPDATE accommodation_tenants
+          `UPDATE accommodation_contractors
            SET check_out = CURRENT_DATE
-           WHERE accommodation_id = $1 AND tenant_id = $2 AND check_out IS NULL`,
-          [id, oldTenantId]
+           WHERE accommodation_id = $1 AND contractor_id = $2 AND check_out IS NULL`,
+          [id, oldContractorId]
         );
       }
 
-      // Open new tenant's record
-      if (newTenantId) {
+      // Open new contractor's record
+      if (newContractorId) {
         await query(
-          `INSERT INTO accommodation_tenants (accommodation_id, tenant_id, check_in)
+          `INSERT INTO accommodation_contractors (accommodation_id, contractor_id, check_in)
            VALUES ($1, $2, CURRENT_DATE)`,
-          [id, newTenantId]
+          [id, newContractorId]
         );
       }
     }
@@ -477,9 +477,9 @@ const deleteAccommodation = async (req, res) => {
 };
 
 /**
- * Szálláshely bérlő történet
+ * Szálláshely alvállalkozó történet
  */
-const getAccommodationTenants = async (req, res) => {
+const getAccommodationContractors = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -495,11 +495,11 @@ const getAccommodationTenants = async (req, res) => {
     const historyQuery = `
       SELECT
         at.*,
-        t.name as tenant_name,
-        t.email as tenant_email,
-        t.phone as tenant_phone
-      FROM accommodation_tenants at
-      JOIN tenants t ON at.tenant_id = t.id
+        t.name as contractor_name,
+        t.email as contractor_email,
+        t.phone as contractor_phone
+      FROM accommodation_contractors at
+      JOIN contractors t ON at.contractor_id = t.id
       WHERE at.accommodation_id = $1
       ORDER BY at.check_in DESC
     `;
@@ -508,13 +508,13 @@ const getAccommodationTenants = async (req, res) => {
 
     res.json({
       success: true,
-      data: { tenants: result.rows }
+      data: { contractors: result.rows }
     });
   } catch (error) {
-    logger.error('Szálláshely bérlő történet hiba:', error);
+    logger.error('Szálláshely alvállalkozó történet hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Szálláshely bérlő történet lekérési hiba'
+      message: 'Szálláshely alvállalkozó történet lekérési hiba'
     });
   }
 };
@@ -662,6 +662,6 @@ module.exports = {
   createAccommodation,
   updateAccommodation,
   deleteAccommodation,
-  getAccommodationTenants,
+  getAccommodationContractors,
   bulkImportAccommodations,
 };

@@ -24,7 +24,7 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
-import { accommodationsAPI, tenantsAPI } from '../services/api';
+import { accommodationsAPI, contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 const STATUS_LABELS = {
@@ -52,14 +52,14 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [accommodation, setAccommodation] = useState(null);
-  const [tenantHistory, setTenantHistory] = useState([]);
-  const [tenants, setTenants] = useState([]);
+  const [contractorHistory, setContractorHistory] = useState([]);
+  const [contractors, setContractors] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     type: 'studio',
     capacity: 1,
-    current_tenant_id: '',
+    current_contractor_id: '',
     status: 'available',
     monthly_rent: '',
     notes: '',
@@ -68,7 +68,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   useEffect(() => {
     if (open && accommodationId) {
       loadAccommodation();
-      loadTenantHistory();
+      loadContractorHistory();
       setEditing(false);
     }
   }, [open, accommodationId]);
@@ -85,7 +85,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
           address: acc.address || '',
           type: acc.type || 'studio',
           capacity: acc.capacity || 1,
-          current_tenant_id: acc.current_tenant_id || '',
+          current_contractor_id: acc.current_contractor_id || '',
           status: acc.status || 'available',
           monthly_rent: acc.monthly_rent || '',
           notes: acc.notes || '',
@@ -99,25 +99,25 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
     }
   };
 
-  const loadTenantHistory = async () => {
+  const loadContractorHistory = async () => {
     try {
-      const response = await accommodationsAPI.getTenantHistory(accommodationId);
+      const response = await accommodationsAPI.getContractorHistory(accommodationId);
       if (response.success) {
-        setTenantHistory(response.data.tenants);
+        setContractorHistory(response.data.contractors);
       }
     } catch (error) {
       console.error('Bérlő történet betöltési hiba:', error);
     }
   };
 
-  const loadTenants = async () => {
+  const loadContractors = async () => {
     try {
-      const response = await tenantsAPI.getAll({ limit: 500, is_active: 'true' });
+      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true' });
       if (response.success) {
-        setTenants(response.data.tenants);
+        setContractors(response.data.contractors);
       }
     } catch (error) {
-      console.error('Bérlők betöltési hiba:', error);
+      console.error('Alvállalkozók betöltési hiba:', error);
     }
   };
 
@@ -126,7 +126,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   };
 
   const handleEdit = () => {
-    loadTenants();
+    loadContractors();
     setEditing(true);
   };
 
@@ -140,7 +140,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
       ...formData,
       capacity: parseInt(formData.capacity) || 1,
       monthly_rent: formData.monthly_rent ? parseFloat(formData.monthly_rent) : null,
-      current_tenant_id: formData.current_tenant_id || null,
+      current_contractor_id: formData.current_contractor_id || null,
     };
 
     setSaving(true);
@@ -150,7 +150,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
         toast.success('Szálláshely sikeresen frissítve!');
         setAccommodation(response.data.accommodation);
         setEditing(false);
-        loadTenantHistory();
+        loadContractorHistory();
         onSuccess();
       }
     } catch (error) {
@@ -183,7 +183,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   const handleClose = () => {
     setEditing(false);
     setAccommodation(null);
-    setTenantHistory([]);
+    setContractorHistory([]);
     onClose();
   };
 
@@ -288,14 +288,14 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               </Grid>
               <Grid item xs={12}>
                 <FormControl fullWidth>
-                  <InputLabel>Jelenlegi bérlő</InputLabel>
+                  <InputLabel>Jelenlegi alvállalkozó</InputLabel>
                   <Select
-                    value={formData.current_tenant_id}
-                    onChange={(e) => handleChange('current_tenant_id', e.target.value)}
-                    label="Jelenlegi bérlő"
+                    value={formData.current_contractor_id}
+                    onChange={(e) => handleChange('current_contractor_id', e.target.value)}
+                    label="Jelenlegi alvállalkozó"
                   >
                     <MenuItem value="">Nincs</MenuItem>
-                    {tenants.map((t) => (
+                    {contractors.map((t) => (
                       <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
                     ))}
                   </Select>
@@ -320,12 +320,12 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               <DetailRow label="Típus" value={TYPE_LABELS[accommodation.type] || accommodation.type} />
               <DetailRow label="Kapacitás" value={`${accommodation.capacity} fő`} />
               <DetailRow label="Havi bérleti díj" value={formatRent(accommodation.monthly_rent)} />
-              <DetailRow label="Jelenlegi bérlő" value={accommodation.current_tenant_name || '-'} />
-              {accommodation.current_tenant_email && (
-                <DetailRow label="Bérlő email" value={accommodation.current_tenant_email} />
+              <DetailRow label="Jelenlegi alvállalkozó" value={accommodation.current_contractor_name || '-'} />
+              {accommodation.current_contractor_email && (
+                <DetailRow label="Alvállalkozó email" value={accommodation.current_contractor_email} />
               )}
-              {accommodation.current_tenant_phone && (
-                <DetailRow label="Bérlő telefon" value={accommodation.current_tenant_phone} />
+              {accommodation.current_contractor_phone && (
+                <DetailRow label="Alvállalkozó telefon" value={accommodation.current_contractor_phone} />
               )}
               <DetailRow label="Megjegyzések" value={accommodation.notes || '-'} />
               <Divider sx={{ my: 2 }} />
@@ -338,25 +338,25 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                 value={new Date(accommodation.updated_at).toLocaleString('hu-HU')}
               />
 
-              {/* Tenant history */}
-              {tenantHistory.length > 0 && (
+              {/* Contractor history */}
+              {contractorHistory.length > 0 && (
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                    Bérlő történet
+                    Alvállalkozó történet
                   </Typography>
                   <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell sx={{ fontWeight: 600 }}>Bérlő</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Alvállalkozó</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Beköltözés</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Kiköltözés</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {tenantHistory.map((h) => (
+                        {contractorHistory.map((h) => (
                           <TableRow key={h.id}>
-                            <TableCell>{h.tenant_name}</TableCell>
+                            <TableCell>{h.contractor_name}</TableCell>
                             <TableCell>
                               {new Date(h.check_in).toLocaleDateString('hu-HU')}
                             </TableCell>

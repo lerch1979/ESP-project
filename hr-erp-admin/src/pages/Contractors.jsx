@@ -26,15 +26,15 @@ import {
   Add as AddIcon,
   CloudUpload as UploadIcon,
 } from '@mui/icons-material';
-import { tenantsAPI } from '../services/api';
+import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import CreateTenantModal from '../components/CreateTenantModal';
-import BulkImportModal from '../components/BulkImportModal';
-import TenantDetailModal from '../components/TenantDetailModal';
+import CreateContractorModal from '../components/CreateContractorModal';
+import ContractorBulkImportModal from '../components/ContractorBulkImportModal';
+import ContractorDetailModal from '../components/ContractorDetailModal';
 
-function Tenants() {
+function Contractors() {
   const [loading, setLoading] = useState(true);
-  const [tenants, setTenants] = useState([]);
+  const [contractors, setContractors] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -43,13 +43,13 @@ function Tenants() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [selectedTenantId, setSelectedTenantId] = useState(null);
+  const [selectedContractorId, setSelectedContractorId] = useState(null);
 
   useEffect(() => {
-    loadTenants();
+    loadContractors();
   }, [page, rowsPerPage, search, activeFilter]);
 
-  const loadTenants = async () => {
+  const loadContractors = async () => {
     setLoading(true);
     try {
       const params = {
@@ -60,15 +60,15 @@ function Tenants() {
       if (search) params.search = search;
       if (activeFilter !== 'all') params.is_active = activeFilter;
 
-      const response = await tenantsAPI.getAll(params);
+      const response = await contractorsAPI.getAll(params);
 
       if (response.success) {
-        setTenants(response.data.tenants);
+        setContractors(response.data.contractors);
         setTotalCount(response.data.pagination.total);
       }
     } catch (error) {
-      console.error('Bérlők betöltési hiba:', error);
-      toast.error('Hiba a bérlők betöltésekor');
+      console.error('Alvállalkozók betöltési hiba:', error);
+      toast.error('Hiba az alvállalkozók betöltésekor');
     } finally {
       setLoading(false);
     }
@@ -88,8 +88,8 @@ function Tenants() {
     setPage(0);
   };
 
-  const handleRowClick = (tenantId) => {
-    setSelectedTenantId(tenantId);
+  const handleRowClick = (contractorId) => {
+    setSelectedContractorId(contractorId);
     setDetailModalOpen(true);
   };
 
@@ -98,7 +98,7 @@ function Tenants() {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Bérlők
+          Alvállalkozók
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button
@@ -122,7 +122,7 @@ function Tenants() {
               '&:hover': { bgcolor: '#234d24' },
             }}
           >
-            Új bérlő
+            Új alvállalkozó
           </Button>
         </Stack>
       </Box>
@@ -178,7 +178,7 @@ function Tenants() {
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
             <CircularProgress />
           </Box>
-        ) : tenants.length === 0 ? (
+        ) : contractors.length === 0 ? (
           <Box sx={{ p: 5, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary">
               Nincs találat
@@ -203,51 +203,51 @@ function Tenants() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {tenants.map((tenant) => (
+                  {contractors.map((contractor) => (
                     <TableRow
-                      key={tenant.id}
+                      key={contractor.id}
                       hover
                       sx={{
                         cursor: 'pointer',
                         '&:hover': { bgcolor: 'rgba(44, 95, 45, 0.04)' },
                       }}
-                      onClick={() => handleRowClick(tenant.id)}
+                      onClick={() => handleRowClick(contractor.id)}
                     >
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c5f2d' }}>
-                          {tenant.name}
+                          {contractor.name}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {tenant.email || '-'}
+                          {contractor.email || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {tenant.phone || '-'}
+                          {contractor.phone || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {tenant.address || '-'}
+                          {contractor.address || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {tenant.user_count}
+                          {contractor.user_count}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={tenant.is_active ? 'Aktív' : 'Inaktív'}
+                          label={contractor.is_active ? 'Aktív' : 'Inaktív'}
                           size="small"
-                          color={tenant.is_active ? 'success' : 'default'}
+                          color={contractor.is_active ? 'success' : 'default'}
                         />
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {new Date(tenant.created_at).toLocaleDateString('hu-HU')}
+                          {new Date(contractor.created_at).toLocaleDateString('hu-HU')}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -272,32 +272,32 @@ function Tenants() {
       </Paper>
 
       {/* Modals */}
-      <CreateTenantModal
+      <CreateContractorModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onSuccess={() => {
-          loadTenants();
+          loadContractors();
           setPage(0);
         }}
       />
 
-      <BulkImportModal
+      <ContractorBulkImportModal
         open={bulkModalOpen}
         onClose={() => setBulkModalOpen(false)}
         onSuccess={() => {
-          loadTenants();
+          loadContractors();
           setPage(0);
         }}
       />
 
-      <TenantDetailModal
+      <ContractorDetailModal
         open={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        tenantId={selectedTenantId}
-        onSuccess={loadTenants}
+        contractorId={selectedContractorId}
+        onSuccess={loadContractors}
       />
     </Box>
   );
 }
 
-export default Tenants;
+export default Contractors;

@@ -84,37 +84,37 @@ export const ticketsAPI = {
   },
 };
 
-// Tenants API
-export const tenantsAPI = {
+// Contractors API
+export const contractorsAPI = {
   getAll: async (params = {}) => {
-    const response = await api.get('/tenants', { params });
+    const response = await api.get('/contractors', { params });
     return response.data;
   },
 
   getById: async (id) => {
-    const response = await api.get(`/tenants/${id}`);
+    const response = await api.get(`/contractors/${id}`);
     return response.data;
   },
 
-  create: async (tenantData) => {
-    const response = await api.post('/tenants', tenantData);
+  create: async (contractorData) => {
+    const response = await api.post('/contractors', contractorData);
     return response.data;
   },
 
-  update: async (id, tenantData) => {
-    const response = await api.put(`/tenants/${id}`, tenantData);
+  update: async (id, contractorData) => {
+    const response = await api.put(`/contractors/${id}`, contractorData);
     return response.data;
   },
 
   delete: async (id) => {
-    const response = await api.delete(`/tenants/${id}`);
+    const response = await api.delete(`/contractors/${id}`);
     return response.data;
   },
 
   bulkImport: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/tenants/bulk', formData, {
+    const response = await api.post('/contractors/bulk', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -156,8 +156,8 @@ export const accommodationsAPI = {
     return response.data;
   },
 
-  getTenantHistory: async (id) => {
-    const response = await api.get(`/accommodations/${id}/tenants`);
+  getContractorHistory: async (id) => {
+    const response = await api.get(`/accommodations/${id}/contractors`);
     return response.data;
   },
 

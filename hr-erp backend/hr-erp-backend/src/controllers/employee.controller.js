@@ -200,7 +200,7 @@ const createEmployee = async (req, res) => {
     const {
       first_name, last_name, email, phone,
       employee_number, position, start_date,
-      status_id, accommodation_id, tenant_id, notes
+      status_id, accommodation_id, contractor_id, notes
     } = req.body;
 
     if (!first_name || !first_name.trim() || !last_name || !last_name.trim()) {
@@ -255,14 +255,14 @@ const createEmployee = async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO employees (user_id, tenant_id, employee_number, status_id, position, start_date, accommodation_id, notes)
+      INSERT INTO employees (user_id, contractor_id, employee_number, status_id, position, start_date, accommodation_id, notes)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
     const result = await query(insertQuery, [
       userId,
-      tenant_id || null,
+      contractor_id || null,
       finalEmployeeNumber,
       finalStatusId || null,
       position || null,
@@ -276,10 +276,10 @@ const createEmployee = async (req, res) => {
       const bcrypt = require('bcryptjs');
       const tempPassword = await bcrypt.hash('changeme123', 10);
       const userResult = await query(
-        `INSERT INTO users (first_name, last_name, email, phone, password_hash, tenant_id)
+        `INSERT INTO users (first_name, last_name, email, phone, password_hash, contractor_id)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
-        [first_name.trim(), last_name.trim(), email, phone || null, tempPassword, tenant_id || null]
+        [first_name.trim(), last_name.trim(), email, phone || null, tempPassword, contractor_id || null]
       );
       userId = userResult.rows[0].id;
 
@@ -287,8 +287,8 @@ const createEmployee = async (req, res) => {
       const roleResult = await query("SELECT id FROM roles WHERE slug = 'accommodated_employee'");
       if (roleResult.rows.length > 0) {
         await query(
-          'INSERT INTO user_roles (user_id, role_id, tenant_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-          [userId, roleResult.rows[0].id, tenant_id || null]
+          'INSERT INTO user_roles (user_id, role_id, contractor_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [userId, roleResult.rows[0].id, contractor_id || null]
         );
       }
 
@@ -327,7 +327,7 @@ const updateEmployee = async (req, res) => {
     const { id } = req.params;
     const {
       employee_number, position, start_date, end_date,
-      status_id, accommodation_id, notes, tenant_id
+      status_id, accommodation_id, notes, contractor_id
     } = req.body;
 
     const existing = await query('SELECT * FROM employees WHERE id = $1', [id]);
@@ -396,9 +396,9 @@ const updateEmployee = async (req, res) => {
       paramIndex++;
     }
 
-    if (tenant_id !== undefined) {
-      fields.push(`tenant_id = $${paramIndex}`);
-      params.push(tenant_id || null);
+    if (contractor_id !== undefined) {
+      fields.push(`contractor_id = $${paramIndex}`);
+      params.push(contractor_id || null);
       paramIndex++;
     }
 

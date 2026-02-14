@@ -10,10 +10,10 @@ import {
   CircularProgress,
   Typography,
 } from '@mui/material';
-import { tenantsAPI } from '../services/api';
+import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
-function CreateTenantModal({ open, onClose, onSuccess }) {
+function CreateContractorModal({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -28,7 +28,7 @@ function CreateTenantModal({ open, onClose, onSuccess }) {
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      toast.error('Add meg a bérlő nevét!');
+      toast.error('Add meg az alvállalkozó nevét!');
       return;
     }
 
@@ -39,16 +39,16 @@ function CreateTenantModal({ open, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      const response = await tenantsAPI.create(formData);
+      const response = await contractorsAPI.create(formData);
 
       if (response.success) {
-        toast.success('Bérlő sikeresen létrehozva!');
+        toast.success('Alvállalkozó sikeresen létrehozva!');
         onSuccess();
         handleClose();
       }
     } catch (error) {
-      console.error('Bérlő létrehozási hiba:', error);
-      toast.error(error.response?.data?.message || 'Hiba a bérlő létrehozásakor');
+      console.error('Alvállalkozó létrehozási hiba:', error);
+      toast.error(error.response?.data?.message || 'Hiba az alvállalkozó létrehozásakor');
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ function CreateTenantModal({ open, onClose, onSuccess }) {
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Új bérlő létrehozása
+          Új alvállalkozó létrehozása
         </Typography>
       </DialogTitle>
 
@@ -135,4 +135,4 @@ function CreateTenantModal({ open, onClose, onSuccess }) {
   );
 }
 
-export default CreateTenantModal;
+export default CreateContractorModal;

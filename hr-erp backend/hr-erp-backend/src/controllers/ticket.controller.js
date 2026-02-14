@@ -13,10 +13,10 @@ const getTickets = async (req, res) => {
     let params = [];
     let paramIndex = 1;
 
-    // Tenant szűrés (szuperadmin kivételével mindenki csak a sajátját látja)
+    // Contractor szűrés (szuperadmin kivételével mindenki csak a sajátját látja)
     if (!req.user.roles.includes('superadmin')) {
-      whereConditions.push(`t.tenant_id = $${paramIndex}`);
-      params.push(req.user.tenantId);
+      whereConditions.push(`t.contractor_id = $${paramIndex}`);
+      params.push(req.user.contractorId);
       paramIndex++;
     }
 
@@ -155,14 +155,14 @@ const getTicketById = async (req, res) => {
         p.level as priority_level,
         creator.first_name || ' ' || creator.last_name as created_by_name,
         assignee.first_name || ' ' || assignee.last_name as assigned_to_name,
-        tn.name as tenant_name
+        tn.name as contractor_name
       FROM tickets t
       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
       LEFT JOIN priorities p ON t.priority_id = p.id
       LEFT JOIN users creator ON t.created_by = creator.id
       LEFT JOIN users assignee ON t.assigned_to = assignee.id
-      LEFT JOIN tenants tn ON t.tenant_id = tn.id
+      LEFT JOIN contractors tn ON t.contractor_id = tn.id
       WHERE t.id = $1
     `;
 
@@ -177,8 +177,8 @@ const getTicketById = async (req, res) => {
 
     const ticket = ticketResult.rows[0];
 
-    // Tenant hozzáférés ellenőrzés
-    if (!req.user.roles.includes('superadmin') && ticket.tenant_id !== req.user.tenantId) {
+    // Contractor hozzáférés ellenőrzés
+    if (!req.user.roles.includes('superadmin') && ticket.contractor_id !== req.user.contractorId) {
       return res.status(403).json({
         success: false,
         message: 'Nincs jogosultságod ehhez a tickethez'
@@ -285,14 +285,14 @@ const createTicket = async (req, res) => {
       // Ticket létrehozása
       const insertQuery = `
         INSERT INTO tickets (
-          tenant_id, ticket_number, title, description, 
+          contractor_id, ticket_number, title, description, 
           category_id, status_id, priority_id, created_by, assigned_to
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
 
       const result = await client.query(insertQuery, [
-        req.user.tenantId,
+        req.user.contractorId,
         ticketNumber,
         title,
         description || null,
@@ -316,7 +316,7 @@ const createTicket = async (req, res) => {
         ticketId,
         ticketNumber,
         userId: req.user.id,
-        tenantId: req.user.tenantId
+        contractorId: req.user.contractorId
       });
 
       res.status(201).json({
@@ -353,7 +353,7 @@ const updateTicketStatus = async (req, res) => {
     await transaction(async (client) => {
       // Jelenlegi ticket lekérése
       const currentResult = await client.query(
-        'SELECT status_id, tenant_id, assigned_to FROM tickets WHERE id = $1',
+        'SELECT status_id, contractor_id, assigned_to FROM tickets WHERE id = $1',
         [id]
       );
 
@@ -450,7 +450,7 @@ const addComment = async (req, res) => {
 
     // Ticket ellenőrzés és jogosultság
     const ticketCheck = await query(
-      'SELECT tenant_id, assigned_to FROM tickets WHERE id = $1',
+      'SELECT contractor_id, assigned_to FROM tickets WHERE id = $1',
       [id]
     );
 
@@ -464,7 +464,7 @@ const addComment = async (req, res) => {
     const ticket = ticketCheck.rows[0];
 
     // Jogosultság ellenőrzés
-    if (!req.user.roles.includes('superadmin') && ticket.tenant_id !== req.user.tenantId) {
+    if (!req.user.roles.includes('superadmin') && ticket.contractor_id !== req.user.contractorId) {
       return res.status(403).json({
         success: false,
         message: 'Nincs jogosultságod ehhez a tickethez'

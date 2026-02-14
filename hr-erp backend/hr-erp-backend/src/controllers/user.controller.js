@@ -5,7 +5,7 @@ const getUsers = async (req, res) => {
   try {
     const { role } = req.query;
     const userId = req.user?.id; // Auth middleware-ből
-    const tenantId = req.user?.tenantId; // Auth middleware-ből
+    const contractorId = req.user?.contractorId; // Auth middleware-ből
     
     let query = `
       SELECT 
@@ -14,7 +14,7 @@ const getUsers = async (req, res) => {
         u.last_name,
         u.email,
         u.phone,
-        u.tenant_id,
+        u.contractor_id,
         u.created_at
       FROM users u
       WHERE 1=1
@@ -23,10 +23,10 @@ const getUsers = async (req, res) => {
     const params = [];
     let paramIndex = 1;
     
-    // Tenant szűrés (ha nem superadmin)
-    if (tenantId) {
-      query += ` AND u.tenant_id = $${paramIndex}`;
-      params.push(tenantId);
+    // Contractor szűrés (ha nem superadmin)
+    if (contractorId) {
+      query += ` AND u.contractor_id = $${paramIndex}`;
+      params.push(contractorId);
       paramIndex++;
     }
     
@@ -77,7 +77,7 @@ const getUserById = async (req, res) => {
         u.last_name,
         u.email,
         u.phone,
-        u.tenant_id,
+        u.contractor_id,
         u.created_at
        FROM users u
        WHERE u.id = $1`,

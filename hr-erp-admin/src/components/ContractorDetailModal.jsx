@@ -13,14 +13,14 @@ import {
   Box,
   Divider,
 } from '@mui/material';
-import { tenantsAPI } from '../services/api';
+import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
-function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
+function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [tenant, setTenant] = useState(null);
+  const [contractor, setContractor] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -29,28 +29,28 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
   });
 
   useEffect(() => {
-    if (open && tenantId) {
-      loadTenant();
+    if (open && contractorId) {
+      loadContractor();
       setEditing(false);
     }
-  }, [open, tenantId]);
+  }, [open, contractorId]);
 
-  const loadTenant = async () => {
+  const loadContractor = async () => {
     setLoading(true);
     try {
-      const response = await tenantsAPI.getById(tenantId);
+      const response = await contractorsAPI.getById(contractorId);
       if (response.success) {
-        setTenant(response.data.tenant);
+        setContractor(response.data.contractor);
         setFormData({
-          name: response.data.tenant.name || '',
-          email: response.data.tenant.email || '',
-          phone: response.data.tenant.phone || '',
-          address: response.data.tenant.address || '',
+          name: response.data.contractor.name || '',
+          email: response.data.contractor.email || '',
+          phone: response.data.contractor.phone || '',
+          address: response.data.contractor.address || '',
         });
       }
     } catch (error) {
-      console.error('Bérlő betöltési hiba:', error);
-      toast.error('Hiba a bérlő adatainak betöltésekor');
+      console.error('Alvállalkozó betöltési hiba:', error);
+      toast.error('Hiba az alvállalkozó adatainak betöltésekor');
     } finally {
       setLoading(false);
     }
@@ -73,35 +73,35 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
 
     setSaving(true);
     try {
-      const response = await tenantsAPI.update(tenantId, formData);
+      const response = await contractorsAPI.update(contractorId, formData);
       if (response.success) {
-        toast.success('Bérlő sikeresen frissítve!');
-        setTenant(response.data.tenant);
+        toast.success('Alvállalkozó sikeresen frissítve!');
+        setContractor(response.data.contractor);
         setEditing(false);
         onSuccess();
       }
     } catch (error) {
-      console.error('Bérlő frissítési hiba:', error);
-      toast.error(error.response?.data?.message || 'Hiba a bérlő frissítésekor');
+      console.error('Alvállalkozó frissítési hiba:', error);
+      toast.error(error.response?.data?.message || 'Hiba az alvállalkozó frissítésekor');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeactivate = async () => {
-    if (!window.confirm('Biztosan deaktiválod ezt a bérlőt?')) return;
+    if (!window.confirm('Biztosan deaktiválod ezt az alvállalkozót?')) return;
 
     setSaving(true);
     try {
-      const response = await tenantsAPI.delete(tenantId);
+      const response = await contractorsAPI.delete(contractorId);
       if (response.success) {
-        toast.success('Bérlő deaktiválva!');
+        toast.success('Alvállalkozó deaktiválva!');
         onSuccess();
         onClose();
       }
     } catch (error) {
-      console.error('Bérlő deaktiválási hiba:', error);
-      toast.error('Hiba a bérlő deaktiválásakor');
+      console.error('Alvállalkozó deaktiválási hiba:', error);
+      toast.error('Hiba az alvállalkozó deaktiválásakor');
     } finally {
       setSaving(false);
     }
@@ -109,7 +109,7 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
 
   const handleClose = () => {
     setEditing(false);
-    setTenant(null);
+    setContractor(null);
     onClose();
   };
 
@@ -118,12 +118,12 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
       <DialogTitle>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            Bérlő részletei
+            Alvállalkozó részletei
           </Typography>
-          {tenant && (
+          {contractor && (
             <Chip
-              label={tenant.is_active ? 'Aktív' : 'Inaktív'}
-              color={tenant.is_active ? 'success' : 'default'}
+              label={contractor.is_active ? 'Aktív' : 'Inaktív'}
+              color={contractor.is_active ? 'success' : 'default'}
               size="small"
             />
           )}
@@ -135,7 +135,7 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
           </Box>
-        ) : tenant ? (
+        ) : contractor ? (
           editing ? (
             /* Edit mode */
             <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -179,20 +179,20 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
           ) : (
             /* View mode */
             <Box sx={{ mt: 1 }}>
-              <DetailRow label="Név" value={tenant.name} />
-              <DetailRow label="Slug" value={tenant.slug} />
-              <DetailRow label="Email" value={tenant.email || '-'} />
-              <DetailRow label="Telefon" value={tenant.phone || '-'} />
-              <DetailRow label="Cím" value={tenant.address || '-'} />
+              <DetailRow label="Név" value={contractor.name} />
+              <DetailRow label="Slug" value={contractor.slug} />
+              <DetailRow label="Email" value={contractor.email || '-'} />
+              <DetailRow label="Telefon" value={contractor.phone || '-'} />
+              <DetailRow label="Cím" value={contractor.address || '-'} />
               <Divider sx={{ my: 2 }} />
-              <DetailRow label="Felhasználók száma" value={tenant.user_count} />
+              <DetailRow label="Felhasználók száma" value={contractor.user_count} />
               <DetailRow
                 label="Létrehozva"
-                value={new Date(tenant.created_at).toLocaleString('hu-HU')}
+                value={new Date(contractor.created_at).toLocaleString('hu-HU')}
               />
               <DetailRow
                 label="Módosítva"
-                value={new Date(tenant.updated_at).toLocaleString('hu-HU')}
+                value={new Date(contractor.updated_at).toLocaleString('hu-HU')}
               />
             </Box>
           )
@@ -217,7 +217,7 @@ function TenantDetailModal({ open, onClose, tenantId, onSuccess }) {
         ) : (
           <>
             <Button onClick={handleClose}>Bezárás</Button>
-            {tenant?.is_active && (
+            {contractor?.is_active && (
               <>
                 <Button
                   onClick={handleDeactivate}
@@ -253,4 +253,4 @@ function DetailRow({ label, value }) {
   );
 }
 
-export default TenantDetailModal;
+export default ContractorDetailModal;

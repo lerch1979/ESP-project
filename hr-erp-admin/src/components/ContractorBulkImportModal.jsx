@@ -21,11 +21,11 @@ import {
   ListItemText,
 } from '@mui/material';
 import { CloudUpload as UploadIcon } from '@mui/icons-material';
-import { tenantsAPI } from '../services/api';
+import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
-function BulkImportModal({ open, onClose, onSuccess }) {
+function ContractorBulkImportModal({ open, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -68,7 +68,7 @@ function BulkImportModal({ open, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      const response = await tenantsAPI.bulkImport(file);
+      const response = await contractorsAPI.bulkImport(file);
 
       if (response.success) {
         setResult(response.data);
@@ -96,7 +96,7 @@ function BulkImportModal({ open, onClose, onSuccess }) {
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Tömeges bérlő importálás
+          Tömeges alvállalkozó importálás
         </Typography>
       </DialogTitle>
 
@@ -168,7 +168,7 @@ function BulkImportModal({ open, onClose, onSuccess }) {
         {result && (
           <Box sx={{ mt: 2 }}>
             <Alert severity="success" sx={{ mb: 2 }}>
-              {result.imported} bérlő sikeresen importálva
+              {result.imported} alvállalkozó sikeresen importálva
             </Alert>
 
             {result.errors && result.errors.length > 0 && (
@@ -214,4 +214,4 @@ function BulkImportModal({ open, onClose, onSuccess }) {
   );
 }
 
-export default BulkImportModal;
+export default ContractorBulkImportModal;

@@ -163,7 +163,7 @@ function Dashboard() {
           Kezdőlap
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          {user?.firstName} {user?.lastName} • {user?.tenant?.name}
+          {user?.firstName} {user?.lastName} • {user?.contractor?.name}
         </Typography>
       </Box>
 
@@ -180,9 +180,9 @@ function Dashboard() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Bérlők"
-            value={data.tenants.total}
-            subtitle={`${data.tenants.active} aktív`}
+            title="Alvállalkozók"
+            value={data.contractors.total}
+            subtitle={`${data.contractors.active} aktív`}
             icon={<Business sx={{ fontSize: 28 }} />}
             bgColor="rgba(139, 92, 246, 0.1)"
           />

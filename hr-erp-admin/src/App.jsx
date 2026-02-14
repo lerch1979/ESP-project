@@ -8,7 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import TicketDetail from './pages/TicketDetail';
 import Users from './pages/Users';
-import Tenants from './pages/Tenants';
+import Contractors from './pages/Contractors';
 import Accommodations from './pages/Accommodations';
 import Employees from './pages/Employees';
 import PrivateRoute from './components/PrivateRoute';
@@ -37,7 +37,7 @@ function App() {
           <Route path="tickets" element={<Tickets />} />
           <Route path="tickets/:id" element={<TicketDetail />} />
           <Route path="users" element={<Users />} />
-          <Route path="tenants" element={<Tenants />} />
+          <Route path="contractors" element={<Contractors />} />
           <Route path="accommodations" element={<Accommodations />} />
           <Route path="employees" element={<Employees />} />
         </Route>

@@ -22,9 +22,9 @@ const authenticateToken = async (req, res, next) => {
     
     // Felhasználó lekérése az adatbázisból
     const userResult = await query(
-      `SELECT u.*, t.name as tenant_name, t.slug as tenant_slug
+      `SELECT u.*, t.name as contractor_name, t.slug as contractor_slug
        FROM users u
-       LEFT JOIN tenants t ON u.tenant_id = t.id
+       LEFT JOIN contractors t ON u.contractor_id = t.id
        WHERE u.id = $1 AND u.is_active = true`,
       [decoded.userId]
     );
@@ -43,8 +43,8 @@ const authenticateToken = async (req, res, next) => {
       `SELECT r.slug, r.name 
        FROM user_roles ur
        JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1 AND ur.tenant_id = $2`,
-      [user.id, user.tenant_id]
+       WHERE ur.user_id = $1 AND ur.contractor_id = $2`,
+      [user.id, user.contractor_id]
     );
 
     user.roles = rolesResult.rows.map(r => r.slug);
@@ -56,9 +56,9 @@ const authenticateToken = async (req, res, next) => {
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
-      tenantId: user.tenant_id,
-      tenantName: user.tenant_name,
-      tenantSlug: user.tenant_slug,
+      contractorId: user.contractor_id,
+      contractorName: user.contractor_name,
+      contractorSlug: user.contractor_slug,
       roles: user.roles,
       roleNames: user.roleNames
     };
@@ -125,22 +125,22 @@ const requireSuperAdmin = requireRole(['superadmin']);
 const requireAdmin = requireRole(['superadmin', 'data_controller', 'admin']);
 
 /**
- * Tenant ID ellenőrzés middleware
- * Biztosítja, hogy a felhasználó csak a saját tenant adataihoz férjen hozzá
+ * Contractor ID ellenőrzés middleware
+ * Biztosítja, hogy a felhasználó csak a saját alvállalkozó adataihoz férjen hozzá
  */
-const checkTenantAccess = (req, res, next) => {
+const checkContractorAccess = (req, res, next) => {
   // Szuperadmin mindent láthat
   if (req.user.roles.includes('superadmin')) {
     return next();
   }
 
-  // Ha van tenant_id a query-ben vagy body-ban, ellenőrizzük
-  const requestedTenantId = req.query.tenant_id || req.body.tenant_id || req.params.tenant_id;
+  // Ha van contractor_id a query-ben vagy body-ban, ellenőrizzük
+  const requestedContractorId = req.query.contractor_id || req.body.contractor_id || req.params.contractor_id;
 
-  if (requestedTenantId && requestedTenantId !== req.user.tenantId) {
+  if (requestedContractorId && requestedContractorId !== req.user.contractorId) {
     return res.status(403).json({
       success: false,
-      message: 'Nincs jogosultságod más tenant adataihoz'
+      message: 'Nincs jogosultságod más alvállalkozó adataihoz'
     });
   }
 
@@ -152,5 +152,5 @@ module.exports = {
   requireRole,
   requireSuperAdmin,
   requireAdmin,
-  checkTenantAccess
+  checkContractorAccess
 };

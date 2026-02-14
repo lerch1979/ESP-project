@@ -11,7 +11,7 @@ const getDashboardStats = async (req, res) => {
       ticketsByStatusResult,
       totalTicketsResult,
       urgentTicketsResult,
-      tenantsResult,
+      contractorsResult,
       accommodationsByStatusResult,
       recentTicketsResult,
     ] = await Promise.all([
@@ -40,13 +40,13 @@ const getDashboardStats = async (req, res) => {
           AND t.closed_at IS NULL
       `),
 
-      // Tenants stats
+      // Contractors stats
       query(`
         SELECT
           COUNT(*) as total,
           COUNT(*) FILTER (WHERE is_active = true) as active,
           COUNT(*) FILTER (WHERE is_active = false) as inactive
-        FROM tenants
+        FROM contractors
       `),
 
       // Accommodations by status
@@ -113,10 +113,10 @@ const getDashboardStats = async (req, res) => {
             count: parseInt(r.count),
           })),
         },
-        tenants: {
-          total: parseInt(tenantsResult.rows[0].total),
-          active: parseInt(tenantsResult.rows[0].active),
-          inactive: parseInt(tenantsResult.rows[0].inactive),
+        contractors: {
+          total: parseInt(contractorsResult.rows[0].total),
+          active: parseInt(contractorsResult.rows[0].active),
+          inactive: parseInt(contractorsResult.rows[0].inactive),
         },
         accommodations: {
           total: totalAccommodations,

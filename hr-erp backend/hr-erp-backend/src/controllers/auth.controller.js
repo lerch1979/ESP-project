@@ -20,9 +20,9 @@ const login = async (req, res) => {
 
     // Felhasználó keresése
     const userResult = await query(
-      `SELECT u.*, t.name as tenant_name, t.slug as tenant_slug, t.is_active as tenant_active
+      `SELECT u.*, t.name as contractor_name, t.slug as contractor_slug, t.is_active as contractor_active
        FROM users u
-       LEFT JOIN tenants t ON u.tenant_id = t.id
+       LEFT JOIN contractors t ON u.contractor_id = t.id
        WHERE u.email = $1`,
       [email.toLowerCase()]
     );
@@ -44,7 +44,7 @@ const login = async (req, res) => {
       });
     }
 
-    if (!user.tenant_active) {
+    if (!user.contractor_active) {
       return res.status(401).json({
         success: false,
         message: 'A cég fiók inaktív'
@@ -66,8 +66,8 @@ const login = async (req, res) => {
       `SELECT r.slug, r.name 
        FROM user_roles ur
        JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1 AND ur.tenant_id = $2`,
-      [user.id, user.tenant_id]
+       WHERE ur.user_id = $1 AND ur.contractor_id = $2`,
+      [user.id, user.contractor_id]
     );
 
     const roles = rolesResult.rows.map(r => r.slug);
@@ -78,7 +78,7 @@ const login = async (req, res) => {
       { 
         userId: user.id,
         email: user.email,
-        tenantId: user.tenant_id,
+        contractorId: user.contractor_id,
         roles: roles
       },
       process.env.JWT_SECRET,
@@ -98,10 +98,10 @@ const login = async (req, res) => {
       [user.id]
     );
 
-    logger.info('Sikeres bejelentkezés', { 
-      userId: user.id, 
+    logger.info('Sikeres bejelentkezés', {
+      userId: user.id,
       email: user.email,
-      tenant: user.tenant_name
+      contractor: user.contractor_name
     });
 
     res.json({
@@ -115,10 +115,10 @@ const login = async (req, res) => {
           email: user.email,
           firstName: user.first_name,
           lastName: user.last_name,
-          tenant: {
-            id: user.tenant_id,
-            name: user.tenant_name,
-            slug: user.tenant_slug
+          contractor: {
+            id: user.contractor_id,
+            name: user.contractor_name,
+            slug: user.contractor_slug
           },
           roles: roleNames
         }
@@ -153,7 +153,7 @@ const refreshToken = async (req, res) => {
 
     // Új access token generálás
     const userResult = await query(
-      'SELECT id, email, tenant_id FROM users WHERE id = $1 AND is_active = true',
+      'SELECT id, email, contractor_id FROM users WHERE id = $1 AND is_active = true',
       [decoded.userId]
     );
 
@@ -176,7 +176,7 @@ const refreshToken = async (req, res) => {
       { 
         userId: user.id,
         email: user.email,
-        tenantId: user.tenant_id,
+        contractorId: user.contractor_id,
         roles: rolesResult.rows.map(r => r.slug)
       },
       process.env.JWT_SECRET,

@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
-const { authenticateToken, checkTenantAccess } = require('../middleware/auth');
+const { authenticateToken, checkContractorAccess } = require('../middleware/auth');
 
 // Minden ticket route-hoz authentikáció szükséges
 router.use(authenticateToken);
-router.use(checkTenantAccess);
+router.use(checkContractorAccess);
 
 /**
  * GET /api/v1/tickets

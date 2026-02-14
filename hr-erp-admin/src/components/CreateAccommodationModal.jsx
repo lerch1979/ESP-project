@@ -14,18 +14,18 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import { accommodationsAPI, tenantsAPI } from '../services/api';
+import { accommodationsAPI, contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 function CreateAccommodationModal({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const [tenants, setTenants] = useState([]);
+  const [contractors, setContractors] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     type: 'studio',
     capacity: 1,
-    current_tenant_id: '',
+    current_contractor_id: '',
     status: 'available',
     monthly_rent: '',
     notes: '',
@@ -33,18 +33,18 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
 
   useEffect(() => {
     if (open) {
-      loadTenants();
+      loadContractors();
     }
   }, [open]);
 
-  const loadTenants = async () => {
+  const loadContractors = async () => {
     try {
-      const response = await tenantsAPI.getAll({ limit: 500, is_active: 'true' });
+      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true' });
       if (response.success) {
-        setTenants(response.data.tenants);
+        setContractors(response.data.contractors);
       }
     } catch (error) {
-      console.error('Bérlők betöltési hiba:', error);
+      console.error('Alvállalkozók betöltési hiba:', error);
     }
   };
 
@@ -62,7 +62,7 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
       ...formData,
       capacity: parseInt(formData.capacity) || 1,
       monthly_rent: formData.monthly_rent ? parseFloat(formData.monthly_rent) : null,
-      current_tenant_id: formData.current_tenant_id || null,
+      current_contractor_id: formData.current_contractor_id || null,
     };
 
     setLoading(true);
@@ -88,7 +88,7 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
       address: '',
       type: 'studio',
       capacity: 1,
-      current_tenant_id: '',
+      current_contractor_id: '',
       status: 'available',
       monthly_rent: '',
       notes: '',
@@ -185,14 +185,14 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
 
           <Grid item xs={12}>
             <FormControl fullWidth>
-              <InputLabel>Jelenlegi bérlő</InputLabel>
+              <InputLabel>Jelenlegi alvállalkozó</InputLabel>
               <Select
-                value={formData.current_tenant_id}
-                onChange={(e) => handleChange('current_tenant_id', e.target.value)}
-                label="Jelenlegi bérlő"
+                value={formData.current_contractor_id}
+                onChange={(e) => handleChange('current_contractor_id', e.target.value)}
+                label="Jelenlegi alvállalkozó"
               >
                 <MenuItem value="">Nincs</MenuItem>
-                {tenants.map((t) => (
+                {contractors.map((t) => (
                   <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
                 ))}
               </Select>

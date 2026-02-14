@@ -36,7 +36,7 @@ const menuItems = [
   { text: 'Kezdőlap', icon: <HomeIcon />, path: '/dashboard' },
   { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets' },
   { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees' },
-  { text: 'Bérlők', icon: <BusinessIcon />, path: '/tenants' },
+  { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors' },
   { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
