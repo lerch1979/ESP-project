@@ -20,14 +20,11 @@ import api from '../services/api';
 
 function CreateTicketModal({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState([]);
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [statuses, setStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
-  
+
   const [formData, setFormData] = useState({
-    accommodated_employee_id: '',
     title: '',
     description: '',
     category_id: '',
@@ -43,32 +40,22 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
 
   const loadFormData = async () => {
     try {
-      const [employeesRes, usersRes, categoriesRes, statusesRes, prioritiesRes] = await Promise.allSettled([
-        api.get('/users?role=accommodated_employee'),
-        api.get('/users?role=contractor'),  // CSAK contractor-ok
-        api.get('/categories'),
-        api.get('/statuses'),
-        api.get('/priorities'),
+      const [usersRes, categoriesRes, prioritiesRes] = await Promise.allSettled([
+        api.get('/users'),
+        ticketsAPI.getCategories(),
+        ticketsAPI.getPriorities(),
       ]);
-
-      if (employeesRes.status === 'fulfilled' && employeesRes.value.data.success) {
-        setEmployees(employeesRes.value.data.data.users || []);
-      }
 
       if (usersRes.status === 'fulfilled' && usersRes.value.data.success) {
         setUsers(usersRes.value.data.data.users || []);
       }
 
-      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.data.success) {
-        setCategories(categoriesRes.value.data.data.categories || []);
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
+        setCategories(categoriesRes.value.data.categories || []);
       }
 
-      if (statusesRes.status === 'fulfilled' && statusesRes.value.data.success) {
-        setStatuses(statusesRes.value.data.data.statuses || []);
-      }
-
-      if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.data.success) {
-        setPriorities(prioritiesRes.value.data.data.priorities || []);
+      if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
+        setPriorities(prioritiesRes.value.data.priorities || []);
       }
     } catch (error) {
       console.error('Form adatok betöltési hiba:', error);
@@ -81,28 +68,20 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
   };
 
   const handleSubmit = async () => {
-    // Validálás
-    if (!formData.accommodated_employee_id) {
-      toast.error('Válassz munkavállalót!');
-      return;
-    }
     if (!formData.title.trim()) {
       toast.error('Add meg a címet!');
-      return;
-    }
-    if (!formData.category_id) {
-      toast.error('Válassz kategóriát!');
-      return;
-    }
-    if (!formData.priority_id) {
-      toast.error('Válassz prioritást!');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await ticketsAPI.create(formData);
-      
+      const payload = { title: formData.title, description: formData.description };
+      if (formData.category_id) payload.category_id = formData.category_id;
+      if (formData.priority_id) payload.priority_id = formData.priority_id;
+      if (formData.assigned_to) payload.assigned_to = formData.assigned_to;
+
+      const response = await ticketsAPI.create(payload);
+
       if (response.success) {
         toast.success('Hibajegy létrehozva!');
         onSuccess();
@@ -118,7 +97,6 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
 
   const handleClose = () => {
     setFormData({
-      accommodated_employee_id: '',
       title: '',
       description: '',
       category_id: '',
@@ -138,27 +116,6 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
 
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          {/* Munkavállaló */}
-          <Grid item xs={12}>
-            <FormControl fullWidth required>
-              <InputLabel>Szállásolt munkavállaló</InputLabel>
-              <Select
-                value={formData.accommodated_employee_id}
-                onChange={(e) => handleChange('accommodated_employee_id', e.target.value)}
-                label="Szállásolt munkavállaló"
-              >
-                <MenuItem value="">
-                  <em>Válassz munkavállalót...</em>
-                </MenuItem>
-                {employees.map((emp) => (
-                  <MenuItem key={emp.id} value={emp.id}>
-                    {emp.first_name} {emp.last_name} ({emp.email})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
           {/* Cím */}
           <Grid item xs={12}>
             <TextField
@@ -186,7 +143,7 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
 
           {/* Kategória */}
           <Grid item xs={12} sm={6}>
-            <FormControl fullWidth required>
+            <FormControl fullWidth>
               <InputLabel>Kategória</InputLabel>
               <Select
                 value={formData.category_id}
@@ -207,7 +164,7 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
 
           {/* Prioritás */}
           <Grid item xs={12} sm={6}>
-            <FormControl fullWidth required>
+            <FormControl fullWidth>
               <InputLabel>Prioritás</InputLabel>
               <Select
                 value={formData.priority_id}
@@ -238,9 +195,9 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
                 <MenuItem value="">
                   <em>Nincs kijelölve</em>
                 </MenuItem>
-                {users.filter(u => u.id !== formData.accommodated_employee_id).map((user) => (
+                {users.map((user) => (
                   <MenuItem key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name} - {user.role_names?.join(', ')}
+                    {user.first_name} {user.last_name}
                   </MenuItem>
                 ))}
               </Select>

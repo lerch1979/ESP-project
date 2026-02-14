@@ -17,24 +17,18 @@ import {
   Button,
   Stack,
   CircularProgress,
-  IconButton,
-  Menu,
-  MenuItem,
-  Tooltip,
   FormControl,
   InputLabel,
   Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
   Add as AddIcon,
-  MoreVert as MoreIcon,
 } from '@mui/icons-material';
 import { ticketsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateTicketModal from '../components/CreateTicketModal';
-import api from '../services/api';
 
 function Tickets() {
   const navigate = useNavigate();
@@ -45,24 +39,37 @@ function Tickets() {
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [employeeFilter, setEmployeeFilter] = useState('all');
-  const [filterAnchor, setFilterAnchor] = useState(null);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [employees, setEmployees] = useState([]);
+
+  const [statuses, setStatuses] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [priorities, setPriorities] = useState([]);
+
+  useEffect(() => {
+    loadLookups();
+  }, []);
 
   useEffect(() => {
     loadTickets();
-    loadEmployees();
-  }, [page, rowsPerPage, search, statusFilter, employeeFilter]);
+  }, [page, rowsPerPage, search, statusFilter, categoryFilter, priorityFilter]);
 
-  const loadEmployees = async () => {
-    try {
-      const response = await api.get('/users?role=accommodated_employee');
-      if (response.data.success) {
-        setEmployees(response.data.data.users || []);
-      }
-    } catch (error) {
-      console.error('Munkavállalók betöltési hiba:', error);
+  const loadLookups = async () => {
+    const [statusesRes, categoriesRes, prioritiesRes] = await Promise.allSettled([
+      ticketsAPI.getStatuses(),
+      ticketsAPI.getCategories(),
+      ticketsAPI.getPriorities(),
+    ]);
+
+    if (statusesRes.status === 'fulfilled' && statusesRes.value.success) {
+      setStatuses(statusesRes.value.data.statuses || []);
+    }
+    if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
+      setCategories(categoriesRes.value.data.categories || []);
+    }
+    if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
+      setPriorities(prioritiesRes.value.data.priorities || []);
     }
   };
 
@@ -76,7 +83,8 @@ function Tickets() {
 
       if (search) params.search = search;
       if (statusFilter !== 'all') params.status = statusFilter;
-      if (employeeFilter !== 'all') params.employee = employeeFilter;
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+      if (priorityFilter !== 'all') params.priority = priorityFilter;
 
       const response = await ticketsAPI.getAll(params);
 
@@ -136,6 +144,8 @@ function Tickets() {
     navigate(`/tickets/${ticketId}`);
   };
 
+  const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || priorityFilter !== 'all';
+
   return (
     <Box>
       {/* Fejléc */}
@@ -173,60 +183,56 @@ function Tickets() {
             }}
             size="small"
           />
-          
-          {/* Munkavállaló szűrő */}
-          <FormControl size="small" sx={{ minWidth: 250 }}>
-            <InputLabel>Munkavállaló</InputLabel>
+
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Státusz</InputLabel>
             <Select
-              value={employeeFilter}
-              onChange={(e) => { setEmployeeFilter(e.target.value); setPage(0); }}
-              label="Munkavállaló"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              label="Státusz"
             >
-              <MenuItem value="all">Minden munkavállaló</MenuItem>
-              {employees.map((emp) => (
-                <MenuItem key={emp.id} value={emp.id}>
-                  {emp.first_name} {emp.last_name}
-                </MenuItem>
+              <MenuItem value="all">Minden státusz</MenuItem>
+              {statuses.map((s) => (
+                <MenuItem key={s.id} value={s.slug}>{s.name}</MenuItem>
               ))}
             </Select>
           </FormControl>
 
-          <Tooltip title="Státusz szűrő">
-            <IconButton onClick={(e) => setFilterAnchor(e.currentTarget)}>
-              <FilterIcon />
-            </IconButton>
-          </Tooltip>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Kategória</InputLabel>
+            <Select
+              value={categoryFilter}
+              onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
+              label="Kategória"
+            >
+              <MenuItem value="all">Minden kategória</MenuItem>
+              {categories.map((c) => (
+                <MenuItem key={c.id} value={c.slug}>{c.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-          <Menu
-            anchorEl={filterAnchor}
-            open={Boolean(filterAnchor)}
-            onClose={() => setFilterAnchor(null)}
-          >
-            <MenuItem disabled>
-              <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                Státusz szűrés
-              </Typography>
-            </MenuItem>
-            <MenuItem onClick={() => { setStatusFilter('all'); setFilterAnchor(null); }}>
-              Minden státusz
-            </MenuItem>
-            <MenuItem onClick={() => { setStatusFilter('new'); setFilterAnchor(null); }}>
-              Új
-            </MenuItem>
-            <MenuItem onClick={() => { setStatusFilter('in_progress'); setFilterAnchor(null); }}>
-              Folyamatban
-            </MenuItem>
-            <MenuItem onClick={() => { setStatusFilter('completed'); setFilterAnchor(null); }}>
-              Lezárva
-            </MenuItem>
-          </Menu>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Prioritás</InputLabel>
+            <Select
+              value={priorityFilter}
+              onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}
+              label="Prioritás"
+            >
+              <MenuItem value="all">Minden prioritás</MenuItem>
+              {priorities.map((p) => (
+                <MenuItem key={p.id} value={p.slug}>{p.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-          {(statusFilter !== 'all' || employeeFilter !== 'all') && (
+          {hasActiveFilters && (
             <Button
               size="small"
               onClick={() => {
                 setStatusFilter('all');
-                setEmployeeFilter('all');
+                setCategoryFilter('all');
+                setPriorityFilter('all');
               }}
             >
               Szűrők törlése
@@ -258,13 +264,12 @@ function Tickets() {
                   <TableRow>
                     <TableCell sx={{ fontWeight: 600 }}>Azonosító</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Cím</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Munkavállaló</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Beküldő</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Kategória</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Prioritás</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Felelős</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Létrehozva</TableCell>
-                    <TableCell sx={{ fontWeight: 600, width: 50 }}></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -272,7 +277,7 @@ function Tickets() {
                     <TableRow
                       key={ticket.id}
                       hover
-                      sx={{ 
+                      sx={{
                         cursor: 'pointer',
                         '&:hover': { bgcolor: 'rgba(44, 95, 45, 0.04)' }
                       }}
@@ -290,15 +295,18 @@ function Tickets() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
-                          {ticket.accommodated_employee_name || '-'}
+                          {ticket.created_by_name || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         {ticket.category_name && (
-                          <Chip 
-                            label={ticket.category_name} 
+                          <Chip
+                            label={ticket.category_name}
                             size="small"
-                            sx={{ bgcolor: '#e8f5e9' }}
+                            sx={{
+                              bgcolor: ticket.category_color || '#e8f5e9',
+                              color: '#fff',
+                            }}
                           />
                         )}
                       </TableCell>
@@ -326,13 +334,6 @@ function Tickets() {
                         <Typography variant="body2" color="text.secondary">
                           {new Date(ticket.created_at).toLocaleDateString('hu-HU')}
                         </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <IconButton size="small" onClick={(e) => {
-                          e.stopPropagation();
-                        }}>
-                          <MoreIcon fontSize="small" />
-                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -82,6 +82,21 @@ export const ticketsAPI = {
     const response = await api.post(`/tickets/${id}/comments`, commentData);
     return response.data;
   },
+
+  getStatuses: async () => {
+    const response = await api.get('/statuses');
+    return response.data;
+  },
+
+  getCategories: async () => {
+    const response = await api.get('/categories');
+    return response.data;
+  },
+
+  getPriorities: async () => {
+    const response = await api.get('/priorities');
+    return response.data;
+  },
 };
 
 // Contractors API
