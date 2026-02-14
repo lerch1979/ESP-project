@@ -362,7 +362,7 @@ const bulkImportTenants = async (req, res) => {
       });
     }
 
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', codepage: 65001 });
     const sheetName = workbook.SheetNames[0];
     const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
 

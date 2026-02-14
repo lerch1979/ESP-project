@@ -25,6 +25,7 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   AccountCircle,
+  Apartment as ApartmentIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -36,6 +37,7 @@ const menuItems = [
   { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets' },
   { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Bérlők', icon: <BusinessIcon />, path: '/tenants' },
+  { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
 ];

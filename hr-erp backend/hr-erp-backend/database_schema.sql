@@ -315,6 +315,37 @@ CREATE TABLE projects (
 );
 
 -- ============================================
+-- SZÁLLÁS MODUL
+-- ============================================
+
+-- Szálláshelyek
+CREATE TABLE accommodations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    address TEXT,
+    type VARCHAR(50) NOT NULL DEFAULT 'studio', -- studio, 1br, 2br, 3br, dormitory
+    capacity INTEGER NOT NULL DEFAULT 1,
+    current_tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'available', -- available, occupied, maintenance
+    monthly_rent DECIMAL(12, 2),
+    notes TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Szálláshely bérlő történet
+CREATE TABLE accommodation_tenants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    accommodation_id UUID NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    check_in DATE NOT NULL,
+    check_out DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
 -- INDEXEK ÉS OPTIMALIZÁLÁS
 -- ============================================
 
@@ -333,6 +364,13 @@ CREATE INDEX idx_tickets_status ON tickets(status_id);
 CREATE INDEX idx_tickets_created_by ON tickets(created_by);
 CREATE INDEX idx_tickets_assigned_to ON tickets(assigned_to);
 CREATE INDEX idx_tickets_created_at ON tickets(created_at DESC);
+
+-- Szálláshelyek
+CREATE INDEX idx_accommodations_status ON accommodations(status);
+CREATE INDEX idx_accommodations_type ON accommodations(type);
+CREATE INDEX idx_accommodations_current_tenant ON accommodations(current_tenant_id);
+CREATE INDEX idx_accommodation_tenants_accommodation ON accommodation_tenants(accommodation_id);
+CREATE INDEX idx_accommodation_tenants_tenant ON accommodation_tenants(tenant_id);
 
 -- Értesítések
 CREATE INDEX idx_notifications_user ON notifications(user_id);
@@ -413,6 +451,9 @@ CREATE TRIGGER update_organizational_units_updated_at BEFORE UPDATE ON organizat
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_accommodations_updated_at BEFORE UPDATE ON accommodations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================================
 -- KOMMENTEK
 -- ============================================
@@ -423,3 +464,5 @@ COMMENT ON TABLE roles IS 'Szerepkörök a jogosultságkezeléshez';
 COMMENT ON TABLE tickets IS 'Hibajegyek / bejelentések';
 COMMENT ON TABLE ticket_history IS 'Teljes audit log minden ticket módosításról';
 COMMENT ON TABLE notifications IS 'Összes értesítés (push, email, in-app)';
+COMMENT ON TABLE accommodations IS 'Szálláshelyek (lakások, szobák)';
+COMMENT ON TABLE accommodation_tenants IS 'Szálláshely bérlő történet';

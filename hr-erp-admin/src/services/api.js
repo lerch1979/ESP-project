@@ -121,4 +121,46 @@ export const tenantsAPI = {
   },
 };
 
+// Accommodations API
+export const accommodationsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/accommodations', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/accommodations/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/accommodations', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/accommodations/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/accommodations/${id}`);
+    return response.data;
+  },
+
+  getTenantHistory: async (id) => {
+    const response = await api.get(`/accommodations/${id}/tenants`);
+    return response.data;
+  },
+
+  bulkImport: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/accommodations/bulk', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};
+
 export default api;

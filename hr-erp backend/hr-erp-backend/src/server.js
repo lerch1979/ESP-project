@@ -15,6 +15,7 @@ const categoryRoutes = require('./routes/category.routes');
 const priorityRoutes = require('./routes/priority.routes');
 const statusRoutes = require('./routes/status.routes');
 const tenantRoutes = require('./routes/tenant.routes');
+const accommodationRoutes = require('./routes/accommodation.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -79,6 +80,7 @@ app.use(`${API_PREFIX}/categories`, categoryRoutes);
 app.use(`${API_PREFIX}/priorities`, priorityRoutes);
 app.use(`${API_PREFIX}/statuses`, statusRoutes);
 app.use(`${API_PREFIX}/tenants`, tenantRoutes);
+app.use(`${API_PREFIX}/accommodations`, accommodationRoutes);
 
 // 404 handler
 app.use((req, res) => {
