@@ -10,6 +10,7 @@ import TicketDetail from './pages/TicketDetail';
 import Users from './pages/Users';
 import Tenants from './pages/Tenants';
 import Accommodations from './pages/Accommodations';
+import Employees from './pages/Employees';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="tenants" element={<Tenants />} />
           <Route path="accommodations" element={<Accommodations />} />
+          <Route path="employees" element={<Employees />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
