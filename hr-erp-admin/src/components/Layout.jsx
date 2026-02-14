@@ -18,7 +18,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import {
-  Dashboard as DashboardIcon,
+  Home as HomeIcon,
   ConfirmationNumber as TicketIcon,
   People as PeopleIcon,
   Business as BusinessIcon,
@@ -33,7 +33,7 @@ import { toast } from 'react-toastify';
 const drawerWidth = 260;
 
 const menuItems = [
-  { text: 'Ügyfélszolgálat', icon: <DashboardIcon />, path: '/dashboard' },
+  { text: 'Kezdőlap', icon: <HomeIcon />, path: '/dashboard' },
   { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets' },
   { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Bérlők', icon: <BusinessIcon />, path: '/tenants' },

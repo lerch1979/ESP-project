@@ -121,6 +121,14 @@ export const tenantsAPI = {
   },
 };
 
+// Dashboard API
+export const dashboardAPI = {
+  getStats: async () => {
+    const response = await api.get('/dashboard/stats');
+    return response.data;
+  },
+};
+
 // Accommodations API
 export const accommodationsAPI = {
   getAll: async (params = {}) => {
