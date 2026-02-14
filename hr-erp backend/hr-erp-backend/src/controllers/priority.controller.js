@@ -4,8 +4,8 @@ const pool = require('../database/connection');
 const getPriorities = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, slug, description, created_at
-       FROM ticket_priorities
+      `SELECT id, name, slug, color, created_at
+       FROM priorities
        ORDER BY 
          CASE slug
            WHEN 'critical' THEN 1

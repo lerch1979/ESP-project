@@ -42,58 +42,37 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
   }, [open]);
 
   const loadFormData = async () => {
-    console.log('🔄 loadFormData indult...');
     try {
-      // Szállásolt munkavállalók lekérése
-      console.log('Szállásolt munkavállalók lekérése...');
-      const employeesRes = await api.get('/users?role=accommodated_employee');
-      console.log('Employees response:', employeesRes.data);
-      if (employeesRes.data.success) {
-        setEmployees(employeesRes.data.data.users || []);
-        console.log('✅ Employees:', employeesRes.data.data.users?.length);
+      const [employeesRes, usersRes, categoriesRes, statusesRes, prioritiesRes] = await Promise.allSettled([
+        api.get('/users?role=accommodated_employee'),
+        api.get('/users'),
+        api.get('/categories'),
+        api.get('/statuses'),
+        api.get('/priorities'),
+      ]);
+
+      if (employeesRes.status === 'fulfilled' && employeesRes.value.data.success) {
+        setEmployees(employeesRes.value.data.data.users || []);
       }
 
-      // Felhasználók (felelősök) lekérése
-      console.log('Felhasználók lekérése...');
-      const usersRes = await api.get('/users');
-      console.log('Users response:', usersRes.data);
-      if (usersRes.data.success) {
-        setUsers(usersRes.data.data.users || []);
-        console.log('✅ Users:', usersRes.data.data.users?.length);
+      if (usersRes.status === 'fulfilled' && usersRes.value.data.success) {
+        setUsers(usersRes.value.data.data.users || []);
       }
 
-      // Kategóriák lekérése
-      console.log('Kategóriák lekérése...');
-      const categoriesRes = await api.get('/categories');
-      console.log('Categories response:', categoriesRes.data);
-      if (categoriesRes.data.success) {
-        setCategories(categoriesRes.data.data.categories || []);
-        console.log('✅ Categories:', categoriesRes.data.data.categories?.length);
+      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.data.success) {
+        setCategories(categoriesRes.value.data.data.categories || []);
       }
 
-      // Státuszok lekérése
-      console.log('Státuszok lekérése...');
-      const statusesRes = await api.get('/statuses');
-      console.log('Statuses response:', statusesRes.data);
-      if (statusesRes.data.success) {
-        setStatuses(statusesRes.data.data.statuses || []);
-        console.log('✅ Statuses:', statusesRes.data.data.statuses?.length);
+      if (statusesRes.status === 'fulfilled' && statusesRes.value.data.success) {
+        setStatuses(statusesRes.value.data.data.statuses || []);
       }
 
-      // Prioritások lekérése
-      console.log('Prioritások lekérése...');
-      const prioritiesRes = await api.get('/priorities');
-      console.log('Priorities response:', prioritiesRes.data);
-      if (prioritiesRes.data.success) {
-        setPriorities(prioritiesRes.data.data.priorities || []);
-        console.log('✅ Priorities:', prioritiesRes.data.data.priorities?.length);
+      if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.data.success) {
+        setPriorities(prioritiesRes.value.data.data.priorities || []);
       }
-      
-      console.log('✅ Minden adat betöltve!');
     } catch (error) {
-      console.error('❌ Form adatok betöltési hiba:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      toast.error('Hiba az űrlap adatok betöltésekor: ' + (error.response?.data?.message || error.message));
+      console.error('Form adatok betöltési hiba:', error);
+      toast.error('Hiba az űrlap adatok betöltésekor');
     }
   };
 
