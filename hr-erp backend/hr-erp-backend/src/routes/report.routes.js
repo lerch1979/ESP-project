@@ -8,27 +8,33 @@ router.use(authenticateToken);
 router.use(requireAdmin);
 
 /**
- * GET /api/v1/reports/employees-summary
- * Munkavállalók riport összesítés
+ * GET /api/v1/reports/filter-options
+ * Szűrő opciók lekérése minden riport típushoz
  */
-router.get('/employees-summary', reportController.getEmployeesSummary);
+router.get('/filter-options', reportController.getReportFilterOptions);
 
 /**
- * GET /api/v1/reports/accommodations-summary
- * Szálláshelyek riport összesítés
+ * POST /api/v1/reports/employees-summary
+ * Munkavállalók riport összesítés (szűrőkkel)
  */
-router.get('/accommodations-summary', reportController.getAccommodationsSummary);
+router.post('/employees-summary', reportController.getEmployeesSummary);
 
 /**
- * GET /api/v1/reports/tickets-summary
- * Hibajegyek riport összesítés
+ * POST /api/v1/reports/accommodations-summary
+ * Szálláshelyek riport összesítés (szűrőkkel)
  */
-router.get('/tickets-summary', reportController.getTicketsSummary);
+router.post('/accommodations-summary', reportController.getAccommodationsSummary);
 
 /**
- * GET /api/v1/reports/contractors-summary
- * Alvállalkozók riport összesítés
+ * POST /api/v1/reports/tickets-summary
+ * Hibajegyek riport összesítés (szűrőkkel)
  */
-router.get('/contractors-summary', reportController.getContractorsSummary);
+router.post('/tickets-summary', reportController.getTicketsSummary);
+
+/**
+ * POST /api/v1/reports/contractors-summary
+ * Alvállalkozók riport összesítés (szűrőkkel)
+ */
+router.post('/contractors-summary', reportController.getContractorsSummary);
 
 module.exports = router;

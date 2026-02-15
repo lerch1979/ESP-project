@@ -8,15 +8,29 @@ import {
   CardContent,
   CardActionArea,
   CircularProgress,
-  ButtonGroup,
   Button,
-  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  IconButton,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
 } from '@mui/material';
 import {
   People as PeopleIcon,
   Apartment as ApartmentIcon,
   ConfirmationNumber as ConfirmationNumberIcon,
   Business as BusinessIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon,
+  FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
 import {
   PieChart,
@@ -33,7 +47,12 @@ import {
   LineChart,
   Line,
 } from 'recharts';
+import * as XLSX from 'xlsx';
 import { reportsAPI } from '../services/api';
+
+// ============================================================
+// Constants
+// ============================================================
 
 const REPORT_TYPES = [
   { key: 'employees', label: 'Munkavállalók', icon: PeopleIcon, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
@@ -42,44 +61,165 @@ const REPORT_TYPES = [
   { key: 'contractors', label: 'Alvállalkozók', icon: BusinessIcon, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
 ];
 
-const DATE_RANGES = [
-  { key: 'month', label: 'Ez a hónap' },
-  { key: 'last_month', label: 'Múlt hónap' },
-  { key: '3months', label: '3 hónap' },
-  { key: 'custom', label: 'Egyéni' },
-];
+const REPORT_FILTER_FIELDS = {
+  employees: [
+    { key: 'status', label: 'Státusz', type: 'dynamic' },
+    { key: 'workplace', label: 'Munkahely', type: 'dynamic' },
+    { key: 'gender', label: 'Nem', type: 'preset' },
+    { key: 'visa_expiry', label: 'Vízum lejárat', type: 'preset' },
+    { key: 'contract_end', label: 'Szerződés lejárat', type: 'preset' },
+    { key: 'marital_status', label: 'Családi állapot', type: 'preset' },
+    { key: 'position', label: 'Beosztás', type: 'dynamic' },
+    { key: 'country', label: 'Ország', type: 'dynamic' },
+    { key: 'birth_year', label: 'Életkor', type: 'preset' },
+  ],
+  accommodations: [
+    { key: 'status', label: 'Állapot', type: 'preset' },
+    { key: 'type', label: 'Típus', type: 'preset' },
+    { key: 'contractor', label: 'Alvállalkozó', type: 'dynamic' },
+  ],
+  tickets: [
+    { key: 'status', label: 'Státusz', type: 'dynamic' },
+    { key: 'category', label: 'Kategória', type: 'dynamic' },
+    { key: 'priority', label: 'Prioritás', type: 'dynamic' },
+    { key: 'date_range', label: 'Időszak', type: 'preset' },
+    { key: 'contractor', label: 'Alvállalkozó', type: 'dynamic' },
+  ],
+  contractors: [
+    { key: 'is_active', label: 'Állapot', type: 'preset' },
+    { key: 'date_range', label: 'Időszak', type: 'preset' },
+  ],
+};
+
+const PRESET_VALUES = {
+  gender: [
+    { value: 'male', label: 'Férfi' },
+    { value: 'female', label: 'Nő' },
+    { value: 'other', label: 'Egyéb' },
+  ],
+  visa_expiry: [
+    { value: 'expired', label: 'Lejárt' },
+    { value: '30days', label: '30 napon belül lejár' },
+    { value: '60days', label: '60 napon belül lejár' },
+    { value: 'valid', label: 'Érvényes' },
+  ],
+  contract_end: [
+    { value: 'expired', label: 'Lejárt' },
+    { value: '30days', label: '30 napon belül lejár' },
+    { value: '60days', label: '60 napon belül lejár' },
+    { value: '90days', label: '90 napon belül lejár' },
+  ],
+  marital_status: [
+    { value: 'single', label: 'Egyedülálló' },
+    { value: 'married', label: 'Házas' },
+    { value: 'divorced', label: 'Elvált' },
+    { value: 'widowed', label: 'Özvegy' },
+  ],
+  birth_year: [
+    { value: 'under_25', label: '25 év alatt' },
+    { value: '25_35', label: '25-35 év' },
+    { value: '35_50', label: '35-50 év' },
+    { value: 'over_50', label: '50 év felett' },
+  ],
+  // Accommodation presets
+  acc_status: [
+    { value: 'available', label: 'Szabad' },
+    { value: 'occupied', label: 'Foglalt' },
+    { value: 'maintenance', label: 'Karbantartás' },
+  ],
+  acc_type: [
+    { value: 'studio', label: 'Stúdió' },
+    { value: '1br', label: '1 szobás' },
+    { value: '2br', label: '2 szobás' },
+    { value: '3br', label: '3 szobás' },
+    { value: 'dormitory', label: 'Kollégium' },
+  ],
+  date_range: [
+    { value: 'this_month', label: 'Ez a hónap' },
+    { value: 'last_month', label: 'Múlt hónap' },
+    { value: '3months', label: '3 hónap' },
+    { value: '6months', label: '6 hónap' },
+    { value: 'this_year', label: 'Idei év' },
+  ],
+  is_active: [
+    { value: 'active', label: 'Aktív' },
+    { value: 'inactive', label: 'Inaktív' },
+  ],
+};
+
+const TABLE_COLUMNS = {
+  employees: [
+    { key: 'name', label: 'Név' },
+    { key: 'status', label: 'Státusz' },
+    { key: 'workplace', label: 'Munkahely' },
+    { key: 'gender', label: 'Nem' },
+    { key: 'position', label: 'Beosztás' },
+    { key: 'visa_expiry', label: 'Vízum lejárat', format: 'date' },
+    { key: 'start_date', label: 'Kezdés', format: 'date' },
+    { key: 'end_date', label: 'Befejezés', format: 'date' },
+    { key: 'accommodation', label: 'Szálláshely' },
+  ],
+  accommodations: [
+    { key: 'name', label: 'Név' },
+    { key: 'address', label: 'Cím' },
+    { key: 'type', label: 'Típus' },
+    { key: 'status', label: 'Állapot' },
+    { key: 'capacity', label: 'Kapacitás' },
+    { key: 'monthly_rent', label: 'Bérleti díj', format: 'currency' },
+    { key: 'contractor_name', label: 'Alvállalkozó' },
+  ],
+  tickets: [
+    { key: 'ticket_number', label: 'Szám' },
+    { key: 'title', label: 'Cím' },
+    { key: 'status', label: 'Státusz' },
+    { key: 'priority', label: 'Prioritás' },
+    { key: 'category', label: 'Kategória' },
+    { key: 'created_at', label: 'Létrehozva', format: 'datetime' },
+    { key: 'assigned_to_name', label: 'Felelős' },
+    { key: 'contractor_name', label: 'Alvállalkozó' },
+  ],
+  contractors: [
+    { key: 'name', label: 'Név' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Telefon' },
+    { key: 'is_active', label: 'Aktív', format: 'boolean' },
+    { key: 'total_tickets', label: 'Összes jegy' },
+    { key: 'completed_tickets', label: 'Lezárt jegy' },
+  ],
+};
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
 
-function getDateRange(rangeKey) {
-  const now = new Date();
-  let from, to;
+const MAX_FILTERS = 10;
 
-  switch (rangeKey) {
-    case 'month': {
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
-      to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      break;
-    }
-    case 'last_month': {
-      from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      to = new Date(now.getFullYear(), now.getMonth(), 0);
-      break;
-    }
-    case '3months': {
-      from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      break;
-    }
-    default:
-      return { from_date: null, to_date: null };
+const emptyFilter = () => ({ field: '', value: '' });
+
+// ============================================================
+// Helpers
+// ============================================================
+
+function formatCellValue(value, format) {
+  if (value === null || value === undefined || value === '-') return '-';
+  if (format === 'date') {
+    if (!value) return '-';
+    return new Date(value).toLocaleDateString('hu-HU');
   }
-
-  return {
-    from_date: from.toISOString().split('T')[0],
-    to_date: to.toISOString().split('T')[0],
-  };
+  if (format === 'datetime') {
+    if (!value) return '-';
+    return new Date(value).toLocaleString('hu-HU');
+  }
+  if (format === 'currency') {
+    return Number(value).toLocaleString('hu-HU') + ' Ft';
+  }
+  if (format === 'boolean') {
+    return value ? 'Igen' : 'Nem';
+  }
+  return String(value);
 }
+
+// ============================================================
+// Components
+// ============================================================
 
 const StatMiniCard = ({ title, value, color }) => (
   <Card sx={{ height: '100%' }}>
@@ -94,27 +234,37 @@ const StatMiniCard = ({ title, value, color }) => (
   </Card>
 );
 
+// ============================================================
+// Main Component
+// ============================================================
+
 function Reports() {
   const [activeReport, setActiveReport] = useState(null);
-  const [dateRange, setDateRange] = useState('month');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [summaryMetrics, setSummaryMetrics] = useState({});
+  const [filterOptions, setFilterOptions] = useState(null);
+  const [filters, setFilters] = useState({
+    employees: [emptyFilter()],
+    accommodations: [emptyFilter()],
+    tickets: [emptyFilter()],
+    contractors: [emptyFilter()],
+  });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  // Load summary metrics for all cards on mount
+  // Load summary metrics + filter options on mount
   useEffect(() => {
     loadSummaryMetrics();
+    loadFilterOptions();
   }, []);
 
   const loadSummaryMetrics = async () => {
     try {
       const [emp, acc, tick, con] = await Promise.all([
-        reportsAPI.getEmployeesSummary(),
-        reportsAPI.getAccommodationsSummary(),
-        reportsAPI.getTicketsSummary(),
-        reportsAPI.getContractorsSummary(),
+        reportsAPI.getEmployeesSummary([]),
+        reportsAPI.getAccommodationsSummary([]),
+        reportsAPI.getTicketsSummary([]),
+        reportsAPI.getContractorsSummary([]),
       ]);
       setSummaryMetrics({
         employees: emp.success ? emp.data.total : '-',
@@ -123,42 +273,149 @@ function Reports() {
         contractors: con.success ? con.data.total : '-',
       });
     } catch {
-      // Non-critical, cards will show '-'
+      // Non-critical
     }
   };
 
-  const loadReport = useCallback(async (reportKey) => {
+  const loadFilterOptions = async () => {
+    try {
+      const response = await reportsAPI.getFilterOptions();
+      if (response.success) {
+        setFilterOptions(response.data);
+      }
+    } catch (error) {
+      console.error('Filter options load error:', error);
+    }
+  };
+
+  // ============================================================
+  // Filter management
+  // ============================================================
+
+  const currentFilters = activeReport ? filters[activeReport] : [];
+
+  const addFilter = () => {
+    if (!activeReport) return;
+    setFilters(prev => ({
+      ...prev,
+      [activeReport]: prev[activeReport].length < MAX_FILTERS
+        ? [...prev[activeReport], emptyFilter()]
+        : prev[activeReport],
+    }));
+  };
+
+  const removeFilter = (index) => {
+    if (!activeReport) return;
+    setFilters(prev => ({
+      ...prev,
+      [activeReport]: prev[activeReport].length > 1
+        ? prev[activeReport].filter((_, i) => i !== index)
+        : [emptyFilter()],
+    }));
+  };
+
+  const updateFilter = (index, key, val) => {
+    if (!activeReport) return;
+    setFilters(prev => {
+      const updated = [...prev[activeReport]];
+      updated[index] = { ...updated[index], [key]: val };
+      if (key === 'field') updated[index].value = '';
+      return { ...prev, [activeReport]: updated };
+    });
+  };
+
+  const getUsedFields = (excludeIndex) => {
+    return currentFilters
+      .filter((_, i) => i !== excludeIndex)
+      .map(f => f.field)
+      .filter(Boolean);
+  };
+
+  const getValueOptions = useCallback((fieldKey, reportType) => {
+    if (!fieldKey) return [];
+
+    // Accommodation-specific preset mappings
+    if (reportType === 'accommodations' && fieldKey === 'status') {
+      return PRESET_VALUES.acc_status;
+    }
+    if (reportType === 'accommodations' && fieldKey === 'type') {
+      return PRESET_VALUES.acc_type;
+    }
+
+    // General presets
+    if (PRESET_VALUES[fieldKey]) {
+      return PRESET_VALUES[fieldKey];
+    }
+
+    // Dynamic values from backend
+    if (!filterOptions) return [];
+
+    if (reportType === 'employees') {
+      switch (fieldKey) {
+        case 'status':
+          return (filterOptions.employees?.statuses || []).map(s => ({ value: s.name, label: s.name }));
+        case 'workplace':
+          return (filterOptions.employees?.workplaces || []).map(w => ({ value: w, label: w }));
+        case 'position':
+          return (filterOptions.employees?.positions || []).map(p => ({ value: p, label: p }));
+        case 'country':
+          return (filterOptions.employees?.countries || []).map(c => ({ value: c, label: c }));
+        default:
+          return [];
+      }
+    }
+
+    if (reportType === 'tickets') {
+      switch (fieldKey) {
+        case 'status':
+          return (filterOptions.tickets?.statuses || []).map(s => ({ value: s.slug, label: s.name }));
+        case 'category':
+          return (filterOptions.tickets?.categories || []).map(c => ({ value: c.name, label: c.name }));
+        case 'priority':
+          return (filterOptions.tickets?.priorities || []).map(p => ({ value: p.slug, label: p.name }));
+        case 'contractor':
+          return (filterOptions.tickets?.contractors || []).map(c => ({ value: String(c.id), label: c.name }));
+        default:
+          return [];
+      }
+    }
+
+    if (reportType === 'accommodations') {
+      if (fieldKey === 'contractor') {
+        return (filterOptions.accommodations?.contractors || []).map(c => ({ value: String(c.id), label: c.name }));
+      }
+    }
+
+    return [];
+  }, [filterOptions]);
+
+  // ============================================================
+  // Data loading
+  // ============================================================
+
+  const loadReport = useCallback(async (reportKey, reportFilters) => {
     setLoading(true);
     setData(null);
+    setSortConfig({ key: null, direction: 'asc' });
     try {
-      let params = {};
-      if (dateRange === 'custom') {
-        if (fromDate) params.from_date = fromDate;
-        if (toDate) params.to_date = toDate;
-      } else {
-        const range = getDateRange(dateRange);
-        if (range.from_date) params.from_date = range.from_date;
-        if (range.to_date) params.to_date = range.to_date;
-      }
-
+      const activeFilters = (reportFilters || []).filter(f => f.field && f.value);
       let response;
       switch (reportKey) {
         case 'employees':
-          response = await reportsAPI.getEmployeesSummary(params);
+          response = await reportsAPI.getEmployeesSummary(activeFilters);
           break;
         case 'accommodations':
-          response = await reportsAPI.getAccommodationsSummary(params);
+          response = await reportsAPI.getAccommodationsSummary(activeFilters);
           break;
         case 'tickets':
-          response = await reportsAPI.getTicketsSummary(params);
+          response = await reportsAPI.getTicketsSummary(activeFilters);
           break;
         case 'contractors':
-          response = await reportsAPI.getContractorsSummary(params);
+          response = await reportsAPI.getContractorsSummary(activeFilters);
           break;
         default:
           return;
       }
-
       if (response.success) {
         setData(response.data);
       }
@@ -167,14 +424,7 @@ function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange, fromDate, toDate]);
-
-  // Reload when date range changes and a report is active
-  useEffect(() => {
-    if (activeReport) {
-      loadReport(activeReport);
-    }
-  }, [dateRange, fromDate, toDate]);
+  }, []);
 
   const handleCardClick = (key) => {
     if (activeReport === key) {
@@ -182,9 +432,217 @@ function Reports() {
       setData(null);
     } else {
       setActiveReport(key);
-      loadReport(key);
+      loadReport(key, filters[key]);
     }
   };
+
+  const handleFilter = () => {
+    if (!activeReport) return;
+    loadReport(activeReport, filters[activeReport]);
+  };
+
+  // ============================================================
+  // Sorting
+  // ============================================================
+
+  const handleSort = (columnKey) => {
+    setSortConfig(prev => ({
+      key: columnKey,
+      direction: prev.key === columnKey && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const getSortedRecords = () => {
+    if (!data?.records || !sortConfig.key) return data?.records || [];
+    return [...data.records].sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const cmp = String(aVal).localeCompare(String(bVal), 'hu', { numeric: true });
+      return sortConfig.direction === 'asc' ? cmp : -cmp;
+    });
+  };
+
+  // ============================================================
+  // Excel export
+  // ============================================================
+
+  const handleExcelExport = () => {
+    if (!activeReport || !data?.records?.length) return;
+    const columns = TABLE_COLUMNS[activeReport];
+    const headers = columns.map(c => c.label);
+    const rows = data.records.map(record =>
+      columns.map(col => formatCellValue(record[col.key], col.format))
+    );
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Riport');
+
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `riport_${activeReport}_${date}.xlsx`);
+  };
+
+  // ============================================================
+  // Render: Filter builder
+  // ============================================================
+
+  const renderFilterBuilder = () => {
+    if (!activeReport) return null;
+    const fields = REPORT_FILTER_FIELDS[activeReport] || [];
+
+    return (
+      <Paper sx={{ p: 2.5, mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+          Szűrők
+        </Typography>
+
+        {currentFilters.map((filter, index) => {
+          const usedFields = getUsedFields(index);
+          const valueOptions = getValueOptions(filter.field, activeReport);
+          return (
+            <Box
+              key={index}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}
+            >
+              <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
+                <InputLabel>Szűrő mező</InputLabel>
+                <Select
+                  value={filter.field}
+                  onChange={e => updateFilter(index, 'field', e.target.value)}
+                  label="Szűrő mező"
+                >
+                  <MenuItem value=""><em>Válasszon...</em></MenuItem>
+                  {fields.map(f => (
+                    <MenuItem key={f.key} value={f.key} disabled={usedFields.includes(f.key)}>
+                      {f.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 220, flex: 1.4 }} disabled={!filter.field}>
+                <InputLabel>Érték</InputLabel>
+                <Select
+                  value={filter.value}
+                  onChange={e => updateFilter(index, 'value', e.target.value)}
+                  label="Érték"
+                >
+                  <MenuItem value=""><em>Válasszon...</em></MenuItem>
+                  {valueOptions.map(opt => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <IconButton size="small" onClick={() => removeFilter(index)} sx={{ color: '#d32f2f' }}>
+                <RemoveIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          );
+        })}
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={addFilter}
+            disabled={currentFilters.length >= MAX_FILTERS}
+            sx={{ color: '#2c5f2d' }}
+          >
+            Szűrő hozzáadása
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            {currentFilters.length}/{MAX_FILTERS} szűrő
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+          <Button
+            variant="contained"
+            onClick={handleFilter}
+            disabled={loading}
+            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+          >
+            {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Szűrés'}
+          </Button>
+
+          {data && (
+            <Chip
+              label={`${data.totalRecords} rekord a szűrésnek megfelel`}
+              color="primary"
+              sx={{ bgcolor: '#2c5f2d', fontWeight: 600 }}
+            />
+          )}
+
+          {data?.records?.length > 0 && (
+            <Button
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              onClick={handleExcelExport}
+              sx={{ borderColor: '#2c5f2d', color: '#2c5f2d', '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44,95,45,0.04)' } }}
+            >
+              Excel export
+            </Button>
+          )}
+        </Box>
+      </Paper>
+    );
+  };
+
+  // ============================================================
+  // Render: Data table
+  // ============================================================
+
+  const renderDataTable = () => {
+    if (!activeReport || !data?.records?.length) return null;
+    const columns = TABLE_COLUMNS[activeReport];
+    const sortedRecords = getSortedRecords();
+
+    return (
+      <Paper sx={{ mt: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, p: 2.5, pb: 1 }}>
+          Rekordok ({data.totalRecords})
+        </Typography>
+        <TableContainer sx={{ maxHeight: 500 }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                {columns.map(col => (
+                  <TableCell key={col.key} sx={{ fontWeight: 600 }}>
+                    <TableSortLabel
+                      active={sortConfig.key === col.key}
+                      direction={sortConfig.key === col.key ? sortConfig.direction : 'asc'}
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label}
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedRecords.map((record, idx) => (
+                <TableRow key={record.id || idx} hover>
+                  {columns.map(col => (
+                    <TableCell key={col.key}>
+                      {formatCellValue(record[col.key], col.format)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+    );
+  };
+
+  // ============================================================
+  // Render: Detail sections per report type
+  // ============================================================
 
   const renderEmployeesDetail = () => {
     if (!data) return null;
@@ -207,7 +665,6 @@ function Reports() {
         </Grid>
 
         <Grid container spacing={3}>
-          {/* Gender distribution */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Nem szerinti eloszlás</Typography>
@@ -231,7 +688,6 @@ function Reports() {
             </Paper>
           </Grid>
 
-          {/* By workplace */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Munkahely szerint</Typography>
@@ -253,7 +709,6 @@ function Reports() {
             </Paper>
           </Grid>
 
-          {/* By status */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Státusz szerint</Typography>
@@ -301,7 +756,6 @@ function Reports() {
         </Grid>
 
         <Grid container spacing={3}>
-          {/* By status */}
           <Grid item xs={12} md={5}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Állapot szerinti eloszlás</Typography>
@@ -325,7 +779,6 @@ function Reports() {
             </Paper>
           </Grid>
 
-          {/* By type */}
           <Grid item xs={12} md={7}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Típus szerint</Typography>
@@ -371,7 +824,6 @@ function Reports() {
         </Grid>
 
         <Grid container spacing={3}>
-          {/* By status */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Státusz szerint</Typography>
@@ -397,7 +849,6 @@ function Reports() {
             </Paper>
           </Grid>
 
-          {/* By priority */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Prioritás szerint</Typography>
@@ -421,7 +872,6 @@ function Reports() {
             </Paper>
           </Grid>
 
-          {/* Monthly trend */}
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Havi trend</Typography>
@@ -464,7 +914,6 @@ function Reports() {
         </Grid>
 
         <Grid container spacing={3}>
-          {/* Tickets per contractor */}
           <Grid item xs={12} md={7}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Hibajegyek alvállalkozónként (Top 10)</Typography>
@@ -488,7 +937,6 @@ function Reports() {
             </Paper>
           </Grid>
 
-          {/* Avg completion time */}
           <Grid item xs={12} md={5}>
             <Paper sx={{ p: 3, height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Átl. megoldási idő (óra)</Typography>
@@ -514,78 +962,44 @@ function Reports() {
     );
   };
 
+  // ============================================================
+  // Render: Main detail section
+  // ============================================================
+
   const renderDetail = () => {
     if (!activeReport) return null;
 
-    if (loading) {
-      return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress />
-        </Box>
-      );
-    }
+    return (
+      <Box>
+        {renderFilterBuilder()}
 
-    switch (activeReport) {
-      case 'employees': return renderEmployeesDetail();
-      case 'accommodations': return renderAccommodationsDetail();
-      case 'tickets': return renderTicketsDetail();
-      case 'contractors': return renderContractorsDetail();
-      default: return null;
-    }
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            {activeReport === 'employees' && renderEmployeesDetail()}
+            {activeReport === 'accommodations' && renderAccommodationsDetail()}
+            {activeReport === 'tickets' && renderTicketsDetail()}
+            {activeReport === 'contractors' && renderContractorsDetail()}
+            {renderDataTable()}
+          </>
+        )}
+      </Box>
+    );
   };
+
+  // ============================================================
+  // Render: Page
+  // ============================================================
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Riportok
         </Typography>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <ButtonGroup variant="outlined" size="small">
-            {DATE_RANGES.map((range) => (
-              <Button
-                key={range.key}
-                variant={dateRange === range.key ? 'contained' : 'outlined'}
-                onClick={() => setDateRange(range.key)}
-                sx={{
-                  textTransform: 'none',
-                  ...(dateRange === range.key && {
-                    bgcolor: '#2c5f2d',
-                    borderColor: '#2c5f2d',
-                    '&:hover': { bgcolor: '#1e4620' },
-                  }),
-                }}
-              >
-                {range.label}
-              </Button>
-            ))}
-          </ButtonGroup>
-
-          {dateRange === 'custom' && (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                type="date"
-                size="small"
-                label="Kezdet"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ width: 160 }}
-              />
-              <TextField
-                type="date"
-                size="small"
-                label="Vége"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ width: 160 }}
-              />
-            </Box>
-          )}
-        </Box>
       </Box>
 
       {/* Report category cards */}

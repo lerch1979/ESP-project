@@ -1,24 +1,241 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 
+// ============================================================
+// Generic filter builder (mirrors notification.controller.js)
+// ============================================================
+
+function buildFilterClause(filter, paramIndex) {
+  const { field, value } = filter;
+  if (!field || value === undefined || value === null || value === '') return null;
+
+  // Special: visa_expiry presets
+  if (field === 'visa_expiry') {
+    const now = new Date();
+    if (value === 'expired') {
+      return { sql: `e.visa_expiry < $${paramIndex}`, params: [now.toISOString().slice(0, 10)] };
+    }
+    if (value === '30days') {
+      const d = new Date(now); d.setDate(d.getDate() + 30);
+      return { sql: `e.visa_expiry <= $${paramIndex} AND e.visa_expiry >= $${paramIndex + 1}`, params: [d.toISOString().slice(0, 10), now.toISOString().slice(0, 10)] };
+    }
+    if (value === '60days') {
+      const d = new Date(now); d.setDate(d.getDate() + 60);
+      return { sql: `e.visa_expiry <= $${paramIndex} AND e.visa_expiry >= $${paramIndex + 1}`, params: [d.toISOString().slice(0, 10), now.toISOString().slice(0, 10)] };
+    }
+    if (value === 'valid') {
+      return { sql: `e.visa_expiry > $${paramIndex}`, params: [now.toISOString().slice(0, 10)] };
+    }
+    return null;
+  }
+
+  // Special: contract_end presets
+  if (field === 'contract_end') {
+    const now = new Date();
+    if (value === 'expired') {
+      return { sql: `e.end_date < $${paramIndex}`, params: [now.toISOString().slice(0, 10)] };
+    }
+    if (value === '30days') {
+      const d = new Date(now); d.setDate(d.getDate() + 30);
+      return { sql: `e.end_date <= $${paramIndex} AND e.end_date >= $${paramIndex + 1}`, params: [d.toISOString().slice(0, 10), now.toISOString().slice(0, 10)] };
+    }
+    if (value === '60days') {
+      const d = new Date(now); d.setDate(d.getDate() + 60);
+      return { sql: `e.end_date <= $${paramIndex} AND e.end_date >= $${paramIndex + 1}`, params: [d.toISOString().slice(0, 10), now.toISOString().slice(0, 10)] };
+    }
+    if (value === '90days') {
+      const d = new Date(now); d.setDate(d.getDate() + 90);
+      return { sql: `e.end_date <= $${paramIndex} AND e.end_date >= $${paramIndex + 1}`, params: [d.toISOString().slice(0, 10), now.toISOString().slice(0, 10)] };
+    }
+    return null;
+  }
+
+  // Special: birth_year range
+  if (field === 'birth_year') {
+    if (value === 'under_25') {
+      const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 25);
+      return { sql: `e.birth_date > $${paramIndex}`, params: [cutoff.toISOString().slice(0, 10)] };
+    }
+    if (value === '25_35') {
+      const from = new Date(); from.setFullYear(from.getFullYear() - 35);
+      const to = new Date(); to.setFullYear(to.getFullYear() - 25);
+      return { sql: `e.birth_date >= $${paramIndex} AND e.birth_date <= $${paramIndex + 1}`, params: [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)] };
+    }
+    if (value === '35_50') {
+      const from = new Date(); from.setFullYear(from.getFullYear() - 50);
+      const to = new Date(); to.setFullYear(to.getFullYear() - 35);
+      return { sql: `e.birth_date >= $${paramIndex} AND e.birth_date <= $${paramIndex + 1}`, params: [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)] };
+    }
+    if (value === 'over_50') {
+      const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 50);
+      return { sql: `e.birth_date < $${paramIndex}`, params: [cutoff.toISOString().slice(0, 10)] };
+    }
+    return null;
+  }
+
+  // Special: date_range presets (for tickets / contractors)
+  if (field === 'date_range') {
+    // Returns date boundaries — caller decides which column to apply
+    return buildDateRangeClause(value, paramIndex);
+  }
+
+  return null; // handled by fieldMap below
+}
+
+function buildDateRangeClause(value, paramIndex) {
+  const now = new Date();
+  let from, to;
+  if (value === 'this_month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (value === 'last_month') {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    to = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else if (value === '3months') {
+    from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (value === '6months') {
+    from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (value === 'this_year') {
+    from = new Date(now.getFullYear(), 0, 1);
+    to = new Date(now.getFullYear(), 11, 31);
+  } else {
+    return null;
+  }
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+    paramIndex,
+  };
+}
+
 /**
- * Munkavállalók riport összesítés
- * GET /api/v1/reports/employees-summary
+ * Build WHERE clause from filters array + fieldMap
+ * fieldMap: { fieldKey: 'sql_column' }  — for standard equality
+ * Special fields (visa_expiry, contract_end, birth_year, date_range) handled via buildFilterClause
  */
+function buildFilterWhere(filters, fieldMap, opts = {}) {
+  const parts = [];
+  const params = [];
+  let paramIdx = opts.startParamIndex || 1;
+  let dateRangeInfo = null;
+
+  if (!Array.isArray(filters)) return { sql: '', params: [], dateRangeInfo: null };
+
+  for (const filter of filters) {
+    const { field, value } = filter;
+    if (!field || value === undefined || value === null || value === '') continue;
+
+    // Check special fields first
+    if (['visa_expiry', 'contract_end', 'birth_year'].includes(field)) {
+      const clause = buildFilterClause(filter, paramIdx);
+      if (clause) {
+        parts.push(`(${clause.sql})`);
+        params.push(...clause.params);
+        paramIdx += clause.params.length;
+      }
+      continue;
+    }
+
+    // date_range — extract info, let caller decide where to apply
+    if (field === 'date_range') {
+      const dr = buildDateRangeClause(value, paramIdx);
+      if (dr) {
+        dateRangeInfo = dr;
+        // Don't add to parts here — caller applies it
+      }
+      continue;
+    }
+
+    // Standard equality from fieldMap
+    const column = fieldMap[field];
+    if (column) {
+      parts.push(`${column} = $${paramIdx}`);
+      params.push(value);
+      paramIdx += 1;
+    }
+  }
+
+  return {
+    sql: parts.length > 0 ? ' AND ' + parts.join(' AND ') : '',
+    params,
+    dateRangeInfo,
+    nextParamIndex: paramIdx,
+  };
+}
+
+
+// ============================================================
+// GET /filter-options — dropdown values for all report types
+// ============================================================
+
+const getReportFilterOptions = async (req, res) => {
+  try {
+    const [
+      empStatuses,
+      empWorkplaces,
+      empPositions,
+      empCountries,
+      ticketStatuses,
+      ticketCategories,
+      ticketPriorities,
+      contractors,
+    ] = await Promise.all([
+      query(`SELECT id, name FROM employee_status_types ORDER BY name`),
+      query(`SELECT DISTINCT workplace FROM employees WHERE workplace IS NOT NULL AND workplace != '' ORDER BY workplace`),
+      query(`SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position`),
+      query(`SELECT DISTINCT permanent_address_country FROM employees WHERE permanent_address_country IS NOT NULL AND permanent_address_country != '' ORDER BY permanent_address_country`),
+      query(`SELECT id, name, slug FROM ticket_statuses ORDER BY order_index`),
+      query(`SELECT id, name FROM ticket_categories ORDER BY name`),
+      query(`SELECT id, name, slug FROM priorities ORDER BY level`),
+      query(`SELECT id, name FROM contractors WHERE is_active = true ORDER BY name`),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        employees: {
+          statuses: empStatuses.rows,
+          workplaces: empWorkplaces.rows.map(r => r.workplace),
+          positions: empPositions.rows.map(r => r.position),
+          countries: empCountries.rows.map(r => r.permanent_address_country),
+        },
+        tickets: {
+          statuses: ticketStatuses.rows,
+          categories: ticketCategories.rows,
+          priorities: ticketPriorities.rows,
+          contractors: contractors.rows,
+        },
+        accommodations: {
+          contractors: contractors.rows,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Report filter options error:', error);
+    res.status(500).json({ success: false, message: 'Szűrő opciók lekérési hiba' });
+  }
+};
+
+
+// ============================================================
+// POST /employees-summary
+// ============================================================
+
+const EMPLOYEE_FIELD_MAP = {
+  status: 'est.name',
+  workplace: 'e.workplace',
+  gender: 'e.gender',
+  marital_status: 'e.marital_status',
+  position: 'e.position',
+  country: 'e.permanent_address_country',
+};
+
 const getEmployeesSummary = async (req, res) => {
   try {
-    const { from_date, to_date } = req.query;
-
-    let dateFilter = '';
-    const params = [];
-    if (from_date) {
-      params.push(from_date);
-      dateFilter += ` AND e.start_date >= $${params.length}`;
-    }
-    if (to_date) {
-      params.push(to_date);
-      dateFilter += ` AND e.start_date <= $${params.length}`;
-    }
+    const filters = req.body.filters || [];
+    const { sql: filterSQL, params } = buildFilterWhere(filters, EMPLOYEE_FIELD_MAP);
 
     const [
       totalsResult,
@@ -27,55 +244,57 @@ const getEmployeesSummary = async (req, res) => {
       newThisMonthResult,
       genderResult,
       byStatusResult,
+      recordsResult,
     ] = await Promise.all([
-      // Total, active, inactive
       query(`
         SELECT
           COUNT(*) as total,
           COUNT(*) FILTER (WHERE e.end_date IS NULL) as active,
           COUNT(*) FILTER (WHERE e.end_date IS NOT NULL) as inactive
         FROM employees e
-        WHERE 1=1 ${dateFilter}
+        LEFT JOIN employee_status_types est ON e.status_id = est.id
+        WHERE 1=1 ${filterSQL}
       `, params),
 
-      // By workplace
       query(`
         SELECT
           COALESCE(e.workplace, 'Nincs megadva') as workplace,
           COUNT(*) as count
         FROM employees e
-        WHERE 1=1 ${dateFilter}
+        LEFT JOIN employee_status_types est ON e.status_id = est.id
+        WHERE 1=1 ${filterSQL}
         GROUP BY e.workplace
         ORDER BY count DESC
       `, params),
 
-      // Visa expiring within 30 days
       query(`
         SELECT COUNT(*) as count
         FROM employees e
+        LEFT JOIN employee_status_types est ON e.status_id = est.id
         WHERE e.visa_expiry BETWEEN NOW() AND NOW() + INTERVAL '30 days'
           AND e.end_date IS NULL
-      `),
+          ${filterSQL}
+      `, params),
 
-      // New this month
       query(`
         SELECT COUNT(*) as count
         FROM employees e
+        LEFT JOIN employee_status_types est ON e.status_id = est.id
         WHERE e.start_date >= date_trunc('month', CURRENT_DATE)
-      `),
+          ${filterSQL}
+      `, params),
 
-      // Gender distribution
       query(`
         SELECT
           COALESCE(e.gender, 'unknown') as gender,
           COUNT(*) as count
         FROM employees e
-        WHERE 1=1 ${dateFilter}
+        LEFT JOIN employee_status_types est ON e.status_id = est.id
+        WHERE 1=1 ${filterSQL}
         GROUP BY e.gender
         ORDER BY count DESC
       `, params),
 
-      // By status
       query(`
         SELECT
           COALESCE(est.name, 'Nincs státusz') as status_name,
@@ -83,9 +302,29 @@ const getEmployeesSummary = async (req, res) => {
           COUNT(*) as count
         FROM employees e
         LEFT JOIN employee_status_types est ON e.status_id = est.id
-        WHERE 1=1 ${dateFilter}
+        WHERE 1=1 ${filterSQL}
         GROUP BY est.name, est.color
         ORDER BY count DESC
+      `, params),
+
+      // Records
+      query(`
+        SELECT
+          e.id,
+          COALESCE(NULLIF(CONCAT(e.last_name, ' ', e.first_name), ' '), 'N/A') as name,
+          COALESCE(est.name, 'Nincs státusz') as status,
+          COALESCE(e.workplace, '-') as workplace,
+          COALESCE(e.gender, '-') as gender,
+          COALESCE(e.position, '-') as position,
+          e.visa_expiry,
+          e.start_date,
+          e.end_date,
+          COALESCE(a.name, '-') as accommodation
+        FROM employees e
+        LEFT JOIN employee_status_types est ON e.status_id = est.id
+        LEFT JOIN accommodations a ON e.accommodation_id = a.id
+        WHERE 1=1 ${filterSQL}
+        ORDER BY e.last_name, e.first_name
       `, params),
     ]);
 
@@ -112,67 +351,90 @@ const getEmployeesSummary = async (req, res) => {
           color: r.color,
           count: parseInt(r.count),
         })),
+        records: recordsResult.rows,
+        totalRecords: recordsResult.rows.length,
       },
     });
   } catch (error) {
     logger.error('Munkavállalók riport hiba:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Munkavállalók riport lekérési hiba',
-    });
+    res.status(500).json({ success: false, message: 'Munkavállalók riport lekérési hiba' });
   }
 };
 
-/**
- * Szálláshelyek riport összesítés
- * GET /api/v1/reports/accommodations-summary
- */
+
+// ============================================================
+// POST /accommodations-summary
+// ============================================================
+
+const ACCOMMODATION_FIELD_MAP = {
+  status: 'a.status',
+  type: 'a.type',
+  contractor: 'a.current_contractor_id',
+};
+
 const getAccommodationsSummary = async (req, res) => {
   try {
+    const filters = req.body.filters || [];
+    const { sql: filterSQL, params } = buildFilterWhere(filters, ACCOMMODATION_FIELD_MAP);
+
     const [
       totalsResult,
       byStatusResult,
       byTypeResult,
       capacityResult,
+      recordsResult,
     ] = await Promise.all([
-      // Total accommodations
       query(`
         SELECT
           COUNT(*) as total,
-          COUNT(*) FILTER (WHERE status = 'available') as available,
-          COUNT(*) FILTER (WHERE status = 'occupied') as occupied,
-          COUNT(*) FILTER (WHERE status = 'maintenance') as maintenance
-        FROM accommodations
-        WHERE is_active = true
-      `),
+          COUNT(*) FILTER (WHERE a.status = 'available') as available,
+          COUNT(*) FILTER (WHERE a.status = 'occupied') as occupied,
+          COUNT(*) FILTER (WHERE a.status = 'maintenance') as maintenance
+        FROM accommodations a
+        WHERE a.is_active = true ${filterSQL}
+      `, params),
 
-      // By status for chart
       query(`
-        SELECT status, COUNT(*) as count
-        FROM accommodations
-        WHERE is_active = true
-        GROUP BY status
+        SELECT a.status, COUNT(*) as count
+        FROM accommodations a
+        WHERE a.is_active = true ${filterSQL}
+        GROUP BY a.status
         ORDER BY count DESC
-      `),
+      `, params),
 
-      // By type
       query(`
-        SELECT type, COUNT(*) as count
-        FROM accommodations
-        WHERE is_active = true
-        GROUP BY type
+        SELECT a.type, COUNT(*) as count
+        FROM accommodations a
+        WHERE a.is_active = true ${filterSQL}
+        GROUP BY a.type
         ORDER BY count DESC
-      `),
+      `, params),
 
-      // Total capacity vs current occupancy (count of employees assigned)
       query(`
         SELECT
           COALESCE(SUM(a.capacity), 0) as total_capacity,
           COUNT(DISTINCT e.id) as current_occupants
         FROM accommodations a
         LEFT JOIN employees e ON e.accommodation_id = a.id AND e.end_date IS NULL
-        WHERE a.is_active = true
-      `),
+        WHERE a.is_active = true ${filterSQL}
+      `, params),
+
+      // Records
+      query(`
+        SELECT
+          a.id,
+          a.name,
+          COALESCE(a.address, '-') as address,
+          COALESCE(a.type, '-') as type,
+          COALESCE(a.status, '-') as status,
+          COALESCE(a.capacity, 0) as capacity,
+          COALESCE(a.monthly_rent, 0) as monthly_rent,
+          COALESCE(c.name, '-') as contractor_name
+        FROM accommodations a
+        LEFT JOIN contractors c ON a.current_contractor_id = c.id
+        WHERE a.is_active = true ${filterSQL}
+        ORDER BY a.name
+      `, params),
     ]);
 
     const total = parseInt(totalsResult.rows[0].total);
@@ -200,35 +462,43 @@ const getAccommodationsSummary = async (req, res) => {
           type: typeLabels[r.type] || r.type,
           count: parseInt(r.count),
         })),
+        records: recordsResult.rows,
+        totalRecords: recordsResult.rows.length,
       },
     });
   } catch (error) {
     logger.error('Szálláshelyek riport hiba:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Szálláshelyek riport lekérési hiba',
-    });
+    res.status(500).json({ success: false, message: 'Szálláshelyek riport lekérési hiba' });
   }
 };
 
-/**
- * Hibajegyek riport összesítés
- * GET /api/v1/reports/tickets-summary
- */
+
+// ============================================================
+// POST /tickets-summary
+// ============================================================
+
+const TICKET_FIELD_MAP = {
+  status: 'ts.slug',
+  category: 'tc.name',
+  priority: 'p.slug',
+  contractor: 't.contractor_id',
+};
+
 const getTicketsSummary = async (req, res) => {
   try {
-    const { from_date, to_date } = req.query;
+    const filters = req.body.filters || [];
+    const { sql: filterSQL, params, dateRangeInfo } = buildFilterWhere(filters, TICKET_FIELD_MAP);
 
+    // Build date filter for tickets
     let dateFilter = '';
-    const params = [];
-    if (from_date) {
-      params.push(from_date);
-      dateFilter += ` AND t.created_at >= $${params.length}`;
+    const dateParams = [];
+    let nextIdx = params.length + 1;
+    if (dateRangeInfo) {
+      dateFilter = ` AND t.created_at >= $${nextIdx} AND t.created_at <= $${nextIdx + 1}::date + INTERVAL '1 day'`;
+      dateParams.push(dateRangeInfo.from, dateRangeInfo.to);
     }
-    if (to_date) {
-      params.push(to_date);
-      dateFilter += ` AND t.created_at <= $${params.length}::date + INTERVAL '1 day'`;
-    }
+
+    const allParams = [...params, ...dateParams];
 
     const [
       totalResult,
@@ -237,15 +507,17 @@ const getTicketsSummary = async (req, res) => {
       byPriorityResult,
       avgResolutionResult,
       monthlyTrendResult,
+      recordsResult,
     ] = await Promise.all([
-      // Total
       query(`
         SELECT COUNT(*) as total
         FROM tickets t
-        WHERE 1=1 ${dateFilter}
-      `, params),
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+        LEFT JOIN priorities p ON t.priority_id = p.id
+        WHERE 1=1 ${filterSQL} ${dateFilter}
+      `, allParams),
 
-      // By status
       query(`
         SELECT
           ts.name as status_name,
@@ -253,24 +525,27 @@ const getTicketsSummary = async (req, res) => {
           ts.color,
           COUNT(t.id) as count
         FROM ticket_statuses ts
-        LEFT JOIN tickets t ON t.status_id = ts.id ${dateFilter ? 'AND' + dateFilter.replace(/AND/i, '') : ''}
+        LEFT JOIN tickets t ON t.status_id = ts.id
+        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+        LEFT JOIN priorities p ON t.priority_id = p.id
+        WHERE 1=1 ${filterSQL} ${dateFilter}
         GROUP BY ts.id, ts.name, ts.slug, ts.color, ts.order_index
         ORDER BY ts.order_index
-      `, params),
+      `, allParams),
 
-      // By category
       query(`
         SELECT
           COALESCE(tc.name, 'Nincs kategória') as category_name,
           COUNT(*) as count
         FROM tickets t
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
         LEFT JOIN ticket_categories tc ON t.category_id = tc.id
-        WHERE 1=1 ${dateFilter}
+        LEFT JOIN priorities p ON t.priority_id = p.id
+        WHERE 1=1 ${filterSQL} ${dateFilter}
         GROUP BY tc.name
         ORDER BY count DESC
-      `, params),
+      `, allParams),
 
-      // By priority
       query(`
         SELECT
           p.name as priority_name,
@@ -279,12 +554,14 @@ const getTicketsSummary = async (req, res) => {
           p.level,
           COUNT(t.id) as count
         FROM priorities p
-        LEFT JOIN tickets t ON t.priority_id = p.id ${dateFilter ? 'AND' + dateFilter.replace(/AND/i, '') : ''}
+        LEFT JOIN tickets t ON t.priority_id = p.id
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+        WHERE 1=1 ${filterSQL} ${dateFilter}
         GROUP BY p.id, p.name, p.slug, p.color, p.level
         ORDER BY p.level
-      `, params),
+      `, allParams),
 
-      // Average resolution time (hours)
       query(`
         SELECT
           COALESCE(
@@ -292,20 +569,52 @@ const getTicketsSummary = async (req, res) => {
             0
           ) as avg_hours
         FROM tickets t
-        WHERE t.resolved_at IS NOT NULL ${dateFilter}
-      `, params),
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+        LEFT JOIN priorities p ON t.priority_id = p.id
+        WHERE t.resolved_at IS NOT NULL ${filterSQL} ${dateFilter}
+      `, allParams),
 
-      // Monthly trend (last 6 months)
       query(`
         SELECT
           to_char(date_trunc('month', t.created_at), 'YYYY-MM') as month,
           to_char(date_trunc('month', t.created_at), 'TMMonth') as month_name,
           COUNT(*) as count
         FROM tickets t
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+        LEFT JOIN priorities p ON t.priority_id = p.id
         WHERE t.created_at >= date_trunc('month', CURRENT_DATE) - INTERVAL '5 months'
+          ${filterSQL} ${dateFilter}
         GROUP BY date_trunc('month', t.created_at)
         ORDER BY date_trunc('month', t.created_at)
-      `),
+      `, allParams),
+
+      // Records
+      query(`
+        SELECT
+          t.id,
+          t.ticket_number,
+          t.title,
+          COALESCE(ts.name, '-') as status,
+          COALESCE(p.name, '-') as priority,
+          COALESCE(tc.name, '-') as category,
+          t.created_at,
+          t.resolved_at,
+          COALESCE(
+            CONCAT(au.last_name, ' ', au.first_name),
+            '-'
+          ) as assigned_to_name,
+          COALESCE(con.name, '-') as contractor_name
+        FROM tickets t
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+        LEFT JOIN priorities p ON t.priority_id = p.id
+        LEFT JOIN users au ON t.assigned_to = au.id
+        LEFT JOIN contractors con ON t.contractor_id = con.id
+        WHERE 1=1 ${filterSQL} ${dateFilter}
+        ORDER BY t.created_at DESC
+      `, allParams),
     ]);
 
     res.json({
@@ -335,51 +644,68 @@ const getTicketsSummary = async (req, res) => {
           monthName: r.month_name,
           count: parseInt(r.count),
         })),
+        records: recordsResult.rows,
+        totalRecords: recordsResult.rows.length,
       },
     });
   } catch (error) {
     logger.error('Hibajegyek riport hiba:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Hibajegyek riport lekérési hiba',
-    });
+    res.status(500).json({ success: false, message: 'Hibajegyek riport lekérési hiba' });
   }
 };
 
-/**
- * Alvállalkozók riport összesítés
- * GET /api/v1/reports/contractors-summary
- */
+
+// ============================================================
+// POST /contractors-summary
+// ============================================================
+
 const getContractorsSummary = async (req, res) => {
   try {
-    const { from_date, to_date } = req.query;
+    const filters = req.body.filters || [];
 
-    let dateFilter = '';
-    const params = [];
-    if (from_date) {
-      params.push(from_date);
-      dateFilter += ` AND t.created_at >= $${params.length}`;
+    // Separate is_active filter from date_range
+    let isActiveFilter = '';
+    const isActiveParams = [];
+    let dateRangeInfo = null;
+    let paramIdx = 1;
+
+    for (const filter of filters) {
+      if (filter.field === 'is_active' && filter.value) {
+        const val = filter.value === 'active' ? true : false;
+        isActiveFilter = ` AND c.is_active = $${paramIdx}`;
+        isActiveParams.push(val);
+        paramIdx += 1;
+      }
+      if (filter.field === 'date_range' && filter.value) {
+        dateRangeInfo = buildDateRangeClause(filter.value, paramIdx);
+      }
     }
-    if (to_date) {
-      params.push(to_date);
-      dateFilter += ` AND t.created_at <= $${params.length}::date + INTERVAL '1 day'`;
+
+    // date_range goes into ticket JOIN ON condition (not WHERE) to preserve LEFT JOIN semantics
+    let ticketDateJoin = '';
+    const ticketDateParams = [];
+    if (dateRangeInfo) {
+      ticketDateJoin = ` AND t.created_at >= $${paramIdx} AND t.created_at <= $${paramIdx + 1}::date + INTERVAL '1 day'`;
+      ticketDateParams.push(dateRangeInfo.from, dateRangeInfo.to);
     }
+
+    const allParams = [...isActiveParams, ...ticketDateParams];
 
     const [
       totalsResult,
       ticketsPerContractorResult,
       avgCompletionResult,
+      recordsResult,
     ] = await Promise.all([
-      // Total, active, inactive
       query(`
         SELECT
           COUNT(*) as total,
-          COUNT(*) FILTER (WHERE is_active = true) as active,
-          COUNT(*) FILTER (WHERE is_active = false) as inactive
-        FROM contractors
-      `),
+          COUNT(*) FILTER (WHERE c.is_active = true) as active,
+          COUNT(*) FILTER (WHERE c.is_active = false) as inactive
+        FROM contractors c
+        WHERE 1=1 ${isActiveFilter}
+      `, isActiveParams),
 
-      // Tickets per contractor (top 10)
       query(`
         SELECT
           c.name as contractor_name,
@@ -387,15 +713,14 @@ const getContractorsSummary = async (req, res) => {
           COUNT(t.id) FILTER (WHERE ts.is_final = true) as completed_tickets
         FROM contractors c
         LEFT JOIN users u ON u.contractor_id = c.id
-        LEFT JOIN tickets t ON t.assigned_to = u.id ${dateFilter ? 'AND' + dateFilter.replace(/AND/i, '') : ''}
+        LEFT JOIN tickets t ON t.assigned_to = u.id ${ticketDateJoin}
         LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
-        WHERE c.is_active = true
+        WHERE c.is_active = true ${isActiveFilter}
         GROUP BY c.id, c.name
         ORDER BY total_tickets DESC
         LIMIT 10
-      `, params),
+      `, allParams),
 
-      // Average completion time per contractor
       query(`
         SELECT
           c.name as contractor_name,
@@ -405,13 +730,33 @@ const getContractorsSummary = async (req, res) => {
           ) as avg_hours
         FROM contractors c
         LEFT JOIN users u ON u.contractor_id = c.id
-        LEFT JOIN tickets t ON t.assigned_to = u.id AND t.resolved_at IS NOT NULL ${dateFilter ? 'AND' + dateFilter.replace(/AND/i, '') : ''}
-        WHERE c.is_active = true
+        LEFT JOIN tickets t ON t.assigned_to = u.id AND t.resolved_at IS NOT NULL ${ticketDateJoin}
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        WHERE c.is_active = true ${isActiveFilter}
         GROUP BY c.id, c.name
         HAVING COUNT(t.id) > 0
         ORDER BY avg_hours ASC
         LIMIT 10
-      `, params),
+      `, allParams),
+
+      // Records
+      query(`
+        SELECT
+          c.id,
+          c.name,
+          COALESCE(c.email, '-') as email,
+          COALESCE(c.phone, '-') as phone,
+          c.is_active,
+          COUNT(t.id) as total_tickets,
+          COUNT(t.id) FILTER (WHERE ts.is_final = true) as completed_tickets
+        FROM contractors c
+        LEFT JOIN users u ON u.contractor_id = c.id
+        LEFT JOIN tickets t ON t.assigned_to = u.id ${ticketDateJoin}
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        WHERE 1=1 ${isActiveFilter}
+        GROUP BY c.id, c.name, c.email, c.phone, c.is_active
+        ORDER BY c.name
+      `, allParams),
     ]);
 
     res.json({
@@ -429,18 +774,19 @@ const getContractorsSummary = async (req, res) => {
           name: r.contractor_name,
           avgHours: parseFloat(r.avg_hours),
         })),
+        records: recordsResult.rows,
+        totalRecords: recordsResult.rows.length,
       },
     });
   } catch (error) {
     logger.error('Alvállalkozók riport hiba:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Alvállalkozók riport lekérési hiba',
-    });
+    res.status(500).json({ success: false, message: 'Alvállalkozók riport lekérési hiba' });
   }
 };
 
+
 module.exports = {
+  getReportFilterOptions,
   getEmployeesSummary,
   getAccommodationsSummary,
   getTicketsSummary,

@@ -254,20 +254,24 @@ export const notificationsAPI = {
 
 // Reports API
 export const reportsAPI = {
-  getEmployeesSummary: async (params = {}) => {
-    const response = await api.get('/reports/employees-summary', { params });
+  getFilterOptions: async () => {
+    const response = await api.get('/reports/filter-options');
     return response.data;
   },
-  getAccommodationsSummary: async (params = {}) => {
-    const response = await api.get('/reports/accommodations-summary', { params });
+  getEmployeesSummary: async (filters = []) => {
+    const response = await api.post('/reports/employees-summary', { filters });
     return response.data;
   },
-  getTicketsSummary: async (params = {}) => {
-    const response = await api.get('/reports/tickets-summary', { params });
+  getAccommodationsSummary: async (filters = []) => {
+    const response = await api.post('/reports/accommodations-summary', { filters });
     return response.data;
   },
-  getContractorsSummary: async (params = {}) => {
-    const response = await api.get('/reports/contractors-summary', { params });
+  getTicketsSummary: async (filters = []) => {
+    const response = await api.post('/reports/tickets-summary', { filters });
+    return response.data;
+  },
+  getContractorsSummary: async (filters = []) => {
+    const response = await api.post('/reports/contractors-summary', { filters });
     return response.data;
   },
 };
