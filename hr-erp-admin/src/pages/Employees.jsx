@@ -16,10 +16,6 @@ import {
   Button,
   Stack,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -28,12 +24,57 @@ import {
   Download as DownloadIcon,
   Email as EmailIcon,
 } from '@mui/icons-material';
-import { employeesAPI, exportAPI } from '../services/api';
+import { employeesAPI, exportAPI, reportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateEmployeeModal from '../components/CreateEmployeeModal';
 import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import BulkEmailModal from '../components/BulkEmailModal';
+import FilterBuilder from '../components/FilterBuilder';
+
+const EMPLOYEE_FILTER_FIELDS = [
+  { key: 'status', label: 'Státusz', type: 'dynamic' },
+  { key: 'workplace', label: 'Munkahely', type: 'dynamic' },
+  { key: 'gender', label: 'Nem', type: 'preset' },
+  { key: 'visa_expiry', label: 'Vízum lejárat', type: 'preset' },
+  { key: 'contract_end', label: 'Szerződés lejárat', type: 'preset' },
+  { key: 'marital_status', label: 'Családi állapot', type: 'preset' },
+  { key: 'position', label: 'Beosztás', type: 'dynamic' },
+  { key: 'country', label: 'Ország', type: 'dynamic' },
+  { key: 'birth_year', label: 'Életkor', type: 'preset' },
+];
+
+const EMPLOYEE_PRESET_VALUES = {
+  gender: [
+    { value: 'male', label: 'Férfi' },
+    { value: 'female', label: 'Nő' },
+    { value: 'other', label: 'Egyéb' },
+  ],
+  visa_expiry: [
+    { value: 'expired', label: 'Lejárt' },
+    { value: '30days', label: '30 napon belül lejár' },
+    { value: '60days', label: '60 napon belül lejár' },
+    { value: 'valid', label: 'Érvényes' },
+  ],
+  contract_end: [
+    { value: 'expired', label: 'Lejárt' },
+    { value: '30days', label: '30 napon belül lejár' },
+    { value: '60days', label: '60 napon belül lejár' },
+    { value: '90days', label: '90 napon belül lejár' },
+  ],
+  marital_status: [
+    { value: 'single', label: 'Egyedülálló' },
+    { value: 'married', label: 'Házas' },
+    { value: 'divorced', label: 'Elvált' },
+    { value: 'widowed', label: 'Özvegy' },
+  ],
+  birth_year: [
+    { value: 'under_25', label: '25 év alatt' },
+    { value: '25_35', label: '25-35 év' },
+    { value: '35_50', label: '35-50 év' },
+    { value: 'over_50', label: '50 év felett' },
+  ],
+};
 
 function Employees() {
   const [loading, setLoading] = useState(true);
@@ -42,9 +83,8 @@ function Employees() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [accommodationFilter, setAccommodationFilter] = useState('all');
-  const [statuses, setStatuses] = useState([]);
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [filterOptions, setFilterOptions] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -53,22 +93,32 @@ function Employees() {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   useEffect(() => {
-    loadStatuses();
+    loadFilterOptions();
   }, []);
 
   useEffect(() => {
     loadEmployees();
-  }, [page, rowsPerPage, search, statusFilter, accommodationFilter]);
+  }, [page, rowsPerPage, search, activeFilters]);
 
-  const loadStatuses = async () => {
+  const loadFilterOptions = async () => {
     try {
-      const response = await employeesAPI.getStatuses();
+      const response = await reportsAPI.getFilterOptions();
       if (response.success) {
-        setStatuses(response.data.statuses);
+        setFilterOptions(response.data);
       }
     } catch (error) {
-      console.error('Státuszok betöltési hiba:', error);
+      console.error('Szűrő opciók betöltési hiba:', error);
     }
+  };
+
+  const buildDynamicOptions = () => {
+    if (!filterOptions) return {};
+    return {
+      status: (filterOptions.employees?.statuses || []).map(s => ({ value: s.name, label: s.name })),
+      workplace: (filterOptions.employees?.workplaces || []).map(w => ({ value: w, label: w })),
+      position: (filterOptions.employees?.positions || []).map(p => ({ value: p, label: p })),
+      country: (filterOptions.employees?.countries || []).map(c => ({ value: c, label: c })),
+    };
   };
 
   const loadEmployees = async () => {
@@ -80,9 +130,7 @@ function Employees() {
       };
 
       if (search) params.search = search;
-      if (statusFilter !== 'all') params.status_id = statusFilter;
-      if (accommodationFilter === 'yes') params.has_accommodation = 'true';
-      if (accommodationFilter === 'no') params.has_accommodation = 'false';
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await employeesAPI.getAll(params);
 
@@ -117,10 +165,8 @@ function Employees() {
     setDetailModalOpen(true);
   };
 
-  const clearFilters = () => {
-    setStatusFilter('all');
-    setAccommodationFilter('all');
-    setSearch('');
+  const handleFilterChange = (newFilters) => {
+    setActiveFilters(newFilters);
     setPage(0);
   };
 
@@ -129,9 +175,7 @@ function Employees() {
     try {
       const params = {};
       if (search) params.search = search;
-      if (statusFilter !== 'all') params.status_id = statusFilter;
-      if (accommodationFilter === 'yes') params.has_accommodation = 'true';
-      if (accommodationFilter === 'no') params.has_accommodation = 'false';
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await exportAPI.employees(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -149,8 +193,6 @@ function Employees() {
       setExporting(false);
     }
   };
-
-  const hasActiveFilters = statusFilter !== 'all' || accommodationFilter !== 'all' || search;
 
   return (
     <Box>
@@ -211,58 +253,33 @@ function Employees() {
         </Stack>
       </Box>
 
-      {/* Search & filters */}
+      {/* Search */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            fullWidth
-            placeholder="Keresés név, email vagy törzsszám alapján..."
-            value={search}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            size="small"
-          />
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Státusz</InputLabel>
-            <Select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-              label="Státusz"
-            >
-              <MenuItem value="all">Mind</MenuItem>
-              {statuses.map((s) => (
-                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Szálláshely</InputLabel>
-            <Select
-              value={accommodationFilter}
-              onChange={(e) => { setAccommodationFilter(e.target.value); setPage(0); }}
-              label="Szálláshely"
-            >
-              <MenuItem value="all">Mind</MenuItem>
-              <MenuItem value="yes">Van szállása</MenuItem>
-              <MenuItem value="no">Nincs szállása</MenuItem>
-            </Select>
-          </FormControl>
-
-          {hasActiveFilters && (
-            <Button size="small" onClick={clearFilters}>
-              Szűrők törlése
-            </Button>
-          )}
-        </Stack>
+        <TextField
+          fullWidth
+          placeholder="Keresés név, email vagy törzsszám alapján..."
+          value={search}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          size="small"
+        />
       </Paper>
+
+      {/* FilterBuilder */}
+      <FilterBuilder
+        fields={EMPLOYEE_FILTER_FIELDS}
+        presetValues={EMPLOYEE_PRESET_VALUES}
+        dynamicOptions={buildDynamicOptions()}
+        onFilter={handleFilterChange}
+        resultCount={totalCount}
+        loading={loading}
+      />
 
       {/* Table */}
       <Paper>

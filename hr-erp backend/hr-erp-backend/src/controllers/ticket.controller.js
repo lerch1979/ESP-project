@@ -1,5 +1,13 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
+
+const TICKET_FILTER_FIELD_MAP = {
+  status: 'ts.slug',
+  category: 'tc.slug',
+  priority: 'p.slug',
+  contractor: 't.contractor_id',
+};
 
 /**
  * Ticketek listázása (szűrőkkel)
@@ -62,14 +70,38 @@ const getTickets = async (req, res) => {
       paramIndex++;
     }
 
-    const whereClause = whereConditions.length > 0 
-      ? `WHERE ${whereConditions.join(' AND ')}` 
-      : '';
+    // Dynamic multi-filter support
+    const filters = parseFiltersParam(req.query.filters);
+    let dateFilter = '';
+    const dateParams = [];
+    if (filters.length > 0) {
+      const fr = buildFilterWhere(filters, TICKET_FILTER_FIELD_MAP, { startParamIndex: paramIndex });
+      if (fr.sql) {
+        whereConditions.push(fr.sql.replace(/^ AND /, ''));
+        params.push(...fr.params);
+        paramIndex = fr.nextParamIndex;
+      }
+      if (fr.dateRangeInfo) {
+        dateFilter = ` AND t.created_at >= $${paramIndex} AND t.created_at <= $${paramIndex + 1}::date + INTERVAL '1 day'`;
+        dateParams.push(fr.dateRangeInfo.from, fr.dateRangeInfo.to);
+        paramIndex += 2;
+      }
+    }
 
-    // Összes ticket száma
+    const whereClause = whereConditions.length > 0
+      ? `WHERE ${whereConditions.join(' AND ')}${dateFilter}`
+      : dateFilter ? `WHERE 1=1${dateFilter}` : '';
+
+    const allParams = [...params, ...dateParams];
+
+    // Összes ticket száma (with JOINs for filter columns)
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM tickets t ${whereClause}`,
-      params
+      `SELECT COUNT(*) as total FROM tickets t
+       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+       LEFT JOIN priorities p ON t.priority_id = p.id
+       ${whereClause}`,
+      allParams
     );
 
     // Ticketek lekérése
@@ -109,8 +141,8 @@ const getTickets = async (req, res) => {
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    params.push(limit, offset);
-    const ticketsResult = await query(ticketsQuery, params);
+    allParams.push(limit, offset);
+    const ticketsResult = await query(ticketsQuery, allParams);
 
     res.json({
       success: true,

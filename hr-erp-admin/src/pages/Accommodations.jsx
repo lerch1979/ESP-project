@@ -16,10 +16,6 @@ import {
   Button,
   Stack,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,11 +23,33 @@ import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';
-import { accommodationsAPI, exportAPI } from '../services/api';
+import { accommodationsAPI, exportAPI, reportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateAccommodationModal from '../components/CreateAccommodationModal';
 import AccommodationBulkImportModal from '../components/AccommodationBulkImportModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
+import FilterBuilder from '../components/FilterBuilder';
+
+const ACCOMMODATION_FILTER_FIELDS = [
+  { key: 'status', label: 'Állapot', type: 'preset' },
+  { key: 'type', label: 'Típus', type: 'preset' },
+  { key: 'contractor', label: 'Alvállalkozó', type: 'dynamic' },
+];
+
+const ACCOMMODATION_PRESET_VALUES = {
+  status: [
+    { value: 'available', label: 'Szabad' },
+    { value: 'occupied', label: 'Foglalt' },
+    { value: 'maintenance', label: 'Karbantartás' },
+  ],
+  type: [
+    { value: 'studio', label: 'Stúdió' },
+    { value: '1br', label: '1 szobás' },
+    { value: '2br', label: '2 szobás' },
+    { value: '3br', label: '3 szobás' },
+    { value: 'dormitory', label: 'Kollégium' },
+  ],
+};
 
 const STATUS_LABELS = {
   available: 'Szabad',
@@ -60,8 +78,8 @@ function Accommodations() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [filterOptions, setFilterOptions] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -69,8 +87,30 @@ function Accommodations() {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
+  useEffect(() => {
     loadAccommodations();
-  }, [page, rowsPerPage, search, statusFilter, typeFilter]);
+  }, [page, rowsPerPage, search, activeFilters]);
+
+  const loadFilterOptions = async () => {
+    try {
+      const response = await reportsAPI.getFilterOptions();
+      if (response.success) {
+        setFilterOptions(response.data);
+      }
+    } catch (error) {
+      console.error('Szűrő opciók betöltési hiba:', error);
+    }
+  };
+
+  const buildDynamicOptions = () => {
+    if (!filterOptions) return {};
+    return {
+      contractor: (filterOptions.accommodations?.contractors || []).map(c => ({ value: String(c.id), label: c.name })),
+    };
+  };
 
   const loadAccommodations = async () => {
     setLoading(true);
@@ -81,8 +121,7 @@ function Accommodations() {
       };
 
       if (search) params.search = search;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (typeFilter !== 'all') params.type = typeFilter;
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await accommodationsAPI.getAll(params);
 
@@ -117,10 +156,8 @@ function Accommodations() {
     setDetailModalOpen(true);
   };
 
-  const clearFilters = () => {
-    setStatusFilter('all');
-    setTypeFilter('all');
-    setSearch('');
+  const handleFilterChange = (newFilters) => {
+    setActiveFilters(newFilters);
     setPage(0);
   };
 
@@ -129,8 +166,7 @@ function Accommodations() {
     try {
       const params = {};
       if (search) params.search = search;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (typeFilter !== 'all') params.type = typeFilter;
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await exportAPI.accommodations(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -148,8 +184,6 @@ function Accommodations() {
       setExporting(false);
     }
   };
-
-  const hasActiveFilters = statusFilter !== 'all' || typeFilter !== 'all' || search;
 
   const formatRent = (rent) => {
     if (!rent) return '-';
@@ -203,61 +237,33 @@ function Accommodations() {
         </Stack>
       </Box>
 
-      {/* Search & filters */}
+      {/* Search */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            fullWidth
-            placeholder="Keresés név, cím vagy megjegyzés alapján..."
-            value={search}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            size="small"
-          />
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Státusz</InputLabel>
-            <Select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-              label="Státusz"
-            >
-              <MenuItem value="all">Mind</MenuItem>
-              <MenuItem value="available">Szabad</MenuItem>
-              <MenuItem value="occupied">Foglalt</MenuItem>
-              <MenuItem value="maintenance">Karbantartás</MenuItem>
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Típus</InputLabel>
-            <Select
-              value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
-              label="Típus"
-            >
-              <MenuItem value="all">Mind</MenuItem>
-              <MenuItem value="studio">Stúdió</MenuItem>
-              <MenuItem value="1br">1 szobás</MenuItem>
-              <MenuItem value="2br">2 szobás</MenuItem>
-              <MenuItem value="3br">3 szobás</MenuItem>
-              <MenuItem value="dormitory">Munkásszálló</MenuItem>
-            </Select>
-          </FormControl>
-
-          {hasActiveFilters && (
-            <Button size="small" onClick={clearFilters}>
-              Szűrők törlése
-            </Button>
-          )}
-        </Stack>
+        <TextField
+          fullWidth
+          placeholder="Keresés név, cím vagy megjegyzés alapján..."
+          value={search}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          size="small"
+        />
       </Paper>
+
+      {/* FilterBuilder */}
+      <FilterBuilder
+        fields={ACCOMMODATION_FILTER_FIELDS}
+        presetValues={ACCOMMODATION_PRESET_VALUES}
+        dynamicOptions={buildDynamicOptions()}
+        onFilter={handleFilterChange}
+        resultCount={totalCount}
+        loading={loading}
+      />
 
       {/* Table */}
       <Paper>

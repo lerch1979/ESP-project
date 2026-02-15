@@ -1,6 +1,13 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
+const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
+
+const ACCOMMODATION_FILTER_FIELD_MAP = {
+  status: 'a.status',
+  type: 'a.type',
+  contractor: 'a.current_contractor_id',
+};
 
 // Valid accommodation types
 const VALID_TYPES = ['studio', '1br', '2br', '3br', 'dormitory'];
@@ -92,6 +99,17 @@ const getAccommodations = async (req, res) => {
       );
       params.push(`%${search}%`);
       paramIndex++;
+    }
+
+    // Dynamic multi-filter support
+    const filters = parseFiltersParam(req.query.filters);
+    if (filters.length > 0) {
+      const fr = buildFilterWhere(filters, ACCOMMODATION_FILTER_FIELD_MAP, { startParamIndex: paramIndex });
+      if (fr.sql) {
+        whereConditions.push(fr.sql.replace(/^ AND /, ''));
+        params.push(...fr.params);
+        paramIndex = fr.nextParamIndex;
+      }
     }
 
     const whereClause = whereConditions.length > 0

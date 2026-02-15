@@ -1,6 +1,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
+const { parseFiltersParam } = require('../utils/filterBuilder');
 
 // Hungarian diacritic mapping for slug generation
 const HUNGARIAN_CHAR_MAP = {
@@ -59,6 +60,16 @@ const getContractors = async (req, res) => {
       whereConditions.push(`t.is_active = $${paramIndex}`);
       params.push(is_active === 'true');
       paramIndex++;
+    }
+
+    // Dynamic multi-filter support
+    const filters = parseFiltersParam(req.query.filters);
+    for (const filter of filters) {
+      if (filter.field === 'is_active' && filter.value) {
+        whereConditions.push(`t.is_active = $${paramIndex}`);
+        params.push(filter.value === 'active');
+        paramIndex++;
+      }
     }
 
     if (search) {

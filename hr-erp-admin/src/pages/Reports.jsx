@@ -9,12 +9,6 @@ import {
   CardActionArea,
   CircularProgress,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton,
-  Chip,
   Table,
   TableBody,
   TableCell,
@@ -28,8 +22,6 @@ import {
   Apartment as ApartmentIcon,
   ConfirmationNumber as ConfirmationNumberIcon,
   Business as BusinessIcon,
-  Add as AddIcon,
-  Remove as RemoveIcon,
   FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
 import {
@@ -49,6 +41,7 @@ import {
 } from 'recharts';
 import * as XLSX from 'xlsx';
 import { reportsAPI } from '../services/api';
+import FilterBuilder from '../components/FilterBuilder';
 
 // ============================================================
 // Constants
@@ -190,10 +183,6 @@ const TABLE_COLUMNS = {
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
 
-const MAX_FILTERS = 10;
-
-const emptyFilter = () => ({ field: '', value: '' });
-
 // ============================================================
 // Helpers
 // ============================================================
@@ -244,12 +233,6 @@ function Reports() {
   const [loading, setLoading] = useState(false);
   const [summaryMetrics, setSummaryMetrics] = useState({});
   const [filterOptions, setFilterOptions] = useState(null);
-  const [filters, setFilters] = useState({
-    employees: [emptyFilter()],
-    accommodations: [emptyFilter()],
-    tickets: [emptyFilter()],
-    contractors: [emptyFilter()],
-  });
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   // Load summary metrics + filter options on mount
@@ -289,104 +272,49 @@ function Reports() {
   };
 
   // ============================================================
-  // Filter management
+  // FilterBuilder helpers
   // ============================================================
 
-  const currentFilters = activeReport ? filters[activeReport] : [];
-
-  const addFilter = () => {
-    if (!activeReport) return;
-    setFilters(prev => ({
-      ...prev,
-      [activeReport]: prev[activeReport].length < MAX_FILTERS
-        ? [...prev[activeReport], emptyFilter()]
-        : prev[activeReport],
-    }));
-  };
-
-  const removeFilter = (index) => {
-    if (!activeReport) return;
-    setFilters(prev => ({
-      ...prev,
-      [activeReport]: prev[activeReport].length > 1
-        ? prev[activeReport].filter((_, i) => i !== index)
-        : [emptyFilter()],
-    }));
-  };
-
-  const updateFilter = (index, key, val) => {
-    if (!activeReport) return;
-    setFilters(prev => {
-      const updated = [...prev[activeReport]];
-      updated[index] = { ...updated[index], [key]: val };
-      if (key === 'field') updated[index].value = '';
-      return { ...prev, [activeReport]: updated };
-    });
-  };
-
-  const getUsedFields = (excludeIndex) => {
-    return currentFilters
-      .filter((_, i) => i !== excludeIndex)
-      .map(f => f.field)
-      .filter(Boolean);
-  };
-
-  const getValueOptions = useCallback((fieldKey, reportType) => {
-    if (!fieldKey) return [];
-
-    // Accommodation-specific preset mappings
-    if (reportType === 'accommodations' && fieldKey === 'status') {
-      return PRESET_VALUES.acc_status;
+  const getPresetValuesForReport = (reportType) => {
+    const base = { ...PRESET_VALUES };
+    if (reportType === 'accommodations') {
+      return {
+        ...base,
+        status: PRESET_VALUES.acc_status,
+        type: PRESET_VALUES.acc_type,
+      };
     }
-    if (reportType === 'accommodations' && fieldKey === 'type') {
-      return PRESET_VALUES.acc_type;
-    }
+    return base;
+  };
 
-    // General presets
-    if (PRESET_VALUES[fieldKey]) {
-      return PRESET_VALUES[fieldKey];
-    }
-
-    // Dynamic values from backend
-    if (!filterOptions) return [];
+  const getDynamicOptionsForReport = useCallback((reportType) => {
+    if (!filterOptions) return {};
 
     if (reportType === 'employees') {
-      switch (fieldKey) {
-        case 'status':
-          return (filterOptions.employees?.statuses || []).map(s => ({ value: s.name, label: s.name }));
-        case 'workplace':
-          return (filterOptions.employees?.workplaces || []).map(w => ({ value: w, label: w }));
-        case 'position':
-          return (filterOptions.employees?.positions || []).map(p => ({ value: p, label: p }));
-        case 'country':
-          return (filterOptions.employees?.countries || []).map(c => ({ value: c, label: c }));
-        default:
-          return [];
-      }
+      return {
+        status: (filterOptions.employees?.statuses || []).map(s => ({ value: s.name, label: s.name })),
+        workplace: (filterOptions.employees?.workplaces || []).map(w => ({ value: w, label: w })),
+        position: (filterOptions.employees?.positions || []).map(p => ({ value: p, label: p })),
+        country: (filterOptions.employees?.countries || []).map(c => ({ value: c, label: c })),
+      };
     }
 
     if (reportType === 'tickets') {
-      switch (fieldKey) {
-        case 'status':
-          return (filterOptions.tickets?.statuses || []).map(s => ({ value: s.slug, label: s.name }));
-        case 'category':
-          return (filterOptions.tickets?.categories || []).map(c => ({ value: c.name, label: c.name }));
-        case 'priority':
-          return (filterOptions.tickets?.priorities || []).map(p => ({ value: p.slug, label: p.name }));
-        case 'contractor':
-          return (filterOptions.tickets?.contractors || []).map(c => ({ value: String(c.id), label: c.name }));
-        default:
-          return [];
-      }
+      return {
+        status: (filterOptions.tickets?.statuses || []).map(s => ({ value: s.slug, label: s.name })),
+        category: (filterOptions.tickets?.categories || []).map(c => ({ value: c.name, label: c.name })),
+        priority: (filterOptions.tickets?.priorities || []).map(p => ({ value: p.slug, label: p.name })),
+        contractor: (filterOptions.tickets?.contractors || []).map(c => ({ value: String(c.id), label: c.name })),
+      };
     }
 
     if (reportType === 'accommodations') {
-      if (fieldKey === 'contractor') {
-        return (filterOptions.accommodations?.contractors || []).map(c => ({ value: String(c.id), label: c.name }));
-      }
+      return {
+        contractor: (filterOptions.accommodations?.contractors || []).map(c => ({ value: String(c.id), label: c.name })),
+      };
     }
 
-    return [];
+    return {};
   }, [filterOptions]);
 
   // ============================================================
@@ -398,7 +326,7 @@ function Reports() {
     setData(null);
     setSortConfig({ key: null, direction: 'asc' });
     try {
-      const activeFilters = (reportFilters || []).filter(f => f.field && f.value);
+      const activeFilters = reportFilters || [];
       let response;
       switch (reportKey) {
         case 'employees':
@@ -432,13 +360,13 @@ function Reports() {
       setData(null);
     } else {
       setActiveReport(key);
-      loadReport(key, filters[key]);
+      loadReport(key, []);
     }
   };
 
-  const handleFilter = () => {
+  const handleFilter = (activeFilters) => {
     if (!activeReport) return;
-    loadReport(activeReport, filters[activeReport]);
+    loadReport(activeReport, activeFilters);
   };
 
   // ============================================================
@@ -494,90 +422,18 @@ function Reports() {
     const fields = REPORT_FILTER_FIELDS[activeReport] || [];
 
     return (
-      <Paper sx={{ p: 2.5, mb: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-          Szűrők
-        </Typography>
-
-        {currentFilters.map((filter, index) => {
-          const usedFields = getUsedFields(index);
-          const valueOptions = getValueOptions(filter.field, activeReport);
-          return (
-            <Box
-              key={index}
-              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}
-            >
-              <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
-                <InputLabel>Szűrő mező</InputLabel>
-                <Select
-                  value={filter.field}
-                  onChange={e => updateFilter(index, 'field', e.target.value)}
-                  label="Szűrő mező"
-                >
-                  <MenuItem value=""><em>Válasszon...</em></MenuItem>
-                  {fields.map(f => (
-                    <MenuItem key={f.key} value={f.key} disabled={usedFields.includes(f.key)}>
-                      {f.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 220, flex: 1.4 }} disabled={!filter.field}>
-                <InputLabel>Érték</InputLabel>
-                <Select
-                  value={filter.value}
-                  onChange={e => updateFilter(index, 'value', e.target.value)}
-                  label="Érték"
-                >
-                  <MenuItem value=""><em>Válasszon...</em></MenuItem>
-                  {valueOptions.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <IconButton size="small" onClick={() => removeFilter(index)} sx={{ color: '#d32f2f' }}>
-                <RemoveIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          );
-        })}
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={addFilter}
-            disabled={currentFilters.length >= MAX_FILTERS}
-            sx={{ color: '#2c5f2d' }}
-          >
-            Szűrő hozzáadása
-          </Button>
-          <Typography variant="caption" color="text.secondary">
-            {currentFilters.length}/{MAX_FILTERS} szűrő
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-          <Button
-            variant="contained"
-            onClick={handleFilter}
-            disabled={loading}
-            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
-          >
-            {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Szűrés'}
-          </Button>
-
-          {data && (
-            <Chip
-              label={`${data.totalRecords} rekord a szűrésnek megfelel`}
-              color="primary"
-              sx={{ bgcolor: '#2c5f2d', fontWeight: 600 }}
-            />
-          )}
-
-          {data?.records?.length > 0 && (
+      <Box sx={{ mb: 3 }}>
+        <FilterBuilder
+          key={activeReport}
+          fields={fields}
+          presetValues={getPresetValuesForReport(activeReport)}
+          dynamicOptions={getDynamicOptionsForReport(activeReport)}
+          onFilter={handleFilter}
+          resultCount={data ? data.totalRecords : null}
+          loading={loading}
+        />
+        {data?.records?.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: -2, mb: 2 }}>
             <Button
               variant="outlined"
               startIcon={<FileDownloadIcon />}
@@ -586,9 +442,9 @@ function Reports() {
             >
               Excel export
             </Button>
-          )}
-        </Box>
-      </Paper>
+          </Box>
+        )}
+      </Box>
     );
   };
 

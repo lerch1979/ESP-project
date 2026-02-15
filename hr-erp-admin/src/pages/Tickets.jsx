@@ -17,19 +17,34 @@ import {
   Button,
   Stack,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';
-import { ticketsAPI, exportAPI } from '../services/api';
+import { ticketsAPI, exportAPI, reportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateTicketModal from '../components/CreateTicketModal';
+import FilterBuilder from '../components/FilterBuilder';
+
+const TICKET_FILTER_FIELDS = [
+  { key: 'status', label: 'Státusz', type: 'dynamic' },
+  { key: 'category', label: 'Kategória', type: 'dynamic' },
+  { key: 'priority', label: 'Prioritás', type: 'dynamic' },
+  { key: 'date_range', label: 'Időszak', type: 'preset' },
+  { key: 'contractor', label: 'Alvállalkozó', type: 'dynamic' },
+];
+
+const TICKET_PRESET_VALUES = {
+  date_range: [
+    { value: 'this_month', label: 'Ez a hónap' },
+    { value: 'last_month', label: 'Múlt hónap' },
+    { value: '3months', label: '3 hónap' },
+    { value: '6months', label: '6 hónap' },
+    { value: 'this_year', label: 'Idei év' },
+  ],
+};
 
 function Tickets() {
   const navigate = useNavigate();
@@ -39,40 +54,38 @@ function Tickets() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [filterOptions, setFilterOptions] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const [statuses, setStatuses] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [priorities, setPriorities] = useState([]);
-
   useEffect(() => {
-    loadLookups();
+    loadFilterOptions();
   }, []);
 
   useEffect(() => {
     loadTickets();
-  }, [page, rowsPerPage, search, statusFilter, categoryFilter, priorityFilter]);
+  }, [page, rowsPerPage, search, activeFilters]);
 
-  const loadLookups = async () => {
-    const [statusesRes, categoriesRes, prioritiesRes] = await Promise.allSettled([
-      ticketsAPI.getStatuses(),
-      ticketsAPI.getCategories(),
-      ticketsAPI.getPriorities(),
-    ]);
+  const loadFilterOptions = async () => {
+    try {
+      const response = await reportsAPI.getFilterOptions();
+      if (response.success) {
+        setFilterOptions(response.data);
+      }
+    } catch (error) {
+      console.error('Szűrő opciók betöltési hiba:', error);
+    }
+  };
 
-    if (statusesRes.status === 'fulfilled' && statusesRes.value.success) {
-      setStatuses(statusesRes.value.data.statuses || []);
-    }
-    if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
-      setCategories(categoriesRes.value.data.categories || []);
-    }
-    if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
-      setPriorities(prioritiesRes.value.data.priorities || []);
-    }
+  const buildDynamicOptions = () => {
+    if (!filterOptions) return {};
+    return {
+      status: (filterOptions.tickets?.statuses || []).map(s => ({ value: s.slug, label: s.name })),
+      category: (filterOptions.tickets?.categories || []).map(c => ({ value: c.name, label: c.name })),
+      priority: (filterOptions.tickets?.priorities || []).map(p => ({ value: p.slug, label: p.name })),
+      contractor: (filterOptions.tickets?.contractors || []).map(c => ({ value: String(c.id), label: c.name })),
+    };
   };
 
   const loadTickets = async () => {
@@ -84,9 +97,7 @@ function Tickets() {
       };
 
       if (search) params.search = search;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (categoryFilter !== 'all') params.category = categoryFilter;
-      if (priorityFilter !== 'all') params.priority = priorityFilter;
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await ticketsAPI.getAll(params);
 
@@ -146,14 +157,17 @@ function Tickets() {
     navigate(`/tickets/${ticketId}`);
   };
 
+  const handleFilterChange = (newFilters) => {
+    setActiveFilters(newFilters);
+    setPage(0);
+  };
+
   const handleExport = async () => {
     setExporting(true);
     try {
       const params = {};
       if (search) params.search = search;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (categoryFilter !== 'all') params.category = categoryFilter;
-      if (priorityFilter !== 'all') params.priority = priorityFilter;
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await exportAPI.tickets(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -171,8 +185,6 @@ function Tickets() {
       setExporting(false);
     }
   };
-
-  const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || priorityFilter !== 'all';
 
   return (
     <Box>
@@ -209,80 +221,33 @@ function Tickets() {
         </Stack>
       </Box>
 
-      {/* Keresés és szűrők */}
+      {/* Keresés */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            fullWidth
-            placeholder="Keresés címben vagy leírásban..."
-            value={search}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            size="small"
-          />
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Státusz</InputLabel>
-            <Select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-              label="Státusz"
-            >
-              <MenuItem value="all">Minden státusz</MenuItem>
-              {statuses.map((s) => (
-                <MenuItem key={s.id} value={s.slug}>{s.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Kategória</InputLabel>
-            <Select
-              value={categoryFilter}
-              onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
-              label="Kategória"
-            >
-              <MenuItem value="all">Minden kategória</MenuItem>
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.slug}>{c.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Prioritás</InputLabel>
-            <Select
-              value={priorityFilter}
-              onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}
-              label="Prioritás"
-            >
-              <MenuItem value="all">Minden prioritás</MenuItem>
-              {priorities.map((p) => (
-                <MenuItem key={p.id} value={p.slug}>{p.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {hasActiveFilters && (
-            <Button
-              size="small"
-              onClick={() => {
-                setStatusFilter('all');
-                setCategoryFilter('all');
-                setPriorityFilter('all');
-              }}
-            >
-              Szűrők törlése
-            </Button>
-          )}
-        </Stack>
+        <TextField
+          fullWidth
+          placeholder="Keresés címben vagy leírásban..."
+          value={search}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          size="small"
+        />
       </Paper>
+
+      {/* FilterBuilder */}
+      <FilterBuilder
+        fields={TICKET_FILTER_FIELDS}
+        presetValues={TICKET_PRESET_VALUES}
+        dynamicOptions={buildDynamicOptions()}
+        onFilter={handleFilterChange}
+        resultCount={totalCount}
+        loading={loading}
+      />
 
       {/* Táblázat */}
       <Paper>

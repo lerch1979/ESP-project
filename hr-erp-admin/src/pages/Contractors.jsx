@@ -16,10 +16,6 @@ import {
   Button,
   Stack,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -32,6 +28,18 @@ import { toast } from 'react-toastify';
 import CreateContractorModal from '../components/CreateContractorModal';
 import ContractorBulkImportModal from '../components/ContractorBulkImportModal';
 import ContractorDetailModal from '../components/ContractorDetailModal';
+import FilterBuilder from '../components/FilterBuilder';
+
+const CONTRACTOR_FILTER_FIELDS = [
+  { key: 'is_active', label: 'Állapot', type: 'preset' },
+];
+
+const CONTRACTOR_PRESET_VALUES = {
+  is_active: [
+    { value: 'active', label: 'Aktív' },
+    { value: 'inactive', label: 'Inaktív' },
+  ],
+};
 
 function Contractors() {
   const [loading, setLoading] = useState(true);
@@ -40,7 +48,7 @@ function Contractors() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilters, setActiveFilters] = useState([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -49,7 +57,12 @@ function Contractors() {
 
   useEffect(() => {
     loadContractors();
-  }, [page, rowsPerPage, search, activeFilter]);
+  }, [page, rowsPerPage, search, activeFilters]);
+
+  const handleFilterChange = (newFilters) => {
+    setActiveFilters(newFilters);
+    setPage(0);
+  };
 
   const loadContractors = async () => {
     setLoading(true);
@@ -60,7 +73,7 @@ function Contractors() {
       };
 
       if (search) params.search = search;
-      if (activeFilter !== 'all') params.is_active = activeFilter;
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await contractorsAPI.getAll(params);
 
@@ -100,7 +113,7 @@ function Contractors() {
     try {
       const params = {};
       if (search) params.search = search;
-      if (activeFilter !== 'all') params.is_active = activeFilter;
+      if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
 
       const response = await exportAPI.contractors(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -166,50 +179,33 @@ function Contractors() {
         </Stack>
       </Box>
 
-      {/* Search & filters */}
+      {/* Search */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            fullWidth
-            placeholder="Keresés név, email, telefon vagy cím alapján..."
-            value={search}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            size="small"
-          />
-
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Státusz</InputLabel>
-            <Select
-              value={activeFilter}
-              onChange={(e) => { setActiveFilter(e.target.value); setPage(0); }}
-              label="Státusz"
-            >
-              <MenuItem value="all">Mind</MenuItem>
-              <MenuItem value="true">Aktív</MenuItem>
-              <MenuItem value="false">Inaktív</MenuItem>
-            </Select>
-          </FormControl>
-
-          {(activeFilter !== 'all' || search) && (
-            <Button
-              size="small"
-              onClick={() => {
-                setActiveFilter('all');
-                setSearch('');
-              }}
-            >
-              Szűrők törlése
-            </Button>
-          )}
-        </Stack>
+        <TextField
+          fullWidth
+          placeholder="Keresés név, email, telefon vagy cím alapján..."
+          value={search}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          size="small"
+        />
       </Paper>
+
+      {/* FilterBuilder */}
+      <FilterBuilder
+        fields={CONTRACTOR_FILTER_FIELDS}
+        presetValues={CONTRACTOR_PRESET_VALUES}
+        dynamicOptions={{}}
+        onFilter={handleFilterChange}
+        resultCount={totalCount}
+        loading={loading}
+      />
 
       {/* Table */}
       <Paper>

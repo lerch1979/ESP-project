@@ -1,6 +1,16 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
+const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
+
+const EMPLOYEE_FILTER_FIELD_MAP = {
+  status: 'est.name',
+  workplace: 'e.workplace',
+  gender: 'e.gender',
+  marital_status: 'e.marital_status',
+  position: 'e.position',
+  country: 'e.permanent_address_country',
+};
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -172,6 +182,17 @@ const getEmployees = async (req, res) => {
       paramIndex++;
     }
 
+    // Dynamic multi-filter support
+    const filters = parseFiltersParam(req.query.filters);
+    if (filters.length > 0) {
+      const fr = buildFilterWhere(filters, EMPLOYEE_FILTER_FIELD_MAP, { startParamIndex: paramIndex });
+      if (fr.sql) {
+        whereConditions.push(fr.sql.replace(/^ AND /, ''));
+        params.push(...fr.params);
+        paramIndex = fr.nextParamIndex;
+      }
+    }
+
     const whereClause = whereConditions.length > 0
       ? `WHERE ${whereConditions.join(' AND ')}`
       : '';
@@ -180,6 +201,7 @@ const getEmployees = async (req, res) => {
       `SELECT COUNT(*) as total
        FROM employees e
        LEFT JOIN users u ON e.user_id = u.id
+       LEFT JOIN employee_status_types est ON e.status_id = est.id
        ${whereClause}`,
       params
     );
