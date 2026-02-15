@@ -25,8 +25,9 @@ import {
 import {
   Search as SearchIcon,
   Add as AddIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
-import { ticketsAPI } from '../services/api';
+import { ticketsAPI, exportAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateTicketModal from '../components/CreateTicketModal';
 
@@ -42,6 +43,7 @@ function Tickets() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [statuses, setStatuses] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -144,6 +146,32 @@ function Tickets() {
     navigate(`/tickets/${ticketId}`);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (search) params.search = search;
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+      if (priorityFilter !== 'all') params.priority = priorityFilter;
+
+      const response = await exportAPI.tickets(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'hibajegyek.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export hiba:', error);
+      toast.error('Hiba az exportálás során');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== 'all' || priorityFilter !== 'all';
 
   return (
@@ -153,17 +181,32 @@ function Tickets() {
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Hibajegyek
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateModalOpen(true)}
-          sx={{
-            bgcolor: '#2c5f2d',
-            '&:hover': { bgcolor: '#234d24' },
-          }}
-        >
-          Új hibajegy
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={exporting ? <CircularProgress size={18} /> : <DownloadIcon />}
+            onClick={handleExport}
+            disabled={exporting}
+            sx={{
+              borderColor: '#2c5f2d',
+              color: '#2c5f2d',
+              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+            }}
+          >
+            Export
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setCreateModalOpen(true)}
+            sx={{
+              bgcolor: '#2c5f2d',
+              '&:hover': { bgcolor: '#234d24' },
+            }}
+          >
+            Új hibajegy
+          </Button>
+        </Stack>
       </Box>
 
       {/* Keresés és szűrők */}

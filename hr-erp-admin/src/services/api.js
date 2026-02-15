@@ -228,4 +228,12 @@ export const employeesAPI = {
   },
 };
 
+// Export API
+export const exportAPI = {
+  employees: (params) => api.get('/export/employees', { params, responseType: 'blob' }),
+  contractors: (params) => api.get('/export/contractors', { params, responseType: 'blob' }),
+  accommodations: (params) => api.get('/export/accommodations', { params, responseType: 'blob' }),
+  tickets: (params) => api.get('/export/tickets', { params, responseType: 'blob' }),
+};
+
 export default api;

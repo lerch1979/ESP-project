@@ -25,8 +25,9 @@ import {
   Search as SearchIcon,
   Add as AddIcon,
   CloudUpload as UploadIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
-import { contractorsAPI } from '../services/api';
+import { contractorsAPI, exportAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateContractorModal from '../components/CreateContractorModal';
 import ContractorBulkImportModal from '../components/ContractorBulkImportModal';
@@ -44,6 +45,7 @@ function Contractors() {
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedContractorId, setSelectedContractorId] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadContractors();
@@ -93,6 +95,30 @@ function Contractors() {
     setDetailModalOpen(true);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (search) params.search = search;
+      if (activeFilter !== 'all') params.is_active = activeFilter;
+
+      const response = await exportAPI.contractors(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'alvallalkozok.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export hiba:', error);
+      toast.error('Hiba az exportálás során');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Box>
       {/* Header */}
@@ -101,6 +127,19 @@ function Contractors() {
           Alvállalkozók
         </Typography>
         <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={exporting ? <CircularProgress size={18} /> : <DownloadIcon />}
+            onClick={handleExport}
+            disabled={exporting}
+            sx={{
+              borderColor: '#2c5f2d',
+              color: '#2c5f2d',
+              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+            }}
+          >
+            Export
+          </Button>
           <Button
             variant="outlined"
             startIcon={<UploadIcon />}

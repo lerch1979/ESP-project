@@ -25,8 +25,9 @@ import {
   Search as SearchIcon,
   Add as AddIcon,
   CloudUpload as UploadIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
-import { employeesAPI } from '../services/api';
+import { employeesAPI, exportAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateEmployeeModal from '../components/CreateEmployeeModal';
 import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
@@ -46,6 +47,7 @@ function Employees() {
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadStatuses();
@@ -119,6 +121,32 @@ function Employees() {
     setPage(0);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (search) params.search = search;
+      if (statusFilter !== 'all') params.status_id = statusFilter;
+      if (accommodationFilter === 'yes') params.has_accommodation = 'true';
+      if (accommodationFilter === 'no') params.has_accommodation = 'false';
+
+      const response = await exportAPI.employees(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'munkavallalok.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export hiba:', error);
+      toast.error('Hiba az exportálás során');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const hasActiveFilters = statusFilter !== 'all' || accommodationFilter !== 'all' || search;
 
   return (
@@ -129,6 +157,19 @@ function Employees() {
           Szállásolt munkavállalók
         </Typography>
         <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={exporting ? <CircularProgress size={18} /> : <DownloadIcon />}
+            onClick={handleExport}
+            disabled={exporting}
+            sx={{
+              borderColor: '#2c5f2d',
+              color: '#2c5f2d',
+              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+            }}
+          >
+            Export
+          </Button>
           <Button
             variant="outlined"
             startIcon={<UploadIcon />}
