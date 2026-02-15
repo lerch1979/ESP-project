@@ -19,6 +19,7 @@ const accommodationRoutes = require('./routes/accommodation.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const employeeRoutes = require('./routes/employee.routes');
 const exportRoutes = require('./routes/export.routes');
+const reportRoutes = require('./routes/report.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,6 +88,7 @@ app.use(`${API_PREFIX}/accommodations`, accommodationRoutes);
 app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${API_PREFIX}/employees`, employeeRoutes);
 app.use(`${API_PREFIX}/export`, exportRoutes);
+app.use(`${API_PREFIX}/reports`, reportRoutes);
 
 // 404 handler
 app.use((req, res) => {

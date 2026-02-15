@@ -26,6 +26,7 @@ import {
   Logout as LogoutIcon,
   AccountCircle,
   Apartment as ApartmentIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -38,6 +39,7 @@ const menuItems = [
   { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors' },
   { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
+  { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
 ];

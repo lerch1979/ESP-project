@@ -11,6 +11,7 @@ import Users from './pages/Users';
 import Contractors from './pages/Contractors';
 import Accommodations from './pages/Accommodations';
 import Employees from './pages/Employees';
+import Reports from './pages/Reports';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
           <Route path="contractors" element={<Contractors />} />
           <Route path="accommodations" element={<Accommodations />} />
           <Route path="employees" element={<Employees />} />
+          <Route path="reports" element={<Reports />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

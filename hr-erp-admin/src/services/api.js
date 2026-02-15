@@ -252,6 +252,26 @@ export const notificationsAPI = {
   },
 };
 
+// Reports API
+export const reportsAPI = {
+  getEmployeesSummary: async (params = {}) => {
+    const response = await api.get('/reports/employees-summary', { params });
+    return response.data;
+  },
+  getAccommodationsSummary: async (params = {}) => {
+    const response = await api.get('/reports/accommodations-summary', { params });
+    return response.data;
+  },
+  getTicketsSummary: async (params = {}) => {
+    const response = await api.get('/reports/tickets-summary', { params });
+    return response.data;
+  },
+  getContractorsSummary: async (params = {}) => {
+    const response = await api.get('/reports/contractors-summary', { params });
+    return response.data;
+  },
+};
+
 // Export API
 export const exportAPI = {
   employees: (params) => api.get('/export/employees', { params, responseType: 'blob' }),
