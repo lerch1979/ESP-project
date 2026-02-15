@@ -26,12 +26,14 @@ import {
   Add as AddIcon,
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 import { employeesAPI, exportAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateEmployeeModal from '../components/CreateEmployeeModal';
 import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
+import BulkEmailModal from '../components/BulkEmailModal';
 
 function Employees() {
   const [loading, setLoading] = useState(true);
@@ -48,6 +50,7 @@ function Employees() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   useEffect(() => {
     loadStatuses();
@@ -169,6 +172,18 @@ function Employees() {
             }}
           >
             Export
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<EmailIcon />}
+            onClick={() => setEmailModalOpen(true)}
+            sx={{
+              borderColor: '#2c5f2d',
+              color: '#2c5f2d',
+              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+            }}
+          >
+            Üzenet küldése
           </Button>
           <Button
             variant="outlined"
@@ -390,6 +405,11 @@ function Employees() {
         onClose={() => setDetailModalOpen(false)}
         employeeId={selectedEmployeeId}
         onSuccess={loadEmployees}
+      />
+
+      <BulkEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
       />
     </Box>
   );

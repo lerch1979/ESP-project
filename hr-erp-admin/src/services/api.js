@@ -228,6 +228,30 @@ export const employeesAPI = {
   },
 };
 
+// Notifications API
+export const notificationsAPI = {
+  getTemplates: async () => {
+    const response = await api.get('/notifications/templates');
+    return response.data;
+  },
+  getFilterOptions: async () => {
+    const response = await api.get('/notifications/filter-options');
+    return response.data;
+  },
+  filterRecipients: async (data) => {
+    const response = await api.post('/notifications/filter-recipients', data);
+    return response.data;
+  },
+  sendBulk: async (data) => {
+    const response = await api.post('/notifications/send-bulk', data);
+    return response.data;
+  },
+  getEmailLogs: async (params = {}) => {
+    const response = await api.get('/notifications/email-logs', { params });
+    return response.data;
+  },
+};
+
 // Export API
 export const exportAPI = {
   employees: (params) => api.get('/export/employees', { params, responseType: 'blob' }),
