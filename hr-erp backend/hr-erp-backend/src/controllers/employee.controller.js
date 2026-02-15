@@ -6,30 +6,114 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// Column header mapping (Hungarian → DB field) for bulk import
+// Column header mapping (Hungarian -> DB field) for bulk import
 const COLUMN_MAP = {
+  'nev': 'first_name',
   'név': 'first_name',
   'name': 'first_name',
   'keresztnév': 'first_name',
+  'keresztnev': 'first_name',
   'first_name': 'first_name',
   'vezetéknév': 'last_name',
+  'vezeteknev': 'last_name',
   'last_name': 'last_name',
   'email': 'email',
   'e-mail': 'email',
   'telefon': 'phone',
   'phone': 'phone',
   'telefonszám': 'phone',
+  'telefonszam': 'phone',
   'munkakör': 'position',
+  'munkakor': 'position',
   'position': 'position',
   'pozíció': 'position',
+  'pozicio': 'position',
   'törzsszám': 'employee_number',
+  'torzsszam': 'employee_number',
   'employee_number': 'employee_number',
   'szálláshely': 'accommodation_name',
+  'szallashely': 'accommodation_name',
   'accommodation': 'accommodation_name',
+  // New fields
+  'nem': 'gender',
+  'gender': 'gender',
+  'születési dátum': 'birth_date',
+  'szuletesi datum': 'birth_date',
+  'birth_date': 'birth_date',
+  'születési hely': 'birth_place',
+  'szuletesi hely': 'birth_place',
+  'birth_place': 'birth_place',
+  'anyja neve': 'mothers_name',
+  'mothers_name': 'mothers_name',
+  'adóazonosító': 'tax_id',
+  'adoazonosito': 'tax_id',
+  'tax_id': 'tax_id',
+  'útlevélszám': 'passport_number',
+  'utlevelszam': 'passport_number',
+  'passport_number': 'passport_number',
+  'taj szám': 'social_security_number',
+  'taj szam': 'social_security_number',
+  'social_security_number': 'social_security_number',
+  'családi állapot': 'marital_status',
+  'csaladi allapot': 'marital_status',
+  'marital_status': 'marital_status',
+  'érkezés dátuma': 'arrival_date',
+  'erkezes datuma': 'arrival_date',
+  'arrival_date': 'arrival_date',
+  'vízum lejárat': 'visa_expiry',
+  'vizum lejarat': 'visa_expiry',
+  'visa_expiry': 'visa_expiry',
+  'szobaszám': 'room_number',
+  'szobaszam': 'room_number',
+  'room_number': 'room_number',
+  'bankszámlaszám': 'bank_account',
+  'bankszamlaszam': 'bank_account',
+  'bank_account': 'bank_account',
+  'munkahely': 'workplace',
+  'workplace': 'workplace',
+  'irányítószám': 'permanent_address_zip',
+  'iranyitoszam': 'permanent_address_zip',
+  'permanent_address_zip': 'permanent_address_zip',
+  'ország': 'permanent_address_country',
+  'orszag': 'permanent_address_country',
+  'permanent_address_country': 'permanent_address_country',
+  'megye': 'permanent_address_county',
+  'permanent_address_county': 'permanent_address_county',
+  'város': 'permanent_address_city',
+  'varos': 'permanent_address_city',
+  'permanent_address_city': 'permanent_address_city',
+  'utca': 'permanent_address_street',
+  'permanent_address_street': 'permanent_address_street',
+  'házszám': 'permanent_address_number',
+  'hazszam': 'permanent_address_number',
+  'permanent_address_number': 'permanent_address_number',
+  'cégnév': 'company_name',
+  'cegnev': 'company_name',
+  'cég neve': 'company_name',
+  'ceg neve': 'company_name',
+  'company_name': 'company_name',
+  'céges email': 'company_email',
+  'ceges email': 'company_email',
+  'company_email': 'company_email',
+  'céges telefon': 'company_phone',
+  'ceges telefon': 'company_phone',
+  'company_phone': 'company_phone',
 };
 
+// All new employee-specific columns (stored directly on employees table)
+const EMPLOYEE_DIRECT_FIELDS = [
+  'first_name', 'last_name', 'gender', 'birth_date', 'birth_place',
+  'mothers_name', 'tax_id', 'passport_number', 'social_security_number',
+  'marital_status', 'arrival_date', 'visa_expiry', 'room_number',
+  'bank_account', 'workplace', 'permanent_address_zip',
+  'permanent_address_country', 'permanent_address_county',
+  'permanent_address_city', 'permanent_address_street',
+  'permanent_address_number', 'company_name', 'company_email',
+  'company_phone',
+];
+
 /**
- * Munkavállalói státuszok lekérdezése (dropdown-okhoz)
+ * Munkavallaloi statuszok lekerdezese (dropdown-okhoz)
  */
 const getEmployeeStatuses = async (req, res) => {
   try {
@@ -42,16 +126,16 @@ const getEmployeeStatuses = async (req, res) => {
       data: { statuses: result.rows }
     });
   } catch (error) {
-    logger.error('Munkavállalói státuszok lekérési hiba:', error);
+    logger.error('Munkavallaloi statuszok lekerdesi hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Munkavállalói státuszok lekérési hiba'
+      message: 'Munkavallaloi statuszok lekerdesi hiba'
     });
   }
 };
 
 /**
- * Munkavállalók listázása (szűrőkkel, lapozással)
+ * Munkavallalok listazasa (szurokkel, lapozassal)
  */
 const getEmployees = async (req, res) => {
   try {
@@ -82,7 +166,7 @@ const getEmployees = async (req, res) => {
 
     if (search) {
       whereConditions.push(
-        `(u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR e.employee_number ILIKE $${paramIndex} OR CONCAT(u.last_name, ' ', u.first_name) ILIKE $${paramIndex})`
+        `(COALESCE(e.first_name, u.first_name, '') ILIKE $${paramIndex} OR COALESCE(e.last_name, u.last_name, '') ILIKE $${paramIndex} OR COALESCE(u.email, '') ILIKE $${paramIndex} OR COALESCE(e.employee_number, '') ILIKE $${paramIndex} OR CONCAT(COALESCE(e.last_name, u.last_name, ''), ' ', COALESCE(e.first_name, u.first_name, '')) ILIKE $${paramIndex} OR COALESCE(e.workplace, '') ILIKE $${paramIndex})`
       );
       params.push(`%${search}%`);
       paramIndex++;
@@ -102,11 +186,20 @@ const getEmployees = async (req, res) => {
 
     const employeesQuery = `
       SELECT
-        e.*,
-        u.first_name,
-        u.last_name,
-        u.email,
-        u.phone,
+        e.id, e.user_id, e.contractor_id, e.employee_number, e.status_id,
+        e.position, e.start_date, e.end_date, e.accommodation_id, e.notes,
+        e.gender, e.birth_date, e.birth_place, e.mothers_name,
+        e.tax_id, e.passport_number, e.social_security_number, e.marital_status,
+        e.arrival_date, e.visa_expiry, e.room_number, e.bank_account, e.workplace,
+        e.permanent_address_zip, e.permanent_address_country,
+        e.permanent_address_county, e.permanent_address_city,
+        e.permanent_address_street, e.permanent_address_number,
+        e.company_name, e.company_email, e.company_phone,
+        e.created_at, e.updated_at,
+        COALESCE(e.first_name, u.first_name) as first_name,
+        COALESCE(e.last_name, u.last_name) as last_name,
+        COALESCE(u.email, '') as email,
+        COALESCE(u.phone, '') as phone,
         est.name as status_name,
         est.color as status_color,
         est.slug as status_slug,
@@ -136,16 +229,16 @@ const getEmployees = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Munkavállalók lekérési hiba:', error);
+    logger.error('Munkavallalok lekerdesi hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Munkavállalók lekérési hiba'
+      message: 'Munkavallalok lekerdesi hiba'
     });
   }
 };
 
 /**
- * Egy munkavállaló részletei
+ * Egy munkavallaló reszletei
  */
 const getEmployeeById = async (req, res) => {
   try {
@@ -153,11 +246,20 @@ const getEmployeeById = async (req, res) => {
 
     const employeeQuery = `
       SELECT
-        e.*,
-        u.first_name,
-        u.last_name,
-        u.email,
-        u.phone,
+        e.id, e.user_id, e.contractor_id, e.employee_number, e.status_id,
+        e.position, e.start_date, e.end_date, e.accommodation_id, e.notes,
+        e.gender, e.birth_date, e.birth_place, e.mothers_name,
+        e.tax_id, e.passport_number, e.social_security_number, e.marital_status,
+        e.arrival_date, e.visa_expiry, e.room_number, e.bank_account, e.workplace,
+        e.permanent_address_zip, e.permanent_address_country,
+        e.permanent_address_county, e.permanent_address_city,
+        e.permanent_address_street, e.permanent_address_number,
+        e.company_name, e.company_email, e.company_phone,
+        e.created_at, e.updated_at,
+        COALESCE(e.first_name, u.first_name) as first_name,
+        COALESCE(e.last_name, u.last_name) as last_name,
+        COALESCE(u.email, '') as email,
+        COALESCE(u.phone, '') as phone,
         est.name as status_name,
         est.color as status_color,
         est.slug as status_slug,
@@ -175,7 +277,7 @@ const getEmployeeById = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Munkavállaló nem található'
+        message: 'Munkavallaló nem talalhato'
       });
     }
 
@@ -184,23 +286,31 @@ const getEmployeeById = async (req, res) => {
       data: { employee: result.rows[0] }
     });
   } catch (error) {
-    logger.error('Munkavállaló lekérési hiba:', error);
+    logger.error('Munkavallaló lekerdesi hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Munkavállaló lekérési hiba'
+      message: 'Munkavallaló lekerdesi hiba'
     });
   }
 };
 
 /**
- * Új munkavállaló létrehozása
+ * Uj munkavallaló letrehozasa
  */
 const createEmployee = async (req, res) => {
   try {
     const {
       first_name, last_name, email, phone,
       employee_number, position, start_date,
-      status_id, accommodation_id, contractor_id, notes
+      status_id, accommodation_id, contractor_id, notes,
+      // New fields
+      gender, birth_date, birth_place, mothers_name,
+      tax_id, passport_number, social_security_number, marital_status,
+      arrival_date, visa_expiry, room_number, bank_account, workplace,
+      permanent_address_zip, permanent_address_country,
+      permanent_address_county, permanent_address_city,
+      permanent_address_street, permanent_address_number,
+      company_name, company_email, company_phone,
     } = req.body;
 
     if (!first_name || !first_name.trim() || !last_name || !last_name.trim()) {
@@ -255,8 +365,25 @@ const createEmployee = async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO employees (user_id, contractor_id, employee_number, status_id, position, start_date, accommodation_id, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO employees (
+        user_id, contractor_id, employee_number, status_id, position,
+        start_date, accommodation_id, notes,
+        first_name, last_name, gender, birth_date, birth_place, mothers_name,
+        tax_id, passport_number, social_security_number, marital_status,
+        arrival_date, visa_expiry, room_number, bank_account, workplace,
+        permanent_address_zip, permanent_address_country,
+        permanent_address_county, permanent_address_city,
+        permanent_address_street, permanent_address_number,
+        company_name, company_email, company_phone
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18,
+        $19, $20, $21, $22, $23,
+        $24, $25, $26, $27, $28, $29,
+        $30, $31, $32
+      )
       RETURNING *
     `;
 
@@ -269,6 +396,30 @@ const createEmployee = async (req, res) => {
       start_date || null,
       accommodation_id || null,
       notes || null,
+      first_name ? first_name.trim() : null,
+      last_name ? last_name.trim() : null,
+      gender || null,
+      birth_date || null,
+      birth_place || null,
+      mothers_name || null,
+      tax_id || null,
+      passport_number || null,
+      social_security_number || null,
+      marital_status || null,
+      arrival_date || null,
+      visa_expiry || null,
+      room_number || null,
+      bank_account || null,
+      workplace || null,
+      permanent_address_zip || null,
+      permanent_address_country || null,
+      permanent_address_county || null,
+      permanent_address_city || null,
+      permanent_address_street || null,
+      permanent_address_number || null,
+      company_name || null,
+      company_email || null,
+      company_phone || null,
     ]);
 
     // If no user exists but we have name/email, create one
@@ -297,11 +448,11 @@ const createEmployee = async (req, res) => {
       result.rows[0].user_id = userId;
     }
 
-    logger.info('Új munkavállaló létrehozva', { employeeId: result.rows[0].id });
+    logger.info('Uj munkavallaló letrehozva', { employeeId: result.rows[0].id });
 
     res.status(201).json({
       success: true,
-      message: 'Munkavállaló sikeresen létrehozva',
+      message: 'Munkavallaló sikeresen letrehozva',
       data: { employee: result.rows[0] }
     });
   } catch (error) {
@@ -311,36 +462,33 @@ const createEmployee = async (req, res) => {
         message: 'Ez a törzsszám már létezik'
       });
     }
-    logger.error('Munkavállaló létrehozási hiba:', error);
+    logger.error('Munkavallaló letrehozasi hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Munkavállaló létrehozási hiba'
+      message: 'Munkavallaló letrehozasi hiba'
     });
   }
 };
 
 /**
- * Munkavállaló frissítése
+ * Munkavallaló frissitese
  */
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      employee_number, position, start_date, end_date,
-      status_id, accommodation_id, notes, contractor_id
-    } = req.body;
+    const body = req.body;
 
     const existing = await query('SELECT * FROM employees WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Munkavállaló nem található'
+        message: 'Munkavallaló nem talalhato'
       });
     }
 
     // Verify accommodation if provided
-    if (accommodation_id !== undefined && accommodation_id !== null && accommodation_id !== '') {
-      const accCheck = await query('SELECT id FROM accommodations WHERE id = $1', [accommodation_id]);
+    if (body.accommodation_id !== undefined && body.accommodation_id !== null && body.accommodation_id !== '') {
+      const accCheck = await query('SELECT id FROM accommodations WHERE id = $1', [body.accommodation_id]);
       if (accCheck.rows.length === 0) {
         return res.status(400).json({
           success: false,
@@ -354,58 +502,33 @@ const updateEmployee = async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
-    if (employee_number !== undefined) {
-      fields.push(`employee_number = $${paramIndex}`);
-      params.push(employee_number || null);
-      paramIndex++;
+    // Original fields
+    const originalFields = [
+      'employee_number', 'position', 'start_date', 'end_date',
+      'status_id', 'accommodation_id', 'notes', 'contractor_id',
+    ];
+
+    for (const field of originalFields) {
+      if (body[field] !== undefined) {
+        fields.push(`${field} = $${paramIndex}`);
+        params.push(body[field] || null);
+        paramIndex++;
+      }
     }
 
-    if (position !== undefined) {
-      fields.push(`position = $${paramIndex}`);
-      params.push(position || null);
-      paramIndex++;
-    }
-
-    if (start_date !== undefined) {
-      fields.push(`start_date = $${paramIndex}`);
-      params.push(start_date || null);
-      paramIndex++;
-    }
-
-    if (end_date !== undefined) {
-      fields.push(`end_date = $${paramIndex}`);
-      params.push(end_date || null);
-      paramIndex++;
-    }
-
-    if (status_id !== undefined) {
-      fields.push(`status_id = $${paramIndex}`);
-      params.push(status_id || null);
-      paramIndex++;
-    }
-
-    if (accommodation_id !== undefined) {
-      fields.push(`accommodation_id = $${paramIndex}`);
-      params.push(accommodation_id || null);
-      paramIndex++;
-    }
-
-    if (notes !== undefined) {
-      fields.push(`notes = $${paramIndex}`);
-      params.push(notes || null);
-      paramIndex++;
-    }
-
-    if (contractor_id !== undefined) {
-      fields.push(`contractor_id = $${paramIndex}`);
-      params.push(contractor_id || null);
-      paramIndex++;
+    // All new employee direct fields
+    for (const field of EMPLOYEE_DIRECT_FIELDS) {
+      if (body[field] !== undefined) {
+        fields.push(`${field} = $${paramIndex}`);
+        params.push(body[field] || null);
+        paramIndex++;
+      }
     }
 
     if (fields.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Nincs frissítendő mező'
+        message: 'Nincs frissitendo mezo'
       });
     }
 
@@ -418,11 +541,11 @@ const updateEmployee = async (req, res) => {
 
     const result = await query(updateQuery, params);
 
-    logger.info('Munkavállaló frissítve', { employeeId: id });
+    logger.info('Munkavallaló frissitve', { employeeId: id });
 
     res.json({
       success: true,
-      message: 'Munkavállaló sikeresen frissítve',
+      message: 'Munkavallaló sikeresen frissitve',
       data: { employee: result.rows[0] }
     });
   } catch (error) {
@@ -432,16 +555,16 @@ const updateEmployee = async (req, res) => {
         message: 'Ez a törzsszám már létezik'
       });
     }
-    logger.error('Munkavállaló frissítési hiba:', error);
+    logger.error('Munkavallaló frissitesi hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Munkavállaló frissítési hiba'
+      message: 'Munkavallaló frissitesi hiba'
     });
   }
 };
 
 /**
- * Munkavállaló törlése (soft delete: end_date beállítása + szálláshely eltávolítása)
+ * Munkavallaló torlese (soft delete: end_date beallitasa + szallashely eltavolitasa)
  */
 const deleteEmployee = async (req, res) => {
   try {
@@ -451,11 +574,11 @@ const deleteEmployee = async (req, res) => {
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Munkavállaló nem található'
+        message: 'Munkavallaló nem talalhato'
       });
     }
 
-    // Get "Kilépett" status
+    // Get "Kilepett" status
     const leftStatus = await query("SELECT id FROM employee_status_types WHERE slug = 'left'");
     const leftStatusId = leftStatus.rows.length > 0 ? leftStatus.rows[0].id : null;
 
@@ -469,30 +592,30 @@ const deleteEmployee = async (req, res) => {
       [id, leftStatusId]
     );
 
-    logger.info('Munkavállaló deaktiválva', { employeeId: id });
+    logger.info('Munkavallaló deaktivalva', { employeeId: id });
 
     res.json({
       success: true,
-      message: 'Munkavállaló sikeresen deaktiválva'
+      message: 'Munkavallaló sikeresen deaktivalva'
     });
   } catch (error) {
-    logger.error('Munkavállaló törlési hiba:', error);
+    logger.error('Munkavallaló torlesi hiba:', error);
     res.status(500).json({
       success: false,
-      message: 'Munkavállaló törlési hiba'
+      message: 'Munkavallaló torlesi hiba'
     });
   }
 };
 
 /**
- * Tömeges munkavállaló importálás Excel/CSV fájlból
+ * Tömeges munkavallaló importalas Excel/CSV fajlbol
  */
 const bulkImportEmployees = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'Fájl feltöltése kötelező'
+        message: 'Fajl feltoltese kotelezo'
       });
     }
 
@@ -503,7 +626,7 @@ const bulkImportEmployees = async (req, res) => {
     if (rawRows.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'A fájl üres vagy nem tartalmaz adatokat'
+        message: 'A fajl ures vagy nem tartalmaz adatokat'
       });
     }
 
@@ -541,12 +664,12 @@ const bulkImportEmployees = async (req, res) => {
 
         // Need at least a last_name
         if (!row.last_name && !row.first_name) {
-          errors.push({ row: rowNum, message: 'Hiányzó név' });
+          errors.push({ row: rowNum, message: 'Hianyzo nev' });
           continue;
         }
 
         if (row.email && !isValidEmail(row.email)) {
-          errors.push({ row: rowNum, message: `Érvénytelen email: ${row.email}` });
+          errors.push({ row: rowNum, message: `Ervenytelen email: ${row.email}` });
           continue;
         }
 
@@ -555,7 +678,7 @@ const bulkImportEmployees = async (req, res) => {
         if (row.accommodation_name) {
           accommodationId = accMap[row.accommodation_name.toLowerCase()] || null;
           if (!accommodationId) {
-            errors.push({ row: rowNum, message: `Ismeretlen szálláshely: ${row.accommodation_name}` });
+            errors.push({ row: rowNum, message: `Ismeretlen szallashely: ${row.accommodation_name}` });
             continue;
           }
         }
@@ -579,15 +702,55 @@ const bulkImportEmployees = async (req, res) => {
 
         try {
           const result = await client.query(
-            `INSERT INTO employees (user_id, employee_number, status_id, position, start_date, accommodation_id)
-             VALUES ($1, $2, $3, $4, CURRENT_DATE, $5)
-             RETURNING id, employee_number`,
+            `INSERT INTO employees (
+              user_id, employee_number, status_id, position, start_date, accommodation_id,
+              first_name, last_name, gender, birth_date, birth_place, mothers_name,
+              tax_id, passport_number, social_security_number, marital_status,
+              arrival_date, visa_expiry, room_number, bank_account, workplace,
+              permanent_address_zip, permanent_address_country,
+              permanent_address_county, permanent_address_city,
+              permanent_address_street, permanent_address_number,
+              company_name, company_email, company_phone
+            )
+            VALUES (
+              $1, $2, $3, $4, CURRENT_DATE, $5,
+              $6, $7, $8, $9, $10, $11,
+              $12, $13, $14, $15,
+              $16, $17, $18, $19, $20,
+              $21, $22, $23, $24, $25, $26,
+              $27, $28, $29
+            )
+            RETURNING id, employee_number`,
             [
               userId,
               empNumber,
               activeStatusId,
               row.position || null,
               accommodationId,
+              row.first_name || null,
+              row.last_name || null,
+              row.gender || null,
+              row.birth_date || null,
+              row.birth_place || null,
+              row.mothers_name || null,
+              row.tax_id || null,
+              row.passport_number || null,
+              row.social_security_number || null,
+              row.marital_status || null,
+              row.arrival_date || null,
+              row.visa_expiry || null,
+              row.room_number || null,
+              row.bank_account || null,
+              row.workplace || null,
+              row.permanent_address_zip || null,
+              row.permanent_address_country || null,
+              row.permanent_address_county || null,
+              row.permanent_address_city || null,
+              row.permanent_address_street || null,
+              row.permanent_address_number || null,
+              row.company_name || null,
+              row.company_email || null,
+              row.company_phone || null,
             ]
           );
           imported.push(result.rows[0]);
@@ -597,21 +760,21 @@ const bulkImportEmployees = async (req, res) => {
       }
     });
 
-    logger.info('Tömeges munkavállaló import', {
+    logger.info('Tömeges munkavallaló import', {
       imported: imported.length,
       errors: errors.length
     });
 
     res.json({
       success: true,
-      message: `${imported.length} munkavállaló sikeresen importálva`,
+      message: `${imported.length} munkavallaló sikeresen importalva`,
       data: {
         imported: imported.length,
         errors
       }
     });
   } catch (error) {
-    logger.error('Tömeges munkavállaló import hiba:', error);
+    logger.error('Tömeges munkavallaló import hiba:', error);
     res.status(500).json({
       success: false,
       message: 'Tömeges import hiba'

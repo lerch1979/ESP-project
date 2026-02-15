@@ -122,7 +122,7 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
               Támogatott formátumok: .xlsx, .xls, .csv
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Oszlopok: Vezetéknév, Név, Email, Telefon, Munkakör, Törzsszám, Szálláshely
+              Oszlopok: Vezetéknév, Keresztnév, Nem, Születési dátum, Születési hely, Anyja neve, Családi állapot, Adóazonosító, Útlevélszám, TAJ szám, Email, Telefon, Munkakör, Törzsszám, Munkahely, Érkezés dátuma, Vízum lejárat, Szálláshely, Szobaszám, Bankszámlaszám, Irányítószám, Ország, Megye, Város, Utca, Házszám, Cégnév, Céges email, Céges telefon
             </Typography>
           </Box>
         )}

@@ -16,6 +16,19 @@ const STATUS_LABELS = {
   maintenance: 'Karbantartás',
 };
 
+const GENDER_LABELS = {
+  male: 'Férfi',
+  female: 'Nő',
+  other: 'Egyéb',
+};
+
+const MARITAL_LABELS = {
+  single: 'Egyedülálló',
+  married: 'Házas',
+  divorced: 'Elvált',
+  widowed: 'Özvegy',
+};
+
 function sendExcel(res, data, filename) {
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
@@ -25,6 +38,11 @@ function sendExcel(res, data, filename) {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
   res.send(buffer);
+}
+
+function fmtDate(val) {
+  if (!val) return '';
+  return new Date(val).toLocaleDateString('hu-HU');
 }
 
 /**
@@ -52,7 +70,7 @@ const exportEmployees = async (req, res) => {
 
     if (search) {
       whereConditions.push(
-        `(u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR e.employee_number ILIKE $${paramIndex} OR CONCAT(u.last_name, ' ', u.first_name) ILIKE $${paramIndex})`
+        `(COALESCE(e.first_name, u.first_name, '') ILIKE $${paramIndex} OR COALESCE(e.last_name, u.last_name, '') ILIKE $${paramIndex} OR COALESCE(u.email, '') ILIKE $${paramIndex} OR COALESCE(e.employee_number, '') ILIKE $${paramIndex} OR CONCAT(COALESCE(e.last_name, u.last_name, ''), ' ', COALESCE(e.first_name, u.first_name, '')) ILIKE $${paramIndex} OR COALESCE(e.workplace, '') ILIKE $${paramIndex})`
       );
       params.push(`%${search}%`);
       paramIndex++;
@@ -65,11 +83,18 @@ const exportEmployees = async (req, res) => {
     const result = await query(
       `SELECT
         e.employee_number,
-        u.last_name,
-        u.first_name,
-        u.email,
-        u.phone,
+        COALESCE(e.last_name, u.last_name) as last_name,
+        COALESCE(e.first_name, u.first_name) as first_name,
+        COALESCE(u.email, '') as email,
+        COALESCE(u.phone, '') as phone,
         e.position,
+        e.gender, e.birth_date, e.birth_place, e.mothers_name,
+        e.tax_id, e.passport_number, e.social_security_number, e.marital_status,
+        e.arrival_date, e.visa_expiry, e.room_number, e.bank_account, e.workplace,
+        e.permanent_address_zip, e.permanent_address_country,
+        e.permanent_address_county, e.permanent_address_city,
+        e.permanent_address_street, e.permanent_address_number,
+        e.company_name, e.company_email, e.company_phone,
         est.name as status_name,
         a.name as accommodation_name
       FROM employees e
@@ -85,11 +110,33 @@ const exportEmployees = async (req, res) => {
       'Törzsszám': row.employee_number || '',
       'Vezetéknév': row.last_name || '',
       'Keresztnév': row.first_name || '',
+      'Nem': GENDER_LABELS[row.gender] || '',
+      'Születési dátum': fmtDate(row.birth_date),
+      'Születési hely': row.birth_place || '',
+      'Anyja neve': row.mothers_name || '',
+      'Családi állapot': MARITAL_LABELS[row.marital_status] || '',
+      'Adóazonosító': row.tax_id || '',
+      'Útlevélszám': row.passport_number || '',
+      'TAJ szám': row.social_security_number || '',
       'Email': row.email || '',
       'Telefon': row.phone || '',
       'Munkakör': row.position || '',
+      'Munkahely': row.workplace || '',
+      'Érkezés dátuma': fmtDate(row.arrival_date),
+      'Vízum lejárat': fmtDate(row.visa_expiry),
       'Státusz': row.status_name || '',
       'Szálláshely': row.accommodation_name || '',
+      'Szobaszám': row.room_number || '',
+      'Bankszámlaszám': row.bank_account || '',
+      'Irányítószám': row.permanent_address_zip || '',
+      'Ország': row.permanent_address_country || '',
+      'Megye': row.permanent_address_county || '',
+      'Város': row.permanent_address_city || '',
+      'Utca': row.permanent_address_street || '',
+      'Házszám': row.permanent_address_number || '',
+      'Cégnév': row.company_name || '',
+      'Céges email': row.company_email || '',
+      'Céges telefon': row.company_phone || '',
     }));
 
     sendExcel(res, data, 'munkavallalok.xlsx');
