@@ -30,6 +30,7 @@ import {
   Apartment as ApartmentIcon,
   Assessment as AssessmentIcon,
   CalendarMonth as CalendarIcon,
+  Description as DescriptionIcon,
   Menu as MenuIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
@@ -43,6 +44,7 @@ const menuItems = [
   { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors' },
   { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
+  { text: 'Dokumentumok', icon: <DescriptionIcon />, path: '/documents' },
   { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
   { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },

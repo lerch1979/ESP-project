@@ -13,6 +13,7 @@ import Accommodations from './pages/Accommodations';
 import Employees from './pages/Employees';
 import Reports from './pages/Reports';
 import Calendar from './pages/Calendar';
+import Documents from './pages/Documents';
 import Settings from './pages/Settings';
 import PrivateRoute from './components/PrivateRoute';
 import InstallPrompt from './components/InstallPrompt';
@@ -44,6 +45,7 @@ function App() {
           <Route path="contractors" element={<Contractors />} />
           <Route path="accommodations" element={<Accommodations />} />
           <Route path="employees" element={<Employees />} />
+          <Route path="documents" element={<Documents />} />
           <Route path="reports" element={<Reports />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="settings" element={<Settings />} />
