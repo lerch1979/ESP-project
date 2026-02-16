@@ -250,6 +250,10 @@ export const notificationsAPI = {
     const response = await api.get('/notifications/email-logs', { params });
     return response.data;
   },
+  testEmail: async (to) => {
+    const response = await api.post('/notifications/test-email', { to });
+    return response.data;
+  },
 };
 
 // Reports API

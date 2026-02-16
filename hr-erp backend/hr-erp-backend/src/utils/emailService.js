@@ -1,16 +1,19 @@
 const nodemailer = require('nodemailer');
+const { logger } = require('./logger');
 
-const isDev = process.env.NODE_ENV === 'development';
-
+// Build transporter from SMTP_* env vars (Gmail compatible)
+// Falls back to legacy EMAIL_* vars for backwards compatibility
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: parseInt(process.env.EMAIL_PORT) === 465,
+  host: process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT) || 587,
+  secure: (process.env.SMTP_SECURE === 'true') || (parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT) === 465),
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
   },
 });
+
+const emailFrom = process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER;
 
 /**
  * Replace {{key}} placeholders with variable values
@@ -26,21 +29,29 @@ function interpolateTemplate(text, variables) {
  * Send a single email
  */
 async function sendEmail({ to, subject, html }) {
-  if (isDev) {
-    console.log('[DEV EMAIL]', { to, subject, html: html.substring(0, 200) + '...' });
-    return { success: true };
-  }
-
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+    const info = await transporter.sendMail({
+      from: emailFrom,
       to,
       subject,
       html,
     });
-    return { success: true };
+    logger.info('Email elküldve', { to, subject, messageId: info.messageId });
+    return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Email send error:', error.message);
+    logger.error('Email küldési hiba:', { to, subject, error: error.message });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Verify SMTP connection is working
+ */
+async function verifyConnection() {
+  try {
+    await transporter.verify();
+    return { success: true, message: 'SMTP kapcsolat sikeres' };
+  } catch (error) {
     return { success: false, error: error.message };
   }
 }
@@ -85,4 +96,5 @@ module.exports = {
   sendEmail,
   sendBulkEmails,
   interpolateTemplate,
+  verifyConnection,
 };

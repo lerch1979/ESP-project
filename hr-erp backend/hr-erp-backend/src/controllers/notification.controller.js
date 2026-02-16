@@ -1,5 +1,5 @@
 const { query } = require('../database/connection');
-const { sendBulkEmails, interpolateTemplate } = require('../utils/emailService');
+const { sendEmail, sendBulkEmails, interpolateTemplate, verifyConnection } = require('../utils/emailService');
 
 /**
  * GET /templates - List all notification templates
@@ -392,10 +392,75 @@ const getEmailLogs = async (req, res) => {
   }
 };
 
+/**
+ * POST /test-email - Send a test email to verify SMTP configuration
+ */
+const testEmail = async (req, res) => {
+  try {
+    const { to } = req.body;
+
+    if (!to) {
+      return res.status(400).json({ success: false, message: 'Címzett email cím szükséges' });
+    }
+
+    // First verify SMTP connection
+    const verify = await verifyConnection();
+    if (!verify.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'SMTP kapcsolat sikertelen',
+        error: verify.error,
+      });
+    }
+
+    // Send test email
+    const result = await sendEmail({
+      to,
+      subject: 'Housing Solutions HR-ERP - Teszt email',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #2c5f2d, #1e3f1f); padding: 20px; text-align: center;">
+            <h1 style="color: #fff; margin: 0;">Housing Solutions</h1>
+            <p style="color: #a5d6a7; margin: 5px 0 0;">HR-ERP System</p>
+          </div>
+          <div style="padding: 30px; background: #fff;">
+            <h2 style="color: #2c5f2d;">Teszt email sikeres!</h2>
+            <p>Ez egy teszt email az SMTP beállítások ellenőrzéséhez.</p>
+            <p>Ha ezt az emailt megkaptad, az email küldés megfelelően működik.</p>
+            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
+            <p style="color: #888; font-size: 12px;">
+              Küldve: ${new Date().toLocaleString('hu-HU')}<br/>
+              Felhasználó: ${req.user.email}
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Teszt email sikeresen elküldve: ${to}`,
+        messageId: result.messageId,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Email küldés sikertelen',
+        error: result.error,
+      });
+    }
+  } catch (error) {
+    console.error('testEmail error:', error);
+    res.status(500).json({ success: false, message: 'Hiba a teszt email küldésekor' });
+  }
+};
+
 module.exports = {
   getTemplates,
   getFilterOptions,
   filterRecipients,
   sendBulk,
   getEmailLogs,
+  testEmail,
 };
