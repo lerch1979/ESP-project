@@ -69,4 +69,22 @@ router.put('/:id', employeeController.updateEmployee);
  */
 router.delete('/:id', employeeController.deleteEmployee);
 
+/**
+ * GET /api/v1/employees/:id/timeline
+ * Munkavállaló idővonal (összes esemény aggregálva)
+ */
+router.get('/:id/timeline', employeeController.getEmployeeTimeline);
+
+/**
+ * POST /api/v1/employees/:id/notes
+ * Jegyzet hozzáadása a munkavállalóhoz
+ */
+router.post('/:id/notes', employeeController.createEmployeeNote);
+
+/**
+ * DELETE /api/v1/employees/:id/notes/:noteId
+ * Jegyzet törlése
+ */
+router.delete('/:id/notes/:noteId', employeeController.deleteEmployeeNote);
+
 module.exports = router;

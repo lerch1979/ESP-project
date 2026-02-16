@@ -804,6 +804,267 @@ const bulkImportEmployees = async (req, res) => {
   }
 };
 
+// ============================================================
+// Timeline
+// ============================================================
+
+const getEmployeeTimeline = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { types } = req.query;
+
+    // Verify employee exists
+    const empCheck = await query('SELECT id FROM employees WHERE id = $1', [id]);
+    if (empCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Munkavállaló nem található' });
+    }
+
+    const allTypes = [
+      'checkin', 'checkout', 'contract_start', 'contract_end', 'visa_expiry',
+      'ticket', 'email', 'shift', 'medical_appointment', 'personal_event', 'note',
+    ];
+    const selectedTypes = types
+      ? types.split(',').filter(t => allTypes.includes(t.trim()))
+      : allTypes;
+
+    const subQueries = [];
+
+    // Check-in
+    if (selectedTypes.includes('checkin')) {
+      subQueries.push(`
+        SELECT
+          e.arrival_date AS event_date,
+          'checkin' AS type,
+          'Érkezés / Check-in' AS title,
+          'Megérkezett a szálláshelyre' AS description,
+          NULL AS status,
+          NULL AS metadata
+        FROM employees e
+        WHERE e.id = $1 AND e.arrival_date IS NOT NULL
+      `);
+    }
+
+    // Check-out
+    if (selectedTypes.includes('checkout')) {
+      subQueries.push(`
+        SELECT
+          e.end_date AS event_date,
+          'checkout' AS type,
+          'Távozás / Check-out' AS title,
+          'Elhagyta a szálláshelyet' AS description,
+          NULL AS status,
+          NULL AS metadata
+        FROM employees e
+        WHERE e.id = $1 AND e.end_date IS NOT NULL AND e.end_date < CURRENT_DATE
+      `);
+    }
+
+    // Contract start
+    if (selectedTypes.includes('contract_start')) {
+      subQueries.push(`
+        SELECT
+          e.start_date AS event_date,
+          'contract_start' AS type,
+          'Szerződés kezdete' AS title,
+          'Munkaszerződés érvénybe lépett' AS description,
+          'active' AS status,
+          NULL AS metadata
+        FROM employees e
+        WHERE e.id = $1 AND e.start_date IS NOT NULL
+      `);
+    }
+
+    // Contract end
+    if (selectedTypes.includes('contract_end')) {
+      subQueries.push(`
+        SELECT
+          e.end_date AS event_date,
+          'contract_end' AS type,
+          'Szerződés lejárata' AS title,
+          'Munkaszerződés lejárt' AS description,
+          'expired' AS status,
+          NULL AS metadata
+        FROM employees e
+        WHERE e.id = $1 AND e.end_date IS NOT NULL AND e.end_date >= CURRENT_DATE
+      `);
+    }
+
+    // Visa expiry
+    if (selectedTypes.includes('visa_expiry')) {
+      subQueries.push(`
+        SELECT
+          e.visa_expiry AS event_date,
+          'visa_expiry' AS type,
+          'Vízum lejárat' AS title,
+          'Vízum érvényessége lejár' AS description,
+          CASE WHEN e.visa_expiry < CURRENT_DATE THEN 'expired' ELSE 'warning' END AS status,
+          NULL AS metadata
+        FROM employees e
+        WHERE e.id = $1 AND e.visa_expiry IS NOT NULL
+      `);
+    }
+
+    // Tickets (linked through employee's user_id)
+    if (selectedTypes.includes('ticket')) {
+      subQueries.push(`
+        SELECT
+          t.created_at::date AS event_date,
+          'ticket' AS type,
+          'Hibajegy: ' || t.title AS title,
+          'Hibajegy #' || t.ticket_number || ' - ' || COALESCE(ts.name, '') AS description,
+          ts.slug AS status,
+          json_build_object('ticket_id', t.id, 'ticket_number', t.ticket_number)::text AS metadata
+        FROM tickets t
+        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+        WHERE t.created_by = (SELECT user_id FROM employees WHERE id = $1)
+           OR t.assigned_to = (SELECT user_id FROM employees WHERE id = $1)
+      `);
+    }
+
+    // Emails
+    if (selectedTypes.includes('email')) {
+      subQueries.push(`
+        SELECT
+          el.sent_at::date AS event_date,
+          'email' AS type,
+          'Email: ' || el.subject AS title,
+          'Címzett: ' || el.to_email AS description,
+          el.status AS status,
+          NULL AS metadata
+        FROM email_logs el
+        WHERE el.to_email = (
+          SELECT COALESCE(emp.company_email, u.email)
+          FROM employees emp
+          LEFT JOIN users u ON emp.user_id = u.id
+          WHERE emp.id = $1
+        )
+      `);
+    }
+
+    // Shifts
+    if (selectedTypes.includes('shift')) {
+      subQueries.push(`
+        SELECT
+          s.shift_date AS event_date,
+          'shift' AS type,
+          'Műszak: ' || s.shift_type AS title,
+          COALESCE(s.location, '') || ' (' || s.shift_start_time::text || ' - ' || s.shift_end_time::text || ')' AS description,
+          NULL AS status,
+          NULL AS metadata
+        FROM shifts s
+        WHERE s.employee_id = $1
+      `);
+    }
+
+    // Medical appointments
+    if (selectedTypes.includes('medical_appointment')) {
+      subQueries.push(`
+        SELECT
+          ma.appointment_date AS event_date,
+          'medical_appointment' AS type,
+          'Orvosi vizsgálat: ' || ma.appointment_type AS title,
+          COALESCE(ma.doctor_name, '') || COALESCE(' - ' || ma.clinic_location, '') AS description,
+          NULL AS status,
+          NULL AS metadata
+        FROM medical_appointments ma
+        WHERE ma.employee_id = $1
+      `);
+    }
+
+    // Personal events
+    if (selectedTypes.includes('personal_event')) {
+      subQueries.push(`
+        SELECT
+          pe.event_date AS event_date,
+          'personal_event' AS type,
+          pe.title AS title,
+          COALESCE(pe.description, pe.event_type) AS description,
+          NULL AS status,
+          NULL AS metadata
+        FROM personal_events pe
+        WHERE pe.employee_id = $1
+      `);
+    }
+
+    // Notes
+    if (selectedTypes.includes('note')) {
+      subQueries.push(`
+        SELECT
+          en.created_at::date AS event_date,
+          'note' AS type,
+          en.title AS title,
+          en.content AS description,
+          en.note_type AS status,
+          json_build_object('note_id', en.id, 'note_type', en.note_type, 'created_by_name', COALESCE(u.last_name || ' ' || u.first_name, 'Rendszer'))::text AS metadata
+        FROM employee_notes en
+        LEFT JOIN users u ON en.created_by = u.id
+        WHERE en.employee_id = $1
+      `);
+    }
+
+    if (subQueries.length === 0) {
+      return res.json({ success: true, data: { timeline: [] } });
+    }
+
+    const sql = subQueries.join('\nUNION ALL\n') + '\nORDER BY event_date DESC NULLS LAST';
+    const result = await query(sql, [id]);
+
+    const timeline = result.rows.map(row => ({
+      ...row,
+      event_date: row.event_date ? new Date(row.event_date).toISOString().split('T')[0] : null,
+      metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : null,
+    }));
+
+    res.json({ success: true, data: { timeline } });
+  } catch (error) {
+    logger.error('Idővonal lekérési hiba:', error);
+    res.status(500).json({ success: false, message: 'Idővonal lekérési hiba' });
+  }
+};
+
+// ============================================================
+// Employee Notes CRUD
+// ============================================================
+
+const createEmployeeNote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note_type, title, content } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: 'Cím megadása kötelező' });
+    }
+
+    const result = await query(
+      `INSERT INTO employee_notes (employee_id, created_by, note_type, title, content)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [id, req.user.id, note_type || 'general', title, content || null]
+    );
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('Jegyzet létrehozási hiba:', error);
+    res.status(500).json({ success: false, message: 'Jegyzet létrehozási hiba' });
+  }
+};
+
+const deleteEmployeeNote = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    const result = await query(
+      'DELETE FROM employee_notes WHERE id = $1 AND employee_id = $2 RETURNING id',
+      [noteId, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Jegyzet nem található' });
+    }
+    res.json({ success: true, message: 'Jegyzet törölve' });
+  } catch (error) {
+    logger.error('Jegyzet törlési hiba:', error);
+    res.status(500).json({ success: false, message: 'Jegyzet törlési hiba' });
+  }
+};
+
 module.exports = {
   getEmployeeStatuses,
   getEmployees,
@@ -812,4 +1073,7 @@ module.exports = {
   updateEmployee,
   deleteEmployee,
   bulkImportEmployees,
+  getEmployeeTimeline,
+  createEmployeeNote,
+  deleteEmployeeNote,
 };

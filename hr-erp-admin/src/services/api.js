@@ -226,6 +226,21 @@ export const employeesAPI = {
     });
     return response.data;
   },
+
+  getTimeline: async (id, params = {}) => {
+    const response = await api.get(`/employees/${id}/timeline`, { params });
+    return response.data;
+  },
+
+  createNote: async (id, data) => {
+    const response = await api.post(`/employees/${id}/notes`, data);
+    return response.data;
+  },
+
+  deleteNote: async (id, noteId) => {
+    const response = await api.delete(`/employees/${id}/notes/${noteId}`);
+    return response.data;
+  },
 };
 
 // Notifications API
