@@ -16,6 +16,8 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -28,6 +30,7 @@ import {
   Apartment as ApartmentIcon,
   Assessment as AssessmentIcon,
   CalendarMonth as CalendarIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -49,6 +52,9 @@ const menuItems = [
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [user, setUser] = useState(null);
 
@@ -58,6 +64,17 @@ function Layout({ children }) {
       setUser(JSON.parse(userData));
     }
   }, []);
+
+  // Close drawer on navigation (mobile)
+  useEffect(() => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  }, [location.pathname, isMobile]);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -82,24 +99,81 @@ function Layout({ children }) {
     }
   };
 
+  const drawerContent = (
+    <>
+      <Toolbar sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 2 }}>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: 'white', textAlign: 'center' }}>
+          HOUSING SOLUTIONS
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
+          Employee Support Portal
+        </Typography>
+      </Toolbar>
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+
+      <List sx={{ mt: 2 }}>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              selected={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+              sx={{
+                mx: 1,
+                borderRadius: 2,
+                minHeight: 48,
+                '&.Mui-selected': {
+                  bgcolor: '#4a7c59',
+                  '&:hover': {
+                    bgcolor: '#3d6b4a',
+                  },
+                },
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </>
+  );
+
   return (
     <Box sx={{ display: 'flex' }}>
       {/* Top AppBar */}
       <AppBar
         position="fixed"
         sx={{
-          width: `calc(100% - ${drawerWidth}px)`,
-          ml: `${drawerWidth}px`,
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
           bgcolor: 'white',
           color: '#1e293b',
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}
       >
         <Toolbar>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'HR-ERP'}
           </Typography>
-          
+
           <IconButton
             size="large"
             onClick={handleMenu}
@@ -113,7 +187,7 @@ function Layout({ children }) {
               <AccountCircle />
             )}
           </IconButton>
-          
+
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
@@ -139,62 +213,41 @@ function Layout({ children }) {
       </AppBar>
 
       {/* Sidebar Drawer */}
-      <Drawer
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
+      {isMobile ? (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              bgcolor: '#2c5f2d',
+              color: 'white',
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      ) : (
+        <Drawer
+          variant="permanent"
+          sx={{
             width: drawerWidth,
-            boxSizing: 'border-box',
-            bgcolor: '#2c5f2d',
-            color: 'white',
-          },
-        }}
-        variant="permanent"
-        anchor="left"
-      >
-        <Toolbar sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 2 }}>
-          <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: 'white', textAlign: 'center' }}>
-            HOUSING SOLUTIONS
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
-            Employee Support Portal
-          </Typography>
-        </Toolbar>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-        
-        <List sx={{ mt: 2 }}>
-          {menuItems.map((item) => (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                selected={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-                sx={{
-                  mx: 1,
-                  borderRadius: 2,
-                  '&.Mui-selected': {
-                    bgcolor: '#4a7c59',
-                    '&:hover': {
-                      bgcolor: '#3d6b4a',
-                    },
-                  },
-                  '&:hover': {
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text}
-                  primaryTypographyProps={{ fontWeight: 500 }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              bgcolor: '#2c5f2d',
+              color: 'white',
+            },
+          }}
+          open
+        >
+          {drawerContent}
+        </Drawer>
+      )}
 
       {/* Main content */}
       <Box
@@ -202,9 +255,10 @@ function Layout({ children }) {
         sx={{
           flexGrow: 1,
           bgcolor: '#f8fafc',
-          p: 3,
+          p: { xs: 2, md: 3 },
           minHeight: '100vh',
           mt: 8,
+          width: { md: `calc(100% - ${drawerWidth}px)` },
         }}
       >
         {children}

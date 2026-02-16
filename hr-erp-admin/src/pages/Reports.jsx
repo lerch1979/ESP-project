@@ -12,7 +12,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   TableSortLabel,
@@ -42,6 +41,7 @@ import {
 import * as XLSX from 'xlsx';
 import { reportsAPI } from '../services/api';
 import FilterBuilder from '../components/FilterBuilder';
+import ResponsiveTable from '../components/ResponsiveTable';
 
 // ============================================================
 // Constants
@@ -462,7 +462,7 @@ function Reports() {
         <Typography variant="h6" sx={{ fontWeight: 600, p: 2.5, pb: 1 }}>
           Rekordok ({data.totalRecords})
         </Typography>
-        <TableContainer sx={{ maxHeight: 500 }}>
+        <ResponsiveTable sx={{ maxHeight: 500 }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
@@ -491,7 +491,7 @@ function Reports() {
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
+        </ResponsiveTable>
       </Paper>
     );
   };
@@ -852,8 +852,8 @@ function Reports() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+      <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', mb: 4, flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
           Riportok
         </Typography>
       </Box>

@@ -15,6 +15,7 @@ import Reports from './pages/Reports';
 import Calendar from './pages/Calendar';
 import Settings from './pages/Settings';
 import PrivateRoute from './components/PrivateRoute';
+import InstallPrompt from './components/InstallPrompt';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      <InstallPrompt />
     </BrowserRouter>
   );
 }

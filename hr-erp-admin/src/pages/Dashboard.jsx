@@ -9,11 +9,12 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   Chip,
   CircularProgress,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   ConfirmationNumber,
@@ -37,6 +38,7 @@ import {
 } from 'recharts';
 import { dashboardAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import ResponsiveTable from '../components/ResponsiveTable';
 
 const ACCOMMODATION_COLORS = {
   available: '#10b981',
@@ -52,6 +54,9 @@ const ACCOMMODATION_LABELS = {
 
 function Dashboard() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const chartHeight = isMobile ? 220 : 300;
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [user, setUser] = useState(null);
@@ -159,7 +164,7 @@ function Dashboard() {
     <Box>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
           Kezdőlap
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -216,7 +221,7 @@ function Dashboard() {
               Hibajegyek státusz szerint
             </Typography>
             {ticketChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={chartHeight}>
                 <BarChart data={ticketChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis
@@ -251,7 +256,7 @@ function Dashboard() {
               Szálláshelyek állapota
             </Typography>
             {accommodationChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={chartHeight}>
                 <PieChart>
                   <Pie
                     data={accommodationChartData}
@@ -306,7 +311,7 @@ function Dashboard() {
         </Typography>
 
         {data.recentTickets.length > 0 ? (
-          <TableContainer>
+          <ResponsiveTable>
             <Table>
               <TableHead>
                 <TableRow>
@@ -377,7 +382,7 @@ function Dashboard() {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
+          </ResponsiveTable>
         ) : (
           <Box sx={{ textAlign: 'center', py: 3 }}>
             <Typography color="text.secondary">Nincs hibajegy</Typography>

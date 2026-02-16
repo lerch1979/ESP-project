@@ -4,7 +4,7 @@ import { Box, Typography, Paper } from '@mui/material';
 function Users() {
   return (
     <Box>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
         Felhasználók
       </Typography>
       

@@ -203,9 +203,9 @@ function TicketDetail() {
           <BackIcon />
         </IconButton>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
               {ticket.title}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -214,7 +214,7 @@ function TicketDetail() {
           </Box>
 
           {/* Státusz dropdown */}
-          <FormControl sx={{ minWidth: 200 }}>
+          <FormControl sx={{ minWidth: { xs: '100%', md: 200 } }}>
             <Select
               value={selectedStatus}
               onChange={(e) => handleStatusChange(e.target.value)}

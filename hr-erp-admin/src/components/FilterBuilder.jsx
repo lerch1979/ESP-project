@@ -93,9 +93,9 @@ export default function FilterBuilder({
         return (
           <Box
             key={index}
-            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}
+            sx={{ display: 'flex', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1.5, mb: 1.5, flexDirection: { xs: 'column', sm: 'row' } }}
           >
-            <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 }, flex: 1 }}>
               <InputLabel>Szűrő mező</InputLabel>
               <Select
                 value={filter.field}
@@ -111,7 +111,7 @@ export default function FilterBuilder({
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 220, flex: 1.4 }} disabled={!filter.field}>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 }, flex: 1.4 }} disabled={!filter.field}>
               <InputLabel>Érték</InputLabel>
               <Select
                 value={filter.value}
@@ -147,7 +147,7 @@ export default function FilterBuilder({
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2, flexWrap: 'wrap' }}>
         <Button
           variant="contained"
           onClick={handleFilter}

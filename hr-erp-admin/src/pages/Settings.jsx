@@ -16,7 +16,6 @@ import {
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { notificationsAPI } from '../services/api';
-import Layout from '../components/Layout';
 
 function Settings() {
   const [testEmail, setTestEmail] = useState('');
@@ -42,7 +41,6 @@ function Settings() {
   };
 
   return (
-    <Layout>
       <Box>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -120,7 +118,6 @@ function Settings() {
           )}
         </Paper>
       </Box>
-    </Layout>
   );
 }
 

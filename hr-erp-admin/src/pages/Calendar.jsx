@@ -13,7 +13,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   TextField,
@@ -54,7 +53,7 @@ import {
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { calendarAPI, employeesAPI } from '../services/api';
-import Layout from '../components/Layout';
+import ResponsiveTable from '../components/ResponsiveTable';
 
 // ============================================================
 // Constants
@@ -431,13 +430,12 @@ function Calendar() {
   );
 
   return (
-    <Layout>
       <Box>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CalendarMonthIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
               Naptár
             </Typography>
           </Box>
@@ -656,7 +654,7 @@ function Calendar() {
               </Typography>
             </Box>
           ) : (
-            <TableContainer sx={{ maxHeight: 600 }}>
+            <ResponsiveTable sx={{ maxHeight: 600 }}>
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
@@ -737,7 +735,7 @@ function Calendar() {
                   })}
                 </TableBody>
               </Table>
-            </TableContainer>
+            </ResponsiveTable>
           )}
         </Paper>
 
@@ -1032,7 +1030,6 @@ function Calendar() {
           </Alert>
         </Snackbar>
       </Box>
-    </Layout>
   );
 }
 

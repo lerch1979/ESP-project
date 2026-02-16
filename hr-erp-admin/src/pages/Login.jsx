@@ -57,9 +57,9 @@ function Login() {
       }}
     >
       <Container maxWidth="sm">
-        <Paper elevation={10} sx={{ p: 4, borderRadius: 3 }}>
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 900, color: '#2c5f2d' }}>
+        <Paper elevation={10} sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 3, sm: 4 } }}>
+            <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 900, color: '#2c5f2d', fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
               HOUSING SOLUTIONS
             </Typography>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>

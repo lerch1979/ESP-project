@@ -6,7 +6,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   TablePagination,
@@ -31,6 +30,7 @@ import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import BulkEmailModal from '../components/BulkEmailModal';
 import FilterBuilder from '../components/FilterBuilder';
+import ResponsiveTable from '../components/ResponsiveTable';
 
 const EMPLOYEE_FILTER_FIELDS = [
   { key: 'status', label: 'Státusz', type: 'dynamic' },
@@ -197,11 +197,11 @@ function Employees() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
           Szállásolt munkavállalók
         </Typography>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={exporting ? <CircularProgress size={18} /> : <DownloadIcon />}
@@ -298,7 +298,7 @@ function Employees() {
           </Box>
         ) : (
           <>
-            <TableContainer>
+            <ResponsiveTable>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -381,7 +381,7 @@ function Employees() {
                   ))}
                 </TableBody>
               </Table>
-            </TableContainer>
+            </ResponsiveTable>
 
             <TablePagination
               component="div"

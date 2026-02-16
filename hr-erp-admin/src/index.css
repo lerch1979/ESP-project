@@ -22,3 +22,25 @@ code {
 #root {
   min-height: 100vh;
 }
+
+/* Mobile-specific fixes */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+@media all and (display-mode: standalone) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
