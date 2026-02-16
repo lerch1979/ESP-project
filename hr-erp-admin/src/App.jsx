@@ -12,6 +12,7 @@ import Contractors from './pages/Contractors';
 import Accommodations from './pages/Accommodations';
 import Employees from './pages/Employees';
 import Reports from './pages/Reports';
+import Calendar from './pages/Calendar';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
           <Route path="accommodations" element={<Accommodations />} />
           <Route path="employees" element={<Employees />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="calendar" element={<Calendar />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -27,6 +27,7 @@ import {
   AccountCircle,
   Apartment as ApartmentIcon,
   Assessment as AssessmentIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -40,6 +41,7 @@ const menuItems = [
   { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors' },
   { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
   { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
+  { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
 ];

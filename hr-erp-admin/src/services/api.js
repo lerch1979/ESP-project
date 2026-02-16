@@ -276,6 +276,14 @@ export const reportsAPI = {
   },
 };
 
+// Calendar API
+export const calendarAPI = {
+  getEvents: async (params = {}) => {
+    const response = await api.get('/calendar/events', { params });
+    return response.data;
+  },
+};
+
 // Export API
 export const exportAPI = {
   employees: (params) => api.get('/export/employees', { params, responseType: 'blob' }),
