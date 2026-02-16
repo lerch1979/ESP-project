@@ -120,7 +120,8 @@ const login = async (req, res) => {
             name: user.contractor_name,
             slug: user.contractor_slug
           },
-          roles: roleNames
+          roles: roleNames,
+          roleSlugs: roles
         }
       }
     });

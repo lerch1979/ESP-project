@@ -282,6 +282,48 @@ export const calendarAPI = {
     const response = await api.get('/calendar/events', { params });
     return response.data;
   },
+
+  // Shifts
+  createShift: async (data) => {
+    const response = await api.post('/calendar/shifts', data);
+    return response.data;
+  },
+  updateShift: async (id, data) => {
+    const response = await api.put(`/calendar/shifts/${id}`, data);
+    return response.data;
+  },
+  deleteShift: async (id) => {
+    const response = await api.delete(`/calendar/shifts/${id}`);
+    return response.data;
+  },
+
+  // Medical Appointments
+  createMedicalAppointment: async (data) => {
+    const response = await api.post('/calendar/medical-appointments', data);
+    return response.data;
+  },
+  updateMedicalAppointment: async (id, data) => {
+    const response = await api.put(`/calendar/medical-appointments/${id}`, data);
+    return response.data;
+  },
+  deleteMedicalAppointment: async (id) => {
+    const response = await api.delete(`/calendar/medical-appointments/${id}`);
+    return response.data;
+  },
+
+  // Personal Events
+  createPersonalEvent: async (data) => {
+    const response = await api.post('/calendar/personal-events', data);
+    return response.data;
+  },
+  updatePersonalEvent: async (id, data) => {
+    const response = await api.put(`/calendar/personal-events/${id}`, data);
+    return response.data;
+  },
+  deletePersonalEvent: async (id) => {
+    const response = await api.delete(`/calendar/personal-events/${id}`);
+    return response.data;
+  },
 };
 
 // Export API
