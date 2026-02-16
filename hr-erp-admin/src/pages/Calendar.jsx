@@ -60,7 +60,8 @@ import Layout from '../components/Layout';
 // Constants
 // ============================================================
 
-const ADMIN_ROLES = ['superadmin', 'data_controller', 'admin'];
+const ADMIN_ROLE_SLUGS = ['superadmin', 'data_controller', 'admin'];
+const ADMIN_ROLE_NAMES = ['Szuperadmin', 'Adatkezelő', 'Admin'];
 
 const EVENT_TYPES = [
   { key: 'checkin', label: 'Check-in', icon: <LoginIcon fontSize="small" />, color: '#3b82f6' },
@@ -119,18 +120,20 @@ const PERSONAL_EVENT_TYPE_LABELS = Object.fromEntries(PERSONAL_EVENT_TYPES.map(p
 // Helpers
 // ============================================================
 
-function getUserRoleSlugs() {
+function userIsAdmin() {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return user.roleSlugs || [];
+    // Check roleSlugs first (new login sessions), fall back to roles (Hungarian names from older sessions)
+    if (user.roleSlugs?.length) {
+      return user.roleSlugs.some(r => ADMIN_ROLE_SLUGS.includes(r));
+    }
+    if (user.roles?.length) {
+      return user.roles.some(r => ADMIN_ROLE_SLUGS.includes(r) || ADMIN_ROLE_NAMES.includes(r));
+    }
+    return false;
   } catch {
-    return [];
+    return false;
   }
-}
-
-function userIsAdmin() {
-  const slugs = getUserRoleSlugs();
-  return slugs.some(r => ADMIN_ROLES.includes(r));
 }
 
 function computeDateParams(rangeKey, customFrom, customTo) {
