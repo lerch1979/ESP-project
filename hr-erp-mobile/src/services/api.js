@@ -1,12 +1,11 @@
 import axios from 'axios';
-import { Platform } from 'react-native';
 import { getItem, setItem, deleteItem } from './storage';
 
-const API_BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:3000/api/v1',
-  ios: 'http://localhost:3000/api/v1',
-  default: 'http://localhost:3000/api/v1',
-});
+const LOCAL_IP = '192.168.50.202';
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  `http://${LOCAL_IP}:3000/api/v1`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,

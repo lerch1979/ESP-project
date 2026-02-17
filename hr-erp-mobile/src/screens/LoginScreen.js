@@ -55,7 +55,7 @@ export default function LoginScreen() {
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="nev@pelda.hu"
+          placeholder="kiss.janos@abc-kft.hu"
           placeholderTextColor={colors.textLight}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -68,7 +68,7 @@ export default function LoginScreen() {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
-          placeholder="••••••••"
+          placeholder="password123"
           placeholderTextColor={colors.textLight}
           secureTextEntry
           editable={!loading}
