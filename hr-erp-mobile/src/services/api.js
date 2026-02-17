@@ -180,6 +180,18 @@ export const accommodationsAPI = {
   },
 };
 
+// Documents API
+export const documentsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/documents', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/documents/${id}`);
+    return response.data;
+  },
+};
+
 // Calendar API
 export const calendarAPI = {
   getEvents: async (params = {}) => {
