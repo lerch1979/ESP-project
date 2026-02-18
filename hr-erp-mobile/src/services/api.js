@@ -3,23 +3,15 @@ import { Platform } from 'react-native';
 import { getItem, setItem, deleteItem } from './storage';
 
 // Your computer's LAN IP (for physical devices on the same WiFi)
-const LOCAL_IP = '192.168.50.202';
+const LOCAL_IP = '192.168.1.37';
 
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  return Platform.select({
-    // Android emulator uses 10.0.2.2 to reach host machine's localhost
-    android: __DEV__
-      ? 'http://10.0.2.2:3000/api/v1'
-      : `http://${LOCAL_IP}:3000/api/v1`,
-    // iOS simulator can use localhost directly
-    ios: 'http://localhost:3000/api/v1',
-    // Web browser can use localhost directly
-    default: 'http://localhost:3000/api/v1',
-  });
+  // Use LAN IP so physical devices on the same WiFi can reach the backend
+  return `http://${LOCAL_IP}:3000/api/v1`;
 };
 
 const API_BASE_URL = getApiBaseUrl();
