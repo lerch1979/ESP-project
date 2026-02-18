@@ -1,5 +1,6 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const googleCalendarService = require('../services/google-calendar.service');
 
 // ============================================================
 // Helpers
@@ -312,6 +313,11 @@ const createShift = async (req, res) => {
       [employee_id, shift_date, shift_start_time, shift_end_time, shift_type, location || null, notes || null]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
+
+    // Google Calendar sync (fire-and-forget)
+    googleCalendarService.getUserIdForEmployee(employee_id).then(uid => {
+      if (uid) googleCalendarService.syncLocalEventToGoogle(uid, result.rows[0], 'shift');
+    }).catch(err => logger.warn('Google sync hiba (shift create):', err.message));
   } catch (error) {
     logger.error('Műszak létrehozási hiba:', error);
     res.status(500).json({ success: false, message: 'Műszak létrehozási hiba' });
@@ -338,6 +344,12 @@ const updateShift = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Műszak nem található' });
     }
     res.json({ success: true, data: result.rows[0] });
+
+    // Google Calendar sync (fire-and-forget)
+    const shiftRow = result.rows[0];
+    googleCalendarService.getUserIdForEmployee(shiftRow.employee_id).then(uid => {
+      if (uid) googleCalendarService.syncLocalEventUpdateToGoogle(uid, shiftRow, 'shift');
+    }).catch(err => logger.warn('Google sync hiba (shift update):', err.message));
   } catch (error) {
     logger.error('Műszak frissítési hiba:', error);
     res.status(500).json({ success: false, message: 'Műszak frissítési hiba' });
@@ -347,11 +359,20 @@ const updateShift = async (req, res) => {
 const deleteShift = async (req, res) => {
   try {
     const { id } = req.params;
+    // Get employee_id before delete for sync
+    const shiftInfo = await query('SELECT employee_id FROM shifts WHERE id = $1', [id]);
     const result = await query('DELETE FROM shifts WHERE id = $1 RETURNING id', [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Műszak nem található' });
     }
     res.json({ success: true, message: 'Műszak törölve' });
+
+    // Google Calendar sync (fire-and-forget)
+    if (shiftInfo.rows.length > 0) {
+      googleCalendarService.getUserIdForEmployee(shiftInfo.rows[0].employee_id).then(uid => {
+        if (uid) googleCalendarService.syncLocalEventDeleteFromGoogle(uid, id, 'shift');
+      }).catch(err => logger.warn('Google sync hiba (shift delete):', err.message));
+    }
   } catch (error) {
     logger.error('Műszak törlési hiba:', error);
     res.status(500).json({ success: false, message: 'Műszak törlési hiba' });
@@ -382,6 +403,11 @@ const createMedicalAppointment = async (req, res) => {
       [employee_id, appointment_date, appointment_time || null, doctor_name || null, clinic_location || null, appointment_type, notes || null]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
+
+    // Google Calendar sync (fire-and-forget)
+    googleCalendarService.getUserIdForEmployee(employee_id).then(uid => {
+      if (uid) googleCalendarService.syncLocalEventToGoogle(uid, result.rows[0], 'medical_appointment');
+    }).catch(err => logger.warn('Google sync hiba (medical create):', err.message));
   } catch (error) {
     logger.error('Orvosi vizsgálat létrehozási hiba:', error);
     res.status(500).json({ success: false, message: 'Orvosi vizsgálat létrehozási hiba' });
@@ -412,6 +438,12 @@ const updateMedicalAppointment = async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, data: result.rows[0] });
+
+    // Google Calendar sync (fire-and-forget)
+    const apptRow = result.rows[0];
+    googleCalendarService.getUserIdForEmployee(apptRow.employee_id).then(uid => {
+      if (uid) googleCalendarService.syncLocalEventUpdateToGoogle(uid, apptRow, 'medical_appointment');
+    }).catch(err => logger.warn('Google sync hiba (medical update):', err.message));
   } catch (error) {
     logger.error('Orvosi vizsgálat frissítési hiba:', error);
     res.status(500).json({ success: false, message: 'Orvosi vizsgálat frissítési hiba' });
@@ -421,15 +453,23 @@ const updateMedicalAppointment = async (req, res) => {
 const deleteMedicalAppointment = async (req, res) => {
   try {
     const { id } = req.params;
+    // Get employee_id before delete for sync
+    const apptInfo = await query('SELECT employee_id FROM medical_appointments WHERE id = $1', [id]);
     if (!isAdmin(req)) {
       const ownId = await getOwnEmployeeId(req);
-      const check = await query('SELECT employee_id FROM medical_appointments WHERE id = $1', [id]);
-      if (check.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
-      if (check.rows[0].employee_id !== ownId) return res.status(403).json({ success: false, message: 'Nincs jogosultság' });
+      if (apptInfo.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
+      if (apptInfo.rows[0].employee_id !== ownId) return res.status(403).json({ success: false, message: 'Nincs jogosultság' });
     }
     const result = await query('DELETE FROM medical_appointments WHERE id = $1 RETURNING id', [id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, message: 'Orvosi vizsgálat törölve' });
+
+    // Google Calendar sync (fire-and-forget)
+    if (apptInfo.rows.length > 0) {
+      googleCalendarService.getUserIdForEmployee(apptInfo.rows[0].employee_id).then(uid => {
+        if (uid) googleCalendarService.syncLocalEventDeleteFromGoogle(uid, id, 'medical_appointment');
+      }).catch(err => logger.warn('Google sync hiba (medical delete):', err.message));
+    }
   } catch (error) {
     logger.error('Orvosi vizsgálat törlési hiba:', error);
     res.status(500).json({ success: false, message: 'Orvosi vizsgálat törlési hiba' });
@@ -459,6 +499,11 @@ const createPersonalEvent = async (req, res) => {
       [employee_id, event_date, event_time || null, event_type, title, description || null, all_day ?? false]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
+
+    // Google Calendar sync (fire-and-forget)
+    googleCalendarService.getUserIdForEmployee(employee_id).then(uid => {
+      if (uid) googleCalendarService.syncLocalEventToGoogle(uid, result.rows[0], 'personal_event');
+    }).catch(err => logger.warn('Google sync hiba (personal create):', err.message));
   } catch (error) {
     logger.error('Személyes esemény létrehozási hiba:', error);
     res.status(500).json({ success: false, message: 'Személyes esemény létrehozási hiba' });
@@ -488,6 +533,12 @@ const updatePersonalEvent = async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, data: result.rows[0] });
+
+    // Google Calendar sync (fire-and-forget)
+    const peRow = result.rows[0];
+    googleCalendarService.getUserIdForEmployee(peRow.employee_id).then(uid => {
+      if (uid) googleCalendarService.syncLocalEventUpdateToGoogle(uid, peRow, 'personal_event');
+    }).catch(err => logger.warn('Google sync hiba (personal update):', err.message));
   } catch (error) {
     logger.error('Személyes esemény frissítési hiba:', error);
     res.status(500).json({ success: false, message: 'Személyes esemény frissítési hiba' });
@@ -497,15 +548,23 @@ const updatePersonalEvent = async (req, res) => {
 const deletePersonalEvent = async (req, res) => {
   try {
     const { id } = req.params;
+    // Get employee_id before delete for sync
+    const peInfo = await query('SELECT employee_id FROM personal_events WHERE id = $1', [id]);
     if (!isAdmin(req)) {
       const ownId = await getOwnEmployeeId(req);
-      const check = await query('SELECT employee_id FROM personal_events WHERE id = $1', [id]);
-      if (check.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
-      if (check.rows[0].employee_id !== ownId) return res.status(403).json({ success: false, message: 'Nincs jogosultság' });
+      if (peInfo.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
+      if (peInfo.rows[0].employee_id !== ownId) return res.status(403).json({ success: false, message: 'Nincs jogosultság' });
     }
     const result = await query('DELETE FROM personal_events WHERE id = $1 RETURNING id', [id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, message: 'Személyes esemény törölve' });
+
+    // Google Calendar sync (fire-and-forget)
+    if (peInfo.rows.length > 0) {
+      googleCalendarService.getUserIdForEmployee(peInfo.rows[0].employee_id).then(uid => {
+        if (uid) googleCalendarService.syncLocalEventDeleteFromGoogle(uid, id, 'personal_event');
+      }).catch(err => logger.warn('Google sync hiba (personal delete):', err.message));
+    }
   } catch (error) {
     logger.error('Személyes esemény törlési hiba:', error);
     res.status(500).json({ success: false, message: 'Személyes esemény törlési hiba' });
