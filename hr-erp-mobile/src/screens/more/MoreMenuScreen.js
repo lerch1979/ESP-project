@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const menuItems = [
   { key: 'accommodations', icon: 'home-outline', label: 'Szálláshelyek', screen: 'AccommodationList' },
   { key: 'documents', icon: 'document-text-outline', label: 'Dokumentumok', screen: 'DocumentList' },
+  { key: 'googleCalendar', icon: 'logo-google', label: 'Google Naptár', screen: 'GoogleCalendar' },
   { key: 'profile', icon: 'person-circle-outline', label: 'Profil', screen: 'Profile' },
 ];
 

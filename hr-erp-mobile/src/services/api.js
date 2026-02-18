@@ -223,4 +223,24 @@ export const calendarAPI = {
   },
 };
 
+// Google Calendar API
+export const googleCalendarAPI = {
+  getStatus: async () => {
+    const response = await api.get('/calendar/google/status');
+    return response.data;
+  },
+  getAuthUrl: async () => {
+    const response = await api.get('/calendar/google/auth');
+    return response.data;
+  },
+  triggerSync: async () => {
+    const response = await api.post('/calendar/google/sync');
+    return response.data;
+  },
+  disconnect: async () => {
+    const response = await api.delete('/calendar/google/disconnect');
+    return response.data;
+  },
+};
+
 export default api;

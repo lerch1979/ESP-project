@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { calendarAPI } from '../services/api';
+import { calendarAPI, googleCalendarAPI } from '../services/api';
 import { colors } from '../constants/colors';
 import CalendarEventCard from '../components/CalendarEventCard';
 import FilterChips from '../components/FilterChips';
@@ -42,6 +42,7 @@ export default function CalendarScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [googleConnected, setGoogleConnected] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -81,6 +82,12 @@ export default function CalendarScreen() {
     fetchEvents();
   }, [fetchEvents]);
 
+  useEffect(() => {
+    googleCalendarAPI.getStatus()
+      .then((res) => setGoogleConnected(res.data?.connected === true))
+      .catch(() => {});
+  }, []);
+
   const changeMonth = (delta) => {
     let newMonth = month + delta;
     let newYear = year;
@@ -100,9 +107,17 @@ export default function CalendarScreen() {
         <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.monthText}>
-          {year}. {monthNames[month - 1]}
-        </Text>
+        <View style={styles.monthTitleRow}>
+          <Text style={styles.monthText}>
+            {year}. {monthNames[month - 1]}
+          </Text>
+          {googleConnected && (
+            <View style={styles.googleBadge}>
+              <Ionicons name="logo-google" size={12} color="#4285F4" />
+              <Ionicons name="sync" size={10} color={colors.success} style={{ marginLeft: 2 }} />
+            </View>
+          )}
+        </View>
         <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthArrow}>
           <Ionicons name="chevron-forward" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -160,10 +175,23 @@ const styles = StyleSheet.create({
   monthArrow: {
     padding: 4,
   },
+  monthTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   monthText: {
     fontSize: 17,
     fontWeight: '600',
     color: colors.text,
+  },
+  googleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4285F4' + '15',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   sectionHeader: {
     fontSize: 14,
