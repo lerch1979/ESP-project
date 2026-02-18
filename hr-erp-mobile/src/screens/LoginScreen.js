@@ -29,8 +29,18 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
     } catch (error) {
-      const message =
-        error.response?.data?.message || 'Bejelentkezés sikertelen. Próbálja újra.';
+      console.error('[Login] Error:', error.message, error.code);
+      let message;
+      if (error.response?.data?.message) {
+        // Server returned an error message
+        message = error.response.data.message;
+      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        message = 'Nem sikerült csatlakozni a szerverhez. Ellenőrizze a hálózati kapcsolatot.';
+      } else if (error.code === 'ECONNABORTED') {
+        message = 'A szerver nem válaszol (időtúllépés).';
+      } else {
+        message = 'Bejelentkezés sikertelen. Próbálja újra.';
+      }
       Alert.alert('Hiba', message);
     } finally {
       setLoading(false);

@@ -1,11 +1,31 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 import { getItem, setItem, deleteItem } from './storage';
 
+// Your computer's LAN IP (for physical devices on the same WiFi)
 const LOCAL_IP = '192.168.50.202';
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  `http://${LOCAL_IP}:3000/api/v1`;
+const getApiBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  return Platform.select({
+    // Android emulator uses 10.0.2.2 to reach host machine's localhost
+    android: __DEV__
+      ? 'http://10.0.2.2:3000/api/v1'
+      : `http://${LOCAL_IP}:3000/api/v1`,
+    // iOS simulator can use localhost directly
+    ios: 'http://localhost:3000/api/v1',
+    // Web browser can use localhost directly
+    default: 'http://localhost:3000/api/v1',
+  });
+};
+
+const API_BASE_URL = getApiBaseUrl();
+console.log('[API] Base URL:', API_BASE_URL);
+
+export const getBaseUrl = () => API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -98,8 +118,20 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
-    return response.data;
+    console.log('[API] Login request to:', `${API_BASE_URL}/auth/login`);
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      console.log('[API] Login success:', response.data?.success);
+      return response.data;
+    } catch (error) {
+      console.error('[API] Login failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code,
+      });
+      throw error;
+    }
   },
   logout: async () => {
     const response = await api.post('/auth/logout');

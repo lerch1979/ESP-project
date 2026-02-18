@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   Linking,
-  Platform,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { documentsAPI } from '../../services/api';
+import { documentsAPI, getBaseUrl } from '../../services/api';
 import { colors } from '../../constants/colors';
 import LoadingScreen from '../../components/LoadingScreen';
 import ErrorState from '../../components/ErrorState';
@@ -37,11 +36,7 @@ const typeColors = {
   other: '#64748b',
 };
 
-const API_BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:3000/api/v1',
-  ios: 'http://localhost:3000/api/v1',
-  default: 'http://localhost:3000/api/v1',
-});
+const API_BASE_URL = getBaseUrl();
 
 function formatFileSize(bytes) {
   if (!bytes) return '-';
