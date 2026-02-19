@@ -34,7 +34,9 @@ const PORT = process.env.PORT || 3000;
 // ============================================
 
 // Security
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 // CORS
 const corsOptions = {
