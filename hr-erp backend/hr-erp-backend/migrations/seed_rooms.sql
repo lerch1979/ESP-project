@@ -12,6 +12,8 @@ DECLARE
   emp RECORD;
   room_idx INTEGER;
   room_ids UUID[];
+  room_beds INTEGER[];
+  room_filled INTEGER[];
 BEGIN
   -- For each active accommodation, create rooms if none exist yet
   FOR acc IN
@@ -29,6 +31,7 @@ BEGIN
     room_count := GREATEST(1, CEIL(acc.capacity::numeric / beds_per_room));
     remaining_beds := acc.capacity;
     room_ids := ARRAY[]::UUID[];
+    room_beds := ARRAY[]::INTEGER[];
 
     FOR i IN 1..room_count LOOP
       INSERT INTO accommodation_rooms (accommodation_id, room_number, floor, beds, room_type)
@@ -39,28 +42,38 @@ BEGIN
         LEAST(beds_per_room, remaining_beds),
         'standard'
       )
-      RETURNING id INTO new_room_id;
+      RETURNING id, beds INTO new_room_id, beds_per_room;
 
       room_ids := array_append(room_ids, new_room_id);
-      remaining_beds := remaining_beds - beds_per_room;
+      room_beds := array_append(room_beds, LEAST(2, remaining_beds));
+      remaining_beds := remaining_beds - 2;
     END LOOP;
 
-    -- Assign existing employees to rooms (round-robin)
+    -- Assign employees to rooms, respecting bed capacity
+    room_filled := ARRAY_FILL(0, ARRAY[array_length(room_ids, 1)]);
     room_idx := 1;
+
     FOR emp IN
       SELECT id FROM employees
       WHERE accommodation_id = acc.id
         AND end_date IS NULL
       ORDER BY arrival_date ASC NULLS LAST, created_at ASC
     LOOP
+      -- Find next room with available beds
+      WHILE room_idx <= array_length(room_ids, 1) AND room_filled[room_idx] >= room_beds[room_idx] LOOP
+        room_idx := room_idx + 1;
+      END LOOP;
+
+      -- No more room capacity — leave remaining employees unassigned
+      IF room_idx > array_length(room_ids, 1) THEN
+        EXIT;
+      END IF;
+
       UPDATE employees
       SET room_id = room_ids[room_idx]
       WHERE id = emp.id;
 
-      room_idx := room_idx + 1;
-      IF room_idx > array_length(room_ids, 1) THEN
-        room_idx := 1;
-      END IF;
+      room_filled[room_idx] := room_filled[room_idx] + 1;
     END LOOP;
 
   END LOOP;
