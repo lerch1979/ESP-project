@@ -75,7 +75,7 @@ function Videos() {
     const userData = localStorage.getItem('user');
     if (userData) {
       const user = JSON.parse(userData);
-      const roles = user.roles || [];
+      const roles = user.roleSlugs || user.roles || [];
       setIsAdmin(roles.some(r => ['superadmin', 'data_controller', 'admin'].includes(r)));
     }
   }, []);
