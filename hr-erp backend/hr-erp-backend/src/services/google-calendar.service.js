@@ -19,9 +19,11 @@ function createOAuth2Client() {
 // Auth URL Generation
 // ============================================================
 
-function getAuthUrl(userId) {
+function getAuthUrl(userId, source) {
   const client = createOAuth2Client();
-  const state = Buffer.from(JSON.stringify({ userId })).toString('base64');
+  const stateObj = { userId };
+  if (source) stateObj.source = source;
+  const state = Buffer.from(JSON.stringify(stateObj)).toString('base64');
   return client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
