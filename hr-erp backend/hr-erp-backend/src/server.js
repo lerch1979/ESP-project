@@ -23,6 +23,7 @@ const reportRoutes = require('./routes/report.routes');
 const calendarRoutes = require('./routes/calendar.routes');
 const documentRoutes = require('./routes/document.routes');
 const googleCalendarRoutes = require('./routes/google-calendar.routes');
+const videoRoutes = require('./routes/video.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 
 const app = express();
@@ -96,6 +97,7 @@ app.use(`${API_PREFIX}/reports`, reportRoutes);
 app.use(`${API_PREFIX}/calendar`, calendarRoutes);
 app.use(`${API_PREFIX}/documents`, documentRoutes);
 app.use(`${API_PREFIX}/calendar/google`, googleCalendarRoutes);
+app.use(`${API_PREFIX}/videos`, videoRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);

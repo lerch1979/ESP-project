@@ -7,6 +7,8 @@ import DocumentListScreen from '../screens/more/DocumentListScreen';
 import DocumentDetailScreen from '../screens/more/DocumentDetailScreen';
 import ProfileScreen from '../screens/more/ProfileScreen';
 import GoogleCalendarScreen from '../screens/more/GoogleCalendarScreen';
+import VideoListScreen from '../screens/more/VideoListScreen';
+import VideoDetailScreen from '../screens/more/VideoDetailScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -27,6 +29,8 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="DocumentDetail" component={DocumentDetailScreen} options={{ title: 'Dokumentum' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil' }} />
       <Stack.Screen name="GoogleCalendar" component={GoogleCalendarScreen} options={{ title: 'Google Naptár' }} />
+      <Stack.Screen name="VideoList" component={VideoListScreen} options={{ title: 'Videók' }} />
+      <Stack.Screen name="VideoDetail" component={VideoDetailScreen} options={{ title: 'Videó' }} />
     </Stack.Navigator>
   );
 }

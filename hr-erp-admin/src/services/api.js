@@ -410,4 +410,42 @@ export const exportAPI = {
   tickets: (params) => api.get('/export/tickets', { params, responseType: 'blob' }),
 };
 
+// Videos API
+export const videosAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/videos', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/videos/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/videos', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/videos/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/videos/${id}`);
+    return response.data;
+  },
+
+  getCategories: async () => {
+    const response = await api.get('/videos/categories');
+    return response.data;
+  },
+
+  recordView: async (id, data = {}) => {
+    const response = await api.post(`/videos/${id}/view`, data);
+    return response.data;
+  },
+};
+
 export default api;
