@@ -37,4 +37,23 @@ router.post('/tickets-summary', reportController.getTicketsSummary);
  */
 router.post('/contractors-summary', reportController.getContractorsSummary);
 
+/**
+ * GET /api/v1/reports/occupancy/daily
+ * Napi ágykihasználtság riport
+ */
+const occupancyController = require('../controllers/occupancy.controller');
+router.get('/occupancy/daily', occupancyController.getDailyOccupancy);
+
+/**
+ * GET /api/v1/reports/occupancy/monthly
+ * Havi ágykihasználtság riport
+ */
+router.get('/occupancy/monthly', occupancyController.getMonthlyOccupancy);
+
+/**
+ * GET /api/v1/reports/occupancy/range
+ * Időszakos ágykihasználtság riport
+ */
+router.get('/occupancy/range', occupancyController.getRangeOccupancy);
+
 module.exports = router;

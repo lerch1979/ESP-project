@@ -310,6 +310,18 @@ export const reportsAPI = {
     const response = await api.post('/reports/contractors-summary', { filters });
     return response.data;
   },
+  getOccupancyDaily: async (params = {}) => {
+    const response = await api.get('/reports/occupancy/daily', { params });
+    return response.data;
+  },
+  getOccupancyMonthly: async (params = {}) => {
+    const response = await api.get('/reports/occupancy/monthly', { params });
+    return response.data;
+  },
+  getOccupancyRange: async (params = {}) => {
+    const response = await api.get('/reports/occupancy/range', { params });
+    return response.data;
+  },
 };
 
 // Calendar API

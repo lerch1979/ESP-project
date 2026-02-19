@@ -16,6 +16,7 @@ import Calendar from './pages/Calendar';
 import Documents from './pages/Documents';
 import Settings from './pages/Settings';
 import Videos from './pages/Videos';
+import OccupancyReports from './pages/OccupancyReports';
 import PrivateRoute from './components/PrivateRoute';
 import InstallPrompt from './components/InstallPrompt';
 
@@ -51,6 +52,7 @@ function App() {
           <Route path="calendar" element={<Calendar />} />
           <Route path="settings" element={<Settings />} />
           <Route path="videos" element={<Videos />} />
+          <Route path="occupancy" element={<OccupancyReports />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
