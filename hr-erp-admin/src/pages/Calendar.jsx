@@ -50,9 +50,13 @@ import {
   LocalHospital as LocalHospitalIcon,
   Event as EventIcon,
   PersonOutline as PersonOutlineIcon,
+  Google as GoogleIcon,
+  Sync as SyncIcon,
+  LinkOff as LinkOffIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import { calendarAPI, employeesAPI } from '../services/api';
+import { calendarAPI, employeesAPI, googleCalendarAPI } from '../services/api';
 import ResponsiveTable from '../components/ResponsiveTable';
 
 // ============================================================
@@ -227,6 +231,83 @@ function Calendar() {
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Google Calendar disconnect confirmation
+  const [googleDisconnectConfirm, setGoogleDisconnectConfirm] = useState(false);
+
+  // Google Calendar state
+  const [googleStatus, setGoogleStatus] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const loadGoogleStatus = useCallback(async () => {
+    try {
+      const result = await googleCalendarAPI.getStatus();
+      if (result.success) setGoogleStatus(result.data);
+    } catch {
+      setGoogleStatus(null);
+    }
+  }, []);
+
+  useEffect(() => { loadGoogleStatus(); }, [loadGoogleStatus]);
+
+  // Listen for popup postMessage
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.data?.type === 'google-auth') {
+        if (event.data.status === 'success') {
+          showSnack('Google Naptár sikeresen csatlakoztatva!');
+          loadGoogleStatus();
+        } else {
+          showSnack('Google Naptár csatlakozás sikertelen: ' + (event.data.reason || 'Ismeretlen hiba'), 'error');
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGoogleConnect = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await googleCalendarAPI.getAuthUrl();
+      if (result.success && result.data.authUrl) {
+        window.open(result.data.authUrl, 'google-auth', 'width=500,height=600,left=200,top=100');
+      }
+    } catch (err) {
+      showSnack('Nem sikerült elindítani a Google hitelesítést', 'error');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await googleCalendarAPI.triggerSync();
+      if (result.success) {
+        showSnack('Google Naptár szinkronizálás sikeres!');
+        loadGoogleStatus();
+        loadEvents();
+      }
+    } catch (err) {
+      showSnack(err.response?.data?.message || 'Szinkronizálási hiba', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    try {
+      await googleCalendarAPI.disconnect();
+      setGoogleStatus(null);
+      setGoogleDisconnectConfirm(false);
+      showSnack('Google Naptár lecsatlakoztatva');
+    } catch (err) {
+      setGoogleDisconnectConfirm(false);
+      showSnack('Lecsatlakoztatási hiba', 'error');
+    }
+  };
 
   // Load employees for admin selectors
   useEffect(() => {
@@ -481,6 +562,71 @@ function Calendar() {
             </Button>
           </Box>
         </Box>
+
+        {/* Google Calendar connection */}
+        <Paper sx={{ p: 2, mb: 3, border: googleStatus?.connected ? '1px solid #10b981' : '1px solid #e0e0e0' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <GoogleIcon sx={{ color: googleStatus?.connected ? '#10b981' : '#9e9e9e', fontSize: 28 }} />
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                  Google Naptár
+                </Typography>
+                {googleStatus?.connected ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <CheckCircleIcon sx={{ color: '#10b981', fontSize: 16 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Csatlakoztatva: {googleStatus.google_email}
+                      {googleStatus.last_sync_at && (
+                        <> &mdash; Utolsó szinkron: {new Date(googleStatus.last_sync_at).toLocaleString('hu-HU')}</>
+                      )}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Nincs csatlakoztatva
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {googleStatus?.connected ? (
+                <>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={syncing ? <CircularProgress size={16} /> : <SyncIcon />}
+                    onClick={handleGoogleSync}
+                    disabled={syncing}
+                    color="success"
+                  >
+                    {syncing ? 'Szinkronizálás...' : 'Szinkronizálás most'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<LinkOffIcon />}
+                    onClick={() => setGoogleDisconnectConfirm(true)}
+                    color="error"
+                  >
+                    Lecsatlakozás
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={googleLoading ? <CircularProgress size={16} color="inherit" /> : <GoogleIcon />}
+                  onClick={handleGoogleConnect}
+                  disabled={googleLoading}
+                  sx={{ bgcolor: '#4285f4', '&:hover': { bgcolor: '#3367d6' } }}
+                >
+                  Csatlakoztatás
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </Paper>
 
         {/* Admin: personal view toggle */}
         {admin && (
@@ -994,6 +1140,25 @@ function Calendar() {
               sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}
             >
               Mentés
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* ============================================================ */}
+        {/* Google Calendar disconnect confirmation */}
+        {/* ============================================================ */}
+        <Dialog open={googleDisconnectConfirm} onClose={() => setGoogleDisconnectConfirm(false)} maxWidth="xs">
+          <DialogTitle>Google Naptár lecsatlakoztatása</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Biztosan le szeretnéd csatlakoztatni a Google Naptárat ({googleStatus?.google_email})?
+              A szinkronizált események megmaradnak, de az automatikus szinkronizálás leáll.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setGoogleDisconnectConfirm(false)}>Mégse</Button>
+            <Button variant="contained" color="error" onClick={handleGoogleDisconnect}>
+              Lecsatlakozás
             </Button>
           </DialogActions>
         </Dialog>
