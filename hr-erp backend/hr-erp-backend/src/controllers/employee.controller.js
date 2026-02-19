@@ -2,6 +2,9 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -217,6 +220,7 @@ const getEmployees = async (req, res) => {
         e.permanent_address_county, e.permanent_address_city,
         e.permanent_address_street, e.permanent_address_number,
         e.company_name, e.company_email, e.company_phone,
+        e.profile_photo_url,
         e.created_at, e.updated_at,
         COALESCE(e.first_name, u.first_name) as first_name,
         COALESCE(e.last_name, u.last_name) as last_name,
@@ -277,6 +281,7 @@ const getEmployeeById = async (req, res) => {
         e.permanent_address_county, e.permanent_address_city,
         e.permanent_address_street, e.permanent_address_number,
         e.company_name, e.company_email, e.company_phone,
+        e.profile_photo_url,
         e.created_at, e.updated_at,
         COALESCE(e.first_name, u.first_name) as first_name,
         COALESCE(e.last_name, u.last_name) as last_name,
@@ -1065,6 +1070,110 @@ const deleteEmployeeNote = async (req, res) => {
   }
 };
 
+// ============================================================
+// Profile Photo Upload / Delete
+// ============================================================
+
+const uploadPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Kép feltöltése kötelező' });
+    }
+
+    const existing = await query('SELECT id, profile_photo_url FROM employees WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      // Clean up uploaded file
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ success: false, message: 'Munkavállaló nem található' });
+    }
+
+    const oldPhotoUrl = existing.rows[0].profile_photo_url;
+    const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'employees');
+    const timestamp = Date.now();
+
+    // Create thumbnail (300x300 cover)
+    const thumbFilename = `thumb_${timestamp}.jpg`;
+    const thumbPath = path.join(uploadDir, thumbFilename);
+    await sharp(req.file.path)
+      .resize(300, 300, { fit: 'cover' })
+      .jpeg({ quality: 80 })
+      .toFile(thumbPath);
+
+    // Create resized original (max 800x800)
+    const origFilename = `orig_${timestamp}.jpg`;
+    const origPath = path.join(uploadDir, origFilename);
+    await sharp(req.file.path)
+      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toFile(origPath);
+
+    // Remove the raw uploaded file
+    fs.unlink(req.file.path, () => {});
+
+    // Delete old photo files if replacing
+    if (oldPhotoUrl) {
+      const oldThumbPath = path.join(__dirname, '..', '..', oldPhotoUrl);
+      const oldOrigPath = oldThumbPath.replace('thumb_', 'orig_');
+      fs.unlink(oldThumbPath, () => {});
+      fs.unlink(oldOrigPath, () => {});
+    }
+
+    const profilePhotoUrl = `/uploads/employees/${thumbFilename}`;
+    await query(
+      'UPDATE employees SET profile_photo_url = $1, updated_at = NOW() WHERE id = $2',
+      [profilePhotoUrl, id]
+    );
+
+    logger.info('Profilkép feltöltve', { employeeId: id });
+
+    res.json({
+      success: true,
+      data: { profile_photo_url: profilePhotoUrl }
+    });
+  } catch (error) {
+    // Clean up uploaded file on error
+    if (req.file) fs.unlink(req.file.path, () => {});
+    logger.error('Profilkép feltöltési hiba:', error);
+    res.status(500).json({ success: false, message: 'Profilkép feltöltési hiba' });
+  }
+};
+
+const deletePhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await query('SELECT id, profile_photo_url FROM employees WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Munkavállaló nem található' });
+    }
+
+    const photoUrl = existing.rows[0].profile_photo_url;
+    if (!photoUrl) {
+      return res.status(400).json({ success: false, message: 'Nincs profilkép' });
+    }
+
+    // Delete files from disk
+    const thumbPath = path.join(__dirname, '..', '..', photoUrl);
+    const origPath = thumbPath.replace('thumb_', 'orig_');
+    fs.unlink(thumbPath, () => {});
+    fs.unlink(origPath, () => {});
+
+    await query(
+      'UPDATE employees SET profile_photo_url = NULL, updated_at = NOW() WHERE id = $1',
+      [id]
+    );
+
+    logger.info('Profilkép törölve', { employeeId: id });
+
+    res.json({ success: true, message: 'Profilkép törölve' });
+  } catch (error) {
+    logger.error('Profilkép törlési hiba:', error);
+    res.status(500).json({ success: false, message: 'Profilkép törlési hiba' });
+  }
+};
+
 module.exports = {
   getEmployeeStatuses,
   getEmployees,
@@ -1076,4 +1185,6 @@ module.exports = {
   getEmployeeTimeline,
   createEmployeeNote,
   deleteEmployeeNote,
+  uploadPhoto,
+  deletePhoto,
 };

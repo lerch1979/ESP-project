@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
+// Base URL for static files (uploads) - strip /api/v1 suffix
+export const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api\/v\d+$/, '');
+
 // Axios instance létrehozása
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -239,6 +242,20 @@ export const employeesAPI = {
 
   deleteNote: async (id, noteId) => {
     const response = await api.delete(`/employees/${id}/notes/${noteId}`);
+    return response.data;
+  },
+
+  uploadPhoto: async (id, file) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const response = await api.post(`/employees/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deletePhoto: async (id) => {
+    const response = await api.delete(`/employees/${id}/photo`);
     return response.data;
   },
 };

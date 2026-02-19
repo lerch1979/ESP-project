@@ -4,6 +4,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Avatar,
   Button,
   TextField,
   Grid,
@@ -43,8 +44,12 @@ import {
   CardTravel as VisaIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  CameraAlt as CameraAltIcon,
+  CloudUpload as UploadIcon,
 } from '@mui/icons-material';
-import { employeesAPI, accommodationsAPI } from '../services/api';
+import Zoom from 'react-medium-image-zoom';
+import 'react-medium-image-zoom/dist/styles.css';
+import { employeesAPI, accommodationsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
@@ -108,6 +113,9 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [activeFilters, setActiveFilters] = useState(
     Object.keys(EVENT_TYPE_CONFIG).reduce((acc, key) => ({ ...acc, [key]: true }), {})
   );
+
+  // Photo state
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   // Add note state
   const [showNoteForm, setShowNoteForm] = useState(false);
@@ -316,6 +324,41 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
     }
   };
 
+  const handlePhotoUpload = async (file) => {
+    setPhotoUploading(true);
+    try {
+      const response = await employeesAPI.uploadPhoto(employeeId, file);
+      if (response.success) {
+        toast.success('Profilkép feltöltve!');
+        loadEmployee();
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Profilkép feltöltési hiba:', error);
+      toast.error(error.response?.data?.message || 'Hiba a profilkép feltöltésekor');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handlePhotoDelete = async () => {
+    if (!window.confirm('Biztosan törlöd a profilképet?')) return;
+    setPhotoUploading(true);
+    try {
+      const response = await employeesAPI.deletePhoto(employeeId);
+      if (response.success) {
+        toast.success('Profilkép törölve!');
+        loadEmployee();
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Profilkép törlési hiba:', error);
+      toast.error('Hiba a profilkép törlésekor');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const buildAddress = () => {
     const parts = [
       employee.permanent_address_zip,
@@ -389,10 +432,20 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
               handleChange={handleChange}
               statuses={statuses}
               accommodations={accommodations}
+              employee={employee}
+              onPhotoUpload={handlePhotoUpload}
+              onPhotoDelete={handlePhotoDelete}
+              photoUploading={photoUploading}
             />
           ) : activeTab === 0 ? (
             /* View mode - Adatok tab */
-            <ViewDetails employee={employee} buildAddress={buildAddress} />
+            <ViewDetails
+              employee={employee}
+              buildAddress={buildAddress}
+              onPhotoUpload={handlePhotoUpload}
+              onPhotoDelete={handlePhotoDelete}
+              photoUploading={photoUploading}
+            />
           ) : (
             /* Idővonal tab */
             <Box sx={{ mt: 1 }}>
@@ -742,9 +795,67 @@ function DetailRow({ label, value }) {
   );
 }
 
-function ViewDetails({ employee, buildAddress }) {
+function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, photoUploading }) {
+  const photoInputRef = React.useRef(null);
+
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onPhotoUpload(file);
+    }
+    e.target.value = '';
+  };
+
   return (
     <Box sx={{ mt: 1 }}>
+      {/* Profile Photo */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+        {employee.profile_photo_url ? (
+          <Zoom>
+            <Avatar
+              src={`${UPLOADS_BASE_URL}${employee.profile_photo_url}`}
+              sx={{ width: 150, height: 150, mb: 1, cursor: 'zoom-in' }}
+            />
+          </Zoom>
+        ) : (
+          <Avatar sx={{ width: 150, height: 150, mb: 1, bgcolor: '#2c5f2d', fontSize: '3rem' }}>
+            {(employee.last_name?.[0] || '') + (employee.first_name?.[0] || '')}
+          </Avatar>
+        )}
+        <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+          <input
+            type="file"
+            ref={photoInputRef}
+            hidden
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handlePhotoSelect}
+          />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={photoUploading ? <CircularProgress size={16} /> : <UploadIcon />}
+            disabled={photoUploading}
+            onClick={() => photoInputRef.current?.click()}
+            sx={{ color: '#2c5f2d', borderColor: '#2c5f2d', textTransform: 'none' }}
+          >
+            {employee.profile_photo_url ? 'Kép cseréje' : 'Kép feltöltése'}
+          </Button>
+          {employee.profile_photo_url && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              disabled={photoUploading}
+              onClick={onPhotoDelete}
+              sx={{ textTransform: 'none' }}
+            >
+              Törlés
+            </Button>
+          )}
+        </Box>
+      </Box>
+
       {/* 1. Személyes adatok */}
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1 }}>Személyes adatok</Typography>
       <Divider sx={{ mb: 1 }} />
@@ -815,9 +926,67 @@ function ViewDetails({ employee, buildAddress }) {
   );
 }
 
-function EditForm({ formData, handleChange, statuses, accommodations }) {
+function EditForm({ formData, handleChange, statuses, accommodations, employee, onPhotoUpload, onPhotoDelete, photoUploading }) {
+  const photoInputRef = React.useRef(null);
+
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onPhotoUpload(file);
+    }
+    e.target.value = '';
+  };
+
   return (
     <Grid container spacing={2} sx={{ mt: 1 }}>
+      {/* Profile Photo */}
+      <Grid item xs={12}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
+          {employee?.profile_photo_url ? (
+            <Avatar
+              src={`${UPLOADS_BASE_URL}${employee.profile_photo_url}`}
+              sx={{ width: 120, height: 120, mb: 1 }}
+            />
+          ) : (
+            <Avatar sx={{ width: 120, height: 120, mb: 1, bgcolor: '#2c5f2d', fontSize: '2.5rem' }}>
+              {(employee?.last_name?.[0] || '') + (employee?.first_name?.[0] || '')}
+            </Avatar>
+          )}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <input
+              type="file"
+              ref={photoInputRef}
+              hidden
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handlePhotoSelect}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={photoUploading ? <CircularProgress size={16} /> : <UploadIcon />}
+              disabled={photoUploading}
+              onClick={() => photoInputRef.current?.click()}
+              sx={{ color: '#2c5f2d', borderColor: '#2c5f2d', textTransform: 'none' }}
+            >
+              {employee?.profile_photo_url ? 'Kép cseréje' : 'Kép feltöltése'}
+            </Button>
+            {employee?.profile_photo_url && (
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                disabled={photoUploading}
+                onClick={onPhotoDelete}
+                sx={{ textTransform: 'none' }}
+              >
+                Törlés
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Grid>
+
       {/* 1. Személyes adatok */}
       <Grid item xs={12}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Személyes adatok</Typography>

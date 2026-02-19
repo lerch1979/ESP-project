@@ -1,8 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const employeeController = require('../controllers/employee.controller');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+
+// Photo upload multer config
+const photoUploadDir = path.join(__dirname, '..', '..', 'uploads', 'employees');
+if (!fs.existsSync(photoUploadDir)) {
+  fs.mkdirSync(photoUploadDir, { recursive: true });
+}
+
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, photoUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'raw_' + uniqueSuffix + ext);
+  },
+});
+
+const photoUpload = multer({
+  storage: photoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Csak JPEG, PNG vagy WebP képek engedélyezettek'));
+    }
+  },
+});
 
 // Multer config: memory storage, 5MB limit, xlsx/xls/csv only
 const upload = multer({
@@ -68,6 +100,18 @@ router.put('/:id', employeeController.updateEmployee);
  * Munkavállaló törlése (soft delete)
  */
 router.delete('/:id', employeeController.deleteEmployee);
+
+/**
+ * POST /api/v1/employees/:id/photo
+ * Profilkép feltöltése
+ */
+router.post('/:id/photo', photoUpload.single('photo'), employeeController.uploadPhoto);
+
+/**
+ * DELETE /api/v1/employees/:id/photo
+ * Profilkép törlése
+ */
+router.delete('/:id/photo', employeeController.deletePhoto);
 
 /**
  * GET /api/v1/employees/:id/timeline

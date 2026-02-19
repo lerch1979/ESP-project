@@ -4,6 +4,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Avatar,
   Button,
   TextField,
   Grid,
@@ -14,7 +15,12 @@ import {
   Select,
   MenuItem,
   Divider,
+  Box,
 } from '@mui/material';
+import {
+  CloudUpload as UploadIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material';
 import { employeesAPI, accommodationsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
@@ -58,6 +64,9 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
   const [statuses, setStatuses] = useState([]);
   const [accommodations, setAccommodations] = useState([]);
   const [formData, setFormData] = useState({ ...initialFormData });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const photoInputRef = React.useRef(null);
 
   useEffect(() => {
     if (open) {
@@ -104,6 +113,15 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
       const response = await employeesAPI.create(submitData);
 
       if (response.success) {
+        // Upload photo if selected
+        if (photoFile && response.data?.employee?.id) {
+          try {
+            await employeesAPI.uploadPhoto(response.data.employee.id, photoFile);
+          } catch (photoErr) {
+            console.error('Profilkép feltöltési hiba:', photoErr);
+            toast.warning('Munkavállaló létrehozva, de a profilkép feltöltés sikertelen');
+          }
+        }
         toast.success('Munkavállaló sikeresen létrehozva!');
         onSuccess();
         handleClose();
@@ -116,8 +134,26 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
     }
   };
 
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setPhotoPreview(ev.target.result);
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
   const handleClose = () => {
     setFormData({ ...initialFormData });
+    setPhotoFile(null);
+    setPhotoPreview(null);
     onClose();
   };
 
@@ -131,6 +167,48 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
 
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
+
+          {/* Profile Photo */}
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
+              <Avatar
+                src={photoPreview || undefined}
+                sx={{ width: 100, height: 100, mb: 1, bgcolor: '#2c5f2d', fontSize: '2rem' }}
+              >
+                {(formData.last_name?.[0] || '') + (formData.first_name?.[0] || '')}
+              </Avatar>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <input
+                  type="file"
+                  ref={photoInputRef}
+                  hidden
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePhotoSelect}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<UploadIcon />}
+                  onClick={() => photoInputRef.current?.click()}
+                  sx={{ color: '#2c5f2d', borderColor: '#2c5f2d', textTransform: 'none' }}
+                >
+                  {photoPreview ? 'Kép cseréje' : 'Kép feltöltése'}
+                </Button>
+                {photoPreview && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={handleRemovePhoto}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Törlés
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Grid>
 
           {/* 1. Személyes adatok */}
           <Grid item xs={12}>

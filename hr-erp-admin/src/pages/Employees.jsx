@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Avatar,
   Box,
   Paper,
   Typography,
@@ -23,7 +24,7 @@ import {
   Download as DownloadIcon,
   Email as EmailIcon,
 } from '@mui/icons-material';
-import { employeesAPI, exportAPI, reportsAPI } from '../services/api';
+import { employeesAPI, exportAPI, reportsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateEmployeeModal from '../components/CreateEmployeeModal';
 import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
@@ -329,11 +330,19 @@ function Employees() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {emp.last_name && emp.first_name
-                            ? `${emp.last_name} ${emp.first_name}`
-                            : '-'}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar
+                            src={emp.profile_photo_url ? `${UPLOADS_BASE_URL}${emp.profile_photo_url}` : undefined}
+                            sx={{ width: 36, height: 36, fontSize: '0.85rem', bgcolor: '#2c5f2d' }}
+                          >
+                            {(emp.last_name?.[0] || '') + (emp.first_name?.[0] || '')}
+                          </Avatar>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {emp.last_name && emp.first_name
+                              ? `${emp.last_name} ${emp.first_name}`
+                              : '-'}
+                          </Typography>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
