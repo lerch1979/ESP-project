@@ -21,7 +21,7 @@ import {
   CloudUpload as UploadIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { employeesAPI, accommodationsAPI } from '../services/api';
+import { employeesAPI, accommodationsAPI, roomsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 const initialFormData = {
@@ -43,6 +43,7 @@ const initialFormData = {
   start_date: '',
   status_id: '',
   accommodation_id: '',
+  room_id: '',
   room_number: '',
   permanent_address_zip: '',
   permanent_address_country: '',
@@ -67,12 +68,30 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const photoInputRef = React.useRef(null);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadDropdowns();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (formData.accommodation_id) {
+      setRoomsLoading(true);
+      roomsAPI.getByAccommodation(formData.accommodation_id)
+        .then(response => {
+          if (response.success) {
+            setAvailableRooms(response.data.rooms);
+          }
+        })
+        .catch(() => setAvailableRooms([]))
+        .finally(() => setRoomsLoading(false));
+    } else {
+      setAvailableRooms([]);
+    }
+  }, [formData.accommodation_id]);
 
   const loadDropdowns = async () => {
     try {
@@ -326,7 +345,7 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
           <Grid item xs={6}>
             <FormControl fullWidth>
               <InputLabel>Szálláshely</InputLabel>
-              <Select value={formData.accommodation_id} onChange={(e) => handleChange('accommodation_id', e.target.value)} label="Szálláshely">
+              <Select value={formData.accommodation_id} onChange={(e) => { handleChange('accommodation_id', e.target.value); handleChange('room_id', ''); }} label="Szálláshely">
                 <MenuItem value="">Nincs</MenuItem>
                 {accommodations.map((a) => (
                   <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
@@ -335,8 +354,17 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
             </FormControl>
           </Grid>
           <Grid item xs={6}>
-            <TextField fullWidth label="Szobaszám" value={formData.room_number}
-              onChange={(e) => handleChange('room_number', e.target.value)} />
+            <FormControl fullWidth disabled={!formData.accommodation_id || roomsLoading}>
+              <InputLabel>Szoba</InputLabel>
+              <Select value={formData.room_id} onChange={(e) => handleChange('room_id', e.target.value)} label="Szoba">
+                <MenuItem value="">Nincs</MenuItem>
+                {availableRooms.map((r) => (
+                  <MenuItem key={r.id} value={r.id}>
+                    Szoba {r.room_number} ({r.occupied_beds}/{r.beds} ágy)
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
 
           {/* 5. Állandó lakcím */}

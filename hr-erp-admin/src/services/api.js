@@ -189,6 +189,26 @@ export const accommodationsAPI = {
   },
 };
 
+// Rooms API
+export const roomsAPI = {
+  getByAccommodation: async (accommodationId) => {
+    const response = await api.get(`/accommodations/${accommodationId}/rooms`);
+    return response.data;
+  },
+  create: async (accommodationId, data) => {
+    const response = await api.post(`/accommodations/${accommodationId}/rooms`, data);
+    return response.data;
+  },
+  update: async (accommodationId, roomId, data) => {
+    const response = await api.put(`/accommodations/${accommodationId}/rooms/${roomId}`, data);
+    return response.data;
+  },
+  delete: async (accommodationId, roomId) => {
+    const response = await api.delete(`/accommodations/${accommodationId}/rooms/${roomId}`);
+    return response.data;
+  },
+};
+
 // Employees API
 export const employeesAPI = {
   getAll: async (params = {}) => {

@@ -49,7 +49,7 @@ import {
 } from '@mui/icons-material';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
-import { employeesAPI, accommodationsAPI, UPLOADS_BASE_URL } from '../services/api';
+import { employeesAPI, accommodationsAPI, roomsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
@@ -152,6 +152,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           arrival_date: splitDate(emp.arrival_date),
           status_id: emp.status_id || '',
           accommodation_id: emp.accommodation_id || '',
+          room_id: emp.room_id || '',
           room_number: emp.room_number || '',
           notes: emp.notes || '',
           first_name: emp.first_name || '',
@@ -899,7 +900,7 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
       {employee.accommodation_address && (
         <DetailRow label="Szálláshely címe" value={employee.accommodation_address} />
       )}
-      <DetailRow label="Szobaszám" value={employee.room_number || '-'} />
+      <DetailRow label="Szoba" value={employee.assigned_room_number || employee.room_number || '-'} />
 
       {/* 5. Állandó lakcím */}
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2 }}>Állandó lakcím</Typography>
@@ -928,6 +929,26 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
 
 function EditForm({ formData, handleChange, statuses, accommodations, employee, onPhotoUpload, onPhotoDelete, photoUploading }) {
   const photoInputRef = React.useRef(null);
+  const [availableRooms, setAvailableRooms] = React.useState([]);
+  const [roomsLoading, setRoomsLoading] = React.useState(false);
+
+  // Fetch rooms when accommodation_id changes
+  React.useEffect(() => {
+    if (formData.accommodation_id) {
+      setRoomsLoading(true);
+      roomsAPI.getByAccommodation(formData.accommodation_id)
+        .then(response => {
+          if (response.success) {
+            setAvailableRooms(response.data.rooms);
+          }
+        })
+        .catch(() => setAvailableRooms([]))
+        .finally(() => setRoomsLoading(false));
+    } else {
+      setAvailableRooms([]);
+      handleChange('room_id', '');
+    }
+  }, [formData.accommodation_id]);
 
   const handlePhotoSelect = (e) => {
     const file = e.target.files?.[0];
@@ -1107,7 +1128,7 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
       <Grid item xs={6}>
         <FormControl fullWidth>
           <InputLabel>Szálláshely</InputLabel>
-          <Select value={formData.accommodation_id} onChange={(e) => handleChange('accommodation_id', e.target.value)} label="Szálláshely">
+          <Select value={formData.accommodation_id} onChange={(e) => { handleChange('accommodation_id', e.target.value); handleChange('room_id', ''); }} label="Szálláshely">
             <MenuItem value="">Nincs</MenuItem>
             {accommodations.map((a) => (
               <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
@@ -1116,8 +1137,17 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
         </FormControl>
       </Grid>
       <Grid item xs={6}>
-        <TextField fullWidth label="Szobaszám" value={formData.room_number}
-          onChange={(e) => handleChange('room_number', e.target.value)} />
+        <FormControl fullWidth disabled={!formData.accommodation_id || roomsLoading}>
+          <InputLabel>Szoba</InputLabel>
+          <Select value={formData.room_id} onChange={(e) => handleChange('room_id', e.target.value)} label="Szoba">
+            <MenuItem value="">Nincs</MenuItem>
+            {availableRooms.map((r) => (
+              <MenuItem key={r.id} value={r.id}>
+                Szoba {r.room_number} ({r.occupied_beds}/{r.beds} ágy)
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Grid>
 
       {/* 5. Állandó lakcím */}

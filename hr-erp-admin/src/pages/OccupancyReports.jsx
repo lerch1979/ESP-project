@@ -528,7 +528,7 @@ function OccupancyReports() {
                   <TableRow hover>
                     {isDaily && (
                       <TableCell>
-                        {acc.current_residents?.length > 0 && (
+                        {(acc.current_residents?.length > 0 || acc.rooms?.length > 0) && (
                           <IconButton size="small" onClick={() => toggleRow(acc.id)}>
                             {expandedRows[acc.id] ? <CollapseIcon /> : <ExpandIcon />}
                           </IconButton>
@@ -544,24 +544,79 @@ function OccupancyReports() {
                       </TableCell>
                     ))}
                   </TableRow>
-                  {isDaily && acc.current_residents?.length > 0 && (
+                  {isDaily && (acc.current_residents?.length > 0 || acc.rooms?.length > 0) && (
                     <TableRow>
                       <TableCell colSpan={columns.length + 1} sx={{ p: 0, borderBottom: expandedRows[acc.id] ? undefined : 'none' }}>
                         <Collapse in={expandedRows[acc.id]} timeout="auto" unmountOnExit>
                           <Box sx={{ p: 2, bgcolor: '#f8fafc' }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                              Jelenlegi lakók ({acc.current_residents.length})
-                            </Typography>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                              {acc.current_residents.map((r, idx) => (
-                                <Chip
-                                  key={idx}
-                                  label={`${r.name}${r.room_number ? ` (${r.room_number})` : ''}`}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              ))}
-                            </Box>
+                            {acc.rooms?.length > 0 ? (
+                              <>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                  Szobák ({acc.rooms.length})
+                                </Typography>
+                                <Table size="small" sx={{ bgcolor: 'white', borderRadius: 1 }}>
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>Szoba</TableCell>
+                                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }} align="right">Ágyak</TableCell>
+                                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }} align="right">Foglalt</TableCell>
+                                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }} align="right">Szabad</TableCell>
+                                      <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>Lakók</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {acc.rooms.map((room) => {
+                                      const roomColor = room.free_beds <= 0 ? '#fef2f2' : room.occupied_beds > 0 ? '#fffbeb' : '#f0fdf4';
+                                      return (
+                                        <TableRow key={room.room_id} sx={{ bgcolor: roomColor }}>
+                                          <TableCell sx={{ fontWeight: 500, fontSize: '0.8rem' }}>{room.room_number}</TableCell>
+                                          <TableCell align="right">{room.total_beds}</TableCell>
+                                          <TableCell align="right">{room.occupied_beds}</TableCell>
+                                          <TableCell align="right">{room.free_beds}</TableCell>
+                                          <TableCell>
+                                            {room.occupants?.length > 0
+                                              ? room.occupants.map((o, i) => (
+                                                  <Chip key={i} label={o.name} size="small" variant="outlined" sx={{ mr: 0.5, mb: 0.5 }} />
+                                                ))
+                                              : <Typography variant="caption" color="text.secondary">-</Typography>
+                                            }
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                                {/* Show unassigned residents (those without room) */}
+                                {acc.current_residents?.filter(r => !r.assigned_room_number).length > 0 && (
+                                  <Box sx={{ mt: 1.5 }}>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                      Szobához nem rendelt lakók:
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                      {acc.current_residents.filter(r => !r.assigned_room_number).map((r, idx) => (
+                                        <Chip key={idx} label={r.name} size="small" variant="outlined" color="warning" />
+                                      ))}
+                                    </Box>
+                                  </Box>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                  Jelenlegi lakók ({acc.current_residents.length})
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                  {acc.current_residents.map((r, idx) => (
+                                    <Chip
+                                      key={idx}
+                                      label={`${r.name}${r.assigned_room_number ? ` (${r.assigned_room_number})` : r.room_number ? ` (${r.room_number})` : ''}`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  ))}
+                                </Box>
+                              </>
+                            )}
                           </Box>
                         </Collapse>
                       </TableCell>

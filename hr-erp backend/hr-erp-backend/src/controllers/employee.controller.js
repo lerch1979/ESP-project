@@ -122,7 +122,7 @@ const EMPLOYEE_DIRECT_FIELDS = [
   'permanent_address_country', 'permanent_address_county',
   'permanent_address_city', 'permanent_address_street',
   'permanent_address_number', 'company_name', 'company_email',
-  'company_phone',
+  'company_phone', 'room_id',
 ];
 
 /**
@@ -220,7 +220,7 @@ const getEmployees = async (req, res) => {
         e.permanent_address_county, e.permanent_address_city,
         e.permanent_address_street, e.permanent_address_number,
         e.company_name, e.company_email, e.company_phone,
-        e.profile_photo_url,
+        e.profile_photo_url, e.room_id,
         e.created_at, e.updated_at,
         COALESCE(e.first_name, u.first_name) as first_name,
         COALESCE(e.last_name, u.last_name) as last_name,
@@ -229,11 +229,14 @@ const getEmployees = async (req, res) => {
         est.name as status_name,
         est.color as status_color,
         est.slug as status_slug,
-        a.name as accommodation_name
+        a.name as accommodation_name,
+        ar.room_number as assigned_room_number,
+        ar.beds as room_beds
       FROM employees e
       LEFT JOIN users u ON e.user_id = u.id
       LEFT JOIN employee_status_types est ON e.status_id = est.id
       LEFT JOIN accommodations a ON e.accommodation_id = a.id
+      LEFT JOIN accommodation_rooms ar ON e.room_id = ar.id
       ${whereClause}
       ORDER BY e.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -281,7 +284,7 @@ const getEmployeeById = async (req, res) => {
         e.permanent_address_county, e.permanent_address_city,
         e.permanent_address_street, e.permanent_address_number,
         e.company_name, e.company_email, e.company_phone,
-        e.profile_photo_url,
+        e.profile_photo_url, e.room_id,
         e.created_at, e.updated_at,
         COALESCE(e.first_name, u.first_name) as first_name,
         COALESCE(e.last_name, u.last_name) as last_name,
@@ -291,11 +294,14 @@ const getEmployeeById = async (req, res) => {
         est.color as status_color,
         est.slug as status_slug,
         a.name as accommodation_name,
-        a.address as accommodation_address
+        a.address as accommodation_address,
+        ar.room_number as assigned_room_number,
+        ar.beds as room_beds
       FROM employees e
       LEFT JOIN users u ON e.user_id = u.id
       LEFT JOIN employee_status_types est ON e.status_id = est.id
       LEFT JOIN accommodations a ON e.accommodation_id = a.id
+      LEFT JOIN accommodation_rooms ar ON e.room_id = ar.id
       WHERE e.id = $1
     `;
 
@@ -338,6 +344,7 @@ const createEmployee = async (req, res) => {
       permanent_address_county, permanent_address_city,
       permanent_address_street, permanent_address_number,
       company_name, company_email, company_phone,
+      room_id,
     } = req.body;
 
     if (!first_name || !first_name.trim() || !last_name || !last_name.trim()) {
@@ -382,6 +389,20 @@ const createEmployee = async (req, res) => {
       }
     }
 
+    // Verify room belongs to accommodation if provided
+    if (room_id) {
+      const roomCheck = await query(
+        'SELECT id FROM accommodation_rooms WHERE id = $1 AND accommodation_id = $2 AND is_active = true',
+        [room_id, accommodation_id]
+      );
+      if (roomCheck.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'A megadott szoba nem tartozik ehhez a szálláshelyhez'
+        });
+      }
+    }
+
     // Verify status exists if provided
     let finalStatusId = status_id;
     if (!finalStatusId) {
@@ -401,7 +422,8 @@ const createEmployee = async (req, res) => {
         permanent_address_zip, permanent_address_country,
         permanent_address_county, permanent_address_city,
         permanent_address_street, permanent_address_number,
-        company_name, company_email, company_phone
+        company_name, company_email, company_phone,
+        room_id
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
@@ -409,7 +431,8 @@ const createEmployee = async (req, res) => {
         $15, $16, $17, $18,
         $19, $20, $21, $22, $23,
         $24, $25, $26, $27, $28, $29,
-        $30, $31, $32
+        $30, $31, $32,
+        $33
       )
       RETURNING *
     `;
@@ -447,6 +470,7 @@ const createEmployee = async (req, res) => {
       company_name || null,
       company_email || null,
       company_phone || null,
+      room_id || null,
     ]);
 
     // If no user exists but we have name/email, create one
@@ -521,6 +545,32 @@ const updateEmployee = async (req, res) => {
           success: false,
           message: 'A megadott szálláshely nem található'
         });
+      }
+    }
+
+    // If accommodation changes, clear room_id unless a new valid room_id is provided
+    const oldAccId = existing.rows[0].accommodation_id;
+    const newAccId = body.accommodation_id !== undefined ? (body.accommodation_id || null) : oldAccId;
+    if (body.accommodation_id !== undefined && newAccId !== oldAccId) {
+      if (body.room_id === undefined) {
+        body.room_id = null;
+      }
+    }
+
+    // Verify room belongs to accommodation if room_id is provided
+    if (body.room_id !== undefined && body.room_id !== null && body.room_id !== '') {
+      const effectiveAccId = newAccId;
+      if (effectiveAccId) {
+        const roomCheck = await query(
+          'SELECT id FROM accommodation_rooms WHERE id = $1 AND accommodation_id = $2 AND is_active = true',
+          [body.room_id, effectiveAccId]
+        );
+        if (roomCheck.rows.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'A megadott szoba nem tartozik ehhez a szálláshelyhez'
+          });
+        }
       }
     }
 
@@ -613,6 +663,7 @@ const deleteEmployee = async (req, res) => {
       `UPDATE employees
        SET end_date = CURRENT_DATE,
            accommodation_id = NULL,
+           room_id = NULL,
            status_id = COALESCE($2, status_id),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,

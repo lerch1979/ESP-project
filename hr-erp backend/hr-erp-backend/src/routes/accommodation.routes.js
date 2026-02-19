@@ -69,4 +69,11 @@ router.put('/:id', accommodationController.updateAccommodation);
  */
 router.delete('/:id', accommodationController.deleteAccommodation);
 
+// Room routes
+const roomController = require('../controllers/room.controller');
+router.get('/:id/rooms', roomController.getRoomsByAccommodation);
+router.post('/:id/rooms', roomController.createRoom);
+router.put('/:id/rooms/:roomId', roomController.updateRoom);
+router.delete('/:id/rooms/:roomId', roomController.deleteRoom);
+
 module.exports = router;

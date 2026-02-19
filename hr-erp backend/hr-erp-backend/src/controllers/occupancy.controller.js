@@ -25,7 +25,12 @@ const getDailyOccupancy = async (req, res) => {
         END as occupancy_percentage,
         COALESCE(
           json_agg(
-            json_build_object('name', CONCAT(e.last_name, ' ', e.first_name), 'room_number', e.room_number)
+            json_build_object(
+              'name', CONCAT(e.last_name, ' ', e.first_name),
+              'room_number', e.room_number,
+              'room_id', e.room_id,
+              'assigned_room_number', ar.room_number
+            )
           ) FILTER (WHERE e.id IS NOT NULL),
           '[]'::json
         ) as current_residents
@@ -34,10 +39,51 @@ const getDailyOccupancy = async (req, res) => {
         ON e.accommodation_id = a.id
         AND e.arrival_date <= $1
         AND (e.end_date IS NULL OR e.end_date > $1)
+      LEFT JOIN accommodation_rooms ar ON e.room_id = ar.id
       WHERE a.is_active = true
       GROUP BY a.id, a.name, a.address, a.type, a.capacity
       ORDER BY a.name
     `, [date]);
+
+    // Room-level breakdown per accommodation
+    const roomsResult = await query(`
+      SELECT
+        ar.accommodation_id,
+        ar.id as room_id,
+        ar.room_number,
+        ar.beds as total_beds,
+        COUNT(e.id) as occupied_beds,
+        ar.beds - COUNT(e.id) as free_beds,
+        COALESCE(
+          json_agg(
+            json_build_object('name', CONCAT(e.last_name, ' ', e.first_name))
+          ) FILTER (WHERE e.id IS NOT NULL),
+          '[]'::json
+        ) as occupants
+      FROM accommodation_rooms ar
+      LEFT JOIN employees e ON e.room_id = ar.id
+        AND e.arrival_date <= $1
+        AND (e.end_date IS NULL OR e.end_date > $1)
+      WHERE ar.is_active = true
+      GROUP BY ar.accommodation_id, ar.id, ar.room_number, ar.beds
+      ORDER BY ar.room_number
+    `, [date]);
+
+    // Group rooms by accommodation_id
+    const roomsByAcc = {};
+    for (const room of roomsResult.rows) {
+      if (!roomsByAcc[room.accommodation_id]) {
+        roomsByAcc[room.accommodation_id] = [];
+      }
+      roomsByAcc[room.accommodation_id].push({
+        room_id: room.room_id,
+        room_number: room.room_number,
+        total_beds: parseInt(room.total_beds),
+        occupied_beds: parseInt(room.occupied_beds),
+        free_beds: parseInt(room.free_beds),
+        occupants: room.occupants,
+      });
+    }
 
     const accommodations = accommodationsResult.rows.map(r => ({
       id: r.id,
@@ -49,6 +95,7 @@ const getDailyOccupancy = async (req, res) => {
       free_beds: parseInt(r.free_beds),
       occupancy_percentage: parseInt(r.occupancy_percentage),
       current_residents: r.current_residents,
+      rooms: roomsByAcc[r.id] || [],
     }));
 
     const totalBeds = accommodations.reduce((sum, a) => sum + a.total_beds, 0);
