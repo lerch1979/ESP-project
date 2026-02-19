@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { employeesAPI } from '../../services/api';
+import { employeesAPI, UPLOADS_BASE_URL } from '../../services/api';
 import { colors } from '../../constants/colors';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingScreen from '../../components/LoadingScreen';
@@ -64,7 +65,14 @@ export default function EmployeeDetailScreen({ route }) {
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={36} color={colors.primary} />
+            {employee.profile_photo_url ? (
+              <Image
+                source={{ uri: `${UPLOADS_BASE_URL}${employee.profile_photo_url}` }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Ionicons name="person" size={36} color={colors.primary} />
+            )}
           </View>
           <Text style={styles.name}>
             {employee.last_name} {employee.first_name}
@@ -300,13 +308,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
   },
   name: {
     fontSize: 20,

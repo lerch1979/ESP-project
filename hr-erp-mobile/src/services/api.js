@@ -19,6 +19,9 @@ console.log('[API] Base URL:', API_BASE_URL);
 
 export const getBaseUrl = () => API_BASE_URL;
 
+// Base URL for static files (uploads) - strip /api/v1 suffix
+export const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api\/v\d+$/, '');
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -187,6 +190,23 @@ export const employeesAPI = {
   },
   getById: async (id) => {
     const response = await api.get(`/employees/${id}`);
+    return response.data;
+  },
+  uploadPhoto: async (id, uri) => {
+    const formData = new FormData();
+    formData.append('photo', {
+      uri,
+      name: 'photo.jpg',
+      type: 'image/jpeg',
+    });
+    const response = await api.post(`/employees/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+    return response.data;
+  },
+  deletePhoto: async (id) => {
+    const response = await api.delete(`/employees/${id}/photo`);
     return response.data;
   },
 };

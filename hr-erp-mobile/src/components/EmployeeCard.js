@@ -1,14 +1,23 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { UPLOADS_BASE_URL } from '../services/api';
 import StatusBadge from './StatusBadge';
 
 export default function EmployeeCard({ employee, onPress }) {
+  const photoUrl = employee.profile_photo_url
+    ? `${UPLOADS_BASE_URL}${employee.profile_photo_url}`
+    : null;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.avatar}>
-        <Ionicons name="person" size={24} color={colors.primary} />
+        {photoUrl ? (
+          <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
+        ) : (
+          <Ionicons name="person" size={24} color={colors.primary} />
+        )}
       </View>
       <View style={styles.info}>
         <Text style={styles.name}>
@@ -50,6 +59,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   info: {
     flex: 1,
