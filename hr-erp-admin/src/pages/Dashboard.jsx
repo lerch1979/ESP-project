@@ -57,7 +57,7 @@ import ResponsiveTable from '../components/ResponsiveTable';
 
 const ACCOMMODATION_COLORS = {
   available: '#10b981',
-  occupied: '#ec4899',
+  occupied: '#06b6d4',
   maintenance: '#ef4444',
 };
 

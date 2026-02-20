@@ -39,7 +39,7 @@ const CATEGORY_COLORS = {
   munkabiztonság: '#dc2626',
   beilleszkedés: '#2563eb',
   nyelvi_kurzus: '#7c3aed',
-  adminisztráció: '#ec4899',
+  adminisztráció: '#06b6d4',
   szakmai_kepzes: '#0891b2',
   ceg_info: '#16a34a',
 };

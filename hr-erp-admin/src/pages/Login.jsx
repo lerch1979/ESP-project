@@ -53,7 +53,7 @@ function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       }}
     >
       <Container maxWidth="sm">
@@ -109,9 +109,9 @@ function Login() {
               sx={{
                 mt: 3,
                 py: 1.5,
-                background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)',
+                  background: 'linear-gradient(135deg, #5a67d8 0%, #6b3fa0 100%)',
                 },
               }}
             >

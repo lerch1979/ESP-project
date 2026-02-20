@@ -344,7 +344,7 @@ function Layout({ children }) {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
-              background: 'linear-gradient(180deg, #2563eb 0%, #7c3aed 100%)',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
             },
           }}
@@ -360,7 +360,7 @@ function Layout({ children }) {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
-              background: 'linear-gradient(180deg, #2563eb 0%, #7c3aed 100%)',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
             },
           }}

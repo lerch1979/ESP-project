@@ -25,7 +25,7 @@ import {
 import { notificationCenterAPI } from '../services/api';
 
 const TYPE_ICONS = {
-  warning: <WarningIcon fontSize="small" sx={{ color: '#ec4899' }} />,
+  warning: <WarningIcon fontSize="small" sx={{ color: '#06b6d4' }} />,
   info: <InfoIcon fontSize="small" sx={{ color: '#3b82f6' }} />,
   success: <SuccessIcon fontSize="small" sx={{ color: '#22c55e' }} />,
   error: <ErrorIcon fontSize="small" sx={{ color: '#ef4444' }} />,

@@ -656,7 +656,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                         <TableBody>
                           {rooms.map((room) => {
                             const occupancyPct = room.beds > 0 ? Math.round((room.occupied_beds / room.beds) * 100) : 0;
-                            const occupancyColor = occupancyPct >= 100 ? '#ef4444' : occupancyPct > 0 ? '#ec4899' : '#10b981';
+                            const occupancyColor = occupancyPct >= 100 ? '#ef4444' : occupancyPct > 0 ? '#06b6d4' : '#10b981';
                             return (
                               <TableRow key={room.id} hover>
                                 <TableCell sx={{ fontWeight: 500 }}>{room.room_number}</TableCell>

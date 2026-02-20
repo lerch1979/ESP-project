@@ -107,7 +107,7 @@ const DOC_TYPE_CONFIG = {
   taj_card: { label: 'TAJ kártya', color: '#16a34a' },
   visa: { label: 'Vízum', color: '#f59e0b' },
   contract: { label: 'Szerződés', color: '#8b5cf6' },
-  address_card: { label: 'Lakcímkártya', color: '#ec4899' },
+  address_card: { label: 'Lakcímkártya', color: '#06b6d4' },
   other: { label: 'Egyéb', color: '#64748b' },
 };
 
@@ -566,7 +566,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => setShowNoteForm(!showNoteForm)}
-                  sx={{ bgcolor: '#ec4899', '&:hover': { bgcolor: '#db2777' } }}
+                  sx={{ bgcolor: '#06b6d4', '&:hover': { bgcolor: '#0891b2' } }}
                 >
                   Jegyzet hozzáadása
                 </Button>
@@ -604,7 +604,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
 
               {/* Add note form */}
               <Collapse in={showNoteForm}>
-                <Box sx={{ p: 2, mb: 2, bgcolor: '#fdf2f8', borderRadius: 1, border: '1px solid #f472b6' }}>
+                <Box sx={{ p: 2, mb: 2, bgcolor: '#ecfeff', borderRadius: 1, border: '1px solid #22d3ee' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
                     Új jegyzet hozzáadása
                   </Typography>
@@ -658,7 +658,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                         variant="contained"
                         onClick={handleAddNote}
                         disabled={noteSubmitting || !noteData.title.trim()}
-                        sx={{ bgcolor: '#ec4899', '&:hover': { bgcolor: '#db2777' } }}
+                        sx={{ bgcolor: '#06b6d4', '&:hover': { bgcolor: '#0891b2' } }}
                       >
                         {noteSubmitting ? <CircularProgress size={18} /> : 'Mentés'}
                       </Button>

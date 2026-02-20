@@ -46,7 +46,7 @@ import * as XLSX from 'xlsx';
 import { reportsAPI } from '../services/api';
 import ResponsiveTable from '../components/ResponsiveTable';
 
-const PIE_COLORS = ['#3b82f6', '#10b981', '#ec4899', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
+const PIE_COLORS = ['#3b82f6', '#10b981', '#06b6d4', '#ef4444', '#8b5cf6', '#06b6d4', '#6366f1', '#14b8a6'];
 const THEME_GREEN = '#2563eb';
 
 const StatMiniCard = ({ title, value, color }) => (
@@ -204,7 +204,7 @@ function OccupancyReports() {
             <StatMiniCard title="Összes ágy" value={s.total_beds} color={THEME_GREEN} />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Foglalt" value={s.occupied_beds} color="#ec4899" />
+            <StatMiniCard title="Foglalt" value={s.occupied_beds} color="#06b6d4" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Szabad" value={s.free_beds} color="#10b981" />
@@ -226,7 +226,7 @@ function OccupancyReports() {
             <StatMiniCard title="Kapacitás éjszaka" value={s.total_capacity_nights} color="#3b82f6" />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Átl. kihasználtság" value={`${s.avg_occupancy_percentage}%`} color="#ec4899" />
+            <StatMiniCard title="Átl. kihasználtság" value={`${s.avg_occupancy_percentage}%`} color="#06b6d4" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard
@@ -249,7 +249,7 @@ function OccupancyReports() {
           <StatMiniCard title="Kapacitás éj" value={s.total_capacity_nights} color="#3b82f6" />
         </Grid>
         <Grid item xs={6} sm={2.4}>
-          <StatMiniCard title="Átl. kihasználtság" value={`${s.average_occupancy_percentage}%`} color="#ec4899" />
+          <StatMiniCard title="Átl. kihasználtság" value={`${s.average_occupancy_percentage}%`} color="#06b6d4" />
         </Grid>
         <Grid item xs={6} sm={2.4}>
           <StatMiniCard title="Átl. tartózkodás" value={`${s.average_stay_duration} nap`} color="#8b5cf6" />
@@ -285,7 +285,7 @@ function OccupancyReports() {
           { name: 'Szabad kapacitás', value: data.summary.total_capacity_nights - data.summary.total_nights },
         ];
 
-    const pieColors = ['#ec4899', '#10b981'];
+    const pieColors = ['#06b6d4', '#10b981'];
 
     // Bar data: per-accommodation occupancy %
     const barData = accs.map(a => ({
@@ -381,9 +381,9 @@ function OccupancyReports() {
                     type="monotone"
                     dataKey="total_occupied"
                     name="Foglalt ágy"
-                    stroke="#ec4899"
+                    stroke="#06b6d4"
                     strokeWidth={2}
-                    dot={{ fill: '#ec4899', r: 3 }}
+                    dot={{ fill: '#06b6d4', r: 3 }}
                     yAxisId="left"
                   />
                   <Line
@@ -566,7 +566,7 @@ function OccupancyReports() {
                                   </TableHead>
                                   <TableBody>
                                     {acc.rooms.map((room) => {
-                                      const roomColor = room.free_beds <= 0 ? '#fef2f2' : room.occupied_beds > 0 ? '#fdf2f8' : '#f0fdf4';
+                                      const roomColor = room.free_beds <= 0 ? '#fef2f2' : room.occupied_beds > 0 ? '#ecfeff' : '#f0fdf4';
                                       return (
                                         <TableRow key={room.room_id} sx={{ bgcolor: roomColor }}>
                                           <TableCell sx={{ fontWeight: 500, fontSize: '0.8rem' }}>{room.room_number}</TableCell>

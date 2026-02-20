@@ -69,17 +69,17 @@ const ADMIN_ROLE_NAMES = ['Szuperadmin', 'Adatkezelő', 'Admin'];
 const EVENT_TYPES = [
   { key: 'checkin', label: 'Check-in', icon: <LoginIcon fontSize="small" />, color: '#3b82f6' },
   { key: 'checkout', label: 'Check-out', icon: <LogoutIcon fontSize="small" />, color: '#8b5cf6' },
-  { key: 'visa_expiry', label: 'Vízum lejárat', icon: <CreditCardIcon fontSize="small" />, color: '#ec4899' },
+  { key: 'visa_expiry', label: 'Vízum lejárat', icon: <CreditCardIcon fontSize="small" />, color: '#06b6d4' },
   { key: 'contract_expiry', label: 'Szerződés lejárat', icon: <DescriptionIcon fontSize="small" />, color: '#10b981' },
   { key: 'ticket_deadline', label: 'Hibajegy határidő', icon: <AssignmentIcon fontSize="small" />, color: '#ef4444' },
   { key: 'shift', label: 'Műszak', icon: <WorkOutlineIcon fontSize="small" />, color: '#06b6d4' },
-  { key: 'medical_appointment', label: 'Orvosi vizsgálat', icon: <LocalHospitalIcon fontSize="small" />, color: '#ec4899' },
+  { key: 'medical_appointment', label: 'Orvosi vizsgálat', icon: <LocalHospitalIcon fontSize="small" />, color: '#06b6d4' },
   { key: 'personal_event', label: 'Személyes esemény', icon: <EventIcon fontSize="small" />, color: '#8b5cf6' },
 ];
 
 const URGENCY_CONFIG = {
   critical: { label: 'Kritikus', color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
-  warning: { label: 'Figyelmeztetés', color: '#ec4899', bg: 'rgba(245,158,11,0.08)' },
+  warning: { label: 'Figyelmeztetés', color: '#06b6d4', bg: 'rgba(245,158,11,0.08)' },
   normal: { label: 'Normál', color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
   past: { label: 'Lejárt', color: '#9e9e9e', bg: 'rgba(158,158,158,0.08)' },
 };
@@ -542,7 +542,7 @@ function Calendar() {
                 </MenuItem>
               )}
               <MenuItem onClick={() => openMedicalDialog()}>
-                <LocalHospitalIcon sx={{ mr: 1, color: '#ec4899' }} fontSize="small" />
+                <LocalHospitalIcon sx={{ mr: 1, color: '#06b6d4' }} fontSize="small" />
                 Orvosi vizsgálat
               </MenuItem>
               <MenuItem onClick={() => openPersonalDialog()}>
@@ -689,10 +689,10 @@ function Calendar() {
             </Card>
           </Grid>
           <Grid item xs={6} sm={4} md>
-            <Card sx={{ borderTop: '3px solid #ec4899' }}>
+            <Card sx={{ borderTop: '3px solid #06b6d4' }}>
               <CardContent sx={{ textAlign: 'center', py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <WarningIcon sx={{ color: '#ec4899', mb: 0.5 }} />
-                <Typography variant="h5" sx={{ fontWeight: 700, color: '#ec4899' }}>
+                <WarningIcon sx={{ color: '#06b6d4', mb: 0.5 }} />
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#06b6d4' }}>
                   {loading ? '-' : (summary.warning || 0)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
