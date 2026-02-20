@@ -32,7 +32,7 @@ const DOCUMENT_TYPES = [
   { value: 'certificate', label: 'Bizonyítvány', color: '#16a34a' },
   { value: 'id_card', label: 'Igazolvány másolat', color: '#7c3aed' },
   { value: 'medical', label: 'Orvosi dokumentum', color: '#ec4899' },
-  { value: 'permit', label: 'Engedély', color: '#f59e0b' },
+  { value: 'permit', label: 'Engedély', color: '#ec4899' },
   { value: 'policy', label: 'Szabályzat', color: '#06b6d4' },
   { value: 'template', label: 'Sablon', color: '#64748b' },
   { value: 'other', label: 'Egyéb', color: '#94a3b8' },
@@ -335,7 +335,7 @@ function DocumentDetailModal({ open, onClose, documentId, onSuccess }) {
                 variant="contained"
                 startIcon={<DownloadIcon />}
                 onClick={handleDownload}
-                sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
               >
                 Letöltés
               </Button>
@@ -354,7 +354,7 @@ function DocumentDetailModal({ open, onClose, documentId, onSuccess }) {
                 onClick={handleSave}
                 disabled={saving || !editData.title?.trim()}
                 startIcon={saving ? <CircularProgress size={18} /> : null}
-                sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
               >
                 Mentés
               </Button>

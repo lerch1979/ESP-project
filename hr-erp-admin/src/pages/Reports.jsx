@@ -50,7 +50,7 @@ import ResponsiveTable from '../components/ResponsiveTable';
 const REPORT_TYPES = [
   { key: 'employees', label: 'Munkavállalók', icon: PeopleIcon, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
   { key: 'accommodations', label: 'Szálláshelyek', icon: ApartmentIcon, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-  { key: 'tickets', label: 'Hibajegyek', icon: ConfirmationNumberIcon, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { key: 'tickets', label: 'Hibajegyek', icon: ConfirmationNumberIcon, color: '#ec4899', bg: 'rgba(245,158,11,0.1)' },
   { key: 'contractors', label: 'Alvállalkozók', icon: BusinessIcon, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
 ];
 
@@ -181,7 +181,7 @@ const TABLE_COLUMNS = {
   ],
 };
 
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
+const PIE_COLORS = ['#3b82f6', '#10b981', '#ec4899', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
 
 // ============================================================
 // Helpers
@@ -438,7 +438,7 @@ function Reports() {
               variant="outlined"
               startIcon={<FileDownloadIcon />}
               onClick={handleExcelExport}
-              sx={{ borderColor: '#2c5f2d', color: '#2c5f2d', '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44,95,45,0.04)' } }}
+              sx={{ borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37,99,235,0.04)' } }}
             >
               Excel export
             </Button>
@@ -513,7 +513,7 @@ function Reports() {
             <StatMiniCard title="Aktív" value={data.active} color="#10b981" />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Vízum lejár (30 nap)" value={data.visaExpiring30d} color="#f59e0b" />
+            <StatMiniCard title="Vízum lejár (30 nap)" value={data.visaExpiring30d} color="#ec4899" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Új (e hónap)" value={data.newThisMonth} color="#8b5cf6" />
@@ -596,7 +596,7 @@ function Reports() {
 
   const renderAccommodationsDetail = () => {
     if (!data) return null;
-    const statusColors = { 'Szabad': '#10b981', 'Foglalt': '#f59e0b', 'Karbantartás': '#ef4444' };
+    const statusColors = { 'Szabad': '#10b981', 'Foglalt': '#ec4899', 'Karbantartás': '#ef4444' };
     return (
       <Box>
         <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -604,7 +604,7 @@ function Reports() {
             <StatMiniCard title="Összes" value={data.total} color="#10b981" />
           </Grid>
           <Grid item xs={6} sm={4}>
-            <StatMiniCard title="Kihasználtság" value={`${data.occupancyRate}%`} color="#f59e0b" />
+            <StatMiniCard title="Kihasználtság" value={`${data.occupancyRate}%`} color="#ec4899" />
           </Grid>
           <Grid item xs={6} sm={4}>
             <StatMiniCard title="Kapacitás / Lakók" value={`${data.currentOccupants} / ${data.totalCapacity}`} color="#3b82f6" />
@@ -666,7 +666,7 @@ function Reports() {
       <Box>
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Összes" value={data.total} color="#f59e0b" />
+            <StatMiniCard title="Összes" value={data.total} color="#ec4899" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Átl. megoldási idő" value={`${data.avgResolutionHours}h`} color="#3b82f6" />
@@ -738,7 +738,7 @@ function Reports() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="count" name="Hibajegyek" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b', r: 4 }} />
+                    <Line type="monotone" dataKey="count" name="Hibajegyek" stroke="#ec4899" strokeWidth={2} dot={{ fill: '#ec4899', r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -803,7 +803,7 @@ function Reports() {
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={75} />
                     <Tooltip formatter={(v) => `${v} óra`} />
-                    <Bar dataKey="avgHours" name="Átl. óra" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="avgHours" name="Átl. óra" fill="#ec4899" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

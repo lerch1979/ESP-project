@@ -150,17 +150,17 @@ function UploadDocumentModal({ open, onClose, onSuccess }) {
             onDragLeave={handleDragLeave}
             sx={{
               border: '2px dashed',
-              borderColor: dragOver ? '#2c5f2d' : file ? '#2c5f2d' : '#ccc',
+              borderColor: dragOver ? '#2563eb' : file ? '#2563eb' : '#ccc',
               borderRadius: 2,
               p: 3,
               textAlign: 'center',
               cursor: 'pointer',
-              bgcolor: dragOver ? 'rgba(44, 95, 45, 0.04)' : file ? 'rgba(44, 95, 45, 0.04)' : 'transparent',
+              bgcolor: dragOver ? 'rgba(37, 99, 235, 0.04)' : file ? 'rgba(37, 99, 235, 0.04)' : 'transparent',
               mb: 2,
               transition: 'all 0.2s',
               '&:hover': {
-                borderColor: '#2c5f2d',
-                bgcolor: 'rgba(44, 95, 45, 0.04)',
+                borderColor: '#2563eb',
+                bgcolor: 'rgba(37, 99, 235, 0.04)',
               },
             }}
           >
@@ -171,7 +171,7 @@ function UploadDocumentModal({ open, onClose, onSuccess }) {
               onChange={handleFileChange}
               accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt"
             />
-            <UploadIcon sx={{ fontSize: 40, color: file ? '#2c5f2d' : '#999', mb: 1 }} />
+            <UploadIcon sx={{ fontSize: 40, color: file ? '#2563eb' : '#999', mb: 1 }} />
             {file ? (
               <>
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -261,7 +261,7 @@ function UploadDocumentModal({ open, onClose, onSuccess }) {
           onClick={handleSubmit}
           disabled={loading || !file || !title.trim()}
           startIcon={loading ? <CircularProgress size={18} /> : <UploadIcon />}
-          sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
         >
           Feltöltés
         </Button>

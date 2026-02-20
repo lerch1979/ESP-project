@@ -25,7 +25,7 @@ import {
 import { notificationCenterAPI } from '../services/api';
 
 const TYPE_ICONS = {
-  warning: <WarningIcon fontSize="small" sx={{ color: '#f59e0b' }} />,
+  warning: <WarningIcon fontSize="small" sx={{ color: '#ec4899' }} />,
   info: <InfoIcon fontSize="small" sx={{ color: '#3b82f6' }} />,
   success: <SuccessIcon fontSize="small" sx={{ color: '#22c55e' }} />,
   error: <ErrorIcon fontSize="small" sx={{ color: '#ef4444' }} />,
@@ -162,7 +162,7 @@ function NotificationBell() {
             <Button
               size="small"
               onClick={handleMarkAllAsRead}
-              sx={{ color: '#2c5f2d', textTransform: 'none', fontSize: '0.8rem' }}
+              sx={{ color: '#2563eb', textTransform: 'none', fontSize: '0.8rem' }}
             >
               Mind olvasott
             </Button>
@@ -191,8 +191,8 @@ function NotificationBell() {
                 sx={{
                   py: 1.5,
                   px: 2,
-                  bgcolor: notif.is_read ? 'transparent' : 'rgba(44, 95, 45, 0.04)',
-                  '&:hover': { bgcolor: 'rgba(44, 95, 45, 0.08)' },
+                  bgcolor: notif.is_read ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                  '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.08)' },
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
@@ -217,7 +217,7 @@ function NotificationBell() {
                   }}
                 />
                 {!notif.is_read && (
-                  <UnreadDotIcon sx={{ fontSize: 10, color: '#2c5f2d', ml: 1 }} />
+                  <UnreadDotIcon sx={{ fontSize: 10, color: '#2563eb', ml: 1 }} />
                 )}
               </ListItemButton>
             ))}

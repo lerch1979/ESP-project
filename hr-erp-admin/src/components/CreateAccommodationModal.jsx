@@ -221,8 +221,8 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
           variant="contained"
           disabled={loading}
           sx={{
-            bgcolor: '#2c5f2d',
-            '&:hover': { bgcolor: '#234d24' },
+            bgcolor: '#2563eb',
+            '&:hover': { bgcolor: '#1d4ed8' },
           }}
         >
           {loading ? <CircularProgress size={24} /> : 'Létrehozás'}

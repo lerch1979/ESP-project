@@ -229,11 +229,11 @@ export default function ScheduledReports() {
     <Layout>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ScheduleIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
+          <ScheduleIcon sx={{ fontSize: 32, color: '#2563eb' }} />
           <Typography variant="h5" fontWeight={700}>Ütemezett riportok</Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}
-          sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1e4620' } }}>
+          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1e4620' } }}>
           Új ütemezett riport
         </Button>
       </Box>
@@ -364,7 +364,7 @@ export default function ScheduledReports() {
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Mégse</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}
-            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1e4620' } }}>
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1e4620' } }}>
             {saving ? <CircularProgress size={20} /> : (editingId ? 'Mentés' : 'Létrehozás')}
           </Button>
         </DialogActions>
@@ -392,7 +392,7 @@ export default function ScheduledReports() {
         <DialogActions>
           <Button onClick={() => setRunDialogOpen(false)}>Mégse</Button>
           <Button variant="contained" onClick={handleRunNow}
-            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1e4620' } }}>
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1e4620' } }}>
             Futtatás
           </Button>
         </DialogActions>

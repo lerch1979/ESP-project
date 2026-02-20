@@ -462,8 +462,8 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                 sx={{
                   mb: 2,
                   '& .MuiTab-root': { fontWeight: 600 },
-                  '& .Mui-selected': { color: '#2c5f2d' },
-                  '& .MuiTabs-indicator': { bgcolor: '#2c5f2d' },
+                  '& .Mui-selected': { color: '#2563eb' },
+                  '& .MuiTabs-indicator': { bgcolor: '#2563eb' },
                 }}
               >
                 <Tab label="Részletek" />
@@ -544,7 +544,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddRoom}
-                      sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' }, textTransform: 'none' }}
+                      sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
                     >
                       Szoba hozzáadása
                     </Button>
@@ -621,7 +621,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                               variant="contained"
                               onClick={handleSaveRoom}
                               disabled={roomSaving}
-                              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+                              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
                             >
                               {roomSaving ? <CircularProgress size={20} /> : 'Mentés'}
                             </Button>
@@ -656,7 +656,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                         <TableBody>
                           {rooms.map((room) => {
                             const occupancyPct = room.beds > 0 ? Math.round((room.occupied_beds / room.beds) * 100) : 0;
-                            const occupancyColor = occupancyPct >= 100 ? '#ef4444' : occupancyPct > 0 ? '#f59e0b' : '#10b981';
+                            const occupancyColor = occupancyPct >= 100 ? '#ef4444' : occupancyPct > 0 ? '#ec4899' : '#10b981';
                             return (
                               <TableRow key={room.id} hover>
                                 <TableCell sx={{ fontWeight: 500 }}>{room.room_number}</TableCell>
@@ -719,7 +719,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               {saving ? <CircularProgress size={24} /> : 'Mentés'}
             </Button>
@@ -739,7 +739,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                 <Button
                   onClick={handleEdit}
                   variant="contained"
-                  sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
                 >
                   Szerkesztés
                 </Button>

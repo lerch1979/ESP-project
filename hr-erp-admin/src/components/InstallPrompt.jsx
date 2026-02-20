@@ -41,7 +41,7 @@ function InstallPrompt() {
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       message={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <GetAppIcon sx={{ color: '#2c5f2d' }} />
+          <GetAppIcon sx={{ color: '#2563eb' }} />
           <Typography variant="body2">
             Telepitsd az alkalmazast a gyorsabb eleresert!
           </Typography>
@@ -52,7 +52,7 @@ function InstallPrompt() {
           <Button
             size="small"
             onClick={handleInstall}
-            sx={{ color: '#2c5f2d', fontWeight: 600 }}
+            sx={{ color: '#2563eb', fontWeight: 600 }}
           >
             Telepites
           </Button>

@@ -39,7 +39,7 @@ const CATEGORY_COLORS = {
   munkabiztonság: '#dc2626',
   beilleszkedés: '#2563eb',
   nyelvi_kurzus: '#7c3aed',
-  adminisztráció: '#f59e0b',
+  adminisztráció: '#ec4899',
   szakmai_kepzes: '#0891b2',
   ceg_info: '#16a34a',
 };
@@ -148,7 +148,7 @@ function Videos() {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => setCreateModalOpen(true)}
-            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1a3d1b' } }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
           >
             Új videó
           </Button>
@@ -185,9 +185,9 @@ function Videos() {
               fontWeight: 600,
               ...(categoryFilter === cat.value
                 ? {
-                    bgcolor: cat.value ? CATEGORY_COLORS[cat.value] : '#2c5f2d',
+                    bgcolor: cat.value ? CATEGORY_COLORS[cat.value] : '#2563eb',
                     color: 'white',
-                    '&:hover': { bgcolor: cat.value ? CATEGORY_COLORS[cat.value] : '#1a3d1b' },
+                    '&:hover': { bgcolor: cat.value ? CATEGORY_COLORS[cat.value] : '#1d4ed8' },
                   }
                 : {
                     borderColor: cat.value ? CATEGORY_COLORS[cat.value] : '#94a3b8',
@@ -201,7 +201,7 @@ function Videos() {
       {/* Video grid */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#2c5f2d' }} />
+          <CircularProgress sx={{ color: '#2563eb' }} />
         </Box>
       ) : videos.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>

@@ -46,8 +46,8 @@ import * as XLSX from 'xlsx';
 import { reportsAPI } from '../services/api';
 import ResponsiveTable from '../components/ResponsiveTable';
 
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
-const THEME_GREEN = '#2c5f2d';
+const PIE_COLORS = ['#3b82f6', '#10b981', '#ec4899', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
+const THEME_GREEN = '#2563eb';
 
 const StatMiniCard = ({ title, value, color }) => (
   <Card sx={{ height: '100%' }}>
@@ -204,7 +204,7 @@ function OccupancyReports() {
             <StatMiniCard title="Összes ágy" value={s.total_beds} color={THEME_GREEN} />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Foglalt" value={s.occupied_beds} color="#f59e0b" />
+            <StatMiniCard title="Foglalt" value={s.occupied_beds} color="#ec4899" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Szabad" value={s.free_beds} color="#10b981" />
@@ -226,7 +226,7 @@ function OccupancyReports() {
             <StatMiniCard title="Kapacitás éjszaka" value={s.total_capacity_nights} color="#3b82f6" />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Átl. kihasználtság" value={`${s.avg_occupancy_percentage}%`} color="#f59e0b" />
+            <StatMiniCard title="Átl. kihasználtság" value={`${s.avg_occupancy_percentage}%`} color="#ec4899" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard
@@ -249,7 +249,7 @@ function OccupancyReports() {
           <StatMiniCard title="Kapacitás éj" value={s.total_capacity_nights} color="#3b82f6" />
         </Grid>
         <Grid item xs={6} sm={2.4}>
-          <StatMiniCard title="Átl. kihasználtság" value={`${s.average_occupancy_percentage}%`} color="#f59e0b" />
+          <StatMiniCard title="Átl. kihasználtság" value={`${s.average_occupancy_percentage}%`} color="#ec4899" />
         </Grid>
         <Grid item xs={6} sm={2.4}>
           <StatMiniCard title="Átl. tartózkodás" value={`${s.average_stay_duration} nap`} color="#8b5cf6" />
@@ -285,7 +285,7 @@ function OccupancyReports() {
           { name: 'Szabad kapacitás', value: data.summary.total_capacity_nights - data.summary.total_nights },
         ];
 
-    const pieColors = ['#f59e0b', '#10b981'];
+    const pieColors = ['#ec4899', '#10b981'];
 
     // Bar data: per-accommodation occupancy %
     const barData = accs.map(a => ({
@@ -381,9 +381,9 @@ function OccupancyReports() {
                     type="monotone"
                     dataKey="total_occupied"
                     name="Foglalt ágy"
-                    stroke="#f59e0b"
+                    stroke="#ec4899"
                     strokeWidth={2}
-                    dot={{ fill: '#f59e0b', r: 3 }}
+                    dot={{ fill: '#ec4899', r: 3 }}
                     yAxisId="left"
                   />
                   <Line
@@ -442,7 +442,7 @@ function OccupancyReports() {
                   <TableCell>{r.name}</TableCell>
                   <TableCell>{r.accommodation_name}</TableCell>
                   <TableCell align="right">
-                    <Chip label={r.nights_stayed} size="small" sx={{ bgcolor: 'rgba(44,95,45,0.1)', color: THEME_GREEN, fontWeight: 600 }} />
+                    <Chip label={r.nights_stayed} size="small" sx={{ bgcolor: 'rgba(37,99,235,0.1)', color: THEME_GREEN, fontWeight: 600 }} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -499,7 +499,7 @@ function OccupancyReports() {
             size="small"
             startIcon={<FileDownloadIcon />}
             onClick={handleExcelExport}
-            sx={{ borderColor: THEME_GREEN, color: THEME_GREEN, '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44,95,45,0.04)' } }}
+            sx={{ borderColor: THEME_GREEN, color: THEME_GREEN, '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37,99,235,0.04)' } }}
           >
             Excel
           </Button>
@@ -566,7 +566,7 @@ function OccupancyReports() {
                                   </TableHead>
                                   <TableBody>
                                     {acc.rooms.map((room) => {
-                                      const roomColor = room.free_beds <= 0 ? '#fef2f2' : room.occupied_beds > 0 ? '#fffbeb' : '#f0fdf4';
+                                      const roomColor = room.free_beds <= 0 ? '#fef2f2' : room.occupied_beds > 0 ? '#fdf2f8' : '#f0fdf4';
                                       return (
                                         <TableRow key={room.room_id} sx={{ bgcolor: roomColor }}>
                                           <TableCell sx={{ fontWeight: 500, fontSize: '0.8rem' }}>{room.room_number}</TableCell>

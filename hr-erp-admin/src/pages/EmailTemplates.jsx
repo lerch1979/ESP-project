@@ -266,12 +266,12 @@ function EmailTemplates() {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <DescriptionIcon sx={{ fontSize: 28, color: '#2c5f2d' }} />
+            <DescriptionIcon sx={{ fontSize: 28, color: '#2563eb' }} />
             <Typography variant="h5" fontWeight={700}>
               Email sablonok
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1e3f1f' } }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#7c3aed' } }}>
             Új sablon
           </Button>
         </Box>
@@ -558,7 +558,7 @@ function EmailTemplates() {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1e3f1f' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#7c3aed' } }}
             >
               {saving ? <CircularProgress size={20} /> : editingTemplate ? 'Mentés' : 'Létrehozás'}
             </Button>

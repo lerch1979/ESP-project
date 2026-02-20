@@ -125,8 +125,8 @@ function Documents() {
             startIcon={<UploadIcon />}
             onClick={() => setUploadModalOpen(true)}
             sx={{
-              bgcolor: '#2c5f2d',
-              '&:hover': { bgcolor: '#234d24' },
+              bgcolor: '#2563eb',
+              '&:hover': { bgcolor: '#1d4ed8' },
             }}
           >
             Feltöltés
@@ -207,7 +207,7 @@ function Documents() {
                         hover
                         sx={{
                           cursor: 'pointer',
-                          '&:hover': { bgcolor: 'rgba(44, 95, 45, 0.04)' },
+                          '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
                         }}
                         onClick={() => handleRowClick(doc.id)}
                       >

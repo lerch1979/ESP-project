@@ -53,13 +53,13 @@ function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #2c5f2d 0%, #1e3f1f 100%)',
+        background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
       }}
     >
       <Container maxWidth="sm">
         <Paper elevation={10} sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
           <Box sx={{ textAlign: 'center', mb: { xs: 3, sm: 4 } }}>
-            <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 900, color: '#2c5f2d', fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
+            <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 900, color: '#2563eb', fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
               HOUSING SOLUTIONS
             </Typography>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
@@ -109,9 +109,9 @@ function Login() {
               sx={{
                 mt: 3,
                 py: 1.5,
-                background: 'linear-gradient(135deg, #2c5f2d 0%, #1e3f1f 100%)',
+                background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #234d24 0%, #152e16 100%)',
+                  background: 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)',
                 },
               }}
             >

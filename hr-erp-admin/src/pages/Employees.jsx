@@ -327,9 +327,9 @@ function Employees() {
             onClick={handleExport}
             disabled={exporting}
             sx={{
-              borderColor: '#2c5f2d',
-              color: '#2c5f2d',
-              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+              borderColor: '#2563eb',
+              color: '#2563eb',
+              '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
             }}
           >
             Export
@@ -339,9 +339,9 @@ function Employees() {
             startIcon={<EmailIcon />}
             onClick={() => setEmailModalOpen(true)}
             sx={{
-              borderColor: '#2c5f2d',
-              color: '#2c5f2d',
-              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+              borderColor: '#2563eb',
+              color: '#2563eb',
+              '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
             }}
           >
             Üzenet küldése
@@ -351,9 +351,9 @@ function Employees() {
             startIcon={<UploadIcon />}
             onClick={() => setBulkModalOpen(true)}
             sx={{
-              borderColor: '#2c5f2d',
-              color: '#2c5f2d',
-              '&:hover': { borderColor: '#234d24', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+              borderColor: '#2563eb',
+              color: '#2563eb',
+              '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
             }}
           >
             Tömeges feltöltés
@@ -363,8 +363,8 @@ function Employees() {
             startIcon={<AddIcon />}
             onClick={() => setCreateModalOpen(true)}
             sx={{
-              bgcolor: '#2c5f2d',
-              '&:hover': { bgcolor: '#234d24' },
+              bgcolor: '#2563eb',
+              '&:hover': { bgcolor: '#1d4ed8' },
             }}
           >
             Új munkavállaló
@@ -426,7 +426,7 @@ function Employees() {
                         indeterminate={selectedIds.length > 0 && selectedIds.length < employees.length}
                         checked={employees.length > 0 && selectedIds.length === employees.length}
                         onChange={handleSelectAll}
-                        sx={{ color: '#2c5f2d', '&.Mui-checked': { color: '#2c5f2d' }, '&.MuiCheckbox-indeterminate': { color: '#2c5f2d' } }}
+                        sx={{ color: '#2563eb', '&.Mui-checked': { color: '#2563eb' }, '&.MuiCheckbox-indeterminate': { color: '#2563eb' } }}
                       />
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Törzsszám</TableCell>
@@ -446,7 +446,7 @@ function Employees() {
                       hover
                       sx={{
                         cursor: 'pointer',
-                        '&:hover': { bgcolor: 'rgba(44, 95, 45, 0.04)' },
+                        '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
                       }}
                       onClick={() => handleRowClick(emp.id)}
                     >
@@ -454,11 +454,11 @@ function Employees() {
                         <Checkbox
                           checked={selectedIds.includes(emp.id)}
                           onChange={(e) => handleSelectOne(e, emp.id)}
-                          sx={{ color: '#2c5f2d', '&.Mui-checked': { color: '#2c5f2d' } }}
+                          sx={{ color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c5f2d' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563eb' }}>
                           {emp.employee_number || '-'}
                         </Typography>
                       </TableCell>
@@ -466,7 +466,7 @@ function Employees() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Avatar
                             src={emp.profile_photo_url ? `${UPLOADS_BASE_URL}${emp.profile_photo_url}` : undefined}
-                            sx={{ width: 36, height: 36, fontSize: '0.85rem', bgcolor: '#2c5f2d' }}
+                            sx={{ width: 36, height: 36, fontSize: '0.85rem', bgcolor: '#2563eb' }}
                           >
                             {(emp.last_name?.[0] || '') + (emp.first_name?.[0] || '')}
                           </Avatar>
@@ -630,7 +630,7 @@ function Employees() {
             variant="contained"
             onClick={handleBulkStatusUpdate}
             disabled={!bulkStatusId || bulkActionLoading}
-            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
           >
             {bulkActionLoading ? <CircularProgress size={20} /> : 'Mentés'}
           </Button>

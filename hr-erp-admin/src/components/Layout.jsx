@@ -199,9 +199,9 @@ function Layout({ children }) {
                             borderRadius: 2,
                             minHeight: 40,
                             '&.Mui-selected': {
-                              bgcolor: '#4a7c59',
+                              bgcolor: '#6366f1',
                               '&:hover': {
-                                bgcolor: '#3d6b4a',
+                                bgcolor: '#3b82f6',
                               },
                             },
                             '&:hover': {
@@ -236,9 +236,9 @@ function Layout({ children }) {
                   borderRadius: 2,
                   minHeight: 48,
                   '&.Mui-selected': {
-                    bgcolor: '#4a7c59',
+                    bgcolor: '#6366f1',
                     '&:hover': {
-                      bgcolor: '#3d6b4a',
+                      bgcolor: '#3b82f6',
                     },
                   },
                   '&:hover': {
@@ -301,7 +301,7 @@ function Layout({ children }) {
             color="inherit"
           >
             {user ? (
-              <Avatar sx={{ width: 36, height: 36, bgcolor: '#2c5f2d' }}>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: '#2563eb' }}>
                 {user.firstName?.[0]}{user.lastName?.[0]}
               </Avatar>
             ) : (
@@ -344,7 +344,7 @@ function Layout({ children }) {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
-              bgcolor: '#2c5f2d',
+              background: 'linear-gradient(180deg, #2563eb 0%, #7c3aed 100%)',
               color: 'white',
             },
           }}
@@ -360,7 +360,7 @@ function Layout({ children }) {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
-              bgcolor: '#2c5f2d',
+              background: 'linear-gradient(180deg, #2563eb 0%, #7c3aed 100%)',
               color: 'white',
             },
           }}

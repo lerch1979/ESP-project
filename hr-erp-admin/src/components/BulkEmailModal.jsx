@@ -383,7 +383,7 @@ function BulkEmailModal({ open, onClose }) {
                 startIcon={<AddIcon />}
                 onClick={addFilter}
                 disabled={filters.length >= MAX_FILTERS}
-                sx={{ color: '#2c5f2d' }}
+                sx={{ color: '#2563eb' }}
               >
                 Szűrő hozzáadása
               </Button>
@@ -399,7 +399,7 @@ function BulkEmailModal({ open, onClose }) {
               variant="contained"
               onClick={handleFilter}
               disabled={loading}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Szűrés'}
             </Button>
@@ -407,7 +407,7 @@ function BulkEmailModal({ open, onClose }) {
               <Chip
                 label={`${selectedIds.length} / ${recipients.length} munkavállaló kiválasztva`}
                 color="primary"
-                sx={{ bgcolor: '#2c5f2d', fontWeight: 600 }}
+                sx={{ bgcolor: '#2563eb', fontWeight: 600 }}
               />
             )}
           </Box>
@@ -589,7 +589,7 @@ function BulkEmailModal({ open, onClose }) {
               variant="contained"
               disabled={selectedIds.length === 0}
               onClick={() => setStep(1)}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               Tovább ({selectedIds.length} címzett)
             </Button>
@@ -602,7 +602,7 @@ function BulkEmailModal({ open, onClose }) {
               variant="contained"
               disabled={!subject || !body}
               onClick={() => setStep(2)}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               Tovább
             </Button>
@@ -615,7 +615,7 @@ function BulkEmailModal({ open, onClose }) {
               variant="contained"
               onClick={handleSend}
               disabled={sending}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               {sending ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
               {sending ? 'Küldés...' : 'Küldés'}
@@ -626,7 +626,7 @@ function BulkEmailModal({ open, onClose }) {
           <Button
             variant="contained"
             onClick={onClose}
-            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
           >
             Bezárás
           </Button>

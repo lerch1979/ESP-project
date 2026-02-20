@@ -57,7 +57,7 @@ import ResponsiveTable from '../components/ResponsiveTable';
 
 const ACCOMMODATION_COLORS = {
   available: '#10b981',
-  occupied: '#f59e0b',
+  occupied: '#ec4899',
   maintenance: '#ef4444',
 };
 
@@ -208,8 +208,8 @@ function Dashboard() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: bgColor || 'rgba(44, 95, 45, 0.1)',
-              color: '#2c5f2d',
+              bgcolor: bgColor || 'rgba(37, 99, 235, 0.1)',
+              color: '#2563eb',
             }}
           >
             {icon}
@@ -406,12 +406,12 @@ function Dashboard() {
                     hover
                     sx={{
                       cursor: 'pointer',
-                      '&:hover': { bgcolor: 'rgba(44, 95, 45, 0.04)' },
+                      '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
                     }}
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c5f2d' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563eb' }}>
                         {ticket.ticket_number}
                       </Typography>
                     </TableCell>
@@ -480,7 +480,7 @@ function Dashboard() {
           </Typography>
         </Box>
         <Tooltip title="Testreszabás">
-          <IconButton onClick={openCustomize} sx={{ color: '#2c5f2d' }}>
+          <IconButton onClick={openCustomize} sx={{ color: '#2563eb' }}>
             <TuneIcon />
           </IconButton>
         </Tooltip>
@@ -522,7 +522,7 @@ function Dashboard() {
           </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Button onClick={() => setCustomizeOpen(false)}>Mégse</Button>
-          <Button variant="contained" onClick={handleSaveCustomization} sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}>
+          <Button variant="contained" onClick={handleSaveCustomization} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}>
             Mentés
           </Button>
         </DialogActions>

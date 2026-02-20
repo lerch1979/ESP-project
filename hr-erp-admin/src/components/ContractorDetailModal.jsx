@@ -209,7 +209,7 @@ function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               {saving ? <CircularProgress size={24} /> : 'Mentés'}
             </Button>
@@ -229,7 +229,7 @@ function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
                 <Button
                   onClick={() => setEditing(true)}
                   variant="contained"
-                  sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
                 >
                   Szerkesztés
                 </Button>

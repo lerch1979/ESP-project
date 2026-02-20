@@ -490,8 +490,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
             sx={{
               mt: 1,
               '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
-              '& .Mui-selected': { color: '#2c5f2d' },
-              '& .MuiTabs-indicator': { backgroundColor: '#2c5f2d' },
+              '& .Mui-selected': { color: '#2563eb' },
+              '& .MuiTabs-indicator': { backgroundColor: '#2563eb' },
             }}
           >
             <Tab icon={<PersonIcon />} iconPosition="start" label="Adatok" />
@@ -554,8 +554,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                     onClick={() => setShowFilters(!showFilters)}
                     sx={{
                       ...(showFilters
-                        ? { bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }
-                        : { color: '#2c5f2d', borderColor: '#2c5f2d' }),
+                        ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }
+                        : { color: '#2563eb', borderColor: '#2563eb' }),
                     }}
                   >
                     Szűrők
@@ -566,7 +566,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => setShowNoteForm(!showNoteForm)}
-                  sx={{ bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' } }}
+                  sx={{ bgcolor: '#ec4899', '&:hover': { bgcolor: '#db2777' } }}
                 >
                   Jegyzet hozzáadása
                 </Button>
@@ -574,7 +574,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
 
               {/* Filter checkboxes */}
               <Collapse in={showFilters}>
-                <Box sx={{ p: 2, mb: 2, bgcolor: '#f8faf8', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 2, mb: 2, bgcolor: '#f8f9ff', borderRadius: 1, border: '1px solid #e5e7eb' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                     Esemény típusok szűrése
                   </Typography>
@@ -604,7 +604,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
 
               {/* Add note form */}
               <Collapse in={showNoteForm}>
-                <Box sx={{ p: 2, mb: 2, bgcolor: '#fffbeb', borderRadius: 1, border: '1px solid #fbbf24' }}>
+                <Box sx={{ p: 2, mb: 2, bgcolor: '#fdf2f8', borderRadius: 1, border: '1px solid #f472b6' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
                     Új jegyzet hozzáadása
                   </Typography>
@@ -658,7 +658,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                         variant="contained"
                         onClick={handleAddNote}
                         disabled={noteSubmitting || !noteData.title.trim()}
-                        sx={{ bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' } }}
+                        sx={{ bgcolor: '#ec4899', '&:hover': { bgcolor: '#db2777' } }}
                       >
                         {noteSubmitting ? <CircularProgress size={18} /> : 'Mentés'}
                       </Button>
@@ -702,12 +702,12 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                             width: 10,
                             height: 10,
                             borderRadius: '50%',
-                            bgcolor: '#2c5f2d',
+                            bgcolor: '#2563eb',
                             border: '2px solid white',
-                            boxShadow: '0 0 0 2px #2c5f2d',
+                            boxShadow: '0 0 0 2px #2563eb',
                           }}
                         />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#2c5f2d' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#2563eb' }}>
                           {new Date(date + 'T00:00:00').toLocaleDateString('hu-HU', {
                             year: 'numeric',
                             month: 'long',
@@ -844,7 +844,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
             >
               {saving ? <CircularProgress size={24} /> : 'Mentés'}
             </Button>
@@ -864,7 +864,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                 <Button
                   onClick={handleEdit}
                   variant="contained"
-                  sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
                 >
                   Szerkesztés
                 </Button>
@@ -913,7 +913,7 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
             />
           </Zoom>
         ) : (
-          <Avatar sx={{ width: 150, height: 150, mb: 1, bgcolor: '#2c5f2d', fontSize: '3rem' }}>
+          <Avatar sx={{ width: 150, height: 150, mb: 1, bgcolor: '#2563eb', fontSize: '3rem' }}>
             {(employee.last_name?.[0] || '') + (employee.first_name?.[0] || '')}
           </Avatar>
         )}
@@ -931,7 +931,7 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
             startIcon={photoUploading ? <CircularProgress size={16} /> : <UploadIcon />}
             disabled={photoUploading}
             onClick={() => photoInputRef.current?.click()}
-            sx={{ color: '#2c5f2d', borderColor: '#2c5f2d', textTransform: 'none' }}
+            sx={{ color: '#2563eb', borderColor: '#2563eb', textTransform: 'none' }}
           >
             {employee.profile_photo_url ? 'Kép cseréje' : 'Kép feltöltése'}
           </Button>
@@ -1063,7 +1063,7 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
               sx={{ width: 120, height: 120, mb: 1 }}
             />
           ) : (
-            <Avatar sx={{ width: 120, height: 120, mb: 1, bgcolor: '#2c5f2d', fontSize: '2.5rem' }}>
+            <Avatar sx={{ width: 120, height: 120, mb: 1, bgcolor: '#2563eb', fontSize: '2.5rem' }}>
               {(employee?.last_name?.[0] || '') + (employee?.first_name?.[0] || '')}
             </Avatar>
           )}
@@ -1081,7 +1081,7 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
               startIcon={photoUploading ? <CircularProgress size={16} /> : <UploadIcon />}
               disabled={photoUploading}
               onClick={() => photoInputRef.current?.click()}
-              sx={{ color: '#2c5f2d', borderColor: '#2c5f2d', textTransform: 'none' }}
+              sx={{ color: '#2563eb', borderColor: '#2563eb', textTransform: 'none' }}
             >
               {employee?.profile_photo_url ? 'Kép cseréje' : 'Kép feltöltése'}
             </Button>
@@ -1383,9 +1383,9 @@ function DocumentsTab({
         sx={{
           p: 2,
           mb: 2,
-          border: `2px dashed ${dragOver ? '#2c5f2d' : '#d1d5db'}`,
+          border: `2px dashed ${dragOver ? '#2563eb' : '#d1d5db'}`,
           borderRadius: 2,
-          bgcolor: dragOver ? '#f0fdf4' : '#fafafa',
+          bgcolor: dragOver ? '#eff6ff' : '#fafafa',
           transition: 'all 0.2s',
         }}
       >
@@ -1432,7 +1432,7 @@ function DocumentsTab({
               startIcon={docUploading ? <CircularProgress size={18} color="inherit" /> : <UploadIcon />}
               disabled={docUploading}
               onClick={() => fileInputRef.current?.click()}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' }, textTransform: 'none' }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
             >
               {docUploading ? 'Feltöltés...' : 'Fájl kiválasztása'}
             </Button>
@@ -1522,7 +1522,7 @@ function DocumentsTab({
                         <IconButton
                           size="small"
                           onClick={(e) => { e.stopPropagation(); handleDownload(doc); }}
-                          sx={{ color: '#2c5f2d', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                          sx={{ color: '#2563eb', opacity: 0.6, '&:hover': { opacity: 1 } }}
                         >
                           <DownloadIcon sx={{ fontSize: 16 }} />
                         </IconButton>
@@ -1580,7 +1580,7 @@ function DocumentsTab({
                         minWidth: 0,
                         px: 1.5,
                         ...(!showOriginalInViewer
-                          ? { bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }
+                          ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }
                           : { color: '#ccc', borderColor: '#555' }),
                       }}
                       startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
@@ -1597,7 +1597,7 @@ function DocumentsTab({
                         minWidth: 0,
                         px: 1.5,
                         ...(showOriginalInViewer
-                          ? { bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }
+                          ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }
                           : { color: '#ccc', borderColor: '#555' }),
                       }}
                       startIcon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}

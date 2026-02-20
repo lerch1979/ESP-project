@@ -192,7 +192,7 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
               <Avatar
                 src={photoPreview || undefined}
-                sx={{ width: 100, height: 100, mb: 1, bgcolor: '#2c5f2d', fontSize: '2rem' }}
+                sx={{ width: 100, height: 100, mb: 1, bgcolor: '#2563eb', fontSize: '2rem' }}
               >
                 {(formData.last_name?.[0] || '') + (formData.first_name?.[0] || '')}
               </Avatar>
@@ -209,7 +209,7 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
                   variant="outlined"
                   startIcon={<UploadIcon />}
                   onClick={() => photoInputRef.current?.click()}
-                  sx={{ color: '#2c5f2d', borderColor: '#2c5f2d', textTransform: 'none' }}
+                  sx={{ color: '#2563eb', borderColor: '#2563eb', textTransform: 'none' }}
                 >
                   {photoPreview ? 'Kép cseréje' : 'Kép feltöltése'}
                 </Button>
@@ -448,8 +448,8 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
           variant="contained"
           disabled={loading}
           sx={{
-            bgcolor: '#2c5f2d',
-            '&:hover': { bgcolor: '#234d24' },
+            bgcolor: '#2563eb',
+            '&:hover': { bgcolor: '#1d4ed8' },
           }}
         >
           {loading ? <CircularProgress size={24} /> : 'Létrehozás'}

@@ -69,7 +69,7 @@ const ADMIN_ROLE_NAMES = ['Szuperadmin', 'Adatkezelő', 'Admin'];
 const EVENT_TYPES = [
   { key: 'checkin', label: 'Check-in', icon: <LoginIcon fontSize="small" />, color: '#3b82f6' },
   { key: 'checkout', label: 'Check-out', icon: <LogoutIcon fontSize="small" />, color: '#8b5cf6' },
-  { key: 'visa_expiry', label: 'Vízum lejárat', icon: <CreditCardIcon fontSize="small" />, color: '#f59e0b' },
+  { key: 'visa_expiry', label: 'Vízum lejárat', icon: <CreditCardIcon fontSize="small" />, color: '#ec4899' },
   { key: 'contract_expiry', label: 'Szerződés lejárat', icon: <DescriptionIcon fontSize="small" />, color: '#10b981' },
   { key: 'ticket_deadline', label: 'Hibajegy határidő', icon: <AssignmentIcon fontSize="small" />, color: '#ef4444' },
   { key: 'shift', label: 'Műszak', icon: <WorkOutlineIcon fontSize="small" />, color: '#06b6d4' },
@@ -79,7 +79,7 @@ const EVENT_TYPES = [
 
 const URGENCY_CONFIG = {
   critical: { label: 'Kritikus', color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
-  warning: { label: 'Figyelmeztetés', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+  warning: { label: 'Figyelmeztetés', color: '#ec4899', bg: 'rgba(245,158,11,0.08)' },
   normal: { label: 'Normál', color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
   past: { label: 'Lejárt', color: '#9e9e9e', bg: 'rgba(158,158,158,0.08)' },
 };
@@ -515,7 +515,7 @@ function Calendar() {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <CalendarMonthIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
+            <CalendarMonthIcon sx={{ fontSize: 32, color: '#2563eb' }} />
             <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
               Naptár
             </Typography>
@@ -526,7 +526,7 @@ function Calendar() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={(e) => setAddMenuAnchor(e.currentTarget)}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
             >
               Esemény hozzáadása
             </Button>
@@ -631,7 +631,7 @@ function Calendar() {
         {/* Admin: personal view toggle */}
         {admin && (
           <Paper sx={{ p: 2, mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <PersonOutlineIcon sx={{ color: '#2c5f2d' }} />
+            <PersonOutlineIcon sx={{ color: '#2563eb' }} />
             <FormControlLabel
               control={
                 <Switch
@@ -689,10 +689,10 @@ function Calendar() {
             </Card>
           </Grid>
           <Grid item xs={6} sm={4} md>
-            <Card sx={{ borderTop: '3px solid #f59e0b' }}>
+            <Card sx={{ borderTop: '3px solid #ec4899' }}>
               <CardContent sx={{ textAlign: 'center', py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <WarningIcon sx={{ color: '#f59e0b', mb: 0.5 }} />
-                <Typography variant="h5" sx={{ fontWeight: 700, color: '#f59e0b' }}>
+                <WarningIcon sx={{ color: '#ec4899', mb: 0.5 }} />
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#ec4899' }}>
                   {loading ? '-' : (summary.warning || 0)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -715,7 +715,7 @@ function Calendar() {
                   key={preset.key}
                   variant={dateRange === preset.key ? 'contained' : 'outlined'}
                   onClick={() => setDateRange(preset.key)}
-                  sx={dateRange === preset.key ? { bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } } : {}}
+                  sx={dateRange === preset.key ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } } : {}}
                 >
                   {preset.label}
                 </Button>
@@ -746,7 +746,7 @@ function Calendar() {
                   size="small"
                   onClick={loadEvents}
                   disabled={!customFrom || !customTo}
-                  sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}
+                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
                 >
                   Lekérdezés
                 </Button>
@@ -790,7 +790,7 @@ function Calendar() {
         <Paper sx={{ overflow: 'hidden' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress sx={{ color: '#2c5f2d' }} />
+              <CircularProgress sx={{ color: '#2563eb' }} />
             </Box>
           ) : events.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -965,7 +965,7 @@ function Calendar() {
             <Button
               variant="contained"
               onClick={handleSaveShift}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
             >
               Mentés
             </Button>
@@ -1048,7 +1048,7 @@ function Calendar() {
             <Button
               variant="contained"
               onClick={handleSaveMedical}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
             >
               Mentés
             </Button>
@@ -1137,7 +1137,7 @@ function Calendar() {
             <Button
               variant="contained"
               onClick={handleSavePersonal}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
             >
               Mentés
             </Button>

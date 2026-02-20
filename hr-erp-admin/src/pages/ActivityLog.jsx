@@ -180,7 +180,7 @@ function ActivityLog() {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <HistoryIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
+          <HistoryIcon sx={{ fontSize: 32, color: '#2563eb' }} />
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Tevékenységnapló
           </Typography>
@@ -190,7 +190,7 @@ function ActivityLog() {
           startIcon={exporting ? <CircularProgress size={18} /> : <FileDownloadIcon />}
           onClick={handleExport}
           disabled={exporting}
-          sx={{ borderColor: '#2c5f2d', color: '#2c5f2d', '&:hover': { borderColor: '#3d6b4a', bgcolor: 'rgba(44,95,45,0.04)' } }}
+          sx={{ borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(37,99,235,0.04)' } }}
         >
           {exporting ? 'Exportálás...' : 'Export Excel'}
         </Button>
@@ -318,7 +318,7 @@ function ActivityLog() {
                             <Chip
                               label={ENTITY_LABELS[log.entity_type] || log.entity_type}
                               size="small"
-                              sx={{ bgcolor: 'rgba(44,95,45,0.1)', color: '#2c5f2d' }}
+                              sx={{ bgcolor: 'rgba(37,99,235,0.1)', color: '#2563eb' }}
                             />
                           </TableCell>
                           <TableCell>
@@ -384,7 +384,7 @@ function DetailDialog({ open, log, onClose }) {
           <Chip
             label={ENTITY_LABELS[log.entity_type] || log.entity_type}
             size="small"
-            sx={{ bgcolor: 'rgba(44,95,45,0.1)', color: '#2c5f2d' }}
+            sx={{ bgcolor: 'rgba(37,99,235,0.1)', color: '#2563eb' }}
           />
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             {metadata.name || ''}

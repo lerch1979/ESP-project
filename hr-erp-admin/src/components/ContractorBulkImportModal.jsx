@@ -111,7 +111,7 @@ function ContractorBulkImportModal({ open, onClose, onSuccess }) {
               p: 5,
               textAlign: 'center',
               cursor: 'pointer',
-              '&:hover': { borderColor: '#2c5f2d', bgcolor: 'rgba(44, 95, 45, 0.04)' },
+              '&:hover': { borderColor: '#2563eb', bgcolor: 'rgba(37, 99, 235, 0.04)' },
             }}
           >
             <UploadIcon sx={{ fontSize: 48, color: '#999', mb: 1 }} />
@@ -202,8 +202,8 @@ function ContractorBulkImportModal({ open, onClose, onSuccess }) {
             variant="contained"
             disabled={loading || !file}
             sx={{
-              bgcolor: '#2c5f2d',
-              '&:hover': { bgcolor: '#234d24' },
+              bgcolor: '#2563eb',
+              '&:hover': { bgcolor: '#1d4ed8' },
             }}
           >
             {loading ? <CircularProgress size={24} /> : 'Importálás'}

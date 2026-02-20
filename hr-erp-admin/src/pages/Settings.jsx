@@ -73,7 +73,7 @@ function Settings() {
       <Box>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <SettingsIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
+          <SettingsIcon sx={{ fontSize: 32, color: '#2563eb' }} />
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Beállítások
           </Typography>
@@ -82,7 +82,7 @@ function Settings() {
         {/* Email settings card */}
         <Paper sx={{ p: 3, maxWidth: 600 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <EmailIcon sx={{ color: '#2c5f2d' }} />
+            <EmailIcon sx={{ color: '#2563eb' }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Email beállítások
             </Typography>
@@ -92,7 +92,7 @@ function Settings() {
             Az email küldéshez Gmail SMTP-t használunk. A beállításhoz szükséges lépések:
           </Typography>
 
-          <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f8faf8' }}>
+          <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: '#f8f9ff' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
               Gmail alkalmazás jelszó beállítása:
             </Typography>
@@ -149,7 +149,7 @@ function Settings() {
               onClick={handleTestEmail}
               disabled={!testEmail || sending}
               startIcon={sending ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
-              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' }, whiteSpace: 'nowrap' }}
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' }, whiteSpace: 'nowrap' }}
             >
               {sending ? 'Küldés...' : 'Teszt küldés'}
             </Button>

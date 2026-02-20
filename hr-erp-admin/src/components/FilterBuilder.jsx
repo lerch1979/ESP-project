@@ -138,7 +138,7 @@ export default function FilterBuilder({
           startIcon={<AddIcon />}
           onClick={addFilter}
           disabled={filters.length >= maxFilters}
-          sx={{ color: '#2c5f2d' }}
+          sx={{ color: '#2563eb' }}
         >
           Szűrő hozzáadása
         </Button>
@@ -152,7 +152,7 @@ export default function FilterBuilder({
           variant="contained"
           onClick={handleFilter}
           disabled={loading}
-          sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
         >
           {loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Szűrés'}
         </Button>
@@ -167,7 +167,7 @@ export default function FilterBuilder({
           <Chip
             label={`${resultCount} találat`}
             color="primary"
-            sx={{ bgcolor: '#2c5f2d', fontWeight: 600 }}
+            sx={{ bgcolor: '#2563eb', fontWeight: 600 }}
           />
         )}
       </Box>

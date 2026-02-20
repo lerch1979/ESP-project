@@ -161,7 +161,7 @@ function CreateVideoModal({ open, onClose, onSuccess, editData }) {
           variant="contained"
           onClick={handleSubmit}
           disabled={saving}
-          sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#1a3d1b' } }}
+          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
         >
           {saving ? <CircularProgress size={24} /> : isEdit ? 'Mentés' : 'Létrehozás'}
         </Button>

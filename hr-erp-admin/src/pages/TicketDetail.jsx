@@ -260,7 +260,7 @@ function TicketDetail() {
                   <Box key={`${item.type}-${item.id}`}>
                     {item.type === 'comment' ? (
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                        <Avatar sx={{ width: 40, height: 40, bgcolor: '#2c5f2d', fontSize: '0.875rem' }}>
+                        <Avatar sx={{ width: 40, height: 40, bgcolor: '#2563eb', fontSize: '0.875rem' }}>
                           {item.author?.[0] || '?'}
                         </Avatar>
                         <Box sx={{ flex: 1 }}>
@@ -325,8 +325,8 @@ function TicketDetail() {
               onClick={handleAddComment}
               disabled={sendingComment || !newComment.trim()}
               sx={{
-                bgcolor: '#2c5f2d',
-                '&:hover': { bgcolor: '#234d24' },
+                bgcolor: '#2563eb',
+                '&:hover': { bgcolor: '#1d4ed8' },
               }}
             >
               {sendingComment ? 'Küldés...' : 'Megjegyzés hozzáadása'}
