@@ -1458,11 +1458,11 @@ function DocumentsTab({
                     border: '1px solid #e5e7eb',
                     borderRadius: 2,
                     overflow: 'hidden',
-                    cursor: docIsImage ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     transition: 'box-shadow 0.2s',
                     '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
                   }}
-                  onClick={() => docIsImage && openViewer(doc)}
+                  onClick={() => openViewer(doc)}
                 >
                   {/* Thumbnail */}
                   <Box
@@ -1591,19 +1591,23 @@ function DocumentsTab({
                 )}
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Tooltip title="Kicsinyítés">
-                  <IconButton size="small" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} sx={{ color: '#ccc' }}>
-                    <ZoomOutIcon />
-                  </IconButton>
-                </Tooltip>
-                <Typography variant="caption" sx={{ color: '#ccc', minWidth: 40, textAlign: 'center' }}>
-                  {Math.round(zoom * 100)}%
-                </Typography>
-                <Tooltip title="Nagyítás">
-                  <IconButton size="small" onClick={() => setZoom(z => Math.min(4, z + 0.25))} sx={{ color: '#ccc' }}>
-                    <ZoomInIcon />
-                  </IconButton>
-                </Tooltip>
+                {isImage(selectedDocImage.mime_type) && (
+                  <>
+                    <Tooltip title="Kicsinyítés">
+                      <IconButton size="small" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} sx={{ color: '#ccc' }}>
+                        <ZoomOutIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Typography variant="caption" sx={{ color: '#ccc', minWidth: 40, textAlign: 'center' }}>
+                      {Math.round(zoom * 100)}%
+                    </Typography>
+                    <Tooltip title="Nagyítás">
+                      <IconButton size="small" onClick={() => setZoom(z => Math.min(4, z + 0.25))} sx={{ color: '#ccc' }}>
+                        <ZoomInIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
                 <Tooltip title="Törlés">
                   <IconButton
                     size="small"
@@ -1619,17 +1623,31 @@ function DocumentsTab({
               </Box>
             </DialogTitle>
             <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2, bgcolor: '#1a1a1a', overflow: 'auto' }}>
-              <img
-                src={getDocUrl(selectedDocImage, showOriginalInViewer ? 'original' : 'scanned')}
-                alt={selectedDocImage.file_name}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '80vh',
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'center center',
-                  transition: 'transform 0.2s',
-                }}
-              />
+              {isImage(selectedDocImage.mime_type) ? (
+                <img
+                  src={getDocUrl(selectedDocImage, showOriginalInViewer ? 'original' : 'scanned')}
+                  alt={selectedDocImage.file_name}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '80vh',
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'center center',
+                    transition: 'transform 0.2s',
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={getDocUrl(selectedDocImage, 'original')}
+                  title={selectedDocImage.file_name}
+                  style={{
+                    width: '100%',
+                    height: '80vh',
+                    border: 'none',
+                    borderRadius: 4,
+                    bgcolor: '#fff',
+                  }}
+                />
+              )}
             </DialogContent>
           </>
         )}
