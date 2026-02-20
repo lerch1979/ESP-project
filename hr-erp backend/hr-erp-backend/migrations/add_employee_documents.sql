@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS employee_documents (
   file_size INTEGER DEFAULT 0,
   mime_type VARCHAR(100),
   thumbnail_path VARCHAR(500),
+  scanned_file_path VARCHAR(500),
   uploaded_by UUID REFERENCES users(id),
   uploaded_at TIMESTAMPTZ DEFAULT NOW(),
   notes TEXT

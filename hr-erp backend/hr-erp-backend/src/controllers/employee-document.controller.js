@@ -22,6 +22,7 @@ const DOCUMENT_TYPE_LABELS = {
 /**
  * POST /api/v1/employees/:id/documents
  * Upload a document for an employee
+ * Automatically creates a scanned (B&W, high contrast) version for images
  */
 const uploadDocument = async (req, res) => {
   try {
@@ -33,37 +34,39 @@ const uploadDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Fájl feltöltése kötelező' });
     }
 
-    const scanMode = req.body.scan_mode === 'true' || req.body.scan_mode === '1';
-
-    // Process image: scan mode (B&W) + thumbnail generation
     let thumbnailPath = null;
+    let scannedFilePath = null;
+
     if (file.mimetype.startsWith('image/') && sharp) {
-      // Apply scan processing (grayscale + high contrast) if scan_mode
-      if (scanMode) {
-        try {
-          const scannedFilename = 'scan_' + file.filename;
-          const scannedFullPath = path.join(file.destination, scannedFilename);
-          await sharp(file.path)
-            .greyscale()
-            .normalize()
-            .linear(1.4, -(128 * 1.4 - 128))  // boost contrast
-            .sharpen({ sigma: 1.5 })
-            .jpeg({ quality: 90 })
-            .toFile(scannedFullPath);
-          // Replace original with scanned version
-          fs.unlinkSync(file.path);
-          fs.renameSync(scannedFullPath, file.path);
-          logger.info(`Scan processing applied to document for employee ${id}`);
-        } catch (scanErr) {
-          logger.warn('Scan processing failed, using original:', scanErr.message);
-        }
+      // Create scanned version (grayscale, normalized, sharpened)
+      try {
+        const scannedFilename = file.filename.replace(/^original_/, 'scanned_').replace(/\.[^.]+$/, '.jpg');
+        const scannedFullPath = path.join(file.destination, scannedFilename);
+
+        await sharp(file.path)
+          .resize({ width: 2000, withoutEnlargement: true })
+          .grayscale()
+          .normalize()
+          .modulate({ brightness: 1.2 })
+          .sharpen()
+          .jpeg({ quality: 85 })
+          .toFile(scannedFullPath);
+
+        scannedFilePath = `/uploads/employee-documents/${id}/${scannedFilename}`;
+        logger.info(`Scanned version created for document of employee ${id}`);
+      } catch (scanErr) {
+        logger.warn('Scan processing failed, continuing with original only:', scanErr.message);
       }
 
-      // Generate thumbnail
+      // Generate thumbnail from scanned version (or original as fallback)
       try {
-        const thumbFilename = 'thumb_' + file.filename;
+        const thumbFilename = 'thumb_' + file.filename.replace(/\.[^.]+$/, '.jpg');
         const thumbFullPath = path.join(file.destination, thumbFilename);
-        await sharp(file.path)
+        const thumbSource = scannedFilePath
+          ? path.join(file.destination, file.filename.replace(/^original_/, 'scanned_').replace(/\.[^.]+$/, '.jpg'))
+          : file.path;
+
+        await sharp(thumbSource)
           .resize(200, 200, { fit: 'cover' })
           .jpeg({ quality: 70 })
           .toFile(thumbFullPath);
@@ -73,31 +76,35 @@ const uploadDocument = async (req, res) => {
       }
     }
 
-    const filePath = `/uploads/employee-documents/${id}/${file.filename}`;
+    const originalFilePath = `/uploads/employee-documents/${id}/${file.filename}`;
 
     const result = await query(
       `INSERT INTO employee_documents
-        (employee_id, document_type, file_name, file_path, file_size, mime_type, thumbnail_path, uploaded_by, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (employee_id, document_type, file_name, file_path, file_size, mime_type, thumbnail_path, scanned_file_path, uploaded_by, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         id,
         document_type || 'other',
         file.originalname,
-        filePath,
+        originalFilePath,
         file.size,
         file.mimetype,
         thumbnailPath,
+        scannedFilePath,
         req.user.id,
         notes || null,
       ]
     );
 
+    const doc = result.rows[0];
     res.status(201).json({
       success: true,
       data: {
-        ...result.rows[0],
-        document_type_label: DOCUMENT_TYPE_LABELS[result.rows[0].document_type] || 'Egyéb',
+        ...doc,
+        original_url: doc.file_path,
+        scanned_url: doc.scanned_file_path,
+        document_type_label: DOCUMENT_TYPE_LABELS[doc.document_type] || 'Egyéb',
       },
     });
   } catch (error) {
@@ -188,9 +195,14 @@ const deleteDocument = async (req, res) => {
 
     const doc = result.rows[0];
 
-    // Delete files from disk
+    // Delete files from disk (original, scanned, thumbnail)
     const fullPath = path.join(__dirname, '..', '..', doc.file_path);
     if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+
+    if (doc.scanned_file_path) {
+      const scannedPath = path.join(__dirname, '..', '..', doc.scanned_file_path);
+      if (fs.existsSync(scannedPath)) fs.unlinkSync(scannedPath);
+    }
 
     if (doc.thumbnail_path) {
       const thumbPath = path.join(__dirname, '..', '..', doc.thumbnail_path);

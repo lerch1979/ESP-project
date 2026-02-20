@@ -213,7 +213,7 @@ export const employeesAPI = {
     const response = await api.get(`/employees/${id}/documents`);
     return response.data;
   },
-  uploadDocument: async (id, uri, documentType, notes, onProgress, scanMode = false) => {
+  uploadDocument: async (id, uri, documentType, notes, onProgress) => {
     const formData = new FormData();
     const ext = uri.split('.').pop() || 'jpg';
     const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
@@ -224,7 +224,6 @@ export const employeesAPI = {
     });
     if (documentType) formData.append('document_type', documentType);
     if (notes) formData.append('notes', notes);
-    if (scanMode) formData.append('scan_mode', '1');
     const response = await api.post(`/employees/${id}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000,

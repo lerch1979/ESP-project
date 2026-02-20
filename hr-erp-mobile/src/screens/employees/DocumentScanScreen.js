@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -33,8 +32,7 @@ export default function DocumentScanScreen({ route, navigation }) {
   const { employeeId, employeeName } = route.params;
   const [permission, requestPermission] = useCameraPermissions();
 
-  // Mode & camera
-  const [scanMode, setScanMode] = useState(true);
+  // Camera
   const [showCamera, setShowCamera] = useState(false);
 
   // Pages
@@ -161,8 +159,7 @@ export default function DocumentScanScreen({ route, navigation }) {
         if (pdfUri) {
           await employeesAPI.uploadDocument(
             employeeId, pdfUri, documentType, notes.trim() || null,
-            (progress) => setUploadProgress(5 + Math.round(progress * 0.95)),
-            scanMode
+            (progress) => setUploadProgress(5 + Math.round(progress * 0.95))
           );
         } else {
           // Fallback: upload pages individually
@@ -170,8 +167,7 @@ export default function DocumentScanScreen({ route, navigation }) {
             const pageNotes = `${notes.trim() ? notes.trim() + ' - ' : ''}Oldal ${i + 1}/${pages.length}`;
             await employeesAPI.uploadDocument(
               employeeId, pages[i].uri, documentType, pageNotes,
-              (progress) => setUploadProgress(Math.round(((i + progress / 100) / pages.length) * 100)),
-              scanMode
+              (progress) => setUploadProgress(Math.round(((i + progress / 100) / pages.length) * 100))
             );
           }
         }
@@ -179,8 +175,7 @@ export default function DocumentScanScreen({ route, navigation }) {
         // Single page
         await employeesAPI.uploadDocument(
           employeeId, pages[0].uri, documentType, notes.trim() || null,
-          (progress) => setUploadProgress(progress),
-          scanMode
+          (progress) => setUploadProgress(progress)
         );
       }
 
@@ -204,12 +199,6 @@ export default function DocumentScanScreen({ route, navigation }) {
               <TouchableOpacity style={styles.cameraCloseBtn} onPress={() => setShowCamera(false)}>
                 <Ionicons name="close" size={28} color="#fff" />
               </TouchableOpacity>
-              {scanMode && (
-                <View style={styles.scanBadge}>
-                  <Ionicons name="scan" size={14} color="#fff" />
-                  <Text style={styles.scanBadgeText}>Scan mód</Text>
-                </View>
-              )}
             </View>
             <View style={styles.cameraGuide}>
               <View style={styles.cameraGuideRect} />
@@ -238,24 +227,14 @@ export default function DocumentScanScreen({ route, navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.subtitle}>{employeeName}</Text>
 
-      {/* Scan Mode Toggle */}
+      {/* Auto scan info */}
       <View style={styles.modeSection}>
-        <View style={styles.modeRow}>
-          <View style={styles.modeInfo}>
-            <Ionicons name="scan" size={20} color={scanMode ? colors.primary : colors.textLight} />
-            <Text style={[styles.modeLabel, scanMode && styles.modeLabelActive]}>Scan mód</Text>
-          </View>
-          <Switch
-            value={scanMode}
-            onValueChange={setScanMode}
-            trackColor={{ false: colors.border, true: colors.primary + '50' }}
-            thumbColor={scanMode ? colors.primary : colors.textLight}
-          />
+        <View style={styles.modeInfo}>
+          <Ionicons name="scan" size={20} color={colors.primary} />
+          <Text style={[styles.modeLabel, styles.modeLabelActive]}>Automatikus scan</Text>
         </View>
         <Text style={styles.modeDescription}>
-          {scanMode
-            ? 'Szerver oldali feldolgozás: fekete-fehér, magas kontraszt, élesítés'
-            : 'Egyszerű fénykép: eredeti színek megtartása'}
+          A szerver automatikusan létrehozza a szkennelt verziót (fekete-fehér, magas kontraszt, élesítés)
         </Text>
       </View>
 
@@ -406,10 +385,10 @@ export default function DocumentScanScreen({ route, navigation }) {
             </View>
           )}
 
-          {scanMode && !uploading && (
+          {!uploading && (
             <View style={styles.infoNote}>
               <Ionicons name="scan-outline" size={15} color={colors.primary} />
-              <Text style={styles.infoNoteText}>Scan mód: a szerver automatikusan fekete-fehérre konvertál</Text>
+              <Text style={styles.infoNoteText}>A szerver automatikusan létrehozza a szkennelt verziót</Text>
             </View>
           )}
 
@@ -430,7 +409,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
   subtitle: { fontSize: 16, color: colors.textSecondary, marginBottom: 16, textAlign: 'center' },
 
-  // Mode toggle
+  // Auto scan info
   modeSection: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -438,7 +417,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2,
   },
-  modeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modeInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   modeLabel: { fontSize: 16, fontWeight: '600', color: colors.textLight },
   modeLabelActive: { color: colors.primary },
@@ -488,11 +466,6 @@ const styles = StyleSheet.create({
   cameraOverlay: { flex: 1, justifyContent: 'space-between', padding: 20 },
   cameraTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cameraCloseBtn: { padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 },
-  scanBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary + 'CC', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-  },
-  scanBadgeText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   cameraGuide: { alignItems: 'center' },
   cameraGuideRect: {
     width: '90%', height: 220, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)',

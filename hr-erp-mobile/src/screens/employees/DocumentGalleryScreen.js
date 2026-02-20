@@ -39,6 +39,7 @@ export default function DocumentGalleryScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [showOriginal, setShowOriginal] = useState(false);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -94,8 +95,13 @@ export default function DocumentGalleryScreen({ route, navigation }) {
   };
 
   const getImageUrl = (doc) => {
-    const path = doc.thumbnail_path || doc.file_path;
-    return `${UPLOADS_BASE_URL}${path}`;
+    const filePath = doc.thumbnail_path || doc.scanned_file_path || doc.file_path;
+    return `${UPLOADS_BASE_URL}${filePath}`;
+  };
+
+  const getFullImageUrl = (doc, useOriginal = false) => {
+    const filePath = useOriginal ? doc.file_path : (doc.scanned_file_path || doc.file_path);
+    return `${UPLOADS_BASE_URL}${filePath}`;
   };
 
   const renderDocument = ({ item }) => {
@@ -105,7 +111,7 @@ export default function DocumentGalleryScreen({ route, navigation }) {
     return (
       <TouchableOpacity
         style={styles.tile}
-        onPress={() => isImage && setSelectedDoc(item)}
+        onPress={() => { if (isImage) { setShowOriginal(false); setSelectedDoc(item); } }}
         activeOpacity={0.8}
       >
         {isImage ? (
@@ -187,6 +193,24 @@ export default function DocumentGalleryScreen({ route, navigation }) {
               </View>
               <Text style={styles.modalDate}>{formatDate(selectedDoc.uploaded_at)}</Text>
             </View>
+            {selectedDoc.scanned_file_path && (
+              <View style={styles.versionToggle}>
+                <TouchableOpacity
+                  style={[styles.versionBtn, !showOriginal && styles.versionBtnActive]}
+                  onPress={() => setShowOriginal(false)}
+                >
+                  <Ionicons name="scan" size={14} color={!showOriginal ? '#fff' : 'rgba(255,255,255,0.6)'} />
+                  <Text style={[styles.versionBtnText, !showOriginal && styles.versionBtnTextActive]}>Szkennelt</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.versionBtn, showOriginal && styles.versionBtnActive]}
+                  onPress={() => setShowOriginal(true)}
+                >
+                  <Ionicons name="image" size={14} color={showOriginal ? '#fff' : 'rgba(255,255,255,0.6)'} />
+                  <Text style={[styles.versionBtnText, showOriginal && styles.versionBtnTextActive]}>Eredeti</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <ScrollView
               contentContainerStyle={styles.modalImageContainer}
               maximumZoomScale={4}
@@ -194,7 +218,7 @@ export default function DocumentGalleryScreen({ route, navigation }) {
               bouncesZoom
             >
               <Image
-                source={{ uri: `${UPLOADS_BASE_URL}${selectedDoc.file_path}` }}
+                source={{ uri: getFullImageUrl(selectedDoc, showOriginal) }}
                 style={styles.modalImage}
                 resizeMode="contain"
               />
@@ -265,6 +289,19 @@ const styles = StyleSheet.create({
   modalImageContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   modalImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.6 },
   modalNotes: { color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center', paddingHorizontal: 20, marginTop: 10 },
+  // Version toggle (scanned / original)
+  versionToggle: {
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
+    paddingHorizontal: 16, paddingBottom: 8,
+  },
+  versionBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  versionBtnActive: { backgroundColor: colors.primary },
+  versionBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+  versionBtnTextActive: { color: '#fff' },
   modalDeleteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.error, alignSelf: 'center',

@@ -169,9 +169,9 @@ const docStorage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'doc_' + uniqueSuffix + ext);
+    const timestamp = Date.now();
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `original_${timestamp}_${safeName}`);
   },
 });
 
