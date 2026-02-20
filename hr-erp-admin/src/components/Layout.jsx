@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
+  Collapse,
   Drawer,
   AppBar,
   Toolbar,
@@ -35,6 +36,8 @@ import {
   Hotel as HotelIcon,
   History as HistoryIcon,
   Schedule as ScheduleIcon,
+  ExpandLess,
+  ExpandMore,
   Menu as MenuIcon,
   Email as EmailIcon,
 } from '@mui/icons-material';
@@ -52,16 +55,25 @@ const menuItems = [
   { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors' },
   { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
   { text: 'Dokumentumok', icon: <DescriptionIcon />, path: '/documents' },
-  { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
-  { text: 'Kihasználtság', icon: <HotelIcon />, path: '/occupancy' },
+  {
+    text: 'Riportok', icon: <AssessmentIcon />, children: [
+      { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
+      { text: 'Kihasználtság', icon: <HotelIcon />, path: '/reports/occupancy' },
+      { text: 'Ütemezett riportok', icon: <ScheduleIcon />, path: '/reports/scheduled' },
+    ],
+  },
   { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log' },
-  { text: 'Ütemezett riportok', icon: <ScheduleIcon />, path: '/scheduled-reports' },
   { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates' },
 ];
+
+// Helper: collect all paths (including children) for AppBar title lookup
+const allMenuPaths = menuItems.flatMap(item =>
+  item.children ? item.children : [item]
+);
 
 function Layout({ children }) {
   const navigate = useNavigate();
@@ -71,6 +83,7 @@ function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [user, setUser] = useState(null);
+  const [openSubmenus, setOpenSubmenus] = useState({});
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -78,6 +91,21 @@ function Layout({ children }) {
       setUser(JSON.parse(userData));
     }
   }, []);
+
+  // Auto-expand submenu that contains the active route
+  useEffect(() => {
+    const expanded = {};
+    menuItems.forEach(item => {
+      if (item.children && item.children.some(c => location.pathname === c.path)) {
+        expanded[item.text] = true;
+      }
+    });
+    setOpenSubmenus(prev => ({ ...prev, ...expanded }));
+  }, [location.pathname]);
+
+  const handleSubmenuToggle = (text) => {
+    setOpenSubmenus(prev => ({ ...prev, [text]: !prev[text] }));
+  };
 
   // Close drawer on navigation (mobile)
   useEffect(() => {
@@ -126,36 +154,109 @@ function Layout({ children }) {
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
       <List sx={{ mt: 2 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
-              sx={{
-                mx: 1,
-                borderRadius: 2,
-                minHeight: 48,
-                '&.Mui-selected': {
-                  bgcolor: '#4a7c59',
-                  '&:hover': {
-                    bgcolor: '#3d6b4a',
+        {menuItems.map((item) => {
+          // Submenu with children
+          if (item.children) {
+            const isOpen = !!openSubmenus[item.text];
+            const hasActiveChild = item.children.some(c => location.pathname === c.path);
+            return (
+              <React.Fragment key={item.text}>
+                <ListItem disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    onClick={() => handleSubmenuToggle(item.text)}
+                    sx={{
+                      mx: 1,
+                      borderRadius: 2,
+                      minHeight: 48,
+                      ...(hasActiveChild && {
+                        bgcolor: 'rgba(255,255,255,0.05)',
+                      }),
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.text}
+                      primaryTypographyProps={{ fontWeight: 500 }}
+                    />
+                    {isOpen ? <ExpandLess sx={{ color: 'rgba(255,255,255,0.7)' }} /> : <ExpandMore sx={{ color: 'rgba(255,255,255,0.7)' }} />}
+                  </ListItemButton>
+                </ListItem>
+                <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                  <List disablePadding>
+                    {item.children.map((child) => (
+                      <ListItem key={child.text} disablePadding sx={{ mb: 0.5 }}>
+                        <ListItemButton
+                          selected={location.pathname === child.path}
+                          onClick={() => navigate(child.path)}
+                          sx={{
+                            mx: 1,
+                            ml: 3,
+                            borderRadius: 2,
+                            minHeight: 40,
+                            '&.Mui-selected': {
+                              bgcolor: '#4a7c59',
+                              '&:hover': {
+                                bgcolor: '#3d6b4a',
+                              },
+                            },
+                            '&:hover': {
+                              bgcolor: 'rgba(255,255,255,0.1)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: 'white', minWidth: 36 }}>
+                            {child.icon}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={child.text}
+                            primaryTypographyProps={{ fontWeight: 400, fontSize: '0.9rem' }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Collapse>
+              </React.Fragment>
+            );
+          }
+
+          // Regular menu item
+          return (
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => navigate(item.path)}
+                sx={{
+                  mx: 1,
+                  borderRadius: 2,
+                  minHeight: 48,
+                  '&.Mui-selected': {
+                    bgcolor: '#4a7c59',
+                    '&:hover': {
+                      bgcolor: '#3d6b4a',
+                    },
                   },
-                },
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                primaryTypographyProps={{ fontWeight: 500 }}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{ fontWeight: 500 }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </List>
     </>
   );
@@ -185,7 +286,7 @@ function Layout({ children }) {
             </IconButton>
           )}
           <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600, mr: 2 }}>
-            {menuItems.find(item => item.path === location.pathname)?.text || 'HR-ERP'}
+            {allMenuPaths.find(item => item.path === location.pathname)?.text || 'HR-ERP'}
           </Typography>
 
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>

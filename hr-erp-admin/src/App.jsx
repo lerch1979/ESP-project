@@ -55,9 +55,9 @@ function App() {
           <Route path="calendar" element={<Calendar />} />
           <Route path="settings" element={<Settings />} />
           <Route path="videos" element={<Videos />} />
-          <Route path="occupancy" element={<OccupancyReports />} />
+          <Route path="reports/occupancy" element={<OccupancyReports />} />
           <Route path="activity-log" element={<ActivityLog />} />
-          <Route path="scheduled-reports" element={<ScheduledReports />} />
+          <Route path="reports/scheduled" element={<ScheduledReports />} />
           <Route path="email-templates" element={<EmailTemplates />} />
         </Route>
         
