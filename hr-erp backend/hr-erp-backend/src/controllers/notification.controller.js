@@ -363,6 +363,113 @@ const sendBulk = async (req, res) => {
 };
 
 /**
+ * GET /templates/:id - Get a single template by ID
+ */
+const getTemplateById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      'SELECT * FROM notification_templates WHERE id = $1',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Sablon nem található' });
+    }
+    res.json({ success: true, data: { template: result.rows[0] } });
+  } catch (error) {
+    console.error('getTemplateById error:', error);
+    res.status(500).json({ success: false, message: 'Hiba a sablon lekérésekor' });
+  }
+};
+
+/**
+ * POST /templates - Create a new template
+ */
+const createTemplate = async (req, res) => {
+  try {
+    const { name, slug, subject, body_html, body_text, event_type, available_variables, is_active } = req.body;
+    if (!name || !slug || !subject) {
+      return res.status(400).json({ success: false, message: 'Név, slug és tárgy kötelező' });
+    }
+    const result = await query(
+      `INSERT INTO notification_templates (name, slug, subject, body_html, body_text, event_type, available_variables, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [name, slug, subject, body_html || '', body_text || '', event_type || 'custom', JSON.stringify(available_variables || []), is_active !== false]
+    );
+    res.status(201).json({ success: true, data: { template: result.rows[0] } });
+  } catch (error) {
+    console.error('createTemplate error:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, message: 'Ez a slug már létezik' });
+    }
+    res.status(500).json({ success: false, message: 'Hiba a sablon létrehozásakor' });
+  }
+};
+
+/**
+ * PUT /templates/:id - Update an existing template
+ */
+const updateTemplate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, subject, body_html, body_text, event_type, available_variables, is_active } = req.body;
+    const result = await query(
+      `UPDATE notification_templates
+       SET name = $1, slug = $2, subject = $3, body_html = $4, body_text = $5,
+           event_type = $6, available_variables = $7, is_active = $8
+       WHERE id = $9
+       RETURNING *`,
+      [name, slug, subject, body_html || '', body_text || '', event_type || 'custom', JSON.stringify(available_variables || []), is_active !== false, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Sablon nem található' });
+    }
+    res.json({ success: true, data: { template: result.rows[0] } });
+  } catch (error) {
+    console.error('updateTemplate error:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, message: 'Ez a slug már létezik' });
+    }
+    res.status(500).json({ success: false, message: 'Hiba a sablon frissítésekor' });
+  }
+};
+
+/**
+ * DELETE /templates/:id - Delete a template
+ */
+const deleteTemplate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query('DELETE FROM notification_templates WHERE id = $1', [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Sablon nem található' });
+    }
+    res.json({ success: true, message: 'Sablon törölve' });
+  } catch (error) {
+    console.error('deleteTemplate error:', error);
+    res.status(500).json({ success: false, message: 'Hiba a sablon törlésekor' });
+  }
+};
+
+/**
+ * POST /templates/preview - Preview a template with sample variables
+ */
+const previewTemplate = async (req, res) => {
+  try {
+    const { body_html, variables } = req.body;
+    if (!body_html) {
+      return res.status(400).json({ success: false, message: 'body_html szükséges' });
+    }
+    const html = interpolateTemplate(body_html, variables || {});
+    res.json({ success: true, data: { html } });
+  } catch (error) {
+    console.error('previewTemplate error:', error);
+    res.status(500).json({ success: false, message: 'Hiba az előnézet generálásakor' });
+  }
+};
+
+/**
  * GET /email-logs - List email logs with pagination
  */
 const getEmailLogs = async (req, res) => {
@@ -497,6 +604,11 @@ const testEmail = async (req, res) => {
 
 module.exports = {
   getTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  previewTemplate,
   getFilterOptions,
   filterRecipients,
   sendBulk,
