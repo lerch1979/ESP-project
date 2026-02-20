@@ -209,6 +209,34 @@ export const employeesAPI = {
     const response = await api.delete(`/employees/${id}/photo`);
     return response.data;
   },
+  getDocuments: async (id) => {
+    const response = await api.get(`/employees/${id}/documents`);
+    return response.data;
+  },
+  uploadDocument: async (id, uri, documentType, notes, onProgress) => {
+    const formData = new FormData();
+    const ext = uri.split('.').pop() || 'jpg';
+    const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+    formData.append('document', {
+      uri,
+      name: `document.${ext}`,
+      type: mimeType,
+    });
+    if (documentType) formData.append('document_type', documentType);
+    if (notes) formData.append('notes', notes);
+    const response = await api.post(`/employees/${id}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+      onUploadProgress: onProgress
+        ? (e) => onProgress(Math.round((e.loaded * 100) / e.total))
+        : undefined,
+    });
+    return response.data;
+  },
+  deleteDocument: async (docId) => {
+    const response = await api.delete(`/employees/documents/${docId}`);
+    return response.data;
+  },
 };
 
 // Accommodations API

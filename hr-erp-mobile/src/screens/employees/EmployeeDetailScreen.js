@@ -20,7 +20,7 @@ const TABS = [
   { key: 'timeline', label: 'Idővonal', icon: 'time-outline' },
 ];
 
-export default function EmployeeDetailScreen({ route }) {
+export default function EmployeeDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +79,19 @@ export default function EmployeeDetailScreen({ route }) {
           </Text>
           <Text style={styles.empNumber}>{employee.employee_number}</Text>
           <StatusBadge label={employee.status_name} slug={employee.status_slug} />
+
+          <TouchableOpacity
+            style={styles.docsButton}
+            onPress={() => navigation.navigate('DocumentGallery', {
+              employeeId: employee.id,
+              employeeName: `${employee.last_name} ${employee.first_name}`,
+            })}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+            <Text style={styles.docsButtonText}>Dokumentumok</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
 
         {visaWarning && (
@@ -332,6 +345,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 8,
+  },
+  docsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '10',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 12,
+    width: '100%',
+  },
+  docsButtonText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   warning: {
     flexDirection: 'row',

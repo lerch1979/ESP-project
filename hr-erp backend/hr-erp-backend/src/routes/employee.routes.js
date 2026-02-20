@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const employeeController = require('../controllers/employee.controller');
+const employeeDocController = require('../controllers/employee-document.controller');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 // Photo upload multer config
@@ -64,6 +65,13 @@ router.use(requireAdmin);
  * Munkavállalói státuszok listázása (dropdown-okhoz)
  */
 router.get('/statuses', employeeController.getEmployeeStatuses);
+
+/**
+ * GET/DELETE /api/v1/employees/documents/:docId
+ * Must be before /:id to avoid matching "documents" as an employee id
+ */
+router.get('/documents/:docId', employeeDocController.getDocument);
+router.delete('/documents/:docId', employeeDocController.deleteDocument);
 
 /**
  * GET /api/v1/employees
@@ -148,5 +156,38 @@ router.post('/:id/notes', employeeController.createEmployeeNote);
  * Jegyzet törlése
  */
 router.delete('/:id/notes/:noteId', employeeController.deleteEmployeeNote);
+
+// ============================================================
+// Employee Documents (Scan & Upload)
+// ============================================================
+
+const docStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const empId = req.params.id;
+    const dir = path.join(__dirname, '..', '..', 'uploads', 'employee-documents', String(empId));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'doc_' + uniqueSuffix + ext);
+  },
+});
+
+const docUpload = multer({
+  storage: docStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Csak képek és PDF fájlok engedélyezettek'));
+    }
+  },
+});
+
+router.post('/:id/documents', docUpload.single('document'), employeeDocController.uploadDocument);
+router.get('/:id/documents', employeeDocController.getDocuments);
 
 module.exports = router;
