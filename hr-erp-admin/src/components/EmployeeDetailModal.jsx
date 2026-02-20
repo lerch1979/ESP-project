@@ -53,6 +53,7 @@ import {
   Close as CloseIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
@@ -1365,6 +1366,13 @@ function DocumentsTab({
     setZoom(1);
   };
 
+  const handleDownload = (doc) => {
+    const link = document.createElement('a');
+    link.href = `${UPLOADS_BASE_URL}${doc.file_path}`;
+    link.download = doc.file_name;
+    link.click();
+  };
+
   return (
     <Box sx={{ mt: 1 }}>
       {/* Upload area */}
@@ -1510,6 +1518,15 @@ function DocumentsTab({
                       </Typography>
                     )}
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                      <Tooltip title="Letöltés">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); handleDownload(doc); }}
+                          sx={{ color: '#2c5f2d', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                        >
+                          <DownloadIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Törlés">
                         <IconButton
                           size="small"
@@ -1608,11 +1625,20 @@ function DocumentsTab({
                     </Tooltip>
                   </>
                 )}
+                <Tooltip title="Letöltés">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDownload(selectedDocImage)}
+                    sx={{ color: '#4ade80', ml: 1 }}
+                  >
+                    <DownloadIcon />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="Törlés">
                   <IconButton
                     size="small"
                     onClick={() => onDelete(selectedDocImage.id)}
-                    sx={{ color: '#ef4444', ml: 1 }}
+                    sx={{ color: '#ef4444', ml: 0.5 }}
                   >
                     <DeleteIcon />
                   </IconButton>
