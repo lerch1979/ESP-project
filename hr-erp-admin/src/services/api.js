@@ -279,6 +279,27 @@ export const employeesAPI = {
     return response.data;
   },
 
+  getDocuments: async (id) => {
+    const response = await api.get(`/employees/${id}/documents`);
+    return response.data;
+  },
+
+  uploadDocument: async (id, file, documentType, notes) => {
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('document_type', documentType);
+    if (notes) formData.append('notes', notes);
+    const response = await api.post(`/employees/${id}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteDocument: async (docId) => {
+    const response = await api.delete(`/employees/documents/${docId}`);
+    return response.data;
+  },
+
   bulkUpdateStatus: async (data) => {
     const response = await api.post('/employees/bulk-update', data);
     return response.data;

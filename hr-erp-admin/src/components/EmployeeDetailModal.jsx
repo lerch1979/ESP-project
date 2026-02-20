@@ -46,6 +46,13 @@ import {
   ExpandLess as ExpandLessIcon,
   CameraAlt as CameraAltIcon,
   CloudUpload as UploadIcon,
+  FolderOpen as FolderOpenIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  PictureAsPdf as PdfIcon,
+  Close as CloseIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
 } from '@mui/icons-material';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
@@ -94,6 +101,15 @@ const NOTE_TYPE_COLORS = {
   document: '#2563eb',
 };
 
+const DOC_TYPE_CONFIG = {
+  passport: { label: 'Útlevél', color: '#2563eb' },
+  taj_card: { label: 'TAJ kártya', color: '#16a34a' },
+  visa: { label: 'Vízum', color: '#f59e0b' },
+  contract: { label: 'Szerződés', color: '#8b5cf6' },
+  address_card: { label: 'Lakcímkártya', color: '#ec4899' },
+  other: { label: 'Egyéb', color: '#64748b' },
+};
+
 function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -121,6 +137,13 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteData, setNoteData] = useState({ note_type: 'general', title: '', content: '' });
   const [noteSubmitting, setNoteSubmitting] = useState(false);
+
+  // Documents state
+  const [documents, setDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
+  const [selectedDocImage, setSelectedDocImage] = useState(null);
+  const [showOriginalInViewer, setShowOriginalInViewer] = useState(false);
 
   useEffect(() => {
     if (open && employeeId) {
@@ -211,6 +234,60 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
     }
   }, [activeFilters]);
 
+  const loadDocuments = useCallback(async () => {
+    setDocumentsLoading(true);
+    try {
+      const response = await employeesAPI.getDocuments(employeeId);
+      if (response.success) {
+        setDocuments(response.data || []);
+      }
+    } catch (error) {
+      console.error('Dokumentumok betöltési hiba:', error);
+      toast.error('Hiba a dokumentumok betöltésekor');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, [employeeId]);
+
+  useEffect(() => {
+    if (activeTab === 2 && employeeId) {
+      loadDocuments();
+    }
+  }, [activeTab, employeeId, loadDocuments]);
+
+  const handleDocUpload = async (file, documentType, notes) => {
+    setDocUploading(true);
+    try {
+      const response = await employeesAPI.uploadDocument(employeeId, file, documentType, notes);
+      if (response.success) {
+        toast.success('Dokumentum sikeresen feltöltve!');
+        loadDocuments();
+      }
+    } catch (error) {
+      console.error('Dokumentum feltöltési hiba:', error);
+      toast.error(error.response?.data?.message || 'Hiba a dokumentum feltöltésekor');
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const handleDocDelete = async (docId) => {
+    if (!window.confirm('Biztosan törlöd ezt a dokumentumot?')) return;
+    try {
+      const response = await employeesAPI.deleteDocument(docId);
+      if (response.success) {
+        toast.success('Dokumentum törölve!');
+        setDocuments(prev => prev.filter(d => d.id !== docId));
+        if (selectedDocImage?.id === docId) {
+          setSelectedDocImage(null);
+        }
+      }
+    } catch (error) {
+      console.error('Dokumentum törlési hiba:', error);
+      toast.error('Hiba a dokumentum törlésekor');
+    }
+  };
+
   const loadDropdowns = async () => {
     try {
       const [statusRes, accRes] = await Promise.all([
@@ -282,6 +359,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
     setActiveTab(0);
     setShowNoteForm(false);
     setNoteData({ note_type: 'general', title: '', content: '' });
+    setDocuments([]);
+    setSelectedDocImage(null);
     onClose();
   };
 
@@ -416,6 +495,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           >
             <Tab icon={<PersonIcon />} iconPosition="start" label="Adatok" />
             <Tab icon={<TimelineIcon />} iconPosition="start" label="Idővonal" />
+            <Tab icon={<FolderOpenIcon />} iconPosition="start" label="Dokumentumok" />
           </Tabs>
         )}
       </DialogTitle>
@@ -446,6 +526,19 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
               onPhotoUpload={handlePhotoUpload}
               onPhotoDelete={handlePhotoDelete}
               photoUploading={photoUploading}
+            />
+          ) : activeTab === 2 ? (
+            /* Dokumentumok tab */
+            <DocumentsTab
+              documents={documents}
+              documentsLoading={documentsLoading}
+              docUploading={docUploading}
+              onUpload={handleDocUpload}
+              onDelete={handleDocDelete}
+              selectedDocImage={selectedDocImage}
+              setSelectedDocImage={setSelectedDocImage}
+              showOriginalInViewer={showOriginalInViewer}
+              setShowOriginalInViewer={setShowOriginalInViewer}
             />
           ) : (
             /* Idővonal tab */
@@ -1212,6 +1305,336 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
           onChange={(e) => handleChange('notes', e.target.value)} />
       </Grid>
     </Grid>
+  );
+}
+
+function DocumentsTab({
+  documents,
+  documentsLoading,
+  docUploading,
+  onUpload,
+  onDelete,
+  selectedDocImage,
+  setSelectedDocImage,
+  showOriginalInViewer,
+  setShowOriginalInViewer,
+}) {
+  const fileInputRef = React.useRef(null);
+  const [uploadDocType, setUploadDocType] = React.useState('other');
+  const [uploadNotes, setUploadNotes] = React.useState('');
+  const [dragOver, setDragOver] = React.useState(false);
+  const [zoom, setZoom] = React.useState(1);
+
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    onUpload(file, uploadDocType, uploadNotes);
+    setUploadNotes('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    handleFileSelect(file);
+  };
+
+  const isImage = (mimeType) => mimeType?.startsWith('image/');
+
+  const getDocUrl = (doc, type = 'scanned') => {
+    let path;
+    if (type === 'original') {
+      path = doc.file_path;
+    } else if (type === 'scanned' && doc.scanned_file_path) {
+      path = doc.scanned_file_path;
+    } else {
+      path = doc.file_path;
+    }
+    return `${UPLOADS_BASE_URL}${path}`;
+  };
+
+  const getThumbnailUrl = (doc) => {
+    if (doc.thumbnail_path) return `${UPLOADS_BASE_URL}${doc.thumbnail_path}`;
+    if (doc.scanned_file_path) return `${UPLOADS_BASE_URL}${doc.scanned_file_path}`;
+    return `${UPLOADS_BASE_URL}${doc.file_path}`;
+  };
+
+  const openViewer = (doc) => {
+    setSelectedDocImage(doc);
+    setShowOriginalInViewer(false);
+    setZoom(1);
+  };
+
+  return (
+    <Box sx={{ mt: 1 }}>
+      {/* Upload area */}
+      <Box
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        sx={{
+          p: 2,
+          mb: 2,
+          border: `2px dashed ${dragOver ? '#2c5f2d' : '#d1d5db'}`,
+          borderRadius: 2,
+          bgcolor: dragOver ? '#f0fdf4' : '#fafafa',
+          transition: 'all 0.2s',
+        }}
+      >
+        <Grid container spacing={1.5} alignItems="center">
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Dokumentum típus</InputLabel>
+              <Select
+                value={uploadDocType}
+                onChange={(e) => setUploadDocType(e.target.value)}
+                label="Dokumentum típus"
+              >
+                {Object.entries(DOC_TYPE_CONFIG).map(([key, cfg]) => (
+                  <MenuItem key={key} value={key}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: cfg.color }} />
+                      {cfg.label}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Megjegyzés (opcionális)"
+              value={uploadNotes}
+              onChange={(e) => setUploadNotes(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              hidden
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={(e) => handleFileSelect(e.target.files?.[0])}
+            />
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={docUploading ? <CircularProgress size={18} color="inherit" /> : <UploadIcon />}
+              disabled={docUploading}
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' }, textTransform: 'none' }}
+            >
+              {docUploading ? 'Feltöltés...' : 'Fájl kiválasztása'}
+            </Button>
+          </Grid>
+        </Grid>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
+          Húzd ide a fájlt, vagy kattints a gombra. Képek (JPG, PNG, WebP) és PDF.
+        </Typography>
+      </Box>
+
+      {/* Document grid */}
+      {documentsLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : documents.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+          <FolderOpenIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
+          <Typography>Nincs feltöltött dokumentum</Typography>
+        </Box>
+      ) : (
+        <Grid container spacing={2}>
+          {documents.map((doc) => {
+            const typeConfig = DOC_TYPE_CONFIG[doc.document_type] || DOC_TYPE_CONFIG.other;
+            const docIsImage = isImage(doc.mime_type);
+
+            return (
+              <Grid item xs={6} sm={4} md={3} key={doc.id}>
+                <Box
+                  sx={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    cursor: docIsImage ? 'pointer' : 'default',
+                    transition: 'box-shadow 0.2s',
+                    '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
+                  }}
+                  onClick={() => docIsImage && openViewer(doc)}
+                >
+                  {/* Thumbnail */}
+                  <Box
+                    sx={{
+                      height: 140,
+                      bgcolor: '#f5f5f5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {docIsImage ? (
+                      <img
+                        src={getThumbnailUrl(doc)}
+                        alt={doc.file_name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <PdfIcon sx={{ fontSize: 48, color: '#ef4444' }} />
+                    )}
+                  </Box>
+
+                  {/* Info */}
+                  <Box sx={{ p: 1.5 }}>
+                    <Chip
+                      label={typeConfig.label}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        bgcolor: `${typeConfig.color}20`,
+                        color: typeConfig.color,
+                        mb: 0.5,
+                      }}
+                    />
+                    <Typography variant="caption" display="block" color="text.secondary" noWrap>
+                      {fmtDate(doc.uploaded_at)}
+                    </Typography>
+                    {doc.notes && (
+                      <Typography variant="caption" display="block" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
+                        {doc.notes}
+                      </Typography>
+                    )}
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                      <Tooltip title="Törlés">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); onDelete(doc.id); }}
+                          sx={{ color: '#ef4444', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                </Box>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+
+      {/* Fullscreen image viewer */}
+      <Dialog
+        open={!!selectedDocImage}
+        onClose={() => setSelectedDocImage(null)}
+        maxWidth={false}
+        fullWidth
+        PaperProps={{
+          sx: { maxWidth: '95vw', maxHeight: '95vh', m: 1, bgcolor: '#1a1a1a' },
+        }}
+      >
+        {selectedDocImage && (
+          <>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1, bgcolor: '#1a1a1a', color: '#fff' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  label={(DOC_TYPE_CONFIG[selectedDocImage.document_type] || DOC_TYPE_CONFIG.other).label}
+                  size="small"
+                  sx={{
+                    bgcolor: `${(DOC_TYPE_CONFIG[selectedDocImage.document_type] || DOC_TYPE_CONFIG.other).color}30`,
+                    color: (DOC_TYPE_CONFIG[selectedDocImage.document_type] || DOC_TYPE_CONFIG.other).color,
+                    fontWeight: 600,
+                  }}
+                />
+                {selectedDocImage.scanned_file_path && (
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Button
+                      size="small"
+                      variant={!showOriginalInViewer ? 'contained' : 'outlined'}
+                      onClick={() => setShowOriginalInViewer(false)}
+                      sx={{
+                        textTransform: 'none',
+                        fontSize: '0.75rem',
+                        minWidth: 0,
+                        px: 1.5,
+                        ...(!showOriginalInViewer
+                          ? { bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }
+                          : { color: '#ccc', borderColor: '#555' }),
+                      }}
+                      startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                    >
+                      Szkennelt
+                    </Button>
+                    <Button
+                      size="small"
+                      variant={showOriginalInViewer ? 'contained' : 'outlined'}
+                      onClick={() => setShowOriginalInViewer(true)}
+                      sx={{
+                        textTransform: 'none',
+                        fontSize: '0.75rem',
+                        minWidth: 0,
+                        px: 1.5,
+                        ...(showOriginalInViewer
+                          ? { bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }
+                          : { color: '#ccc', borderColor: '#555' }),
+                      }}
+                      startIcon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}
+                    >
+                      Eredeti
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Tooltip title="Kicsinyítés">
+                  <IconButton size="small" onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} sx={{ color: '#ccc' }}>
+                    <ZoomOutIcon />
+                  </IconButton>
+                </Tooltip>
+                <Typography variant="caption" sx={{ color: '#ccc', minWidth: 40, textAlign: 'center' }}>
+                  {Math.round(zoom * 100)}%
+                </Typography>
+                <Tooltip title="Nagyítás">
+                  <IconButton size="small" onClick={() => setZoom(z => Math.min(4, z + 0.25))} sx={{ color: '#ccc' }}>
+                    <ZoomInIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Törlés">
+                  <IconButton
+                    size="small"
+                    onClick={() => onDelete(selectedDocImage.id)}
+                    sx={{ color: '#ef4444', ml: 1 }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
+                <IconButton size="small" onClick={() => setSelectedDocImage(null)} sx={{ color: '#ccc', ml: 0.5 }}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2, bgcolor: '#1a1a1a', overflow: 'auto' }}>
+              <img
+                src={getDocUrl(selectedDocImage, showOriginalInViewer ? 'original' : 'scanned')}
+                alt={selectedDocImage.file_name}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '80vh',
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.2s',
+                }}
+              />
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
+    </Box>
   );
 }
 
