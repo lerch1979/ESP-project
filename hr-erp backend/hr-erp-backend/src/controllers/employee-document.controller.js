@@ -33,9 +33,33 @@ const uploadDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Fájl feltöltése kötelező' });
     }
 
-    // Generate thumbnail for images
+    const scanMode = req.body.scan_mode === 'true' || req.body.scan_mode === '1';
+
+    // Process image: scan mode (B&W) + thumbnail generation
     let thumbnailPath = null;
     if (file.mimetype.startsWith('image/') && sharp) {
+      // Apply scan processing (grayscale + high contrast) if scan_mode
+      if (scanMode) {
+        try {
+          const scannedFilename = 'scan_' + file.filename;
+          const scannedFullPath = path.join(file.destination, scannedFilename);
+          await sharp(file.path)
+            .greyscale()
+            .normalize()
+            .linear(1.4, -(128 * 1.4 - 128))  // boost contrast
+            .sharpen({ sigma: 1.5 })
+            .jpeg({ quality: 90 })
+            .toFile(scannedFullPath);
+          // Replace original with scanned version
+          fs.unlinkSync(file.path);
+          fs.renameSync(scannedFullPath, file.path);
+          logger.info(`Scan processing applied to document for employee ${id}`);
+        } catch (scanErr) {
+          logger.warn('Scan processing failed, using original:', scanErr.message);
+        }
+      }
+
+      // Generate thumbnail
       try {
         const thumbFilename = 'thumb_' + file.filename;
         const thumbFullPath = path.join(file.destination, thumbFilename);
