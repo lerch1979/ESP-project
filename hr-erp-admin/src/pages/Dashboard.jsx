@@ -15,6 +15,18 @@ import {
   CircularProgress,
   useTheme,
   useMediaQuery,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Checkbox,
+  Tooltip,
 } from '@mui/material';
 import {
   ConfirmationNumber,
@@ -22,6 +34,9 @@ import {
   Apartment,
   TrendingUp,
   Warning,
+  Tune as TuneIcon,
+  KeyboardArrowUp as UpIcon,
+  KeyboardArrowDown as DownIcon,
 } from '@mui/icons-material';
 import {
   PieChart,
@@ -32,11 +47,11 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { dashboardAPI } from '../services/api';
+import { dashboardAPI, preferencesAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import ResponsiveTable from '../components/ResponsiveTable';
 
@@ -46,10 +61,13 @@ const ACCOMMODATION_COLORS = {
   maintenance: '#ef4444',
 };
 
-const ACCOMMODATION_LABELS = {
-  available: 'Szabad',
-  occupied: 'Foglalt',
-  maintenance: 'Karbantartás',
+const DEFAULT_WIDGET_ORDER = ['stats', 'charts', 'urgent', 'recent'];
+
+const WIDGET_LABELS = {
+  stats: 'Statisztikák',
+  charts: 'Grafikonok',
+  urgent: 'Sürgős teendők',
+  recent: 'Legutóbbi jegyek',
 };
 
 function Dashboard() {
@@ -61,12 +79,20 @@ function Dashboard() {
   const [data, setData] = useState(null);
   const [user, setUser] = useState(null);
 
+  // Widget customization state
+  const [widgetOrder, setWidgetOrder] = useState(DEFAULT_WIDGET_ORDER);
+  const [hiddenWidgets, setHiddenWidgets] = useState([]);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [tempOrder, setTempOrder] = useState([]);
+  const [tempHidden, setTempHidden] = useState([]);
+
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
       setUser(JSON.parse(userData));
     }
     loadData();
+    loadPreferences();
   }, []);
 
   const loadData = async () => {
@@ -80,6 +106,70 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadPreferences = async () => {
+    try {
+      const response = await preferencesAPI.getPreferences();
+      if (response.success && response.data.preferences) {
+        const prefs = response.data.preferences;
+        if (prefs.dashboard_widget_order) setWidgetOrder(prefs.dashboard_widget_order);
+        if (prefs.dashboard_hidden_widgets) setHiddenWidgets(prefs.dashboard_hidden_widgets);
+      }
+    } catch (error) {
+      // Silently fail — use defaults
+    }
+  };
+
+  const openCustomize = () => {
+    setTempOrder([...widgetOrder]);
+    setTempHidden([...hiddenWidgets]);
+    setCustomizeOpen(true);
+  };
+
+  const handleToggleWidget = (id) => {
+    setTempHidden((prev) =>
+      prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id]
+    );
+  };
+
+  const handleMoveUp = (idx) => {
+    if (idx === 0) return;
+    setTempOrder((prev) => {
+      const arr = [...prev];
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      return arr;
+    });
+  };
+
+  const handleMoveDown = (idx) => {
+    setTempOrder((prev) => {
+      if (idx >= prev.length - 1) return prev;
+      const arr = [...prev];
+      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+      return arr;
+    });
+  };
+
+  const handleSaveCustomization = async () => {
+    setWidgetOrder(tempOrder);
+    setHiddenWidgets(tempHidden);
+    setCustomizeOpen(false);
+    try {
+      await preferencesAPI.updatePreferences({
+        preferences: {
+          dashboard_widget_order: tempOrder,
+          dashboard_hidden_widgets: tempHidden,
+        },
+      });
+    } catch (error) {
+      console.error('Preferences save error:', error);
+    }
+  };
+
+  const handleResetCustomization = () => {
+    setTempOrder([...DEFAULT_WIDGET_ORDER]);
+    setTempHidden([]);
   };
 
   const getStatusColor = (slug) => {
@@ -160,20 +250,10 @@ function Dashboard() {
     { name: 'Karbantartás', value: data.accommodations.maintenance, color: ACCOMMODATION_COLORS.maintenance },
   ].filter(d => d.value > 0);
 
-  return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-          Kezdőlap
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {user?.firstName} {user?.lastName} • {user?.contractor?.name}
-        </Typography>
-      </Box>
-
-      {/* Stat cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+  // Widget components
+  const widgetComponents = {
+    stats: (
+      <Grid container spacing={3} sx={{ mb: 4 }} key="stats">
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Összes hibajegy"
@@ -211,10 +291,9 @@ function Dashboard() {
           />
         </Grid>
       </Grid>
-
-      {/* Charts row */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Tickets by status - bar chart */}
+    ),
+    charts: (
+      <Grid container spacing={3} sx={{ mb: 4 }} key="charts">
         <Grid item xs={12} md={7}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
@@ -233,7 +312,7 @@ function Dashboard() {
                     height={60}
                   />
                   <YAxis allowDecimals={false} />
-                  <Tooltip />
+                  <RechartsTooltip />
                   <Bar dataKey="value" name="Darab" radius={[4, 4, 0, 0]}>
                     {ticketChartData.map((entry, idx) => (
                       <Cell key={idx} fill={entry.color} />
@@ -248,8 +327,6 @@ function Dashboard() {
             )}
           </Paper>
         </Grid>
-
-        {/* Accommodations status - pie chart */}
         <Grid item xs={12} md={5}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
@@ -272,7 +349,7 @@ function Dashboard() {
                       <Cell key={idx} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <RechartsTooltip />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -284,32 +361,30 @@ function Dashboard() {
           </Paper>
         </Grid>
       </Grid>
-
-      {/* Urgent tickets warning */}
-      {data.tickets.urgent > 0 && (
-        <Paper
-          sx={{
-            p: 2,
-            mb: 3,
-            bgcolor: 'rgba(239, 68, 68, 0.05)',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Warning sx={{ color: '#ef4444' }} />
-            <Typography variant="body1" sx={{ fontWeight: 600, color: '#ef4444' }}>
-              {data.tickets.urgent} sürgős/kritikus hibajegy vár megoldásra!
-            </Typography>
-          </Box>
-        </Paper>
-      )}
-
-      {/* Recent tickets */}
-      <Paper sx={{ p: 3 }}>
+    ),
+    urgent: data.tickets.urgent > 0 ? (
+      <Paper
+        key="urgent"
+        sx={{
+          p: 2,
+          mb: 3,
+          bgcolor: 'rgba(239, 68, 68, 0.05)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning sx={{ color: '#ef4444' }} />
+          <Typography variant="body1" sx={{ fontWeight: 600, color: '#ef4444' }}>
+            {data.tickets.urgent} sürgős/kritikus hibajegy vár megoldásra!
+          </Typography>
+        </Box>
+      </Paper>
+    ) : null,
+    recent: (
+      <Paper sx={{ p: 3 }} key="recent">
         <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
           Legutóbbi hibajegyek
         </Typography>
-
         {data.recentTickets.length > 0 ? (
           <ResponsiveTable>
             <Table>
@@ -389,6 +464,69 @@ function Dashboard() {
           </Box>
         )}
       </Paper>
+    ),
+  };
+
+  return (
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
+            Kezdőlap
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            {user?.firstName} {user?.lastName} • {user?.contractor?.name}
+          </Typography>
+        </Box>
+        <Tooltip title="Testreszabás">
+          <IconButton onClick={openCustomize} sx={{ color: '#2c5f2d' }}>
+            <TuneIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      {/* Render widgets in order, skip hidden */}
+      {widgetOrder
+        .filter((id) => !hiddenWidgets.includes(id))
+        .map((id) => widgetComponents[id] || null)}
+
+      {/* Customization Dialog */}
+      <Dialog open={customizeOpen} onClose={() => setCustomizeOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Kezdőlap testreszabása</DialogTitle>
+        <DialogContent dividers>
+          <List>
+            {tempOrder.map((id, idx) => (
+              <ListItem key={id} dense>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <Checkbox
+                    edge="start"
+                    checked={!tempHidden.includes(id)}
+                    onChange={() => handleToggleWidget(id)}
+                  />
+                </ListItemIcon>
+                <ListItemText primary={WIDGET_LABELS[id] || id} />
+                <IconButton size="small" onClick={() => handleMoveUp(idx)} disabled={idx === 0}>
+                  <UpIcon fontSize="small" />
+                </IconButton>
+                <IconButton size="small" onClick={() => handleMoveDown(idx)} disabled={idx === tempOrder.length - 1}>
+                  <DownIcon fontSize="small" />
+                </IconButton>
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleResetCustomization} color="inherit">
+            Visszaállítás
+          </Button>
+          <Box sx={{ flexGrow: 1 }} />
+          <Button onClick={() => setCustomizeOpen(false)}>Mégse</Button>
+          <Button variant="contained" onClick={handleSaveCustomization} sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#3d6b4a' } }}>
+            Mentés
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

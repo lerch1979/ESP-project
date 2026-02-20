@@ -319,8 +319,8 @@ export const notificationsAPI = {
     const response = await api.get('/notifications/email-logs', { params });
     return response.data;
   },
-  testEmail: async (to) => {
-    const response = await api.post('/notifications/test-email', { to });
+  testEmail: async (to, template_type) => {
+    const response = await api.post('/notifications/test-email', { to, template_type });
     return response.data;
   },
 };
@@ -541,6 +541,30 @@ export const notificationCenterAPI = {
 
   getUnreadCount: async () => {
     const response = await api.get('/notification-center/unread-count');
+    return response.data;
+  },
+};
+
+// Activity Log API
+export const activityLogAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/activity-log', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/activity-log/${id}`);
+    return response.data;
+  },
+};
+
+// Preferences API
+export const preferencesAPI = {
+  getPreferences: async () => {
+    const response = await api.get('/preferences');
+    return response.data;
+  },
+  updatePreferences: async (data) => {
+    const response = await api.put('/preferences', data);
     return response.data;
   },
 };

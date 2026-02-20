@@ -2,6 +2,7 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
+const { logActivity, diffObjects } = require('../utils/activityLogger');
 
 const ACCOMMODATION_FILTER_FIELD_MAP = {
   status: 'a.status',
@@ -270,6 +271,15 @@ const createAccommodation = async (req, res) => {
       );
     }
 
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'accommodation',
+      entityId: result.rows[0].id,
+      action: 'create',
+      metadata: { name: name.trim() },
+      ipAddress: req.ip,
+    });
+
     logger.info('Új szálláshely létrehozva', { accommodationId: result.rows[0].id, name });
 
     res.status(201).json({
@@ -443,6 +453,18 @@ const updateAccommodation = async (req, res) => {
       }
     }
 
+    const trackFields = ['name', 'address', 'type', 'capacity', 'status', 'monthly_rent', 'current_contractor_id'];
+    const changes = diffObjects(oldAccommodation, result.rows[0], trackFields);
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'accommodation',
+      entityId: id,
+      action: 'update',
+      changes,
+      metadata: { name: result.rows[0].name },
+      ipAddress: req.ip,
+    });
+
     logger.info('Szálláshely frissítve', { accommodationId: id });
 
     res.json({
@@ -466,7 +488,7 @@ const deleteAccommodation = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await query('SELECT id FROM accommodations WHERE id = $1', [id]);
+    const existing = await query('SELECT id, name FROM accommodations WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -478,6 +500,15 @@ const deleteAccommodation = async (req, res) => {
       'UPDATE accommodations SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [id]
     );
+
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'accommodation',
+      entityId: id,
+      action: 'delete',
+      metadata: { name: existing.rows[0].name },
+      ipAddress: req.ip,
+    });
 
     logger.info('Szálláshely deaktiválva', { accommodationId: id });
 

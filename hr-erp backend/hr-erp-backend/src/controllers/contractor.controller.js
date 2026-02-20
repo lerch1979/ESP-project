@@ -2,6 +2,7 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
 const { parseFiltersParam } = require('../utils/filterBuilder');
+const { logActivity, diffObjects } = require('../utils/activityLogger');
 
 // Hungarian diacritic mapping for slug generation
 const HUNGARIAN_CHAR_MAP = {
@@ -208,6 +209,15 @@ const createContractor = async (req, res) => {
       address || null,
     ]);
 
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'contractor',
+      entityId: result.rows[0].id,
+      action: 'create',
+      metadata: { name: name.trim() },
+      ipAddress: req.ip,
+    });
+
     logger.info('Új alvállalkozó létrehozva', { contractorId: result.rows[0].id, name });
 
     res.status(201).json({
@@ -310,6 +320,18 @@ const updateContractor = async (req, res) => {
 
     const result = await query(updateQuery, params);
 
+    const trackFields = ['name', 'email', 'phone', 'address', 'is_active'];
+    const changes = diffObjects(existing.rows[0], result.rows[0], trackFields);
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'contractor',
+      entityId: id,
+      action: 'update',
+      changes,
+      metadata: { name: result.rows[0].name },
+      ipAddress: req.ip,
+    });
+
     logger.info('Alvállalkozó frissítve', { contractorId: id });
 
     res.json({
@@ -333,7 +355,7 @@ const deleteContractor = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await query('SELECT id FROM contractors WHERE id = $1', [id]);
+    const existing = await query('SELECT id, name FROM contractors WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -345,6 +367,15 @@ const deleteContractor = async (req, res) => {
       'UPDATE contractors SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [id]
     );
+
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'contractor',
+      entityId: id,
+      action: 'delete',
+      metadata: { name: existing.rows[0].name },
+      ipAddress: req.ip,
+    });
 
     logger.info('Alvállalkozó deaktiválva', { contractorId: id });
 

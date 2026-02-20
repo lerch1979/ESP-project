@@ -397,7 +397,7 @@ const getEmailLogs = async (req, res) => {
  */
 const testEmail = async (req, res) => {
   try {
-    const { to } = req.body;
+    const { to, template_type } = req.body;
 
     if (!to) {
       return res.status(400).json({ success: false, message: 'Címzett email cím szükséges' });
@@ -413,11 +413,39 @@ const testEmail = async (req, res) => {
       });
     }
 
-    // Send test email
-    const result = await sendEmail({
-      to,
-      subject: 'Housing Solutions HR-ERP - Teszt email',
-      html: `
+    let emailSubject = 'Housing Solutions HR-ERP - Teszt email';
+    let emailHtml;
+    let previewHtml = null;
+
+    if (template_type) {
+      // Fetch the template
+      const templateResult = await query(
+        'SELECT subject, body_html FROM notification_templates WHERE slug = $1 AND is_active = true LIMIT 1',
+        [template_type]
+      );
+
+      if (templateResult.rows.length > 0) {
+        const template = templateResult.rows[0];
+        // Sample data with realistic Hungarian placeholder values
+        const sampleData = {
+          name: 'Teszt Felhasználó',
+          workplace: 'Budapest - Központi iroda',
+          accommodation: 'Lakás A1',
+          visa_expiry: '2026-06-30',
+          contract_end: '2026-12-31',
+          subject: template.subject,
+          body: 'Ez egy minta üzenet a sablon előnézetéhez.',
+        };
+
+        emailSubject = interpolateTemplate(template.subject, sampleData);
+        emailHtml = interpolateTemplate(template.body_html, sampleData);
+        previewHtml = emailHtml;
+      } else {
+        return res.status(404).json({ success: false, message: 'Sablon nem található' });
+      }
+    } else {
+      // Default branded test email
+      emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #2c5f2d, #1e3f1f); padding: 20px; text-align: center;">
             <h1 style="color: #fff; margin: 0;">Housing Solutions</h1>
@@ -434,15 +462,26 @@ const testEmail = async (req, res) => {
             </p>
           </div>
         </div>
-      `,
+      `;
+    }
+
+    // Send test email
+    const result = await sendEmail({
+      to,
+      subject: emailSubject,
+      html: emailHtml,
     });
 
     if (result.success) {
-      res.json({
+      const responseData = {
         success: true,
         message: `Teszt email sikeresen elküldve: ${to}`,
         messageId: result.messageId,
-      });
+      };
+      if (previewHtml) {
+        responseData.preview_html = previewHtml;
+      }
+      res.json(responseData);
     } else {
       res.status(500).json({
         success: false,

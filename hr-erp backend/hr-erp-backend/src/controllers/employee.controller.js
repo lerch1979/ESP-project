@@ -5,6 +5,7 @@ const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder'
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
+const { logActivity, diffObjects } = require('../utils/activityLogger');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -473,6 +474,16 @@ const createEmployee = async (req, res) => {
       room_id || null,
     ]);
 
+    // Log activity
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'employee',
+      entityId: result.rows[0].id,
+      action: 'create',
+      metadata: { name: `${last_name} ${first_name}`, employee_number: finalEmployeeNumber },
+      ipAddress: req.ip,
+    });
+
     // If no user exists but we have name/email, create one
     if (!userId && email) {
       const bcrypt = require('bcryptjs');
@@ -618,6 +629,23 @@ const updateEmployee = async (req, res) => {
 
     const result = await query(updateQuery, params);
 
+    // Log activity with diff
+    const trackFields = [
+      'first_name', 'last_name', 'employee_number', 'position', 'status_id',
+      'accommodation_id', 'workplace', 'room_id', 'start_date', 'end_date',
+      'gender', 'birth_date', 'visa_expiry', 'marital_status',
+    ];
+    const changes = diffObjects(existing.rows[0], result.rows[0], trackFields);
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'employee',
+      entityId: id,
+      action: 'update',
+      changes,
+      metadata: { name: `${result.rows[0].last_name || ''} ${result.rows[0].first_name || ''}` },
+      ipAddress: req.ip,
+    });
+
     logger.info('Munkavallaló frissitve', { employeeId: id });
 
     res.json({
@@ -647,7 +675,7 @@ const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = await query('SELECT id FROM employees WHERE id = $1', [id]);
+    const existing = await query('SELECT id, first_name, last_name, employee_number FROM employees WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -669,6 +697,16 @@ const deleteEmployee = async (req, res) => {
        WHERE id = $1`,
       [id, leftStatusId]
     );
+
+    const emp = existing.rows[0];
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'employee',
+      entityId: id,
+      action: 'delete',
+      metadata: { name: `${emp.last_name || ''} ${emp.first_name || ''}`, employee_number: emp.employee_number },
+      ipAddress: req.ip,
+    });
 
     logger.info('Munkavallaló deaktivalva', { employeeId: id });
 
@@ -1258,6 +1296,19 @@ const bulkUpdateStatus = async (req, res) => {
       [status_id, employee_ids]
     );
 
+    // Log one entry per employee
+    for (const row of result.rows) {
+      logActivity({
+        userId: req.user?.id,
+        entityType: 'employee',
+        entityId: row.id,
+        action: 'update',
+        changes: { status_id: { old: null, new: status_id } },
+        metadata: { bulk_action: 'status_update' },
+        ipAddress: req.ip,
+      });
+    }
+
     logger.info('Tomeges statusz frissites', { count: result.rowCount });
 
     res.json({
@@ -1303,6 +1354,18 @@ const bulkDelete = async (req, res) => {
        RETURNING id`,
       [leftStatusId, employee_ids]
     );
+
+    // Log one entry per employee
+    for (const row of result.rows) {
+      logActivity({
+        userId: req.user?.id,
+        entityType: 'employee',
+        entityId: row.id,
+        action: 'delete',
+        metadata: { bulk_action: 'bulk_delete' },
+        ipAddress: req.ip,
+      });
+    }
 
     logger.info('Tomeges torles', { count: result.rowCount });
 

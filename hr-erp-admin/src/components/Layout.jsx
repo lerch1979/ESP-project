@@ -33,6 +33,7 @@ import {
   Description as DescriptionIcon,
   VideoLibrary as VideoLibraryIcon,
   Hotel as HotelIcon,
+  History as HistoryIcon,
   Menu as MenuIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
@@ -51,6 +52,7 @@ const menuItems = [
   { text: 'Dokumentumok', icon: <DescriptionIcon />, path: '/documents' },
   { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
   { text: 'Kihasználtság', icon: <HotelIcon />, path: '/occupancy' },
+  { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log' },
   { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },

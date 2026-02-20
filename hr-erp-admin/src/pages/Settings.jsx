@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -8,6 +8,10 @@ import {
   Alert,
   CircularProgress,
   Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Settings as SettingsIcon,
@@ -19,19 +23,44 @@ import { notificationsAPI } from '../services/api';
 
 function Settings() {
   const [testEmail, setTestEmail] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [templates, setTemplates] = useState([]);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
+  const [previewHtml, setPreviewHtml] = useState(null);
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    try {
+      const response = await notificationsAPI.getTemplates();
+      if (response.success) {
+        setTemplates(response.data.filter((t) => t.is_active));
+      }
+    } catch (error) {
+      console.error('Template load error:', error);
+    }
+  };
 
   const handleTestEmail = async () => {
     if (!testEmail) return;
     setSending(true);
     setResult(null);
+    setPreviewHtml(null);
     try {
-      const response = await notificationsAPI.testEmail(testEmail);
+      const response = await notificationsAPI.testEmail(
+        testEmail,
+        selectedTemplate || undefined
+      );
       setResult({
         success: true,
         message: response.message || 'Teszt email sikeresen elküldve!',
       });
+      if (response.preview_html) {
+        setPreviewHtml(response.preview_html);
+      }
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.message || 'Email küldési hiba';
       setResult({ success: false, message: msg });
@@ -85,6 +114,25 @@ function Settings() {
             Küldj egy teszt emailt az SMTP konfiguráció ellenőrzéséhez.
           </Typography>
 
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Sablon típus</InputLabel>
+            <Select
+              value={selectedTemplate}
+              label="Sablon típus"
+              onChange={(e) => {
+                setSelectedTemplate(e.target.value);
+                setPreviewHtml(null);
+              }}
+            >
+              <MenuItem value="">Egyszerű teszt</MenuItem>
+              {templates.map((t) => (
+                <MenuItem key={t.slug} value={t.slug}>
+                  {t.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
             <TextField
               label="Címzett email"
@@ -115,6 +163,34 @@ function Settings() {
             >
               {result.message}
             </Alert>
+          )}
+
+          {/* Email preview iframe */}
+          {previewHtml && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                Email előnézet
+              </Typography>
+              <Box
+                sx={{
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  bgcolor: '#fff',
+                }}
+              >
+                <iframe
+                  srcDoc={previewHtml}
+                  title="Email előnézet"
+                  style={{
+                    width: '100%',
+                    minHeight: 300,
+                    border: 'none',
+                  }}
+                  sandbox="allow-same-origin"
+                />
+              </Box>
+            </Box>
           )}
         </Paper>
       </Box>
