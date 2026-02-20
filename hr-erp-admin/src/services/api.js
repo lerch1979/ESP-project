@@ -555,6 +555,10 @@ export const activityLogAPI = {
     const response = await api.get(`/activity-log/${id}`);
     return response.data;
   },
+  export: async (params = {}) => {
+    const response = await api.get('/activity-log/export', { params, responseType: 'blob' });
+    return response;
+  },
 };
 
 // Preferences API

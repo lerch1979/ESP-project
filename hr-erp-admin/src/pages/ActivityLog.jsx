@@ -30,7 +30,9 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
+import { toast } from 'react-toastify';
 import { activityLogAPI } from '../services/api';
 
 const ACTION_CONFIG = {
@@ -85,6 +87,7 @@ function ActivityLog() {
     date_to: '',
   });
   const [detailDialog, setDetailDialog] = useState({ open: false, log: null });
+  const [exporting, setExporting] = useState(false);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -144,13 +147,53 @@ function ActivityLog() {
     return meta.name || meta.employee_number || '-';
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (filters.entity_type) params.entity_type = filters.entity_type;
+      if (filters.action) params.action = filters.action;
+      if (filters.search) params.search = filters.search;
+      if (filters.date_from) params.date_from = filters.date_from;
+      if (filters.date_to) params.date_to = filters.date_to;
+
+      const response = await activityLogAPI.export(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute('download', `tevekenyseggnaplo_${dateStr}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Napló exportálva!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Export hiba');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <HistoryIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Tevékenységnapló
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <HistoryIcon sx={{ fontSize: 32, color: '#2c5f2d' }} />
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Tevékenységnapló
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={exporting ? <CircularProgress size={18} /> : <FileDownloadIcon />}
+          onClick={handleExport}
+          disabled={exporting}
+          sx={{ borderColor: '#2c5f2d', color: '#2c5f2d', '&:hover': { borderColor: '#3d6b4a', bgcolor: 'rgba(44,95,45,0.04)' } }}
+        >
+          {exporting ? 'Exportálás...' : 'Export Excel'}
+        </Button>
       </Box>
 
       {/* Filters */}
