@@ -323,6 +323,26 @@ export const notificationsAPI = {
     const response = await api.post('/notifications/test-email', { to, template_type });
     return response.data;
   },
+  getTemplateById: async (id) => {
+    const response = await api.get(`/notifications/templates/${id}`);
+    return response.data;
+  },
+  createTemplate: async (data) => {
+    const response = await api.post('/notifications/templates', data);
+    return response.data;
+  },
+  updateTemplate: async (id, data) => {
+    const response = await api.put(`/notifications/templates/${id}`, data);
+    return response.data;
+  },
+  deleteTemplate: async (id) => {
+    const response = await api.delete(`/notifications/templates/${id}`);
+    return response.data;
+  },
+  previewTemplate: async (body_html, variables) => {
+    const response = await api.post('/notifications/templates/preview', { body_html, variables });
+    return response.data;
+  },
 };
 
 // Reports API
@@ -558,6 +578,38 @@ export const activityLogAPI = {
   export: async (params = {}) => {
     const response = await api.get('/activity-log/export', { params, responseType: 'blob' });
     return response;
+  },
+};
+
+// Scheduled Reports API
+export const scheduledReportsAPI = {
+  getAll: async () => {
+    const response = await api.get('/scheduled-reports');
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/scheduled-reports', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/scheduled-reports/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/scheduled-reports/${id}`);
+    return response.data;
+  },
+  triggerRun: async (id) => {
+    const response = await api.post(`/scheduled-reports/${id}/run`);
+    return response.data;
+  },
+  getRunHistory: async (id) => {
+    const response = await api.get(`/scheduled-reports/${id}/runs`);
+    return response.data;
+  },
+  toggleActive: async (id) => {
+    const response = await api.patch(`/scheduled-reports/${id}/toggle`);
+    return response.data;
   },
 };
 

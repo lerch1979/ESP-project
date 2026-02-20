@@ -18,6 +18,8 @@ import Settings from './pages/Settings';
 import Videos from './pages/Videos';
 import OccupancyReports from './pages/OccupancyReports';
 import ActivityLog from './pages/ActivityLog';
+import ScheduledReports from './pages/ScheduledReports';
+import EmailTemplates from './pages/EmailTemplates';
 import PrivateRoute from './components/PrivateRoute';
 import InstallPrompt from './components/InstallPrompt';
 
@@ -55,6 +57,8 @@ function App() {
           <Route path="videos" element={<Videos />} />
           <Route path="occupancy" element={<OccupancyReports />} />
           <Route path="activity-log" element={<ActivityLog />} />
+          <Route path="scheduled-reports" element={<ScheduledReports />} />
+          <Route path="email-templates" element={<EmailTemplates />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

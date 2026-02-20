@@ -28,13 +28,14 @@ function interpolateTemplate(text, variables) {
 /**
  * Send a single email
  */
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, attachments }) {
   try {
     const info = await transporter.sendMail({
       from: emailFrom,
       to,
       subject,
       html,
+      attachments,
     });
     logger.info('Email elküldve', { to, subject, messageId: info.messageId });
     return { success: true, messageId: info.messageId };

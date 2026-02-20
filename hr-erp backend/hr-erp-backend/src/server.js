@@ -28,7 +28,9 @@ const searchRoutes = require('./routes/search.routes');
 const notificationCenterRoutes = require('./routes/notification-center.routes');
 const activityLogRoutes = require('./routes/activity-log.routes');
 const preferencesRoutes = require('./routes/preferences.routes');
+const scheduledReportRoutes = require('./routes/scheduled-report.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
+const { startScheduler } = require('./services/report-scheduler.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -115,6 +117,7 @@ app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/notification-center`, notificationCenterRoutes);
 app.use(`${API_PREFIX}/activity-log`, activityLogRoutes);
 app.use(`${API_PREFIX}/preferences`, preferencesRoutes);
+app.use(`${API_PREFIX}/scheduled-reports`, scheduledReportRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
@@ -147,6 +150,9 @@ async function startServer() {
     // Adatbázis kapcsolat ellenőrzése
     await db.testConnection();
     logger.info('✅ Adatbázis kapcsolat sikeres');
+
+    // Start report scheduler
+    startScheduler();
 
     // Szerver indítása
     app.listen(PORT, () => {

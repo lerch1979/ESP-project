@@ -34,7 +34,9 @@ import {
   VideoLibrary as VideoLibraryIcon,
   Hotel as HotelIcon,
   History as HistoryIcon,
+  Schedule as ScheduleIcon,
   Menu as MenuIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -53,10 +55,12 @@ const menuItems = [
   { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
   { text: 'Kihasználtság', icon: <HotelIcon />, path: '/occupancy' },
   { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log' },
+  { text: 'Ütemezett riportok', icon: <ScheduleIcon />, path: '/scheduled-reports' },
   { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
+  { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates' },
 ];
 
 function Layout({ children }) {
