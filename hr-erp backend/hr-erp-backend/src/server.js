@@ -24,6 +24,8 @@ const calendarRoutes = require('./routes/calendar.routes');
 const documentRoutes = require('./routes/document.routes');
 const googleCalendarRoutes = require('./routes/google-calendar.routes');
 const videoRoutes = require('./routes/video.routes');
+const searchRoutes = require('./routes/search.routes');
+const notificationCenterRoutes = require('./routes/notification-center.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 
 const app = express();
@@ -107,6 +109,8 @@ app.use(`${API_PREFIX}/calendar`, calendarRoutes);
 app.use(`${API_PREFIX}/documents`, documentRoutes);
 app.use(`${API_PREFIX}/calendar/google`, googleCalendarRoutes);
 app.use(`${API_PREFIX}/videos`, videoRoutes);
+app.use(`${API_PREFIX}/search`, searchRoutes);
+app.use(`${API_PREFIX}/notification-center`, notificationCenterRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);

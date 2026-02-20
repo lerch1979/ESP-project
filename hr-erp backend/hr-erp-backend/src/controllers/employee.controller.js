@@ -1225,6 +1225,199 @@ const deletePhoto = async (req, res) => {
   }
 };
 
+// ============================================================
+// Bulk Actions
+// ============================================================
+
+/**
+ * Tomeges statusz frissites
+ */
+const bulkUpdateStatus = async (req, res) => {
+  try {
+    const { employee_ids, status_id } = req.body;
+
+    if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Legalabb egy munkavallaló kiválasztása kötelező'
+      });
+    }
+
+    if (!status_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Státusz megadása kötelező'
+      });
+    }
+
+    const result = await query(
+      `UPDATE employees
+       SET status_id = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ANY($2) AND end_date IS NULL
+       RETURNING id`,
+      [status_id, employee_ids]
+    );
+
+    logger.info('Tomeges statusz frissites', { count: result.rowCount });
+
+    res.json({
+      success: true,
+      message: `${result.rowCount} munkavállaló státusza frissítve`,
+      data: { updated_count: result.rowCount }
+    });
+  } catch (error) {
+    logger.error('Tomeges statusz frissitesi hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Tomeges statusz frissitesi hiba'
+    });
+  }
+};
+
+/**
+ * Tomeges torles (soft delete)
+ */
+const bulkDelete = async (req, res) => {
+  try {
+    const { employee_ids } = req.body;
+
+    if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Legalabb egy munkavállaló kiválasztása kötelező'
+      });
+    }
+
+    // Get "Kilepett" status
+    const leftStatus = await query("SELECT id FROM employee_status_types WHERE slug = 'left'");
+    const leftStatusId = leftStatus.rows.length > 0 ? leftStatus.rows[0].id : null;
+
+    const result = await query(
+      `UPDATE employees
+       SET end_date = CURRENT_DATE,
+           accommodation_id = NULL,
+           room_id = NULL,
+           status_id = COALESCE($1, status_id),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ANY($2) AND end_date IS NULL
+       RETURNING id`,
+      [leftStatusId, employee_ids]
+    );
+
+    logger.info('Tomeges torles', { count: result.rowCount });
+
+    res.json({
+      success: true,
+      message: `${result.rowCount} munkavállaló deaktiválva`,
+      data: { deleted_count: result.rowCount }
+    });
+  } catch (error) {
+    logger.error('Tomeges torlesi hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Tomeges torlesi hiba'
+    });
+  }
+};
+
+/**
+ * Tomeges export (kivalasztott munkavallalok)
+ */
+const bulkExport = async (req, res) => {
+  try {
+    const { employee_ids } = req.body;
+
+    if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Legalabb egy munkavállaló kiválasztása kötelező'
+      });
+    }
+
+    const result = await query(
+      `SELECT
+        e.employee_number,
+        COALESCE(e.last_name, u.last_name) as last_name,
+        COALESCE(e.first_name, u.first_name) as first_name,
+        COALESCE(u.email, '') as email,
+        COALESCE(u.phone, '') as phone,
+        e.position,
+        e.gender, e.birth_date, e.birth_place, e.mothers_name,
+        e.tax_id, e.passport_number, e.social_security_number, e.marital_status,
+        e.arrival_date, e.visa_expiry, e.room_number, e.bank_account, e.workplace,
+        e.permanent_address_zip, e.permanent_address_country,
+        e.permanent_address_county, e.permanent_address_city,
+        e.permanent_address_street, e.permanent_address_number,
+        e.company_name, e.company_email, e.company_phone,
+        est.name as status_name,
+        a.name as accommodation_name
+      FROM employees e
+      LEFT JOIN users u ON e.user_id = u.id
+      LEFT JOIN employee_status_types est ON e.status_id = est.id
+      LEFT JOIN accommodations a ON e.accommodation_id = a.id
+      WHERE e.id = ANY($1)
+      ORDER BY e.created_at DESC`,
+      [employee_ids]
+    );
+
+    const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
+    const MARITAL_LABELS = { single: 'Egyedülálló', married: 'Házas', divorced: 'Elvált', widowed: 'Özvegy' };
+
+    function fmtDate(val) {
+      if (!val) return '';
+      return new Date(val).toLocaleDateString('hu-HU');
+    }
+
+    const data = result.rows.map(row => ({
+      'Törzsszám': row.employee_number || '',
+      'Vezetéknév': row.last_name || '',
+      'Keresztnév': row.first_name || '',
+      'Nem': GENDER_LABELS[row.gender] || '',
+      'Születési dátum': fmtDate(row.birth_date),
+      'Születési hely': row.birth_place || '',
+      'Anyja neve': row.mothers_name || '',
+      'Családi állapot': MARITAL_LABELS[row.marital_status] || '',
+      'Adóazonosító': row.tax_id || '',
+      'Útlevélszám': row.passport_number || '',
+      'TAJ szám': row.social_security_number || '',
+      'Email': row.email || '',
+      'Telefon': row.phone || '',
+      'Munkakör': row.position || '',
+      'Munkahely': row.workplace || '',
+      'Érkezés dátuma': fmtDate(row.arrival_date),
+      'Vízum lejárat': fmtDate(row.visa_expiry),
+      'Státusz': row.status_name || '',
+      'Szálláshely': row.accommodation_name || '',
+      'Szobaszám': row.room_number || '',
+      'Bankszámlaszám': row.bank_account || '',
+      'Irányítószám': row.permanent_address_zip || '',
+      'Ország': row.permanent_address_country || '',
+      'Megye': row.permanent_address_county || '',
+      'Város': row.permanent_address_city || '',
+      'Utca': row.permanent_address_street || '',
+      'Házszám': row.permanent_address_number || '',
+      'Cégnév': row.company_name || '',
+      'Céges email': row.company_email || '',
+      'Céges telefon': row.company_phone || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Export');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=munkavallalok_kivalasztott.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Tomeges export hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Tomeges export hiba'
+    });
+  }
+};
+
 module.exports = {
   getEmployeeStatuses,
   getEmployees,
@@ -1238,4 +1431,7 @@ module.exports = {
   deleteEmployeeNote,
   uploadPhoto,
   deletePhoto,
+  bulkUpdateStatus,
+  bulkDelete,
+  bulkExport,
 };

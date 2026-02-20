@@ -37,6 +37,8 @@ import {
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import GlobalSearchBar from './GlobalSearchBar';
+import NotificationBell from './NotificationBell';
 
 const drawerWidth = 260;
 
@@ -176,9 +178,15 @@ function Layout({ children }) {
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600, mr: 2 }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'HR-ERP'}
           </Typography>
+
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+            <GlobalSearchBar />
+          </Box>
+
+          <NotificationBell />
 
           <IconButton
             size="large"

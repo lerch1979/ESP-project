@@ -72,6 +72,24 @@ router.get('/statuses', employeeController.getEmployeeStatuses);
 router.get('/', employeeController.getEmployees);
 
 /**
+ * POST /api/v1/employees/bulk-update
+ * Tömeges státusz frissítés
+ */
+router.post('/bulk-update', employeeController.bulkUpdateStatus);
+
+/**
+ * POST /api/v1/employees/bulk-delete
+ * Tömeges törlés (soft delete)
+ */
+router.post('/bulk-delete', employeeController.bulkDelete);
+
+/**
+ * POST /api/v1/employees/bulk-export
+ * Kiválasztott munkavállalók exportálása
+ */
+router.post('/bulk-export', employeeController.bulkExport);
+
+/**
  * GET /api/v1/employees/:id
  * Egy munkavállaló részletei
  */

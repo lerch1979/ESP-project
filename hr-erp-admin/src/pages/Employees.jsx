@@ -16,6 +16,15 @@ import {
   Button,
   Stack,
   CircularProgress,
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -23,6 +32,9 @@ import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
   Email as EmailIcon,
+  Delete as DeleteIcon,
+  SwapHoriz as StatusIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { employeesAPI, exportAPI, reportsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
@@ -92,13 +104,25 @@ function Employees() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkStatusId, setBulkStatusId] = useState('');
+  const [statuses, setStatuses] = useState([]);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   useEffect(() => {
     loadFilterOptions();
+    loadStatuses();
   }, []);
 
   useEffect(() => {
     loadEmployees();
+  }, [page, rowsPerPage, search, activeFilters]);
+
+  // Clear selection on page/search/filter change
+  useEffect(() => {
+    setSelectedIds([]);
   }, [page, rowsPerPage, search, activeFilters]);
 
   const loadFilterOptions = async () => {
@@ -192,6 +216,100 @@ function Employees() {
       toast.error('Hiba az exportálás során');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const loadStatuses = async () => {
+    try {
+      const response = await employeesAPI.getStatuses();
+      if (response.success) {
+        setStatuses(response.data.statuses);
+      }
+    } catch (error) {
+      console.error('Státuszok betöltési hiba:', error);
+    }
+  };
+
+  // Checkbox handlers
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      setSelectedIds(employees.map(e => e.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (event, id) => {
+    event.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk action handlers
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkStatusId) return;
+    setBulkActionLoading(true);
+    try {
+      const response = await employeesAPI.bulkUpdateStatus({
+        employee_ids: selectedIds,
+        status_id: bulkStatusId,
+      });
+      if (response.success) {
+        toast.success(response.message);
+        setSelectedIds([]);
+        setStatusDialogOpen(false);
+        setBulkStatusId('');
+        loadEmployees();
+      }
+    } catch (error) {
+      console.error('Tömeges státusz frissítési hiba:', error);
+      toast.error('Hiba a tömeges státusz frissítés során');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkActionLoading(true);
+    try {
+      const response = await employeesAPI.bulkDelete({
+        employee_ids: selectedIds,
+      });
+      if (response.success) {
+        toast.success(response.message);
+        setSelectedIds([]);
+        setDeleteDialogOpen(false);
+        loadEmployees();
+      }
+    } catch (error) {
+      console.error('Tömeges törlési hiba:', error);
+      toast.error('Hiba a tömeges törlés során');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkExport = async () => {
+    setBulkActionLoading(true);
+    try {
+      const response = await employeesAPI.bulkExport({
+        employee_ids: selectedIds,
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'munkavallalok_kivalasztott.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Export sikeres');
+    } catch (error) {
+      console.error('Tömeges export hiba:', error);
+      toast.error('Hiba a tömeges export során');
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -303,6 +421,14 @@ function Employees() {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={selectedIds.length > 0 && selectedIds.length < employees.length}
+                        checked={employees.length > 0 && selectedIds.length === employees.length}
+                        onChange={handleSelectAll}
+                        sx={{ color: '#2c5f2d', '&.Mui-checked': { color: '#2c5f2d' }, '&.MuiCheckbox-indeterminate': { color: '#2c5f2d' } }}
+                      />
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Törzsszám</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Név</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
@@ -324,6 +450,13 @@ function Employees() {
                       }}
                       onClick={() => handleRowClick(emp.id)}
                     >
+                      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.includes(emp.id)}
+                          onChange={(e) => handleSelectOne(e, emp.id)}
+                          sx={{ color: '#2c5f2d', '&.Mui-checked': { color: '#2c5f2d' } }}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#2c5f2d' }}>
                           {emp.employee_number || '-'}
@@ -406,6 +539,125 @@ function Employees() {
           </>
         )}
       </Paper>
+
+      {/* Bulk Actions Floating Bar */}
+      {selectedIds.length > 0 && (
+        <Paper
+          elevation={6}
+          sx={{
+            position: 'sticky',
+            bottom: 16,
+            mx: 'auto',
+            mt: 2,
+            p: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            borderRadius: 3,
+            bgcolor: '#1e293b',
+            color: 'white',
+            zIndex: 10,
+            maxWidth: 600,
+          }}
+        >
+          <Chip
+            label={`${selectedIds.length} munkavállaló kiválasztva`}
+            sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'white', fontWeight: 600 }}
+          />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<StatusIcon />}
+            onClick={() => setStatusDialogOpen(true)}
+            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+          >
+            Státusz váltás
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleBulkExport}
+            disabled={bulkActionLoading}
+            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+          >
+            Export
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DeleteIcon />}
+            onClick={() => setDeleteDialogOpen(true)}
+            sx={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.3)', '&:hover': { borderColor: '#f87171', bgcolor: 'rgba(248,113,113,0.1)' } }}
+          >
+            Törlés
+          </Button>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<CloseIcon />}
+            onClick={() => setSelectedIds([])}
+            sx={{ color: 'rgba(255,255,255,0.6)', ml: 'auto', '&:hover': { color: 'white' } }}
+          >
+            Mégsem
+          </Button>
+        </Paper>
+      )}
+
+      {/* Bulk Status Change Dialog */}
+      <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Tömeges státusz váltás</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {selectedIds.length} munkavállaló státuszának módosítása:
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel>Új státusz</InputLabel>
+            <Select
+              value={bulkStatusId}
+              onChange={(e) => setBulkStatusId(e.target.value)}
+              label="Új státusz"
+            >
+              {statuses.map((s) => (
+                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatusDialogOpen(false)}>Mégsem</Button>
+          <Button
+            variant="contained"
+            onClick={handleBulkStatusUpdate}
+            disabled={!bulkStatusId || bulkActionLoading}
+            sx={{ bgcolor: '#2c5f2d', '&:hover': { bgcolor: '#234d24' } }}
+          >
+            {bulkActionLoading ? <CircularProgress size={20} /> : 'Mentés'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Tömeges törlés megerősítése</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Biztosan deaktiválni szeretné a kiválasztott {selectedIds.length} munkavállalót?
+            Ez a művelet beállítja a kilépés dátumát és eltávolítja a szálláshelyről.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Mégsem</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleBulkDelete}
+            disabled={bulkActionLoading}
+          >
+            {bulkActionLoading ? <CircularProgress size={20} /> : 'Törlés'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modals */}
       <CreateEmployeeModal

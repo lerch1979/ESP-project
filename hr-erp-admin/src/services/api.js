@@ -278,6 +278,23 @@ export const employeesAPI = {
     const response = await api.delete(`/employees/${id}/photo`);
     return response.data;
   },
+
+  bulkUpdateStatus: async (data) => {
+    const response = await api.post('/employees/bulk-update', data);
+    return response.data;
+  },
+
+  bulkDelete: async (data) => {
+    const response = await api.post('/employees/bulk-delete', data);
+    return response.data;
+  },
+
+  bulkExport: async (data) => {
+    const response = await api.post('/employees/bulk-export', data, {
+      responseType: 'blob',
+    });
+    return response;
+  },
 };
 
 // Notifications API
@@ -493,6 +510,37 @@ export const videosAPI = {
 
   recordView: async (id, data = {}) => {
     const response = await api.post(`/videos/${id}/view`, data);
+    return response.data;
+  },
+};
+
+// Search API
+export const searchAPI = {
+  global: async (q) => {
+    const response = await api.get('/search/global', { params: { q } });
+    return response.data;
+  },
+};
+
+// Notification Center API
+export const notificationCenterAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/notification-center', { params });
+    return response.data;
+  },
+
+  markAsRead: async (id) => {
+    const response = await api.put(`/notification-center/${id}/read`);
+    return response.data;
+  },
+
+  markAllAsRead: async () => {
+    const response = await api.post('/notification-center/mark-all-read');
+    return response.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await api.get('/notification-center/unread-count');
     return response.data;
   },
 };
