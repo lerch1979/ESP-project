@@ -118,7 +118,9 @@ const sendMessage = async (req, res) => {
     const contractorId = req.user.contractorId;
     const { content } = req.body;
 
-    if (!content || !content.trim()) {
+    // Input validation via sanitizeInput
+    const sanitized = chatbotService.sanitizeInput(content);
+    if (!sanitized) {
       return res.status(400).json({ success: false, message: 'Az üzenet nem lehet üres' });
     }
 
@@ -138,17 +140,22 @@ const sendMessage = async (req, res) => {
     const userMsg = await query(
       `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content)
        VALUES ($1, 'user', 'text', $2) RETURNING *`,
-      [conversationId, content.trim()]
+      [conversationId, sanitized]
     );
 
-    // Process and get bot response
-    const botResponse = await chatbotService.processMessage(conversationId, content.trim(), userId, contractorId);
+    // Process and get bot response (track response time)
+    const startTime = Date.now();
+    const botResponse = await chatbotService.processMessage(conversationId, sanitized, userId, contractorId);
+    const responseTimeMs = Date.now() - startTime;
+
+    // Store response_time_ms in bot message metadata
+    const metadata = { ...botResponse.metadata, response_time_ms: responseTimeMs };
 
     // Save bot response
     const botMsg = await query(
       `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata)
        VALUES ($1, 'bot', $2, $3, $4) RETURNING *`,
-      [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(botResponse.metadata)]
+      [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(metadata)]
     );
 
     // Update conversation timestamp and title if first user message
@@ -159,7 +166,7 @@ const sendMessage = async (req, res) => {
     if (parseInt(msgCount.rows[0].cnt) <= 1) {
       await query(
         `UPDATE chatbot_conversations SET title = $1 WHERE id = $2`,
-        [content.trim().substring(0, 200), conversationId]
+        [sanitized.substring(0, 200), conversationId]
       );
     }
 
@@ -222,7 +229,7 @@ const closeConversation = async (req, res) => {
 
     const result = await query(
       `UPDATE chatbot_conversations SET status = 'closed', closed_at = CURRENT_TIMESTAMP,
-       current_tree_id = NULL, current_node_id = NULL
+       resolution_type = 'resolved', current_tree_id = NULL, current_node_id = NULL
        WHERE id = $1 AND user_id = $2 AND status = 'active' RETURNING *`,
       [conversationId, userId]
     );
@@ -265,6 +272,71 @@ const getUserFaqEntries = async (req, res) => {
   } catch (error) {
     logger.error('Error getting FAQ entries:', error);
     res.status(500).json({ success: false, message: 'Hiba a GYIK bejegyzések lekérdezése közben' });
+  }
+};
+
+const selectSuggestion = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user.id;
+    const { kb_id } = req.body;
+
+    if (!kb_id) {
+      return res.status(400).json({ success: false, message: 'kb_id megadása kötelező' });
+    }
+
+    // Verify ownership
+    const convCheck = await query(
+      `SELECT id, status FROM chatbot_conversations WHERE id = $1 AND user_id = $2`,
+      [conversationId, userId]
+    );
+    if (convCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Beszélgetés nem található' });
+    }
+    if (convCheck.rows[0].status !== 'active') {
+      return res.status(400).json({ success: false, message: 'Ez a beszélgetés már lezárult' });
+    }
+
+    // Fetch KB entry
+    const kbResult = await query(
+      `SELECT id, question, answer FROM chatbot_knowledge_base WHERE id = $1 AND is_active = true`,
+      [kb_id]
+    );
+    if (kbResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Tudásbázis bejegyzés nem található' });
+    }
+    const kbEntry = kbResult.rows[0];
+
+    // Save user message (the selected question)
+    const userMsg = await query(
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content)
+       VALUES ($1, 'user', 'text', $2) RETURNING *`,
+      [conversationId, kbEntry.question]
+    );
+
+    // Save bot message (the answer)
+    const botMsg = await query(
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata)
+       VALUES ($1, 'bot', 'text', $2, $3) RETURNING *`,
+      [conversationId, kbEntry.answer, JSON.stringify({ source: 'knowledge_base', kb_id: kbEntry.id, question: kbEntry.question })]
+    );
+
+    // Increment usage_count
+    await query(
+      `UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`,
+      [kb_id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        userMessage: userMsg.rows[0],
+        botMessage: botMsg.rows[0],
+      },
+    });
+  } catch (error) {
+    logger.error('Error selecting suggestion:', error);
+    res.status(500).json({ success: false, message: 'Hiba a javaslat kiválasztása közben' });
   }
 };
 
@@ -484,10 +556,15 @@ const getAnalytics = async (req, res) => {
   try {
     const contractorId = req.user.roles.includes('superadmin') ? (req.query.contractor_id || req.user.contractorId) : req.user.contractorId;
 
-    const [totalConvs, activeConvs, escalatedConvs, totalMessages, topKb, dailyStats] = await Promise.all([
+    const [
+      totalConvs, activeConvs, escalatedConvs, closedConvs,
+      totalMessages, topKb, dailyStats,
+      avgResponseTime, resolutionStats, unansweredCount, avgDuration,
+    ] = await Promise.all([
       query(`SELECT COUNT(*) as total FROM chatbot_conversations WHERE contractor_id = $1`, [contractorId]),
       query(`SELECT COUNT(*) as total FROM chatbot_conversations WHERE contractor_id = $1 AND status = 'active'`, [contractorId]),
       query(`SELECT COUNT(*) as total FROM chatbot_conversations WHERE contractor_id = $1 AND status = 'escalated'`, [contractorId]),
+      query(`SELECT COUNT(*) as total FROM chatbot_conversations WHERE contractor_id = $1 AND status = 'closed'`, [contractorId]),
       query(
         `SELECT COUNT(*) as total FROM chatbot_messages m
          JOIN chatbot_conversations c ON m.conversation_id = c.id
@@ -507,7 +584,40 @@ const getAnalytics = async (req, res) => {
          GROUP BY DATE(c.created_at) ORDER BY date`,
         [contractorId]
       ),
+      query(
+        `SELECT AVG((metadata->>'response_time_ms')::numeric) as avg_ms
+         FROM chatbot_messages m
+         JOIN chatbot_conversations c ON m.conversation_id = c.id
+         WHERE c.contractor_id = $1 AND m.sender_type = 'bot' AND m.metadata->>'response_time_ms' IS NOT NULL`,
+        [contractorId]
+      ),
+      query(
+        `SELECT
+           COUNT(*) FILTER (WHERE resolution_type = 'resolved') as resolved,
+           COUNT(*) FILTER (WHERE resolution_type = 'escalated') as escalated
+         FROM chatbot_conversations WHERE contractor_id = $1`,
+        [contractorId]
+      ),
+      query(
+        `SELECT COUNT(*) as total
+         FROM chatbot_messages m
+         JOIN chatbot_conversations c ON m.conversation_id = c.id
+         WHERE c.contractor_id = $1 AND m.sender_type = 'bot' AND m.metadata->>'source' = 'fallback'`,
+        [contractorId]
+      ),
+      query(
+        `SELECT AVG(EXTRACT(EPOCH FROM (closed_at - created_at)) / 60) as avg_minutes
+         FROM chatbot_conversations
+         WHERE contractor_id = $1 AND closed_at IS NOT NULL`,
+        [contractorId]
+      ),
     ]);
+
+    const resolved = parseInt(resolutionStats.rows[0].resolved) || 0;
+    const escalated = parseInt(resolutionStats.rows[0].escalated) || 0;
+    const resolutionRate = (resolved + escalated) > 0
+      ? Math.round((resolved / (resolved + escalated)) * 100)
+      : 0;
 
     res.json({
       success: true,
@@ -515,9 +625,14 @@ const getAnalytics = async (req, res) => {
         totalConversations: parseInt(totalConvs.rows[0].total),
         activeConversations: parseInt(activeConvs.rows[0].total),
         escalatedConversations: parseInt(escalatedConvs.rows[0].total),
+        closedConversations: parseInt(closedConvs.rows[0].total),
         totalMessages: parseInt(totalMessages.rows[0].total),
         topKnowledgeBase: topKb.rows,
         dailyStats: dailyStats.rows,
+        avgResponseTimeMs: Math.round(parseFloat(avgResponseTime.rows[0].avg_ms) || 0),
+        resolutionRate,
+        unansweredQueries: parseInt(unansweredCount.rows[0].total),
+        avgConversationDurationMinutes: Math.round(parseFloat(avgDuration.rows[0].avg_minutes) || 0),
       },
     });
   } catch (error) {
@@ -744,6 +859,8 @@ const createFaqCategory = async (req, res) => {
       [contractorId, name, categorySlug, description || '', icon || 'help', color || '#3b82f6', sort_order || 0]
     );
 
+    chatbotService.invalidateFaqCategoryCache(contractorId);
+
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
     logger.error('Error creating FAQ category:', error);
@@ -773,6 +890,8 @@ const updateFaqCategory = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Kategória nem található' });
     }
 
+    chatbotService.invalidateFaqCategoryCache(req.user.contractorId);
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     logger.error('Error updating FAQ category:', error);
@@ -788,6 +907,8 @@ const deleteFaqCategory = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Kategória nem található' });
     }
+
+    chatbotService.invalidateFaqCategoryCache(req.user.contractorId);
 
     res.json({ success: true, message: 'Kategória törölve' });
   } catch (error) {
@@ -854,6 +975,9 @@ const updateConfig = async (req, res) => {
       ]
     );
 
+    // Invalidate config cache
+    chatbotService.invalidateConfigCache(contractorId);
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     logger.error('Error updating config:', error);
@@ -907,6 +1031,7 @@ module.exports = {
   closeConversation,
   getUserFaqCategories,
   getUserFaqEntries,
+  selectSuggestion,
   // Tier 2
   adminGetConversations,
   adminGetConversationDetail,

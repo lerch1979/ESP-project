@@ -1,10 +1,21 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { authenticateToken, requireRole, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const chatbot = require('../controllers/chatbot.controller');
 
 // All chatbot routes require authentication
 router.use(authenticateToken);
+
+// Rate limiter for chat messages: 10 messages/minute per user
+const chatMessageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user.id,
+  message: { success: false, message: 'Túl sok üzenet. Kérjük, várjon egy percet.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIER 1: User endpoints (any authenticated user)
@@ -14,7 +25,8 @@ router.use(authenticateToken);
 router.post('/conversations', chatbot.createConversation);
 router.get('/conversations', chatbot.getConversations);
 router.get('/conversations/:conversationId/messages', chatbot.getMessages);
-router.post('/conversations/:conversationId/messages', chatbot.sendMessage);
+router.post('/conversations/:conversationId/messages', chatMessageLimiter, chatbot.sendMessage);
+router.post('/conversations/:conversationId/suggestions', chatMessageLimiter, chatbot.selectSuggestion);
 router.post('/conversations/:conversationId/escalate', chatbot.escalateConversation);
 router.post('/conversations/:conversationId/close', chatbot.closeConversation);
 
