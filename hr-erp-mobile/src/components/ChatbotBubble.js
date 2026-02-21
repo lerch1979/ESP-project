@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 
-export default function ChatbotBubble({ message }) {
+export default function ChatbotBubble({ message, onSuggestionPress, suggestionsEnabled }) {
   const { sender_type, message_type, content, metadata, created_at } = message;
 
   const isUser = sender_type === 'user';
@@ -27,6 +27,10 @@ export default function ChatbotBubble({ message }) {
     ? (typeof metadata === 'string' ? JSON.parse(metadata)?.options : metadata?.options)
     : null;
 
+  // Parse suggestions from metadata
+  const parsedMeta = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+  const suggestions = message_type === 'suggestions' ? (parsedMeta?.suggestions || []) : [];
+
   return (
     <View style={[styles.bubbleRow, isUser ? styles.userRow : styles.botRow]}>
       {/* Bot avatar */}
@@ -45,6 +49,32 @@ export default function ChatbotBubble({ message }) {
             <Text style={[styles.optionsHintText, isUser && { color: 'rgba(255,255,255,0.7)' }]}>
               {options.map(o => o.label).join(' | ')}
             </Text>
+          </View>
+        )}
+        {suggestions.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            {suggestions.map((s) => (
+              <TouchableOpacity
+                key={s.kb_id}
+                style={[styles.suggestionButton, !suggestionsEnabled && styles.suggestionButtonDisabled]}
+                onPress={() => suggestionsEnabled && onSuggestionPress?.(s)}
+                disabled={!suggestionsEnabled}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="help-circle-outline"
+                  size={16}
+                  color={suggestionsEnabled ? colors.info : colors.textLight}
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={[styles.suggestionText, !suggestionsEnabled && styles.suggestionTextDisabled]}
+                  numberOfLines={2}
+                >
+                  {s.question}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
         {time ? (
@@ -142,6 +172,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  // Suggestions
+  suggestionsContainer: {
+    marginTop: 8,
+    gap: 6,
+  },
+  suggestionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.info + '12',
+    borderWidth: 1,
+    borderColor: colors.info + '40',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  suggestionButtonDisabled: {
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.info,
+    lineHeight: 18,
+  },
+  suggestionTextDisabled: {
+    color: colors.textLight,
   },
   systemContainer: {
     alignItems: 'center',

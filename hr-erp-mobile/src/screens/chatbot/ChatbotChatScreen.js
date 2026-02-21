@@ -194,6 +194,35 @@ export default function ChatbotChatScreen({ route, navigation }) {
     }
   };
 
+  const handleSuggestionSelect = async (suggestion) => {
+    if (sending || !conversationId) return;
+    setSending(true);
+
+    const tempUserMsg = {
+      id: `temp-${Date.now()}`,
+      sender_type: 'user',
+      message_type: 'text',
+      content: suggestion.question,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, tempUserMsg]);
+
+    try {
+      const response = await chatbotAPI.selectSuggestion(conversationId, suggestion.kb_id);
+      if (response.success) {
+        setMessages(prev => {
+          const filtered = prev.filter(m => m.id !== tempUserMsg.id);
+          return [...filtered, response.data.userMessage, response.data.botMessage];
+        });
+      }
+    } catch (err) {
+      Alert.alert('Hiba', 'Nem sikerült feldolgozni a javaslatot');
+      setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleEscalate = () => {
     Alert.alert(
       'Beszélj emberrel',
@@ -250,6 +279,11 @@ export default function ChatbotChatScreen({ route, navigation }) {
     typeof lastBotOptions?.metadata === 'string' ? JSON.parse(lastBotOptions.metadata)?.options : null
   );
 
+  // Find the last bot message with suggestions
+  const lastBotSuggestions = messages.length > 0
+    ? [...messages].reverse().find(m => m.sender_type === 'bot' && m.message_type === 'suggestions')
+    : null;
+
   // Header buttons
   useEffect(() => {
     navigation.setOptions({
@@ -262,7 +296,13 @@ export default function ChatbotChatScreen({ route, navigation }) {
     });
   }, [conversationStatus, navigation]);
 
-  const renderMessage = ({ item }) => <ChatbotBubble message={item} />;
+  const renderMessage = ({ item }) => (
+    <ChatbotBubble
+      message={item}
+      onSuggestionPress={handleSuggestionSelect}
+      suggestionsEnabled={item.id === lastBotSuggestions?.id}
+    />
+  );
 
   if (loading) {
     return (
