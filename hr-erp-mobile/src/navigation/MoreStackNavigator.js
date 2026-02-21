@@ -35,7 +35,7 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="VideoList" component={VideoListScreen} options={{ title: 'Videók' }} />
       <Stack.Screen name="VideoDetail" component={VideoDetailScreen} options={{ title: 'Videó' }} />
       <Stack.Screen name="ChatbotList" component={ChatbotConversationListScreen} options={{ title: 'Chatbot' }} />
-      <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: 'Beszélgetés' }} />
+      <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: 'Chatbot Asszisztens' }} />
       <Stack.Screen name="ChatbotFaq" component={ChatbotFaqScreen} options={{ title: 'GYIK' }} />
     </Stack.Navigator>
   );

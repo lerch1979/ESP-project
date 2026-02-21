@@ -9,7 +9,8 @@ const menuItems = [
   { key: 'documents', icon: 'document-text-outline', label: 'Dokumentumok', screen: 'DocumentList' },
   { key: 'videos', icon: 'videocam-outline', label: 'Videók', screen: 'VideoList' },
   { key: 'googleCalendar', icon: 'logo-google', label: 'Google Naptár', screen: 'GoogleCalendar' },
-  { key: 'chatbot', icon: 'chatbubbles-outline', label: 'Chatbot', screen: 'ChatbotList' },
+  { key: 'chatbot', icon: 'chatbubbles-outline', label: 'Chatbot', screen: 'ChatbotChat' },
+  { key: 'chatbotHistory', icon: 'time-outline', label: 'Korábbi beszélgetések', screen: 'ChatbotList' },
   { key: 'faq', icon: 'help-circle-outline', label: 'GYIK', screen: 'ChatbotFaq' },
   { key: 'profile', icon: 'person-circle-outline', label: 'Profil', screen: 'Profile' },
 ];
