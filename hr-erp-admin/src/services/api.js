@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 // Base URL for static files (uploads) - strip /api/v1 suffix
 export const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api\/v\d+$/, '');

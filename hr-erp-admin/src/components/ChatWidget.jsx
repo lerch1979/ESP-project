@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
-import { Fab, Dialog, Slide } from '@mui/material';
+import { createPortal } from 'react-dom';
+import { Fab, Paper, Grow } from '@mui/material';
 import { SmartToy } from '@mui/icons-material';
 import ChatWindow from './ChatWindow';
-
-const SlideUp = React.forwardRef(function SlideUp(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
 
 function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -26,38 +23,28 @@ function ChatWidget() {
     setOpen(false);
   };
 
-  return (
+  return createPortal(
     <>
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        TransitionComponent={SlideUp}
-        keepMounted={false}
-        disableScrollLock
-        hideBackdrop
-        PaperProps={{
-          sx: {
+      <Grow in={open} mountOnEnter unmountOnExit>
+        <Paper
+          elevation={8}
+          onClick={(e) => e.stopPropagation()}
+          sx={{
             position: 'fixed',
             bottom: 90,
             right: 24,
-            m: 0,
             width: { xs: 'calc(100% - 16px)', sm: 380 },
-            maxWidth: 'none',
-            maxHeight: 'none',
             height: 520,
+            zIndex: 1300,
             borderRadius: 3,
             overflow: 'hidden',
-          },
-        }}
-        sx={{
-          '& .MuiDialog-container': {
-            alignItems: 'flex-end',
-            justifyContent: 'flex-end',
-          },
-        }}
-      >
-        <ChatWindow key={key} onClose={handleClose} />
-      </Dialog>
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <ChatWindow key={key} onClose={handleClose} />
+        </Paper>
+      </Grow>
 
       <Fab
         onClick={handleToggle}
@@ -76,7 +63,8 @@ function ChatWidget() {
       >
         <SmartToy />
       </Fab>
-    </>
+    </>,
+    document.body
   );
 }
 

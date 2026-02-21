@@ -35,11 +35,11 @@ function ChatWindow({ onClose }) {
     const initConversation = async () => {
       try {
         const response = await chatbotAPI.createConversation();
-        const conv = response.data?.conversation || response.data;
+        const conv = response.conversation || response;
         setConversationId(conv.id);
         // Load initial messages (welcome + FAQ categories)
         const msgResponse = await chatbotAPI.getMessages(conv.id);
-        setMessages(msgResponse.data?.messages || msgResponse.data || []);
+        setMessages(msgResponse.messages || msgResponse || []);
       } catch (error) {
         toast.error('Nem sikerült elindítani a beszélgetést');
       } finally {
@@ -68,7 +68,7 @@ function ChatWindow({ onClose }) {
 
     try {
       const response = await chatbotAPI.sendMessage(conversationId, content);
-      const botMessages = response.data?.messages || response.data || [];
+      const botMessages = response.messages || response || [];
       // Replace temp user msg + add bot response
       setMessages(prev => {
         const withoutTemp = prev.filter(m => m.id !== userMsg.id);
@@ -100,7 +100,7 @@ function ChatWindow({ onClose }) {
 
     try {
       const response = await chatbotAPI.sendMessage(conversationId, content);
-      const botMessages = response.data?.messages || response.data || [];
+      const botMessages = response.messages || response || [];
       setMessages(prev => {
         const withoutTemp = prev.filter(m => m.id !== userMsg.id);
         return [...withoutTemp, ...botMessages];
@@ -125,7 +125,7 @@ function ChatWindow({ onClose }) {
       await chatbotAPI.escalateConversation(conversationId);
       // Reload messages to show system escalation message
       const msgResponse = await chatbotAPI.getMessages(conversationId);
-      setMessages(msgResponse.data?.messages || msgResponse.data || []);
+      setMessages(msgResponse.messages || msgResponse || []);
       setConversationStatus('escalated');
       toast.success('Eszkaláció elküldve, hibajegy létrehozva');
     } catch (error) {
