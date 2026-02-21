@@ -121,7 +121,7 @@ async function matchKnowledgeBase(text, contractorId, contextKeywords) {
   );
 
   const bestMatch = result.rows[0];
-  if (bestMatch && bestMatch.combined_score >= threshold * 0.3) {
+  if (bestMatch && bestMatch.combined_score >= threshold * 0.8) {
     // Increment usage count
     await query(
       `UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`,
