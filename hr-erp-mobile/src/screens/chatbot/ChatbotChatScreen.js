@@ -364,7 +364,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyChat}>
             <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.textLight} />
-            <Text style={styles.emptyChatText}>Írjon üzenetet vagy válasszon témát!</Text>
+            <Text style={styles.emptyChatText}>Kezdd el a beszélgetést!</Text>
           </View>
         }
       />
@@ -404,7 +404,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           <TextInput
             ref={inputRef}
             style={styles.textInput}
-            placeholder="Írja be üzenetét..."
+            placeholder="Írj egy üzenetet..."
             placeholderTextColor={colors.textLight}
             value={inputText}
             onChangeText={setInputText}
