@@ -51,6 +51,7 @@ import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
+import ChatWidget from './ChatWidget';
 
 const drawerWidth = 260;
 
@@ -400,6 +401,8 @@ function Layout({ children }) {
       >
         {children}
       </Box>
+
+      <ChatWidget />
     </Box>
   );
 }
