@@ -29,6 +29,7 @@ const notificationCenterRoutes = require('./routes/notification-center.routes');
 const activityLogRoutes = require('./routes/activity-log.routes');
 const preferencesRoutes = require('./routes/preferences.routes');
 const scheduledReportRoutes = require('./routes/scheduled-report.routes');
+const chatbotRoutes = require('./routes/chatbot.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 
@@ -118,6 +119,7 @@ app.use(`${API_PREFIX}/notification-center`, notificationCenterRoutes);
 app.use(`${API_PREFIX}/activity-log`, activityLogRoutes);
 app.use(`${API_PREFIX}/preferences`, preferencesRoutes);
 app.use(`${API_PREFIX}/scheduled-reports`, scheduledReportRoutes);
+app.use(`${API_PREFIX}/chatbot`, chatbotRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);

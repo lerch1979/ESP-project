@@ -198,6 +198,10 @@ async function seed() {
       'organizational_units', 'cost_centers', 'projects',
       // Multi-tenant
       'contractors', 'tenants',
+      // Chatbot
+      'chatbot_messages', 'chatbot_conversations',
+      'chatbot_decision_nodes', 'chatbot_decision_trees',
+      'chatbot_knowledge_base', 'chatbot_faq_categories', 'chatbot_config',
       // Lookups
       'role_permissions', 'permissions', 'roles',
       'employee_status_types', 'ticket_statuses', 'priorities',
@@ -710,6 +714,181 @@ async function seed() {
     logStep('10/10', `${ticketDefs.length} minta ticket létrehozva.`);
 
     // ════════════════════════════════════════════════════════════════════════
+    // STEP 11: Chatbot seed data (if tables exist)
+    // ════════════════════════════════════════════════════════════════════════
+    const refreshedTables = await getExistingTables(client);
+    if (refreshedTables.has('chatbot_faq_categories')) {
+      logStep('11', 'Chatbot adatok létrehozása...');
+
+      // Truncate chatbot tables
+      const chatbotTables = [
+        'chatbot_messages', 'chatbot_conversations', 'chatbot_decision_nodes',
+        'chatbot_decision_trees', 'chatbot_knowledge_base', 'chatbot_faq_categories', 'chatbot_config',
+      ].filter(t => refreshedTables.has(t));
+      if (chatbotTables.length > 0) {
+        await client.query(`TRUNCATE TABLE ${chatbotTables.join(', ')} CASCADE`);
+      }
+
+      // FAQ Categories
+      const faqCategoryIds = {};
+      const faqCategoryDefs = [
+        { name: 'HR Kérdések', slug: 'hr', description: 'Munkaügyi és HR kérdések', icon: 'people', color: '#3b82f6', sort: 1 },
+        { name: 'Szállás', slug: 'szallas', description: 'Szállással kapcsolatos kérdések', icon: 'home', color: '#10b981', sort: 2 },
+        { name: 'Technikai', slug: 'technikai', description: 'Technikai és IT kérdések', icon: 'build', color: '#f59e0b', sort: 3 },
+        { name: 'Általános', slug: 'altalanos', description: 'Általános információk', icon: 'info', color: '#8b5cf6', sort: 4 },
+      ];
+
+      for (const cat of faqCategoryDefs) {
+        const res = await client.query(
+          `INSERT INTO chatbot_faq_categories (contractor_id, name, slug, description, icon, color, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [contractorId, cat.name, cat.slug, cat.description, cat.icon, cat.color, cat.sort]
+        );
+        faqCategoryIds[cat.slug] = res.rows[0].id;
+      }
+
+      // Knowledge Base entries
+      const kbDefs = [
+        {
+          category: 'hr',
+          question: 'Hogyan kérhetek szabadságot?',
+          answer: 'Szabadság kérelmét a felettesének kell benyújtania legalább 5 munkanappal előtte. Használja a Hibajegyek menüt, és válassza a HR kategóriát.',
+          keywords: ['szabadsag', 'szabadnap', 'pihenonap', 'holiday', 'vacation'],
+          priority: 5,
+        },
+        {
+          category: 'hr',
+          question: 'Mi a munkaidő beosztás?',
+          answer: 'A munkaidő beosztás a Naptár menüben található. Általában hétfőtől péntekig, 8:00-16:00 óráig. Műszakbeosztás esetén a vezető értesíti Önt.',
+          keywords: ['munkaid', 'muoszak', 'beosztas', 'ora', 'mikor', 'schedule'],
+          priority: 4,
+        },
+        {
+          category: 'szallas',
+          question: 'Hogyan jelenthetem a szálláson keletkezett hibát?',
+          answer: 'A szálláson észlelt hibákat a Hibajegyek menüben, Technikai kategóriában jelezheti. Kérjük, adjon részletes leírást és ha lehetséges, csatoljon fényképet.',
+          keywords: ['hiba', 'meghibasodas', 'elromlott', 'nem mukodik', 'szallas', 'javitas'],
+          priority: 5,
+        },
+        {
+          category: 'szallas',
+          question: 'Mik a szállás házirendjének főbb pontjai?',
+          answer: 'A szálláson tilos a dohányzás, az éjszakai csendháborítás (22:00-6:00), és a szobákba külső személyeket bevinni. Részletes házirendet a Dokumentumok menüben talál.',
+          keywords: ['hazirend', 'szabaly', 'dohany', 'csend', 'tilos', 'szallas'],
+          priority: 3,
+        },
+        {
+          category: 'technikai',
+          question: 'Hogyan csatlakozom a WiFi hálózathoz?',
+          answer: 'A WiFi hálózat neve: "HS-Guest". A jelszó a szálláson kihelyezett tájékoztatóban található, vagy kérdezze meg a szálláskezelőt.',
+          keywords: ['wifi', 'internet', 'halozat', 'jelszo', 'net', 'network'],
+          priority: 4,
+        },
+        {
+          category: 'technikai',
+          question: 'Nem tudok bejelentkezni az alkalmazásba',
+          answer: 'Ha bejelentkezési problémája van: 1) Ellenőrizze az email címet és jelszót 2) Próbálja meg a "Jelszó emlékeztető" funkciót 3) Ha továbbra sem sikerül, jelezze a problémát az adminisztrátornak.',
+          keywords: ['bejelentkezes', 'login', 'jelszo', 'nem tudok', 'belep', 'hozzaferes'],
+          priority: 5,
+        },
+        {
+          category: 'altalanos',
+          question: 'Hol találom a dokumentumaimat?',
+          answer: 'Az összes személyes dokumentumát (szerződés, igazolások) a Dokumentumok menüben érheti el. Ha valamely dokumentum hiányzik, jelezze az adminisztrátornak.',
+          keywords: ['dokumentum', 'irat', 'szerzodes', 'igazolas', 'papir'],
+          priority: 3,
+        },
+        {
+          category: 'altalanos',
+          question: 'Kihez fordulhatok sürgős esetben?',
+          answer: 'Sürgős esetben hívja az alábbi számokat: Szálláskezelő: +36 30 111 2233, Mentők: 104, Tűzoltók: 105, Rendőrség: 107.',
+          keywords: ['surgos', 'segitseg', 'veszely', 'baj', 'telefon', 'hivas', 'emergency'],
+          priority: 5,
+        },
+      ];
+
+      for (const kb of kbDefs) {
+        await client.query(
+          `INSERT INTO chatbot_knowledge_base (contractor_id, category_id, question, answer, keywords, priority)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [contractorId, faqCategoryIds[kb.category], kb.question, kb.answer, kb.keywords, kb.priority]
+        );
+      }
+
+      // Decision Tree: Szállási probléma bejelentés
+      const treeRes = await client.query(
+        `INSERT INTO chatbot_decision_trees (contractor_id, name, description, trigger_keywords)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [
+          contractorId,
+          'Szállási probléma bejelentés',
+          'Szállással kapcsolatos problémák bejelentésének lépésről-lépésre vezetése',
+          ['problema', 'bejelentes', 'hiba', 'szallas', 'panasz'],
+        ]
+      );
+      const treeId = treeRes.rows[0].id;
+
+      // Root node
+      const rootRes = await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, NULL, 'root', 'Milyen jellegű problémát szeretne bejelenteni?', 0) RETURNING id`,
+        [treeId]
+      );
+      const rootId = rootRes.rows[0].id;
+
+      // Option nodes under root
+      const opt1Res = await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, $2, 'option', 'Vízszerelés (csapok, csövek, WC)', 1) RETURNING id`,
+        [treeId, rootId]
+      );
+      const opt2Res = await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, $2, 'option', 'Villanyszerelés (áram, lámpa, konnektor)', 2) RETURNING id`,
+        [treeId, rootId]
+      );
+      const opt3Res = await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, $2, 'option', 'Fűtés / Klíma probléma', 3) RETURNING id`,
+        [treeId, rootId]
+      );
+
+      // Answer nodes under options
+      await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, $2, 'answer', 'Vízszerelési problémáját rögzítettük. Kérjük, zárja el a legközelebbi főcsapot, ha vízszivárgást észlel. Hibajegy automatikusan létrehozva, szervizünk 24 órán belül jelentkezik.', 0)`,
+        [treeId, opt1Res.rows[0].id]
+      );
+      await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, $2, 'answer', 'Villanyszerelési problémáját rögzítettük. Kérjük, ne nyúljon a hibás berendezéshez! Hibajegy automatikusan létrehozva, villanyszervizünk hamarosan jelentkezik.', 0)`,
+        [treeId, opt2Res.rows[0].id]
+      );
+      await client.query(
+        `INSERT INTO chatbot_decision_nodes (tree_id, parent_id, node_type, content, sort_order)
+         VALUES ($1, $2, 'answer', 'Fűtés/klíma problémáját rögzítettük. Kérjük, ellenőrizze a termosztát beállításait. Hibajegy automatikusan létrehozva, karbantartónk 48 órán belül orvossolja a problémát.', 0)`,
+        [treeId, opt3Res.rows[0].id]
+      );
+
+      // Bot Config
+      await client.query(
+        `INSERT INTO chatbot_config (contractor_id, welcome_message, fallback_message, escalation_message, keyword_threshold, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [
+          contractorId,
+          'Üdvözlöm! Miben segíthetek? Írja le kérdését, vagy válasszon az alábbi témák közül.',
+          'Sajnos nem találtam megfelelő választ a kérdésére. Szeretné, ha továbbítanám kérdését egy munkatársunknak?',
+          'Kérdését továbbítottam munkatársainknak. Hamarosan felvesszük Önnel a kapcsolatot egy hibajegyen keresztül.',
+          1,
+        ]
+      );
+
+      logStep('11', `${faqCategoryDefs.length} FAQ kategória, ${kbDefs.length} tudásbázis bejegyzés, 1 döntési fa, 1 bot konfiguráció létrehozva.`);
+    } else {
+      logStep('11', 'Chatbot táblák nem léteznek, chatbot seed kihagyva. Futtassa először: migrations/add_chatbot.sql');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // COMMIT
     // ════════════════════════════════════════════════════════════════════════
     await client.query('COMMIT');
@@ -741,6 +920,12 @@ async function seed() {
     console.log(`    Prioritások:         ${priorityDefs.length}`);
     console.log(`    Ticket kategóriák:   ${categoryDefs.length}`);
     console.log(`    Szerepkörök:         ${roleDefs.length}`);
+    if (refreshedTables.has('chatbot_faq_categories')) {
+      console.log(`    GYIK kategóriák:     4`);
+      console.log(`    Tudásbázis:          8`);
+      console.log(`    Döntési fák:         1`);
+      console.log(`    Bot konfiguráció:    1`);
+    }
     console.log('════════════════════════════════════════════════════');
 
   } catch (error) {

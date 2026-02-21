@@ -20,6 +20,13 @@ import OccupancyReports from './pages/OccupancyReports';
 import ActivityLog from './pages/ActivityLog';
 import ScheduledReports from './pages/ScheduledReports';
 import EmailTemplates from './pages/EmailTemplates';
+import ChatbotKnowledgeBase from './pages/ChatbotKnowledgeBase';
+import ChatbotDecisionTrees from './pages/ChatbotDecisionTrees';
+import ChatbotFaqCategories from './pages/ChatbotFaqCategories';
+import ChatbotConversations from './pages/ChatbotConversations';
+import ChatbotConversationDetail from './pages/ChatbotConversationDetail';
+import ChatbotAnalytics from './pages/ChatbotAnalytics';
+import ChatbotConfig from './pages/ChatbotConfig';
 import PrivateRoute from './components/PrivateRoute';
 import InstallPrompt from './components/InstallPrompt';
 
@@ -59,6 +66,13 @@ function App() {
           <Route path="activity-log" element={<ActivityLog />} />
           <Route path="reports/scheduled" element={<ScheduledReports />} />
           <Route path="email-templates" element={<EmailTemplates />} />
+          <Route path="chatbot/knowledge-base" element={<ChatbotKnowledgeBase />} />
+          <Route path="chatbot/decision-trees" element={<ChatbotDecisionTrees />} />
+          <Route path="chatbot/faq-categories" element={<ChatbotFaqCategories />} />
+          <Route path="chatbot/conversations" element={<ChatbotConversations />} />
+          <Route path="chatbot/conversations/:conversationId" element={<ChatbotConversationDetail />} />
+          <Route path="chatbot/analytics" element={<ChatbotAnalytics />} />
+          <Route path="chatbot/config" element={<ChatbotConfig />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -9,6 +9,9 @@ import ProfileScreen from '../screens/more/ProfileScreen';
 import GoogleCalendarScreen from '../screens/more/GoogleCalendarScreen';
 import VideoListScreen from '../screens/more/VideoListScreen';
 import VideoDetailScreen from '../screens/more/VideoDetailScreen';
+import ChatbotConversationListScreen from '../screens/chatbot/ChatbotConversationListScreen';
+import ChatbotChatScreen from '../screens/chatbot/ChatbotChatScreen';
+import ChatbotFaqScreen from '../screens/chatbot/ChatbotFaqScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -31,6 +34,9 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="GoogleCalendar" component={GoogleCalendarScreen} options={{ title: 'Google Naptár' }} />
       <Stack.Screen name="VideoList" component={VideoListScreen} options={{ title: 'Videók' }} />
       <Stack.Screen name="VideoDetail" component={VideoDetailScreen} options={{ title: 'Videó' }} />
+      <Stack.Screen name="ChatbotList" component={ChatbotConversationListScreen} options={{ title: 'Chatbot' }} />
+      <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: 'Beszélgetés' }} />
+      <Stack.Screen name="ChatbotFaq" component={ChatbotFaqScreen} options={{ title: 'GYIK' }} />
     </Stack.Navigator>
   );
 }

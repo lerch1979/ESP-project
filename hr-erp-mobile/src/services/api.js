@@ -311,4 +311,40 @@ export const videosAPI = {
   },
 };
 
+// Chatbot API (Tier 1 - user endpoints only)
+export const chatbotAPI = {
+  createConversation: async (data = {}) => {
+    const response = await api.post('/chatbot/conversations', data);
+    return response.data;
+  },
+  getConversations: async (params = {}) => {
+    const response = await api.get('/chatbot/conversations', { params });
+    return response.data;
+  },
+  getMessages: async (conversationId) => {
+    const response = await api.get(`/chatbot/conversations/${conversationId}/messages`);
+    return response.data;
+  },
+  sendMessage: async (conversationId, content) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/messages`, { content });
+    return response.data;
+  },
+  escalateConversation: async (conversationId) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/escalate`);
+    return response.data;
+  },
+  closeConversation: async (conversationId) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/close`);
+    return response.data;
+  },
+  getFaqCategories: async () => {
+    const response = await api.get('/chatbot/faq/categories');
+    return response.data;
+  },
+  getFaqEntries: async (params = {}) => {
+    const response = await api.get('/chatbot/faq/entries', { params });
+    return response.data;
+  },
+};
+
 export default api;

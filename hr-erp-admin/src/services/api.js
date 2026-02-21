@@ -646,4 +646,133 @@ export const preferencesAPI = {
   },
 };
 
+// Chatbot API
+export const chatbotAPI = {
+  // Tier 1 - User
+  createConversation: async (data = {}) => {
+    const response = await api.post('/chatbot/conversations', data);
+    return response.data;
+  },
+  getConversations: async (params = {}) => {
+    const response = await api.get('/chatbot/conversations', { params });
+    return response.data;
+  },
+  getMessages: async (conversationId) => {
+    const response = await api.get(`/chatbot/conversations/${conversationId}/messages`);
+    return response.data;
+  },
+  sendMessage: async (conversationId, content) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/messages`, { content });
+    return response.data;
+  },
+  escalateConversation: async (conversationId) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/escalate`);
+    return response.data;
+  },
+  closeConversation: async (conversationId) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/close`);
+    return response.data;
+  },
+  getFaqCategories: async () => {
+    const response = await api.get('/chatbot/faq/categories');
+    return response.data;
+  },
+  getFaqEntries: async (params = {}) => {
+    const response = await api.get('/chatbot/faq/entries', { params });
+    return response.data;
+  },
+
+  // Tier 2 - Admin
+  adminGetConversations: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/conversations', { params });
+    return response.data;
+  },
+  adminGetConversationDetail: async (conversationId) => {
+    const response = await api.get(`/chatbot/admin/conversations/${conversationId}`);
+    return response.data;
+  },
+  getKnowledgeBase: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/knowledge-base', { params });
+    return response.data;
+  },
+  createKnowledgeBaseEntry: async (data) => {
+    const response = await api.post('/chatbot/admin/knowledge-base', data);
+    return response.data;
+  },
+  updateKnowledgeBaseEntry: async (id, data) => {
+    const response = await api.put(`/chatbot/admin/knowledge-base/${id}`, data);
+    return response.data;
+  },
+  deleteKnowledgeBaseEntry: async (id) => {
+    const response = await api.delete(`/chatbot/admin/knowledge-base/${id}`);
+    return response.data;
+  },
+  getAnalytics: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/analytics', { params });
+    return response.data;
+  },
+
+  // Tier 3 - Superadmin
+  getDecisionTrees: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/decision-trees', { params });
+    return response.data;
+  },
+  getDecisionTree: async (id) => {
+    const response = await api.get(`/chatbot/admin/decision-trees/${id}`);
+    return response.data;
+  },
+  createDecisionTree: async (data) => {
+    const response = await api.post('/chatbot/admin/decision-trees', data);
+    return response.data;
+  },
+  updateDecisionTree: async (id, data) => {
+    const response = await api.put(`/chatbot/admin/decision-trees/${id}`, data);
+    return response.data;
+  },
+  deleteDecisionTree: async (id) => {
+    const response = await api.delete(`/chatbot/admin/decision-trees/${id}`);
+    return response.data;
+  },
+  createDecisionNode: async (data) => {
+    const response = await api.post('/chatbot/admin/decision-nodes', data);
+    return response.data;
+  },
+  updateDecisionNode: async (id, data) => {
+    const response = await api.put(`/chatbot/admin/decision-nodes/${id}`, data);
+    return response.data;
+  },
+  deleteDecisionNode: async (id) => {
+    const response = await api.delete(`/chatbot/admin/decision-nodes/${id}`);
+    return response.data;
+  },
+  adminGetFaqCategories: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/faq-categories', { params });
+    return response.data;
+  },
+  createFaqCategory: async (data) => {
+    const response = await api.post('/chatbot/admin/faq-categories', data);
+    return response.data;
+  },
+  updateFaqCategory: async (id, data) => {
+    const response = await api.put(`/chatbot/admin/faq-categories/${id}`, data);
+    return response.data;
+  },
+  deleteFaqCategory: async (id) => {
+    const response = await api.delete(`/chatbot/admin/faq-categories/${id}`);
+    return response.data;
+  },
+  getConfig: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/config', { params });
+    return response.data;
+  },
+  updateConfig: async (data) => {
+    const response = await api.put('/chatbot/admin/config', data);
+    return response.data;
+  },
+  getGlobalAnalytics: async () => {
+    const response = await api.get('/chatbot/admin/analytics/global');
+    return response.data;
+  },
+};
+
 export default api;

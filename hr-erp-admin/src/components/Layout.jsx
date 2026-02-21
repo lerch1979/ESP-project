@@ -40,6 +40,12 @@ import {
   ExpandMore,
   Menu as MenuIcon,
   Email as EmailIcon,
+  SmartToy as SmartToyIcon,
+  QuestionAnswer as QuestionAnswerIcon,
+  AccountTree as AccountTreeIcon,
+  Category as CategoryIcon,
+  Chat as ChatIcon,
+  BarChart as BarChartIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -68,6 +74,16 @@ const menuItems = [
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates' },
+  {
+    text: 'Chatbot', icon: <SmartToyIcon />, children: [
+      { text: 'Tudásbázis', icon: <QuestionAnswerIcon />, path: '/chatbot/knowledge-base' },
+      { text: 'Döntési fák', icon: <AccountTreeIcon />, path: '/chatbot/decision-trees' },
+      { text: 'GYIK Kategóriák', icon: <CategoryIcon />, path: '/chatbot/faq-categories' },
+      { text: 'Beszélgetések', icon: <ChatIcon />, path: '/chatbot/conversations' },
+      { text: 'Analitika', icon: <BarChartIcon />, path: '/chatbot/analytics' },
+      { text: 'Konfiguráció', icon: <SmartToyIcon />, path: '/chatbot/config' },
+    ],
+  },
 ];
 
 // Helper: collect all paths (including children) for AppBar title lookup
