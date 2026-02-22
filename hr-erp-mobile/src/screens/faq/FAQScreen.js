@@ -75,8 +75,15 @@ export default function FAQScreen() {
   }, [filteredEntries]);
 
   const visibleCategories = useMemo(() => {
-    if (!search.trim()) return categories;
-    return categories.filter((cat) => entriesByCategory[cat.id]?.length > 0);
+    const base = search.trim()
+      ? categories.filter((cat) => entriesByCategory[cat.id]?.length > 0)
+      : categories;
+
+    // Add "Egyéb" pseudo-category for entries without a category
+    if (entriesByCategory['uncategorized']?.length > 0) {
+      return [...base, { id: 'uncategorized', name: 'Egyéb', icon: 'help', color: '#94a3b8' }];
+    }
+    return base;
   }, [categories, entriesByCategory, search]);
 
   const toggleCategory = (categoryId) => {
