@@ -317,17 +317,23 @@ async function startTree(conversationId, treeId) {
 // ─── FAQ browsing (with caching) ────────────────────────────────────────────
 
 async function getFaqCategories(contractorId) {
-  const cacheKey = `faq_categories_${contractorId}`;
+  const cacheKey = `faq_categories_${contractorId || 'all'}`;
   const cached = faqCategoryCache.get(cacheKey);
   if (cached) return cached;
 
-  const result = await query(
-    `SELECT id, name, slug, description, icon, color, sort_order
+  let sql = `SELECT id, name, slug, description, icon, color, sort_order
      FROM chatbot_faq_categories
-     WHERE contractor_id = $1 AND is_active = true
-     ORDER BY sort_order, name`,
-    [contractorId]
-  );
+     WHERE is_active = true`;
+  const params = [];
+
+  if (contractorId) {
+    sql += ` AND contractor_id = $1`;
+    params.push(contractorId);
+  }
+
+  sql += ` ORDER BY sort_order, name`;
+
+  const result = await query(sql, params);
 
   faqCategoryCache.set(cacheKey, result.rows);
   return result.rows;
@@ -338,12 +344,18 @@ function invalidateFaqCategoryCache(contractorId) {
 }
 
 async function getFaqEntries(contractorId, categoryId, search) {
-  let sql = `SELECT kb.id, kb.question, kb.answer, kb.keywords, fc.name as category_name
+  let sql = `SELECT kb.id, kb.question, kb.answer, kb.keywords, kb.category_id, fc.name as category_name
              FROM chatbot_knowledge_base kb
              LEFT JOIN chatbot_faq_categories fc ON kb.category_id = fc.id
-             WHERE kb.contractor_id = $1 AND kb.is_active = true`;
-  const params = [contractorId];
-  let idx = 2;
+             WHERE kb.is_active = true`;
+  const params = [];
+  let idx = 1;
+
+  if (contractorId) {
+    sql += ` AND kb.contractor_id = $${idx}`;
+    params.push(contractorId);
+    idx++;
+  }
 
   if (categoryId) {
     sql += ` AND kb.category_id = $${idx}`;

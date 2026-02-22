@@ -4,7 +4,13 @@ const rateLimit = require('express-rate-limit');
 const { authenticateToken, requireRole, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 const chatbot = require('../controllers/chatbot.controller');
 
-// All chatbot routes require authentication
+// ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC: FAQ browsing (no auth required)
+// ═══════════════════════════════════════════════════════════════════════════
+router.get('/faq/categories', chatbot.getUserFaqCategories);
+router.get('/faq/entries', chatbot.getUserFaqEntries);
+
+// All remaining chatbot routes require authentication
 router.use(authenticateToken);
 
 // Rate limiter for chat messages: 10 messages/minute per user
@@ -29,10 +35,6 @@ router.post('/conversations/:conversationId/messages', chatMessageLimiter, chatb
 router.post('/conversations/:conversationId/suggestions', chatMessageLimiter, chatbot.selectSuggestion);
 router.post('/conversations/:conversationId/escalate', chatbot.escalateConversation);
 router.post('/conversations/:conversationId/close', chatbot.closeConversation);
-
-// FAQ browsing
-router.get('/faq/categories', chatbot.getUserFaqCategories);
-router.get('/faq/entries', chatbot.getUserFaqEntries);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIER 2: Operator endpoints

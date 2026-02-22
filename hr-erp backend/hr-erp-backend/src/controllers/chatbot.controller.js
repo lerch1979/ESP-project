@@ -254,7 +254,7 @@ const closeConversation = async (req, res) => {
 
 const getUserFaqCategories = async (req, res) => {
   try {
-    const contractorId = req.user.contractorId;
+    const contractorId = req.user?.contractorId;
     const categories = await chatbotService.getFaqCategories(contractorId);
     res.json({ success: true, data: categories });
   } catch (error) {
@@ -265,7 +265,7 @@ const getUserFaqCategories = async (req, res) => {
 
 const getUserFaqEntries = async (req, res) => {
   try {
-    const contractorId = req.user.contractorId;
+    const contractorId = req.user?.contractorId;
     const { category_id, search } = req.query;
     const entries = await chatbotService.getFaqEntries(contractorId, category_id, search);
     res.json({ success: true, data: entries });
