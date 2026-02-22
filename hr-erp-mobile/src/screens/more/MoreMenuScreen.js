@@ -11,7 +11,7 @@ const menuItems = [
   { key: 'googleCalendar', icon: 'logo-google', label: 'Google Naptár', screen: 'GoogleCalendar' },
   { key: 'chatbot', icon: 'chatbubbles-outline', label: 'Chatbot', screen: 'ChatbotChat' },
   { key: 'chatbotHistory', icon: 'time-outline', label: 'Korábbi beszélgetések', screen: 'ChatbotList' },
-  { key: 'faq', icon: 'help-circle-outline', label: 'GYIK', screen: 'ChatbotFaq' },
+  { key: 'faq', icon: 'help-circle-outline', label: 'FAQ / GYIK', screen: 'FAQ' },
   { key: 'profile', icon: 'person-circle-outline', label: 'Profil', screen: 'Profile' },
 ];
 

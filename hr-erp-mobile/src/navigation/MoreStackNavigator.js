@@ -12,6 +12,7 @@ import VideoDetailScreen from '../screens/more/VideoDetailScreen';
 import ChatbotConversationListScreen from '../screens/chatbot/ChatbotConversationListScreen';
 import ChatbotChatScreen from '../screens/chatbot/ChatbotChatScreen';
 import ChatbotFaqScreen from '../screens/chatbot/ChatbotFaqScreen';
+import FAQScreen from '../screens/faq/FAQScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -37,6 +38,7 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="ChatbotList" component={ChatbotConversationListScreen} options={{ title: 'Chatbot' }} />
       <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: 'Chatbot Asszisztens' }} />
       <Stack.Screen name="ChatbotFaq" component={ChatbotFaqScreen} options={{ title: 'GYIK' }} />
+      <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'FAQ / GYIK' }} />
     </Stack.Navigator>
   );
 }
