@@ -46,12 +46,13 @@ import {
   Category as CategoryIcon,
   Chat as ChatIcon,
   BarChart as BarChartIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
-import ChatWidget from './ChatWidget';
+
 
 const drawerWidth = 260;
 
@@ -72,6 +73,7 @@ const menuItems = [
   { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log' },
   { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos' },
+  { text: 'FAQ', icon: <HelpOutlineIcon />, path: '/faq' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates' },
@@ -402,7 +404,6 @@ function Layout({ children }) {
         {children}
       </Box>
 
-      <ChatWidget />
     </Box>
   );
 }
