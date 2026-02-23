@@ -19,6 +19,7 @@ import {
   TextSnippet as TextSnippetIcon,
   VideoLibrary as VideoLibraryIcon,
   SupportAgent as SupportAgentIcon,
+  ReportProblem as ReportProblemIcon,
 } from '@mui/icons-material';
 import { chatbotAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -51,13 +52,21 @@ function FAQ() {
     }
   };
 
+  const normalize = (str) =>
+    (str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[-_\s]/g, '');
+
   const filteredEntries = useMemo(() => {
     if (!search.trim()) return entries;
-    const lower = search.toLowerCase();
+    const searchNormalized = normalize(search);
     return entries.filter(
       (e) =>
-        (e.question && e.question.toLowerCase().includes(lower)) ||
-        (e.answer && e.answer.toLowerCase().includes(lower))
+        normalize(e.question).includes(searchNormalized) ||
+        normalize(e.answer).includes(searchNormalized) ||
+        (e.keywords && e.keywords.some((kw) => normalize(kw).includes(searchNormalized)))
     );
   }, [entries, search]);
 
@@ -112,14 +121,32 @@ function FAQ() {
         </Box>
       ) : visibleCategories.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
+          <ReportProblemIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 1 }} />
           <Typography variant="h6" color="text.secondary">
-            {search ? 'Nincs találat' : 'Nincsenek FAQ bejegyzések'}
+            {search ? 'Nem találtunk választ a keresésedre.' : 'Nincsenek FAQ bejegyzések'}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
             {search
-              ? 'Próbáljon más keresési feltételeket'
-              : 'Még nincsenek GYIK kérdések felvéve'}
+              ? 'Próbáld meg más kulcsszavakkal, vagy nyiss hibajegyet.'
+              : 'Még nincsenek GYIK kérdések felvéve.'}
           </Typography>
+          {search && (
+            <Button
+              variant="contained"
+              startIcon={<SupportAgentIcon />}
+              onClick={() => navigate('/tickets')}
+              sx={{
+                bgcolor: '#2563eb',
+                '&:hover': { bgcolor: '#1d4ed8' },
+                px: 4,
+                py: 1.2,
+                borderRadius: 2,
+                fontWeight: 600,
+              }}
+            >
+              Hibajegy nyitása
+            </Button>
+          )}
         </Box>
       ) : (
         <Box>
@@ -225,12 +252,11 @@ function FAQ() {
       {/* Bottom CTA */}
       <Box sx={{ textAlign: 'center', mt: 4, mb: 2 }}>
         <Button
-          variant="contained"
-          startIcon={<SupportAgentIcon />}
+          variant="outlined"
+          color="secondary"
+          startIcon={<ReportProblemIcon />}
           onClick={() => navigate('/tickets')}
           sx={{
-            bgcolor: '#2563eb',
-            '&:hover': { bgcolor: '#1d4ed8' },
             px: 4,
             py: 1.2,
             borderRadius: 2,
