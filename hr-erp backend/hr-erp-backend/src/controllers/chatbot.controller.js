@@ -534,6 +534,49 @@ const updateKnowledgeBaseEntry = async (req, res) => {
   }
 };
 
+const bulkActionKnowledgeBase = async (req, res) => {
+  try {
+    const { action, ids, category_id, is_active } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'ids tömb megadása kötelező' });
+    }
+    if (!action) {
+      return res.status(400).json({ success: false, message: 'action megadása kötelező' });
+    }
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+
+    switch (action) {
+      case 'delete':
+        await query(`DELETE FROM chatbot_knowledge_base WHERE id IN (${placeholders})`, ids);
+        break;
+      case 'activate':
+        await query(`UPDATE chatbot_knowledge_base SET is_active = true WHERE id IN (${placeholders})`, ids);
+        break;
+      case 'deactivate':
+        await query(`UPDATE chatbot_knowledge_base SET is_active = false WHERE id IN (${placeholders})`, ids);
+        break;
+      case 'change_category':
+        if (!category_id) {
+          return res.status(400).json({ success: false, message: 'category_id megadása kötelező' });
+        }
+        await query(
+          `UPDATE chatbot_knowledge_base SET category_id = $${ids.length + 1} WHERE id IN (${placeholders})`,
+          [...ids, category_id]
+        );
+        break;
+      default:
+        return res.status(400).json({ success: false, message: 'Érvénytelen művelet' });
+    }
+
+    res.json({ success: true, message: `Tömeges művelet (${action}) végrehajtva: ${ids.length} bejegyzés` });
+  } catch (error) {
+    logger.error('Error bulk action KB:', error);
+    res.status(500).json({ success: false, message: 'Hiba a tömeges művelet közben' });
+  }
+};
+
 const deleteKnowledgeBaseEntry = async (req, res) => {
   try {
     const { id } = req.params;
@@ -899,6 +942,32 @@ const updateFaqCategory = async (req, res) => {
   }
 };
 
+const reorderFaqCategories = async (req, res) => {
+  try {
+    const { orderedIds } = req.body;
+
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'orderedIds tömb megadása kötelező' });
+    }
+
+    await transaction(async (client) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await client.query(
+          `UPDATE chatbot_faq_categories SET sort_order = $1 WHERE id = $2`,
+          [i, orderedIds[i]]
+        );
+      }
+    });
+
+    chatbotService.invalidateFaqCategoryCache(req.user.contractorId);
+
+    res.json({ success: true, message: 'Sorrend frissítve' });
+  } catch (error) {
+    logger.error('Error reordering FAQ categories:', error);
+    res.status(500).json({ success: false, message: 'Hiba a sorrend frissítése közben' });
+  }
+};
+
 const deleteFaqCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1039,6 +1108,7 @@ module.exports = {
   createKnowledgeBaseEntry,
   updateKnowledgeBaseEntry,
   deleteKnowledgeBaseEntry,
+  bulkActionKnowledgeBase,
   getAnalytics,
   // Tier 3
   getDecisionTrees,
@@ -1053,6 +1123,7 @@ module.exports = {
   createFaqCategory,
   updateFaqCategory,
   deleteFaqCategory,
+  reorderFaqCategories,
   getConfig,
   updateConfig,
   getGlobalAnalytics,

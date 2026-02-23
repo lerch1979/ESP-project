@@ -25,6 +25,8 @@ import EmailTemplates from './pages/EmailTemplates';
 import AdminUsers from './pages/admin/Users';
 import AdminUserPermissions from './pages/admin/UserPermissions';
 import AdminRoles from './pages/admin/Roles';
+import AdminFAQCategories from './pages/admin/FAQCategories';
+import AdminFAQKnowledgeBase from './pages/admin/FAQKnowledgeBase';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -70,6 +72,8 @@ function App() {
             <Route path="admin/users" element={<PermissionGuard permission="users.manage_permissions"><AdminUsers /></PermissionGuard>} />
             <Route path="admin/users/:id/permissions" element={<PermissionGuard permission="users.manage_permissions"><AdminUserPermissions /></PermissionGuard>} />
             <Route path="admin/roles" element={<PermissionGuard permission="users.manage_permissions"><AdminRoles /></PermissionGuard>} />
+            <Route path="admin/faq-categories" element={<PermissionGuard permission="faq.edit"><AdminFAQCategories /></PermissionGuard>} />
+            <Route path="admin/faq-knowledge-base" element={<PermissionGuard permission="faq.edit"><AdminFAQKnowledgeBase /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

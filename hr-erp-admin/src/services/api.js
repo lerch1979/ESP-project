@@ -707,6 +707,10 @@ export const chatbotAPI = {
     const response = await api.delete(`/chatbot/admin/knowledge-base/${id}`);
     return response.data;
   },
+  bulkActionKnowledgeBase: async (action, ids, data = {}) => {
+    const response = await api.post('/chatbot/admin/knowledge-base/bulk-action', { action, ids, ...data });
+    return response.data;
+  },
   getAnalytics: async (params = {}) => {
     const response = await api.get('/chatbot/admin/analytics', { params });
     return response.data;
@@ -759,6 +763,14 @@ export const chatbotAPI = {
   },
   deleteFaqCategory: async (id) => {
     const response = await api.delete(`/chatbot/admin/faq-categories/${id}`);
+    return response.data;
+  },
+  reorderFaqCategories: async (orderedIds) => {
+    const response = await api.put('/chatbot/admin/faq-categories/reorder', { orderedIds });
+    return response.data;
+  },
+  toggleFaqCategoryActive: async (id, is_active) => {
+    const response = await api.put(`/chatbot/admin/faq-categories/${id}`, { is_active });
     return response.data;
   },
   getConfig: async (params = {}) => {

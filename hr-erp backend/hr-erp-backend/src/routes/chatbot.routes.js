@@ -47,6 +47,7 @@ router.get('/admin/analytics', requireRole(['admin', 'task_owner', 'superadmin',
 // Knowledge Base (admin+)
 router.get('/admin/knowledge-base', requireAdmin, chatbot.getKnowledgeBase);
 router.post('/admin/knowledge-base', requireAdmin, chatbot.createKnowledgeBaseEntry);
+router.post('/admin/knowledge-base/bulk-action', requireAdmin, chatbot.bulkActionKnowledgeBase);
 router.put('/admin/knowledge-base/:id', requireAdmin, chatbot.updateKnowledgeBaseEntry);
 router.delete('/admin/knowledge-base/:id', requireAdmin, chatbot.deleteKnowledgeBaseEntry);
 
@@ -69,6 +70,7 @@ router.delete('/admin/decision-nodes/:id', requireAdmin, chatbot.deleteDecisionN
 // FAQ Categories
 router.get('/admin/faq-categories', requireAdmin, chatbot.getFaqCategories);
 router.post('/admin/faq-categories', requireAdmin, chatbot.createFaqCategory);
+router.put('/admin/faq-categories/reorder', requireAdmin, chatbot.reorderFaqCategories);
 router.put('/admin/faq-categories/:id', requireAdmin, chatbot.updateFaqCategory);
 router.delete('/admin/faq-categories/:id', requireAdmin, chatbot.deleteFaqCategory);
 

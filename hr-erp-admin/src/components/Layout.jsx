@@ -93,6 +93,12 @@ const allMenuItems = [
     ],
   },
   {
+    text: 'FAQ Kezelés', icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [
+      { text: 'FAQ Kategóriák', icon: <CategoryIcon />, path: '/admin/faq-categories', permission: 'faq.edit' },
+      { text: 'Tudásanyag', icon: <QuestionAnswerIcon />, path: '/admin/faq-knowledge-base', permission: 'faq.edit' },
+    ],
+  },
+  {
     text: 'Adminisztráció', icon: <AdminPanelSettingsIcon />, permission: 'users.manage_permissions', children: [
       { text: 'Felhasználók', icon: <ManageAccountsIcon />, path: '/admin/users', permission: 'users.manage_permissions' },
       { text: 'Szerepkörök', icon: <ShieldIcon />, path: '/admin/roles', permission: 'users.manage_permissions' },
