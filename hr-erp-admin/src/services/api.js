@@ -775,4 +775,70 @@ export const chatbotAPI = {
   },
 };
 
+// Users API
+export const usersAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/users', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/users', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/users/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  },
+
+  updateRole: async (id, roleId) => {
+    const response = await api.put(`/users/${id}/role`, { roleId });
+    return response.data;
+  },
+};
+
+// Permissions API
+export const permissionsAPI = {
+  getAll: async () => {
+    const response = await api.get('/permissions');
+    return response.data;
+  },
+
+  getRoles: async () => {
+    const response = await api.get('/permissions/roles');
+    return response.data;
+  },
+
+  createRole: async (data) => {
+    const response = await api.post('/permissions/roles', data);
+    return response.data;
+  },
+
+  updateRolePermissions: async (roleId, permissions) => {
+    const response = await api.put(`/permissions/roles/${roleId}/permissions`, { permissions });
+    return response.data;
+  },
+
+  getUserPermissions: async (userId) => {
+    const response = await api.get(`/permissions/users/${userId}`);
+    return response.data;
+  },
+
+  updateUserPermissions: async (userId, permissions) => {
+    const response = await api.put(`/permissions/users/${userId}`, { permissions });
+    return response.data;
+  },
+};
+
 export default api;

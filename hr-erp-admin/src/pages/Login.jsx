@@ -11,10 +11,12 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
 function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,12 +29,11 @@ function Login() {
 
     try {
       const response = await authAPI.login(email, password);
-      
+
       if (response.success) {
-        // Token és user adatok mentése
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        
+        // Store in AuthContext (which also persists to localStorage)
+        login(response.data.user, response.data.token, response.data.refreshToken);
+
         toast.success('Sikeres bejelentkezés!');
         navigate('/dashboard');
       } else {

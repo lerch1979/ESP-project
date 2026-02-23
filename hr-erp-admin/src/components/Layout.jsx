@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   MenuItem,
   useTheme,
   useMediaQuery,
+  Chip,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -48,49 +49,50 @@ import {
   BarChart as BarChartIcon,
   HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
-import { authAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import { useAuth } from '../contexts/AuthContext';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
 
 
 const drawerWidth = 260;
 
-const menuItems = [
-  { text: 'Kezdőlap', icon: <HomeIcon />, path: '/dashboard' },
-  { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets' },
-  { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees' },
-  { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors' },
-  { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations' },
-  { text: 'Dokumentumok', icon: <DescriptionIcon />, path: '/documents' },
+// Menu items with required permissions
+const allMenuItems = [
+  { text: 'Kezdőlap', icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
+  { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets', permission: 'tickets.view' },
+  { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
+  { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
+  { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
+  { text: 'Dokumentumok', icon: <DescriptionIcon />, path: '/documents', permission: 'documents.view' },
   {
-    text: 'Riportok', icon: <AssessmentIcon />, children: [
-      { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports' },
-      { text: 'Kihasználtság', icon: <HotelIcon />, path: '/reports/occupancy' },
-      { text: 'Ütemezett riportok', icon: <ScheduleIcon />, path: '/reports/scheduled' },
+    text: 'Riportok', icon: <AssessmentIcon />, permission: 'reports.view', children: [
+      { text: 'Riportok', icon: <AssessmentIcon />, path: '/reports', permission: 'reports.view' },
+      { text: 'Kihasználtság', icon: <HotelIcon />, path: '/reports/occupancy', permission: 'reports.view' },
+      { text: 'Ütemezett riportok', icon: <ScheduleIcon />, path: '/reports/scheduled', permission: 'reports.schedule' },
     ],
   },
-  { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log' },
-  { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar' },
-  { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos' },
-  { text: 'FAQ', icon: <HelpOutlineIcon />, path: '/faq' },
-  { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users' },
-  { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings' },
-  { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates' },
+  { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log', permission: 'settings.view' },
+  { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar', permission: 'calendar.view' },
+  { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos', permission: 'videos.view' },
+  { text: 'FAQ', icon: <HelpOutlineIcon />, path: '/faq', permission: 'faq.view' },
+  { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
+  { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
+  { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },
   {
-    text: 'Chatbot', icon: <SmartToyIcon />, children: [
-      { text: 'Tudásbázis', icon: <QuestionAnswerIcon />, path: '/chatbot/knowledge-base' },
-      { text: 'Döntési fák', icon: <AccountTreeIcon />, path: '/chatbot/decision-trees' },
-      { text: 'GYIK Kategóriák', icon: <CategoryIcon />, path: '/chatbot/faq-categories' },
-      { text: 'Beszélgetések', icon: <ChatIcon />, path: '/chatbot/conversations' },
-      { text: 'Analitika', icon: <BarChartIcon />, path: '/chatbot/analytics' },
-      { text: 'Konfiguráció', icon: <SmartToyIcon />, path: '/chatbot/config' },
+    text: 'Chatbot', icon: <SmartToyIcon />, permission: 'faq.edit', children: [
+      { text: 'Tudásbázis', icon: <QuestionAnswerIcon />, path: '/chatbot/knowledge-base', permission: 'faq.edit' },
+      { text: 'Döntési fák', icon: <AccountTreeIcon />, path: '/chatbot/decision-trees', permission: 'faq.edit' },
+      { text: 'GYIK Kategóriák', icon: <CategoryIcon />, path: '/chatbot/faq-categories', permission: 'faq.edit' },
+      { text: 'Beszélgetések', icon: <ChatIcon />, path: '/chatbot/conversations', permission: 'faq.edit' },
+      { text: 'Analitika', icon: <BarChartIcon />, path: '/chatbot/analytics', permission: 'faq.edit' },
+      { text: 'Konfiguráció', icon: <SmartToyIcon />, path: '/chatbot/config', permission: 'faq.edit' },
     ],
   },
 ];
 
 // Helper: collect all paths (including children) for AppBar title lookup
-const allMenuPaths = menuItems.flatMap(item =>
+const allMenuPaths = allMenuItems.flatMap(item =>
   item.children ? item.children : [item]
 );
 
@@ -101,15 +103,29 @@ function Layout({ children }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [user, setUser] = useState(null);
   const [openSubmenus, setOpenSubmenus] = useState({});
+  const { user, logout, hasPermission } = useAuth();
 
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
+  // Filter menu items based on user permissions
+  const menuItems = useMemo(() => {
+    return allMenuItems
+      .filter(item => {
+        if (!item.permission) return true;
+        return hasPermission(item.permission);
+      })
+      .map(item => {
+        if (item.children) {
+          const filteredChildren = item.children.filter(child => {
+            if (!child.permission) return true;
+            return hasPermission(child.permission);
+          });
+          if (filteredChildren.length === 0) return null;
+          return { ...item, children: filteredChildren };
+        }
+        return item;
+      })
+      .filter(Boolean);
+  }, [hasPermission]);
 
   // Auto-expand submenu that contains the active route
   useEffect(() => {
@@ -120,7 +136,7 @@ function Layout({ children }) {
       }
     });
     setOpenSubmenus(prev => ({ ...prev, ...expanded }));
-  }, [location.pathname]);
+  }, [location.pathname, menuItems]);
 
   const handleSubmenuToggle = (text) => {
     setOpenSubmenus(prev => ({ ...prev, [text]: !prev[text] }));
@@ -146,19 +162,13 @@ function Layout({ children }) {
   };
 
   const handleLogout = async () => {
-    try {
-      await authAPI.logout();
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      toast.success('Sikeres kijelentkezés');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      navigate('/login');
-    }
+    await logout();
+    toast.success('Sikeres kijelentkezés');
+    navigate('/login');
   };
+
+  // Get display role name
+  const userRoleDisplay = user?.roles?.[0] || '';
 
   const drawerContent = (
     <>
@@ -172,7 +182,28 @@ function Layout({ children }) {
       </Toolbar>
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
-      <List sx={{ mt: 2 }}>
+      {/* User info in sidebar */}
+      {user && (
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="body2" sx={{ color: 'white', fontWeight: 600 }}>
+            {user.firstName} {user.lastName}
+          </Typography>
+          <Chip
+            label={userRoleDisplay}
+            size="small"
+            sx={{
+              mt: 0.5,
+              bgcolor: 'rgba(255,255,255,0.15)',
+              color: 'white',
+              fontSize: '0.7rem',
+              height: 22,
+            }}
+          />
+        </Box>
+      )}
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+
+      <List sx={{ mt: 1 }}>
         {menuItems.map((item) => {
           // Submenu with children
           if (item.children) {
@@ -340,6 +371,11 @@ function Layout({ children }) {
               <Typography variant="caption" color="text.secondary">
                 {user?.email}
               </Typography>
+              {userRoleDisplay && (
+                <Typography variant="caption" display="block" color="text.secondary">
+                  {userRoleDisplay}
+                </Typography>
+              )}
             </Box>
             <Divider />
             <MenuItem onClick={handleLogout}>
