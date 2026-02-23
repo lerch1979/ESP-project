@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const accommodationController = require('../controllers/accommodation.controller');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 // Multer config: memory storage, 5MB limit, xlsx/xls/csv only
 const upload = multer({
@@ -23,57 +24,56 @@ const upload = multer({
   },
 });
 
-// All routes require authentication + admin role
+// All routes require authentication
 router.use(authenticateToken);
-router.use(requireAdmin);
 
 /**
  * GET /api/v1/accommodations
  * Szálláshelyek listázása (szűrőkkel, lapozással)
  */
-router.get('/', accommodationController.getAccommodations);
+router.get('/', checkPermission('accommodations.view'), accommodationController.getAccommodations);
 
 /**
  * GET /api/v1/accommodations/:id
  * Egy szálláshely részletei
  */
-router.get('/:id', accommodationController.getAccommodationById);
+router.get('/:id', checkPermission('accommodations.view'), accommodationController.getAccommodationById);
 
 /**
  * GET /api/v1/accommodations/:id/contractors
  * Szálláshely alvállalkozó történet
  */
-router.get('/:id/contractors', accommodationController.getAccommodationContractors);
+router.get('/:id/contractors', checkPermission('accommodations.view'), accommodationController.getAccommodationContractors);
 
 /**
  * POST /api/v1/accommodations
  * Új szálláshely létrehozása
  */
-router.post('/', accommodationController.createAccommodation);
+router.post('/', checkPermission('accommodations.create'), accommodationController.createAccommodation);
 
 /**
  * POST /api/v1/accommodations/bulk
  * Tömeges szálláshely importálás fájlból
  */
-router.post('/bulk', upload.single('file'), accommodationController.bulkImportAccommodations);
+router.post('/bulk', checkPermission('accommodations.create'), upload.single('file'), accommodationController.bulkImportAccommodations);
 
 /**
  * PUT /api/v1/accommodations/:id
  * Szálláshely frissítése
  */
-router.put('/:id', accommodationController.updateAccommodation);
+router.put('/:id', checkPermission('accommodations.edit'), accommodationController.updateAccommodation);
 
 /**
  * DELETE /api/v1/accommodations/:id
  * Szálláshely törlése (soft delete)
  */
-router.delete('/:id', accommodationController.deleteAccommodation);
+router.delete('/:id', checkPermission('accommodations.delete'), accommodationController.deleteAccommodation);
 
 // Room routes
 const roomController = require('../controllers/room.controller');
-router.get('/:id/rooms', roomController.getRoomsByAccommodation);
-router.post('/:id/rooms', roomController.createRoom);
-router.put('/:id/rooms/:roomId', roomController.updateRoom);
-router.delete('/:id/rooms/:roomId', roomController.deleteRoom);
+router.get('/:id/rooms', checkPermission('accommodations.view'), roomController.getRoomsByAccommodation);
+router.post('/:id/rooms', checkPermission('accommodations.create'), roomController.createRoom);
+router.put('/:id/rooms/:roomId', checkPermission('accommodations.edit'), roomController.updateRoom);
+router.delete('/:id/rooms/:roomId', checkPermission('accommodations.delete'), roomController.deleteRoom);
 
 module.exports = router;

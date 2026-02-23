@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { getUserPermissions } = require('./permission');
 
 /**
  * JWT token ellenőrzés middleware
@@ -50,6 +51,12 @@ const authenticateToken = async (req, res, next) => {
     user.roles = rolesResult.rows.map(r => r.slug);
     user.roleNames = rolesResult.rows.map(r => r.name);
 
+    // Jogosultságok betöltése
+    let permissions = [];
+    if (!user.roles.includes('superadmin')) {
+      permissions = await getUserPermissions(user.id);
+    }
+
     // Request objektumhoz hozzáadjuk a usert
     req.user = {
       id: user.id,
@@ -60,7 +67,8 @@ const authenticateToken = async (req, res, next) => {
       contractorName: user.contractor_name,
       contractorSlug: user.contractor_slug,
       roles: user.roles,
-      roleNames: user.roleNames
+      roleNames: user.roleNames,
+      permissions: permissions
     };
 
     next();

@@ -5,7 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const employeeController = require('../controllers/employee.controller');
 const employeeDocController = require('../controllers/employee-document.controller');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 // Photo upload multer config
 const photoUploadDir = path.join(__dirname, '..', '..', 'uploads', 'employees');
@@ -56,106 +57,105 @@ const upload = multer({
   },
 });
 
-// All routes require authentication + admin role
+// All routes require authentication
 router.use(authenticateToken);
-router.use(requireAdmin);
 
 /**
  * GET /api/v1/employees/statuses
  * Munkavállalói státuszok listázása (dropdown-okhoz)
  */
-router.get('/statuses', employeeController.getEmployeeStatuses);
+router.get('/statuses', checkPermission('employees.view'), employeeController.getEmployeeStatuses);
 
 /**
  * GET/DELETE /api/v1/employees/documents/:docId
  * Must be before /:id to avoid matching "documents" as an employee id
  */
-router.get('/documents/:docId', employeeDocController.getDocument);
-router.delete('/documents/:docId', employeeDocController.deleteDocument);
+router.get('/documents/:docId', checkPermission('employees.view'), employeeDocController.getDocument);
+router.delete('/documents/:docId', checkPermission('employees.delete'), employeeDocController.deleteDocument);
 
 /**
  * GET /api/v1/employees
  * Munkavállalók listázása (szűrőkkel, lapozással)
  */
-router.get('/', employeeController.getEmployees);
+router.get('/', checkPermission('employees.view'), employeeController.getEmployees);
 
 /**
  * POST /api/v1/employees/bulk-update
  * Tömeges státusz frissítés
  */
-router.post('/bulk-update', employeeController.bulkUpdateStatus);
+router.post('/bulk-update', checkPermission('employees.edit'), employeeController.bulkUpdateStatus);
 
 /**
  * POST /api/v1/employees/bulk-delete
  * Tömeges törlés (soft delete)
  */
-router.post('/bulk-delete', employeeController.bulkDelete);
+router.post('/bulk-delete', checkPermission('employees.delete'), employeeController.bulkDelete);
 
 /**
  * POST /api/v1/employees/bulk-export
  * Kiválasztott munkavállalók exportálása
  */
-router.post('/bulk-export', employeeController.bulkExport);
+router.post('/bulk-export', checkPermission('employees.export'), employeeController.bulkExport);
 
 /**
  * GET /api/v1/employees/:id
  * Egy munkavállaló részletei
  */
-router.get('/:id', employeeController.getEmployeeById);
+router.get('/:id', checkPermission('employees.view'), employeeController.getEmployeeById);
 
 /**
  * POST /api/v1/employees
  * Új munkavállaló létrehozása
  */
-router.post('/', employeeController.createEmployee);
+router.post('/', checkPermission('employees.create'), employeeController.createEmployee);
 
 /**
  * POST /api/v1/employees/bulk
  * Tömeges munkavállaló importálás fájlból
  */
-router.post('/bulk', upload.single('file'), employeeController.bulkImportEmployees);
+router.post('/bulk', checkPermission('employees.create'), upload.single('file'), employeeController.bulkImportEmployees);
 
 /**
  * PUT /api/v1/employees/:id
  * Munkavállaló frissítése
  */
-router.put('/:id', employeeController.updateEmployee);
+router.put('/:id', checkPermission('employees.edit'), employeeController.updateEmployee);
 
 /**
  * DELETE /api/v1/employees/:id
  * Munkavállaló törlése (soft delete)
  */
-router.delete('/:id', employeeController.deleteEmployee);
+router.delete('/:id', checkPermission('employees.delete'), employeeController.deleteEmployee);
 
 /**
  * POST /api/v1/employees/:id/photo
  * Profilkép feltöltése
  */
-router.post('/:id/photo', photoUpload.single('photo'), employeeController.uploadPhoto);
+router.post('/:id/photo', checkPermission('employees.edit'), photoUpload.single('photo'), employeeController.uploadPhoto);
 
 /**
  * DELETE /api/v1/employees/:id/photo
  * Profilkép törlése
  */
-router.delete('/:id/photo', employeeController.deletePhoto);
+router.delete('/:id/photo', checkPermission('employees.edit'), employeeController.deletePhoto);
 
 /**
  * GET /api/v1/employees/:id/timeline
  * Munkavállaló idővonal (összes esemény aggregálva)
  */
-router.get('/:id/timeline', employeeController.getEmployeeTimeline);
+router.get('/:id/timeline', checkPermission('employees.view'), employeeController.getEmployeeTimeline);
 
 /**
  * POST /api/v1/employees/:id/notes
  * Jegyzet hozzáadása a munkavállalóhoz
  */
-router.post('/:id/notes', employeeController.createEmployeeNote);
+router.post('/:id/notes', checkPermission('employees.edit'), employeeController.createEmployeeNote);
 
 /**
  * DELETE /api/v1/employees/:id/notes/:noteId
  * Jegyzet törlése
  */
-router.delete('/:id/notes/:noteId', employeeController.deleteEmployeeNote);
+router.delete('/:id/notes/:noteId', checkPermission('employees.delete'), employeeController.deleteEmployeeNote);
 
 // ============================================================
 // Employee Documents (Scan & Upload)
@@ -187,7 +187,7 @@ const docUpload = multer({
   },
 });
 
-router.post('/:id/documents', docUpload.single('document'), employeeDocController.uploadDocument);
-router.get('/:id/documents', employeeDocController.getDocuments);
+router.post('/:id/documents', checkPermission('employees.upload_documents'), docUpload.single('document'), employeeDocController.uploadDocument);
+router.get('/:id/documents', checkPermission('employees.view'), employeeDocController.getDocuments);
 
 module.exports = router;

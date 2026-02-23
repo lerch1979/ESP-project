@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const exportController = require('../controllers/export.controller');
-const { authenticateToken, requireAdmin, checkContractorAccess } = require('../middleware/auth');
+const { authenticateToken, checkContractorAccess } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 // Minden export route-hoz authentikáció szükséges
 router.use(authenticateToken);
@@ -10,24 +11,24 @@ router.use(authenticateToken);
  * GET /api/v1/export/employees
  * Munkavállalók exportálása Excel fájlba
  */
-router.get('/employees', requireAdmin, exportController.exportEmployees);
+router.get('/employees', checkPermission('employees.export'), exportController.exportEmployees);
 
 /**
  * GET /api/v1/export/contractors
  * Alvállalkozók exportálása Excel fájlba
  */
-router.get('/contractors', requireAdmin, exportController.exportContractors);
+router.get('/contractors', checkPermission('reports.export'), exportController.exportContractors);
 
 /**
  * GET /api/v1/export/accommodations
  * Szálláshelyek exportálása Excel fájlba
  */
-router.get('/accommodations', requireAdmin, exportController.exportAccommodations);
+router.get('/accommodations', checkPermission('reports.export'), exportController.exportAccommodations);
 
 /**
  * GET /api/v1/export/tickets
  * Hibajegyek exportálása Excel fájlba
  */
-router.get('/tickets', checkContractorAccess, exportController.exportTickets);
+router.get('/tickets', checkPermission('reports.export'), checkContractorAccess, exportController.exportTickets);
 
 module.exports = router;

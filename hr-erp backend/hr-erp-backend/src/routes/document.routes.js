@@ -4,7 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const documentController = require('../controllers/document.controller');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'documents');
@@ -49,44 +50,43 @@ const upload = multer({
   },
 });
 
-// All routes require authentication + admin role
+// All routes require authentication
 router.use(authenticateToken);
-router.use(requireAdmin);
 
 /**
  * GET /api/v1/documents
  * Dokumentumok listázása
  */
-router.get('/', documentController.getDocuments);
+router.get('/', checkPermission('documents.view'), documentController.getDocuments);
 
 /**
  * GET /api/v1/documents/:id
  * Egy dokumentum részletei
  */
-router.get('/:id', documentController.getDocumentById);
+router.get('/:id', checkPermission('documents.view'), documentController.getDocumentById);
 
 /**
  * POST /api/v1/documents
  * Új dokumentum feltöltése
  */
-router.post('/', upload.single('file'), documentController.createDocument);
+router.post('/', checkPermission('documents.upload'), upload.single('file'), documentController.createDocument);
 
 /**
  * PUT /api/v1/documents/:id
  * Dokumentum metaadatainak frissítése
  */
-router.put('/:id', documentController.updateDocument);
+router.put('/:id', checkPermission('documents.upload'), documentController.updateDocument);
 
 /**
  * DELETE /api/v1/documents/:id
  * Dokumentum törlése (soft delete)
  */
-router.delete('/:id', documentController.deleteDocument);
+router.delete('/:id', checkPermission('documents.delete'), documentController.deleteDocument);
 
 /**
  * GET /api/v1/documents/:id/download
  * Dokumentum letöltése
  */
-router.get('/:id/download', documentController.downloadDocument);
+router.get('/:id/download', checkPermission('documents.view'), documentController.downloadDocument);
 
 module.exports = router;

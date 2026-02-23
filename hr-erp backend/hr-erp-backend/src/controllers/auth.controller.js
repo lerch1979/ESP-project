@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { getUserPermissions } = require('../middleware/permission');
 
 /**
  * Felhasználó bejelentkezés
@@ -73,6 +74,12 @@ const login = async (req, res) => {
     const roles = rolesResult.rows.map(r => r.slug);
     const roleNames = rolesResult.rows.map(r => r.name);
 
+    // Jogosultságok lekérése
+    let permissions = [];
+    if (!roles.includes('superadmin')) {
+      permissions = await getUserPermissions(user.id);
+    }
+
     // JWT token generálás
     const token = jwt.sign(
       { 
@@ -121,7 +128,8 @@ const login = async (req, res) => {
             slug: user.contractor_slug
           },
           roles: roleNames,
-          roleSlugs: roles
+          roleSlugs: roles,
+          permissions: roles.includes('superadmin') ? ['*'] : permissions
         }
       }
     });
