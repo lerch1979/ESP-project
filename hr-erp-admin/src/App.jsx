@@ -22,6 +22,9 @@ import OccupancyReports from './pages/OccupancyReports';
 import ActivityLog from './pages/ActivityLog';
 import ScheduledReports from './pages/ScheduledReports';
 import EmailTemplates from './pages/EmailTemplates';
+import AdminUsers from './pages/admin/Users';
+import AdminUserPermissions from './pages/admin/UserPermissions';
+import AdminRoles from './pages/admin/Roles';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -64,6 +67,9 @@ function App() {
             <Route path="activity-log" element={<PermissionGuard permission="settings.view"><ActivityLog /></PermissionGuard>} />
             <Route path="reports/scheduled" element={<PermissionGuard permission="reports.schedule"><ScheduledReports /></PermissionGuard>} />
             <Route path="email-templates" element={<PermissionGuard permission="settings.edit"><EmailTemplates /></PermissionGuard>} />
+            <Route path="admin/users" element={<PermissionGuard permission="users.manage_permissions"><AdminUsers /></PermissionGuard>} />
+            <Route path="admin/users/:id/permissions" element={<PermissionGuard permission="users.manage_permissions"><AdminUserPermissions /></PermissionGuard>} />
+            <Route path="admin/roles" element={<PermissionGuard permission="users.manage_permissions"><AdminRoles /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

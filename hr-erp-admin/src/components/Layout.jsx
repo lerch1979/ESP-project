@@ -48,6 +48,9 @@ import {
   Chat as ChatIcon,
   BarChart as BarChartIcon,
   HelpOutline as HelpOutlineIcon,
+  AdminPanelSettings as AdminPanelSettingsIcon,
+  Shield as ShieldIcon,
+  ManageAccounts as ManageAccountsIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -87,6 +90,12 @@ const allMenuItems = [
       { text: 'Beszélgetések', icon: <ChatIcon />, path: '/chatbot/conversations', permission: 'faq.edit' },
       { text: 'Analitika', icon: <BarChartIcon />, path: '/chatbot/analytics', permission: 'faq.edit' },
       { text: 'Konfiguráció', icon: <SmartToyIcon />, path: '/chatbot/config', permission: 'faq.edit' },
+    ],
+  },
+  {
+    text: 'Adminisztráció', icon: <AdminPanelSettingsIcon />, permission: 'users.manage_permissions', children: [
+      { text: 'Felhasználók', icon: <ManageAccountsIcon />, path: '/admin/users', permission: 'users.manage_permissions' },
+      { text: 'Szerepkörök', icon: <ShieldIcon />, path: '/admin/roles', permission: 'users.manage_permissions' },
     ],
   },
 ];
