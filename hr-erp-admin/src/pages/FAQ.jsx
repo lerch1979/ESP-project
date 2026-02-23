@@ -12,6 +12,7 @@ import {
   CircularProgress,
   Tooltip,
   Stack,
+  Chip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -21,6 +22,7 @@ import {
   SupportAgent as SupportAgentIcon,
   ReportProblem as ReportProblemIcon,
 } from '@mui/icons-material';
+import stringSimilarity from 'string-similarity';
 import { chatbotAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
@@ -59,16 +61,51 @@ function FAQ() {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[-_\s]/g, '');
 
-  const filteredEntries = useMemo(() => {
-    if (!search.trim()) return entries;
-    const searchNormalized = normalize(search);
-    return entries.filter(
-      (e) =>
-        normalize(e.question).includes(searchNormalized) ||
-        normalize(e.answer).includes(searchNormalized) ||
-        (e.keywords && e.keywords.some((kw) => normalize(kw).includes(searchNormalized)))
-    );
-  }, [entries, search]);
+  const FUZZY_THRESHOLD = 0.8;
+
+  const fuzzySearch = (searchTerm, allEntries) => {
+    if (!searchTerm || searchTerm.trim().length < 2) return allEntries;
+
+    const searchNormalized = normalize(searchTerm);
+
+    const scored = allEntries.map((entry) => {
+      const questionNorm = normalize(entry.question);
+      const answerNorm = normalize(entry.answer);
+      const keywordsNorm = entry.keywords?.map(normalize).join(' ') || '';
+
+      // Similarity scores
+      const questionScore = stringSimilarity.compareTwoStrings(searchNormalized, questionNorm);
+      const answerScore = stringSimilarity.compareTwoStrings(searchNormalized, answerNorm);
+      const keywordScore =
+        entry.keywords?.length > 0
+          ? Math.max(
+              ...entry.keywords.map((kw) =>
+                stringSimilarity.compareTwoStrings(searchNormalized, normalize(kw))
+              )
+            )
+          : 0;
+
+      // Substring match gets a bonus
+      const substringMatch =
+        questionNorm.includes(searchNormalized) ||
+        answerNorm.includes(searchNormalized) ||
+        keywordsNorm.includes(searchNormalized);
+
+      const maxScore = Math.max(questionScore, answerScore, keywordScore);
+      const finalScore = substringMatch ? Math.max(maxScore, 0.9) : maxScore;
+
+      return { ...entry, _score: finalScore };
+    });
+
+    return scored
+      .filter((entry) => entry._score >= FUZZY_THRESHOLD)
+      .sort((a, b) => b._score - a._score);
+  };
+
+  const filteredEntries = useMemo(
+    () => fuzzySearch(search, entries),
+    [entries, search]
+  );
 
   const entriesByCategory = useMemo(() => {
     const map = {};
@@ -200,12 +237,29 @@ function FAQ() {
                       sx={{
                         px: 3,
                         minHeight: 48,
-                        '& .MuiAccordionSummary-content': { my: 0.5 },
+                        '& .MuiAccordionSummary-content': { my: 0.5, alignItems: 'center', gap: 1 },
                       }}
                     >
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
                         {entry.question}
                       </Typography>
+                      {search.trim().length >= 2 && entry._score != null && (
+                        <Chip
+                          label={
+                            entry._score >= 0.9
+                              ? 'Pontos találat'
+                              : 'Jó találat'
+                          }
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.65rem',
+                            height: 20,
+                            bgcolor: entry._score >= 0.9 ? '#dcfce7' : '#dbeafe',
+                            color: entry._score >= 0.9 ? '#16a34a' : '#2563eb',
+                          }}
+                        />
+                      )}
                     </AccordionSummary>
                     <AccordionDetails sx={{ px: 3, pt: 0, pb: 2 }}>
                       <Typography
