@@ -853,4 +853,57 @@ export const permissionsAPI = {
   },
 };
 
+// Email Templates API
+export const emailTemplatesAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/email-templates', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/email-templates/${id}`);
+    return response.data;
+  },
+
+  getBySlug: async (slug) => {
+    const response = await api.get(`/email-templates/slug/${slug}`);
+    return response.data;
+  },
+
+  getTypes: async () => {
+    const response = await api.get('/email-templates/types');
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/email-templates', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/email-templates/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/email-templates/${id}`);
+    return response.data;
+  },
+
+  preview: async (id, variables = {}) => {
+    const response = await api.post(`/email-templates/${id}/preview`, { variables });
+    return response.data;
+  },
+
+  render: async (id, variables = {}) => {
+    const response = await api.post(`/email-templates/${id}/render`, { variables });
+    return response.data;
+  },
+
+  duplicate: async (id, data = {}) => {
+    const response = await api.post(`/email-templates/${id}/duplicate`, data);
+    return response.data;
+  },
+};
+
 export default api;
