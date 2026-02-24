@@ -29,6 +29,22 @@ const PAYMENT_STATUSES = {
   cancelled: { label: 'Sztornó', color: 'default' },
 };
 
+// Format large amounts for badges (e.g. 1.57M, 234K)
+const formatCompactAmount = (val) => {
+  if (!val || val === 0) return '0 Ft';
+  if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M Ft`;
+  if (val >= 1000) return `${(val / 1000).toFixed(0)}K Ft`;
+  return `${Math.round(val)} Ft`;
+};
+
+// Color by amount: green < 1M, yellow 1-5M, red > 5M
+const getAmountColor = (val) => {
+  if (!val || val === 0) return '#9ca3af';
+  if (val < 1000000) return '#10b981';
+  if (val <= 5000000) return '#f59e0b';
+  return '#ef4444';
+};
+
 // ============================================
 // TREE NODE COMPONENT
 // ============================================
@@ -37,6 +53,12 @@ function TreeNode({ node, level = 0, selectedId, onSelect, expandedIds, onToggle
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expandedIds.has(node.id);
   const isSelected = selectedId === node.id;
+  const summary = node.summary;
+  const hasSummary = summary && summary.totalInvoices > 0;
+
+  const summaryTooltip = hasSummary ? (
+    `${summary.totalInvoices} számla\nNettó: ${new Intl.NumberFormat('hu-HU').format(summary.totalNetAmount)} Ft\nÁFA: ${new Intl.NumberFormat('hu-HU').format(summary.totalVatAmount)} Ft\nBruttó: ${new Intl.NumberFormat('hu-HU').format(summary.totalGrossAmount)} Ft\n${summary.firstInvoiceDate ? `${summary.firstInvoiceDate} - ${summary.lastInvoiceDate}` : ''}`
+  ) : '';
 
   return (
     <>
@@ -72,8 +94,22 @@ function TreeNode({ node, level = 0, selectedId, onSelect, expandedIds, onToggle
           )}
         </Box>
         {!node.is_active && <Chip label="Inaktív" size="small" color="default" sx={{ ml: 1 }} />}
+        {hasSummary && (
+          <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{summaryTooltip}</span>} arrow placement="right">
+            <Chip
+              label={`${summary.totalInvoices} | ${formatCompactAmount(summary.totalGrossAmount)}`}
+              size="small"
+              sx={{
+                ml: 1, height: 22, fontSize: '0.7rem', fontWeight: 600,
+                bgcolor: `${getAmountColor(summary.totalGrossAmount)}18`,
+                color: getAmountColor(summary.totalGrossAmount),
+                border: `1px solid ${getAmountColor(summary.totalGrossAmount)}40`,
+              }}
+            />
+          </Tooltip>
+        )}
         {hasChildren && (
-          <Chip label={node.children.length} size="small" variant="outlined" sx={{ ml: 1, minWidth: 24, height: 20 }} />
+          <Chip label={node.children.length} size="small" variant="outlined" sx={{ ml: 0.5, minWidth: 24, height: 20 }} />
         )}
       </Box>
       {hasChildren && (
@@ -516,9 +552,10 @@ function CostCenters() {
 
   const collapseAll = () => setExpandedIds(new Set());
 
-  const handleSelect = (node) => {
+  const handleSelect = (node, showInvoices = false) => {
     setSelected(node);
     setInvoicePage(0);
+    if (showInvoices) setTab(1);
   };
 
   const handleCreate = () => { setEditData(null); setFormOpen(true); };
@@ -704,6 +741,38 @@ function CostCenters() {
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>{detail.description}</Typography>
                 )}
 
+                {/* Invoice summary badges */}
+                {detail?.summary && detail.summary.totalInvoices > 0 && (
+                  <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Chip
+                      icon={<InvoiceIcon />}
+                      label={`${detail.summary.totalInvoices} számla`}
+                      variant="outlined"
+                      size="small"
+                    />
+                    <Tooltip title={`Nettó: ${formatCurrency(detail.summary.totalNetAmount)}\nÁFA: ${formatCurrency(detail.summary.totalVatAmount)}\nBruttó: ${formatCurrency(detail.summary.totalGrossAmount)}`}>
+                      <Chip
+                        label={`Bruttó: ${formatCurrency(detail.summary.totalGrossAmount)}`}
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          bgcolor: `${getAmountColor(detail.summary.totalGrossAmount)}18`,
+                          color: getAmountColor(detail.summary.totalGrossAmount),
+                          border: `1px solid ${getAmountColor(detail.summary.totalGrossAmount)}40`,
+                        }}
+                      />
+                    </Tooltip>
+                    {detail.summary.firstInvoiceDate && (
+                      <Chip
+                        label={`${new Date(detail.summary.firstInvoiceDate).toLocaleDateString('hu-HU')} - ${new Date(detail.summary.lastInvoiceDate).toLocaleDateString('hu-HU')}`}
+                        variant="outlined"
+                        size="small"
+                        color="info"
+                      />
+                    )}
+                  </Box>
+                )}
+
                 {/* Budget summary */}
                 {budgetSummary && (
                   <Box sx={{ mt: 3, p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
@@ -772,21 +841,42 @@ function CostCenters() {
                             <TableCell sx={{ fontWeight: 600 }}>Ikon</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Név</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Kód</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }}>Szint</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Számlák</TableCell>
                             <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {detail?.children?.map((child) => (
-                            <TableRow key={child.id} hover sx={{ cursor: 'pointer' }}
-                              onClick={() => { const node = flatList.find((n) => n.id === child.id); if (node) handleSelect(node); }}>
-                              <TableCell>{child.icon || '📁'}</TableCell>
-                              <TableCell sx={{ fontWeight: 500 }}>{child.name}</TableCell>
-                              <TableCell><Chip label={child.code || '-'} size="small" variant="outlined" /></TableCell>
-                              <TableCell>L{child.level}</TableCell>
-                              <TableCell><Chip label={child.is_active ? 'Aktív' : 'Inaktív'} size="small" color={child.is_active ? 'success' : 'default'} /></TableCell>
-                            </TableRow>
-                          ))}
+                          {detail?.children?.map((child) => {
+                            const childNode = flatList.find((n) => n.id === child.id);
+                            const childSummary = childNode?.summary;
+                            return (
+                              <TableRow key={child.id} hover sx={{ cursor: 'pointer' }}
+                                onClick={() => { if (childNode) handleSelect(childNode); }}>
+                                <TableCell>{child.icon || '📁'}</TableCell>
+                                <TableCell sx={{ fontWeight: 500 }}>{child.name}</TableCell>
+                                <TableCell><Chip label={child.code || '-'} size="small" variant="outlined" /></TableCell>
+                                <TableCell>
+                                  {childSummary && childSummary.totalInvoices > 0 ? (
+                                    <Tooltip title={`Nettó: ${new Intl.NumberFormat('hu-HU').format(childSummary.totalNetAmount)} Ft\nÁFA: ${new Intl.NumberFormat('hu-HU').format(childSummary.totalVatAmount)} Ft\nBruttó: ${new Intl.NumberFormat('hu-HU').format(childSummary.totalGrossAmount)} Ft`}>
+                                      <Chip
+                                        label={`${childSummary.totalInvoices} | ${formatCompactAmount(childSummary.totalGrossAmount)}`}
+                                        size="small"
+                                        sx={{
+                                          fontWeight: 600, fontSize: '0.7rem',
+                                          bgcolor: `${getAmountColor(childSummary.totalGrossAmount)}18`,
+                                          color: getAmountColor(childSummary.totalGrossAmount),
+                                          border: `1px solid ${getAmountColor(childSummary.totalGrossAmount)}40`,
+                                        }}
+                                      />
+                                    </Tooltip>
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">-</Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell><Chip label={child.is_active ? 'Aktív' : 'Inaktív'} size="small" color={child.is_active ? 'success' : 'default'} /></TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     )}

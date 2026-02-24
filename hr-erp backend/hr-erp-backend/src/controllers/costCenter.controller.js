@@ -61,7 +61,10 @@ const getAll = async (req, res) => {
     const { search, is_active, parent_id, page = 1, limit = 100 } = req.query;
     const offset = (page - 1) * limit;
 
-    let sql = 'SELECT cc.*, p.name AS parent_name, p.code AS parent_code FROM cost_centers cc LEFT JOIN cost_centers p ON cc.parent_id = p.id WHERE 1=1';
+    let sql = `SELECT cc.*, p.name AS parent_name, p.code AS parent_code,
+      cc.total_invoices, cc.total_net_amount, cc.total_vat_amount, cc.total_gross_amount,
+      cc.first_invoice_date, cc.last_invoice_date
+      FROM cost_centers cc LEFT JOIN cost_centers p ON cc.parent_id = p.id WHERE 1=1`;
     const params = [];
     let paramIdx = 0;
 
@@ -88,7 +91,7 @@ const getAll = async (req, res) => {
     }
 
     // Count total
-    const countSql = sql.replace(/SELECT cc\.\*, p\.name AS parent_name, p\.code AS parent_code FROM/, 'SELECT COUNT(*) FROM');
+    const countSql = sql.replace(/SELECT cc\.\*[\s\S]*?FROM cost_centers cc/, 'SELECT COUNT(*) FROM cost_centers cc');
     const countResult = await query(countSql, params);
     const total = parseInt(countResult.rows[0].count);
 
@@ -102,9 +105,23 @@ const getAll = async (req, res) => {
 
     const result = await query(sql, params);
 
+    // Format summary data into nested object
+    const data = result.rows.map(row => ({
+      ...row,
+      summary: {
+        totalInvoices: parseInt(row.total_invoices) || 0,
+        totalNetAmount: parseFloat(row.total_net_amount) || 0,
+        totalVatAmount: parseFloat(row.total_vat_amount) || 0,
+        totalGrossAmount: parseFloat(row.total_gross_amount) || 0,
+        firstInvoiceDate: row.first_invoice_date || null,
+        lastInvoiceDate: row.last_invoice_date || null,
+        currency: 'HUF',
+      },
+    }));
+
     res.json({
       success: true,
-      data: result.rows,
+      data,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -125,7 +142,8 @@ const getTree = async (req, res) => {
   try {
     const { is_active } = req.query;
 
-    let sql = 'SELECT * FROM cost_centers WHERE 1=1';
+    let sql = `SELECT *, total_invoices, total_net_amount, total_vat_amount, total_gross_amount,
+      first_invoice_date, last_invoice_date FROM cost_centers WHERE 1=1`;
     const params = [];
 
     if (is_active !== undefined) {
@@ -136,7 +154,22 @@ const getTree = async (req, res) => {
     sql += ' ORDER BY path, name';
 
     const result = await query(sql, params);
-    const tree = buildTree(result.rows);
+
+    // Add summary object to each row before building tree
+    const rowsWithSummary = result.rows.map(row => ({
+      ...row,
+      summary: {
+        totalInvoices: parseInt(row.total_invoices) || 0,
+        totalNetAmount: parseFloat(row.total_net_amount) || 0,
+        totalVatAmount: parseFloat(row.total_vat_amount) || 0,
+        totalGrossAmount: parseFloat(row.total_gross_amount) || 0,
+        firstInvoiceDate: row.first_invoice_date || null,
+        lastInvoiceDate: row.last_invoice_date || null,
+        currency: 'HUF',
+      },
+    }));
+
+    const tree = buildTree(rowsWithSummary);
 
     res.json({
       success: true,
@@ -206,7 +239,16 @@ const getById = async (req, res) => {
         ancestors: ancestors.rows,
         children: children.rows,
         invoice_count: parseInt(invoiceStats.rows[0].invoice_count),
-        total_spent: parseFloat(invoiceStats.rows[0].total_spent)
+        total_spent: parseFloat(invoiceStats.rows[0].total_spent),
+        summary: {
+          totalInvoices: parseInt(costCenter.total_invoices) || 0,
+          totalNetAmount: parseFloat(costCenter.total_net_amount) || 0,
+          totalVatAmount: parseFloat(costCenter.total_vat_amount) || 0,
+          totalGrossAmount: parseFloat(costCenter.total_gross_amount) || 0,
+          firstInvoiceDate: costCenter.first_invoice_date || null,
+          lastInvoiceDate: costCenter.last_invoice_date || null,
+          currency: 'HUF',
+        },
       }
     });
   } catch (error) {
