@@ -1,5 +1,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const path = require('path');
+const fs = require('fs');
 
 // ============================================
 // TREE HELPERS
@@ -1004,6 +1006,162 @@ const deleteInvoice = async (req, res) => {
 };
 
 // ============================================
+// INVOICE STATS
+// ============================================
+
+const getInvoiceStats = async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT
+        COUNT(*) AS total_count,
+        COUNT(*) FILTER (WHERE payment_status = 'pending') AS pending_count,
+        COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'pending'), 0) AS pending_sum,
+        COUNT(*) FILTER (WHERE payment_status = 'paid') AS paid_count,
+        COUNT(*) FILTER (WHERE payment_status = 'overdue') AS overdue_count,
+        COALESCE(SUM(total_amount), 0) AS total_sum,
+        COALESCE(SUM(total_amount) FILTER (WHERE invoice_date >= date_trunc('month', CURRENT_DATE)), 0) AS monthly_sum,
+        COUNT(*) FILTER (WHERE invoice_date >= date_trunc('month', CURRENT_DATE)) AS monthly_count
+      FROM invoices
+    `);
+
+    const row = result.rows[0];
+    res.json({
+      success: true,
+      data: {
+        total_count: parseInt(row.total_count),
+        pending_count: parseInt(row.pending_count),
+        pending_sum: parseFloat(row.pending_sum),
+        paid_count: parseInt(row.paid_count),
+        overdue_count: parseInt(row.overdue_count),
+        total_sum: parseFloat(row.total_sum),
+        monthly_sum: parseFloat(row.monthly_sum),
+        monthly_count: parseInt(row.monthly_count),
+      },
+    });
+  } catch (error) {
+    logger.error('Invoice stats hiba:', error);
+    res.status(500).json({ success: false, message: 'Hiba a számla statisztikák lekérésekor' });
+  }
+};
+
+// ============================================
+// BULK INVOICE ACTION
+// ============================================
+
+const bulkInvoiceAction = async (req, res) => {
+  try {
+    const { action, ids } = req.body;
+
+    if (!action || !ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Akció és azonosítók megadása kötelező' });
+    }
+
+    let affectedCount = 0;
+
+    if (action === 'mark_paid') {
+      const result = await query(
+        `UPDATE invoices SET payment_status = 'paid', payment_date = CURRENT_DATE
+         WHERE id = ANY($1) AND payment_status != 'paid'`,
+        [ids]
+      );
+      affectedCount = result.rowCount;
+    } else if (action === 'delete') {
+      // Delete associated files first
+      const filesToDelete = await query(
+        'SELECT id, file_path FROM invoices WHERE id = ANY($1) AND file_path IS NOT NULL',
+        [ids]
+      );
+      for (const row of filesToDelete.rows) {
+        const fullPath = path.join(__dirname, '..', '..', row.file_path);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+
+      const result = await query('DELETE FROM invoices WHERE id = ANY($1)', [ids]);
+      affectedCount = result.rowCount;
+    } else {
+      return res.status(400).json({ success: false, message: 'Ismeretlen akció: ' + action });
+    }
+
+    logger.info('Bulk invoice action:', { action, ids, affectedCount });
+
+    res.json({
+      success: true,
+      message: `${affectedCount} számla sikeresen ${action === 'mark_paid' ? 'fizetettre állítva' : 'törölve'}`,
+      affected_count: affectedCount,
+    });
+  } catch (error) {
+    logger.error('Bulk invoice action hiba:', error);
+    res.status(500).json({ success: false, message: 'Hiba a tömeges művelet során' });
+  }
+};
+
+// ============================================
+// UPLOAD INVOICE FILE
+// ============================================
+
+const uploadInvoiceFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Nincs feltöltött fájl' });
+    }
+
+    // Verify invoice exists
+    const existing = await query('SELECT id, file_path FROM invoices WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ success: false, message: 'Számla nem található' });
+    }
+
+    // Delete old file if replacing
+    const oldFilePath = existing.rows[0].file_path;
+    if (oldFilePath) {
+      const oldFullPath = path.join(__dirname, '..', '..', oldFilePath);
+      if (fs.existsSync(oldFullPath)) {
+        fs.unlinkSync(oldFullPath);
+      }
+    }
+
+    // Move file to invoice-specific directory
+    const invoiceDir = path.join(__dirname, '..', '..', 'uploads', 'invoices', id.toString());
+    if (!fs.existsSync(invoiceDir)) {
+      fs.mkdirSync(invoiceDir, { recursive: true });
+    }
+
+    const newFileName = req.file.filename;
+    const newPath = path.join(invoiceDir, newFileName);
+    fs.renameSync(req.file.path, newPath);
+
+    const relativePath = `uploads/invoices/${id}/${newFileName}`;
+
+    // Update invoice record
+    const result = await query(
+      'UPDATE invoices SET file_path = $1 WHERE id = $2 RETURNING *',
+      [relativePath, id]
+    );
+
+    logger.info('Invoice file uploaded:', { invoiceId: id, filePath: relativePath });
+
+    res.json({
+      success: true,
+      message: 'Fájl sikeresen feltöltve',
+      data: result.rows[0],
+    });
+  } catch (error) {
+    logger.error('Invoice file upload hiba:', error);
+    // Clean up uploaded file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ success: false, message: 'Hiba a fájl feltöltésekor' });
+  }
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -1030,4 +1188,7 @@ module.exports = {
   createInvoice,
   updateInvoice,
   deleteInvoice,
+  getInvoiceStats,
+  bulkInvoiceAction,
+  uploadInvoiceFile,
 };

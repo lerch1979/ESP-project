@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import { costCentersAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import InvoiceFormModal from '../components/invoices/InvoiceFormModal';
 
 // ============================================
 // PAYMENT STATUS CONFIG
@@ -229,141 +230,6 @@ function CostCenterFormDialog({ open, onClose, onSave, editData, parentOptions }
               ))}
             </Box>
           </Box>
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Mégse</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={saving}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
-          {saving ? <CircularProgress size={22} /> : editData ? 'Mentés' : 'Létrehozás'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-// ============================================
-// INVOICE FORM DIALOG
-// ============================================
-
-function InvoiceFormDialog({ open, onClose, onSave, editData, costCenters, categories }) {
-  const [form, setForm] = useState({
-    invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
-    total_amount: '', currency: 'HUF', invoice_date: '', due_date: '', payment_date: '',
-    payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
-  });
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (editData) {
-      setForm({
-        invoice_number: editData.invoice_number || '',
-        vendor_name: editData.vendor_name || '',
-        vendor_tax_number: editData.vendor_tax_number || '',
-        amount: editData.amount || '',
-        vat_amount: editData.vat_amount || '',
-        total_amount: editData.total_amount || '',
-        currency: editData.currency || 'HUF',
-        invoice_date: editData.invoice_date ? editData.invoice_date.substring(0, 10) : '',
-        due_date: editData.due_date ? editData.due_date.substring(0, 10) : '',
-        payment_date: editData.payment_date ? editData.payment_date.substring(0, 10) : '',
-        payment_status: editData.payment_status || 'pending',
-        cost_center_id: editData.cost_center_id || '',
-        category_id: editData.category_id || '',
-        description: editData.description || '',
-        notes: editData.notes || '',
-      });
-    } else {
-      setForm({
-        invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
-        total_amount: '', currency: 'HUF', invoice_date: '', due_date: '', payment_date: '',
-        payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
-      });
-    }
-  }, [editData, open]);
-
-  // Auto-calc total
-  useEffect(() => {
-    const a = parseFloat(form.amount) || 0;
-    const v = parseFloat(form.vat_amount) || 0;
-    if (a > 0) setForm((f) => ({ ...f, total_amount: (a + v).toString() }));
-  }, [form.amount, form.vat_amount]);
-
-  const handleSubmit = async () => {
-    if (!form.cost_center_id) { toast.error('Költséghely megadása kötelező'); return; }
-    if (!form.amount) { toast.error('Összeg megadása kötelező'); return; }
-    if (!form.invoice_date) { toast.error('Számla dátum megadása kötelező'); return; }
-    setSaving(true);
-    try {
-      const data = {
-        ...form,
-        amount: parseFloat(form.amount),
-        vat_amount: form.vat_amount ? parseFloat(form.vat_amount) : null,
-        total_amount: form.total_amount ? parseFloat(form.total_amount) : parseFloat(form.amount),
-        category_id: form.category_id || null,
-        payment_date: form.payment_date || null,
-        due_date: form.due_date || null,
-      };
-      await onSave(data);
-      onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Hiba történt');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{editData ? 'Számla szerkesztése' : 'Új számla'}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Számlaszám" value={form.invoice_number} onChange={(e) => setForm({ ...form, invoice_number: e.target.value })} size="small" sx={{ flex: 1 }} />
-            <TextField label="Számla dátum *" type="date" value={form.invoice_date} onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
-          </Stack>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Szállító neve" value={form.vendor_name} onChange={(e) => setForm({ ...form, vendor_name: e.target.value })} size="small" sx={{ flex: 1 }} />
-            <TextField label="Szállító adószáma" value={form.vendor_tax_number} onChange={(e) => setForm({ ...form, vendor_tax_number: e.target.value })} size="small" sx={{ flex: 1 }} />
-          </Stack>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Nettó összeg (HUF) *" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} size="small" sx={{ flex: 1 }} />
-            <TextField label="ÁFA" type="number" value={form.vat_amount} onChange={(e) => setForm({ ...form, vat_amount: e.target.value })} size="small" sx={{ flex: 1 }} />
-            <TextField label="Bruttó összeg" type="number" value={form.total_amount} onChange={(e) => setForm({ ...form, total_amount: e.target.value })} size="small" sx={{ flex: 1 }} />
-          </Stack>
-          <Stack direction="row" spacing={2}>
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <InputLabel>Költséghely *</InputLabel>
-              <Select value={form.cost_center_id} onChange={(e) => setForm({ ...form, cost_center_id: e.target.value })} label="Költséghely *">
-                {costCenters.map((cc) => (
-                  <MenuItem key={cc.id} value={cc.id}>{'  '.repeat((cc.level || 1) - 1)}{cc.icon || '📁'} {cc.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <InputLabel>Kategória</InputLabel>
-              <Select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} label="Kategória">
-                <MenuItem value="">-- Nincs --</MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Fizetési határidő" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <InputLabel>Fizetési státusz</InputLabel>
-              <Select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} label="Fizetési státusz">
-                {Object.entries(PAYMENT_STATUSES).map(([val, cfg]) => (
-                  <MenuItem key={val} value={val}>{cfg.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField label="Fizetés dátuma" type="date" value={form.payment_date} onChange={(e) => setForm({ ...form, payment_date: e.target.value })} size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
-          </Stack>
-          <TextField label="Leírás" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} size="small" multiline rows={2} fullWidth />
-          <TextField label="Megjegyzések" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} size="small" fullWidth />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -595,14 +461,29 @@ function CostCenters() {
     if (res.success) { toast.success(res.message); loadTree(); loadDetail(id); }
   };
 
-  const handleInvoiceSave = async (data) => {
+  const handleInvoiceSave = async (data, file) => {
+    let savedInvoice;
     if (invoiceEdit) {
       const res = await costCentersAPI.updateInvoice(invoiceEdit.id, data);
-      if (res.success) { toast.success(res.message); loadInvoices(selected?.id, invoicePage); if (selected) loadBudgetSummary(selected.id); }
+      if (res.success) { toast.success(res.message); savedInvoice = res.data; }
     } else {
       const res = await costCentersAPI.createInvoice(data);
-      if (res.success) { toast.success(res.message); loadInvoices(selected?.id, invoicePage); if (selected) loadBudgetSummary(selected.id); }
+      if (res.success) { toast.success(res.message); savedInvoice = res.data; }
     }
+
+    if (file && savedInvoice) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        await costCentersAPI.uploadInvoiceFile(savedInvoice.id, formData);
+        toast.success('Fájl sikeresen feltöltve');
+      } catch (err) {
+        toast.error('A számla mentve, de a fájl feltöltés sikertelen');
+      }
+    }
+
+    loadInvoices(selected?.id, invoicePage);
+    if (selected) { loadBudgetSummary(selected.id); loadTree(); }
   };
 
   const handleInvoiceDelete = async (id) => {
@@ -977,10 +858,10 @@ function CostCenters() {
         costCenter={moveTarget} parentOptions={flatList} onMove={handleMove}
       />
 
-      <InvoiceFormDialog
+      <InvoiceFormModal
         open={invoiceFormOpen} onClose={() => setInvoiceFormOpen(false)}
         onSave={handleInvoiceSave} editData={invoiceEdit}
-        costCenters={flatList} categories={categories}
+        costCenters={flatList} costCenterTree={tree} categories={categories}
       />
 
       {/* Delete confirmation */}

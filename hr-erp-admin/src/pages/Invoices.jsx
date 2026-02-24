@@ -5,18 +5,22 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TablePagination, MenuItem, Select, FormControl, InputLabel,
-  Alert, Divider,
+  Alert, Checkbox, Toolbar,
 } from '@mui/material';
 import {
   Search as SearchIcon, Add as AddIcon, Edit as EditIcon,
   Delete as DeleteIcon, Receipt as ReceiptIcon,
   FilterList as FilterIcon, Clear as ClearIcon,
-  TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon,
   AccessTime as PendingIcon, CheckCircle as PaidIcon,
   Warning as OverdueIcon, Visibility as ViewIcon,
+  CalendarMonth as MonthlyIcon, FileDownload as ExportIcon,
+  CheckBox as BulkPaidIcon,
 } from '@mui/icons-material';
 import { costCentersAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import CostCenterSelector from '../components/invoices/CostCenterSelector';
+import InvoiceDetailDialog from '../components/invoices/InvoiceDetailDialog';
+import InvoiceFormModal from '../components/invoices/InvoiceFormModal';
 
 // ============================================
 // CONSTANTS
@@ -28,8 +32,6 @@ const PAYMENT_STATUSES = {
   overdue: { label: 'Lejárt', color: 'error', icon: <OverdueIcon fontSize="small" /> },
   cancelled: { label: 'Sztornó', color: 'default', icon: null },
 };
-
-const CURRENCIES = ['HUF', 'EUR', 'USD'];
 
 const formatCurrency = (val, currency = 'HUF') => {
   if (!val && val !== 0) return '-';
@@ -63,234 +65,28 @@ function StatCard({ title, value, subtitle, color, icon }) {
 }
 
 // ============================================
-// INVOICE FORM DIALOG
+// CSV EXPORT HELPER
 // ============================================
 
-function InvoiceFormDialog({ open, onClose, onSave, editData, costCenters, categories }) {
-  const [form, setForm] = useState({
-    invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
-    total_amount: '', currency: 'HUF', invoice_date: '', due_date: '', payment_date: '',
-    payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
-  });
-  const [saving, setSaving] = useState(false);
+function exportToCsv(invoices) {
+  const headers = ['Számlaszám', 'Szállító', 'Nettó', 'ÁFA', 'Bruttó', 'Pénznem', 'Dátum', 'Határidő', 'Státusz', 'Költséghely', 'Kategória'];
+  const rows = invoices.map((inv) => [
+    inv.invoice_number || '', inv.vendor_name || '',
+    inv.amount || 0, inv.vat_amount || 0, inv.total_amount || 0, inv.currency || 'HUF',
+    inv.invoice_date ? inv.invoice_date.substring(0, 10) : '', inv.due_date ? inv.due_date.substring(0, 10) : '',
+    PAYMENT_STATUSES[inv.payment_status]?.label || inv.payment_status,
+    inv.cost_center_name || '', inv.category_name || '',
+  ]);
 
-  useEffect(() => {
-    if (editData) {
-      setForm({
-        invoice_number: editData.invoice_number || '',
-        vendor_name: editData.vendor_name || '',
-        vendor_tax_number: editData.vendor_tax_number || '',
-        amount: editData.amount || '',
-        vat_amount: editData.vat_amount || '',
-        total_amount: editData.total_amount || '',
-        currency: editData.currency || 'HUF',
-        invoice_date: editData.invoice_date ? editData.invoice_date.substring(0, 10) : '',
-        due_date: editData.due_date ? editData.due_date.substring(0, 10) : '',
-        payment_date: editData.payment_date ? editData.payment_date.substring(0, 10) : '',
-        payment_status: editData.payment_status || 'pending',
-        cost_center_id: editData.cost_center_id || '',
-        category_id: editData.category_id || '',
-        description: editData.description || '',
-        notes: editData.notes || '',
-      });
-    } else {
-      setForm({
-        invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
-        total_amount: '', currency: 'HUF', invoice_date: '', due_date: '', payment_date: '',
-        payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
-      });
-    }
-  }, [editData, open]);
-
-  // Auto-calc total
-  useEffect(() => {
-    const a = parseFloat(form.amount) || 0;
-    const v = parseFloat(form.vat_amount) || 0;
-    if (a > 0) setForm((f) => ({ ...f, total_amount: (a + v).toString() }));
-  }, [form.amount, form.vat_amount]);
-
-  const handleSubmit = async () => {
-    if (!form.cost_center_id) { toast.error('Költséghely megadása kötelező'); return; }
-    if (!form.amount) { toast.error('Összeg megadása kötelező'); return; }
-    if (!form.invoice_date) { toast.error('Számla dátum megadása kötelező'); return; }
-    setSaving(true);
-    try {
-      const data = {
-        ...form,
-        amount: parseFloat(form.amount),
-        vat_amount: form.vat_amount ? parseFloat(form.vat_amount) : null,
-        total_amount: form.total_amount ? parseFloat(form.total_amount) : parseFloat(form.amount),
-        category_id: form.category_id || null,
-        payment_date: form.payment_date || null,
-        due_date: form.due_date || null,
-      };
-      await onSave(data);
-      onClose();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Hiba történt');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ fontWeight: 600 }}>{editData ? 'Számla szerkesztése' : 'Új számla rögzítése'}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2.5} sx={{ mt: 1 }}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Alapadatok</Typography>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Számlaszám" value={form.invoice_number} onChange={(e) => setForm({ ...form, invoice_number: e.target.value })} size="small" sx={{ flex: 1 }} placeholder="pl. INV-2026-001" />
-            <TextField label="Számla dátum *" type="date" value={form.invoice_date} onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
-            <FormControl size="small" sx={{ width: 100 }}>
-              <InputLabel>Pénznem</InputLabel>
-              <Select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} label="Pénznem">
-                {CURRENCIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Stack>
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Szállító</Typography>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Szállító neve" value={form.vendor_name} onChange={(e) => setForm({ ...form, vendor_name: e.target.value })} size="small" sx={{ flex: 2 }} />
-            <TextField label="Adószám" value={form.vendor_tax_number} onChange={(e) => setForm({ ...form, vendor_tax_number: e.target.value })} size="small" sx={{ flex: 1 }} placeholder="12345678-2-42" />
-          </Stack>
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Összegek</Typography>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Nettó összeg *" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} size="small" sx={{ flex: 1 }} />
-            <TextField label="ÁFA összeg" type="number" value={form.vat_amount} onChange={(e) => setForm({ ...form, vat_amount: e.target.value })} size="small" sx={{ flex: 1 }} />
-            <TextField label="Bruttó összeg" type="number" value={form.total_amount} onChange={(e) => setForm({ ...form, total_amount: e.target.value })} size="small" sx={{ flex: 1 }} InputProps={{ sx: { fontWeight: 700 } }} />
-          </Stack>
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Besorolás</Typography>
-          <Stack direction="row" spacing={2}>
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <InputLabel>Költséghely *</InputLabel>
-              <Select value={form.cost_center_id} onChange={(e) => setForm({ ...form, cost_center_id: e.target.value })} label="Költséghely *">
-                {costCenters.map((cc) => (
-                  <MenuItem key={cc.id} value={cc.id}>
-                    {'  '.repeat((cc.level || 1) - 1)}{cc.icon || '📁'} {cc.name} {cc.code ? `(${cc.code})` : ''}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <InputLabel>Kategória</InputLabel>
-              <Select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} label="Kategória">
-                <MenuItem value="">-- Nincs --</MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Fizetés</Typography>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Fizetési határidő" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
-            <FormControl size="small" sx={{ flex: 1 }}>
-              <InputLabel>Státusz</InputLabel>
-              <Select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} label="Státusz">
-                {Object.entries(PAYMENT_STATUSES).map(([val, cfg]) => (
-                  <MenuItem key={val} value={val}>{cfg.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField label="Fizetés dátuma" type="date" value={form.payment_date} onChange={(e) => setForm({ ...form, payment_date: e.target.value })} size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
-          </Stack>
-
-          <Divider />
-          <TextField label="Leírás" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} size="small" multiline rows={2} fullWidth />
-          <TextField label="Belső megjegyzések" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} size="small" fullWidth />
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Mégse</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={saving}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
-          {saving ? <CircularProgress size={22} /> : editData ? 'Mentés' : 'Rögzítés'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-// ============================================
-// INVOICE DETAIL DIALOG
-// ============================================
-
-function InvoiceDetailDialog({ open, onClose, invoice }) {
-  if (!invoice) return null;
-
-  const Field = ({ label, value }) => (
-    <Box sx={{ mb: 1.5 }}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 500 }}>{value || '-'}</Typography>
-    </Box>
-  );
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 600 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ReceiptIcon color="primary" />
-          Számla: {invoice.invoice_number || 'N/A'}
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mt: 1 }}>
-          <Field label="Számlaszám" value={invoice.invoice_number} />
-          <Field label="Számla dátum" value={formatDate(invoice.invoice_date)} />
-          <Field label="Szállító neve" value={invoice.vendor_name} />
-          <Field label="Szállító adószám" value={invoice.vendor_tax_number} />
-          <Field label="Nettó összeg" value={formatCurrency(invoice.amount, invoice.currency)} />
-          <Field label="ÁFA" value={formatCurrency(invoice.vat_amount, invoice.currency)} />
-          <Field label="Bruttó összeg" value={
-            <Typography variant="body1" sx={{ fontWeight: 700, color: '#2563eb' }}>
-              {formatCurrency(invoice.total_amount, invoice.currency)}
-            </Typography>
-          } />
-          <Field label="Pénznem" value={invoice.currency} />
-          <Field label="Költséghely" value={
-            <Chip label={`${invoice.cost_center_icon || '📁'} ${invoice.cost_center_name || '-'}`} size="small" variant="outlined" />
-          } />
-          <Field label="Kategória" value={
-            invoice.category_name ? `${invoice.category_icon || ''} ${invoice.category_name}` : '-'
-          } />
-          <Field label="Fizetési státusz" value={
-            <Chip
-              label={PAYMENT_STATUSES[invoice.payment_status]?.label || invoice.payment_status}
-              size="small"
-              color={PAYMENT_STATUSES[invoice.payment_status]?.color || 'default'}
-            />
-          } />
-          <Field label="Fizetési határidő" value={formatDate(invoice.due_date)} />
-          <Field label="Fizetés dátuma" value={formatDate(invoice.payment_date)} />
-          <Field label="Létrehozva" value={formatDate(invoice.created_at)} />
-        </Box>
-        {invoice.description && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="caption" color="text.secondary">Leírás</Typography>
-            <Typography variant="body2">{invoice.description}</Typography>
-          </Box>
-        )}
-        {invoice.notes && (
-          <Box sx={{ mt: 1.5 }}>
-            <Typography variant="caption" color="text.secondary">Megjegyzések</Typography>
-            <Typography variant="body2">{invoice.notes}</Typography>
-          </Box>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Bezárás</Button>
-      </DialogActions>
-    </Dialog>
-  );
+  const csvContent = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `szamlak_export_${new Date().toISOString().substring(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 // ============================================
@@ -311,10 +107,12 @@ function Invoices() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterVendor, setFilterVendor] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   // Lookups
   const [costCenters, setCostCenters] = useState([]);
+  const [costCenterTree, setCostCenterTree] = useState([]);
   const [categories, setCategories] = useState([]);
 
   // Dialogs
@@ -325,7 +123,10 @@ function Invoices() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Stats
-  const [stats, setStats] = useState({ total: 0, pending: 0, paid: 0, overdue: 0, totalAmount: 0, pendingAmount: 0 });
+  const [stats, setStats] = useState(null);
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   // ============================================
   // DATA LOADING
@@ -333,11 +134,13 @@ function Invoices() {
 
   const loadLookups = useCallback(async () => {
     try {
-      const [ccRes, catRes] = await Promise.all([
+      const [ccRes, treeRes, catRes] = await Promise.all([
         costCentersAPI.getAll({ limit: 500 }),
+        costCentersAPI.getTree({ is_active: 'true' }),
         costCentersAPI.getInvoiceCategories(),
       ]);
       if (ccRes.success) setCostCenters(ccRes.data);
+      if (treeRes.success) setCostCenterTree(treeRes.data);
       if (catRes.success) setCategories(catRes.data);
     } catch (e) { /* silent */ }
   }, []);
@@ -352,6 +155,7 @@ function Invoices() {
       if (filterCategory) params.category_id = filterCategory;
       if (filterDateFrom) params.date_from = filterDateFrom;
       if (filterDateTo) params.date_to = filterDateTo;
+      if (filterVendor) params.search = filterVendor; // vendor uses same search
 
       const res = await costCentersAPI.getInvoices(params);
       if (res.success) {
@@ -363,23 +167,12 @@ function Invoices() {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, search, filterStatus, filterCostCenter, filterCategory, filterDateFrom, filterDateTo]);
+  }, [page, rowsPerPage, search, filterStatus, filterCostCenter, filterCategory, filterDateFrom, filterDateTo, filterVendor]);
 
   const loadStats = useCallback(async () => {
     try {
-      // Load all invoices grouped stats
-      const [allRes, pendingRes, paidRes, overdueRes] = await Promise.all([
-        costCentersAPI.getInvoices({ limit: 1 }),
-        costCentersAPI.getInvoices({ payment_status: 'pending', limit: 1 }),
-        costCentersAPI.getInvoices({ payment_status: 'paid', limit: 1 }),
-        costCentersAPI.getInvoices({ payment_status: 'overdue', limit: 1 }),
-      ]);
-      setStats({
-        total: allRes.pagination?.total || 0,
-        pending: pendingRes.pagination?.total || 0,
-        paid: paidRes.pagination?.total || 0,
-        overdue: overdueRes.pagination?.total || 0,
-      });
+      const res = await costCentersAPI.getInvoiceStats();
+      if (res.success) setStats(res.data);
     } catch (e) { /* silent */ }
   }, []);
 
@@ -401,26 +194,47 @@ function Invoices() {
     setFilterCategory('');
     setFilterDateFrom('');
     setFilterDateTo('');
+    setFilterVendor('');
     setSearch('');
     setPage(0);
   };
 
-  const hasActiveFilters = filterStatus || filterCostCenter || filterCategory || filterDateFrom || filterDateTo;
+  const hasActiveFilters = filterStatus || filterCostCenter || filterCategory || filterDateFrom || filterDateTo || filterVendor;
 
   const handleCreate = () => { setEditData(null); setFormOpen(true); };
-
   const handleEdit = (invoice) => { setEditData(invoice); setFormOpen(true); };
-
   const handleView = (invoice) => { setDetailInvoice(invoice); setDetailOpen(true); };
 
-  const handleSave = async (data) => {
+  const handleSave = async (data, file) => {
+    let savedInvoice;
     if (editData) {
       const res = await costCentersAPI.updateInvoice(editData.id, data);
-      if (res.success) { toast.success(res.message); loadInvoices(); loadStats(); }
+      if (res.success) {
+        toast.success(res.message);
+        savedInvoice = res.data;
+      }
     } else {
       const res = await costCentersAPI.createInvoice(data);
-      if (res.success) { toast.success(res.message); loadInvoices(); loadStats(); }
+      if (res.success) {
+        toast.success(res.message);
+        savedInvoice = res.data;
+      }
     }
+
+    // Upload file if provided
+    if (file && savedInvoice) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        await costCentersAPI.uploadInvoiceFile(savedInvoice.id, formData);
+        toast.success('Fájl sikeresen feltöltve');
+      } catch (err) {
+        toast.error('A számla mentve, de a fájl feltöltés sikertelen');
+      }
+    }
+
+    loadInvoices();
+    loadStats();
   };
 
   const handleDelete = async () => {
@@ -446,7 +260,61 @@ function Invoices() {
     }
   };
 
-  // Check overdue
+  // Bulk actions
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === invoices.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(invoices.map((inv) => inv.id)));
+    }
+  };
+
+  const handleBulkMarkPaid = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      const res = await costCentersAPI.bulkInvoiceAction('mark_paid', Array.from(selectedIds));
+      if (res.success) {
+        toast.success(res.message);
+        setSelectedIds(new Set());
+        loadInvoices();
+        loadStats();
+      }
+    } catch (error) {
+      toast.error('Hiba a tömeges műveletnél');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Biztosan törölni szeretnéd a kijelölt ${selectedIds.size} számlát?`)) return;
+    try {
+      const res = await costCentersAPI.bulkInvoiceAction('delete', Array.from(selectedIds));
+      if (res.success) {
+        toast.success(res.message);
+        setSelectedIds(new Set());
+        loadInvoices();
+        loadStats();
+      }
+    } catch (error) {
+      toast.error('Hiba a tömeges törlésnél');
+    }
+  };
+
+  const handleBulkExportCsv = () => {
+    const selected = invoices.filter((inv) => selectedIds.has(inv.id));
+    if (selected.length === 0) return;
+    exportToCsv(selected);
+    toast.success(`${selected.length} számla exportálva`);
+  };
+
   const isOverdue = (inv) => {
     if (inv.payment_status === 'paid' || inv.payment_status === 'cancelled') return false;
     if (!inv.due_date) return false;
@@ -473,10 +341,24 @@ function Invoices() {
 
       {/* Stats cards */}
       <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-        <StatCard title="Összes számla" value={stats.total} icon={<ReceiptIcon />} color="#3b82f6" />
-        <StatCard title="Függőben" value={stats.pending} icon={<PendingIcon />} color="#f59e0b" />
-        <StatCard title="Fizetve" value={stats.paid} icon={<PaidIcon />} color="#10b981" />
-        <StatCard title="Lejárt" value={stats.overdue} icon={<OverdueIcon />} color="#ef4444" />
+        <StatCard
+          title="Összes számla" value={stats?.total_count ?? '-'}
+          icon={<ReceiptIcon />} color="#3b82f6"
+        />
+        <StatCard
+          title="Függőben" value={stats ? formatCurrency(stats.pending_sum) : '-'}
+          subtitle={stats ? `${stats.pending_count} db` : ''}
+          icon={<PendingIcon />} color="#f59e0b"
+        />
+        <StatCard
+          title="Lejárt" value={stats?.overdue_count ?? '-'}
+          icon={<OverdueIcon />} color="#ef4444"
+        />
+        <StatCard
+          title="Havi összeg" value={stats ? formatCurrency(stats.monthly_sum) : '-'}
+          subtitle={stats ? `${stats.monthly_count} db számla` : ''}
+          icon={<MonthlyIcon />} color="#8b5cf6"
+        />
       </Stack>
 
       {/* Search and filter bar */}
@@ -513,17 +395,15 @@ function Invoices() {
                 ))}
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Költséghely</InputLabel>
-              <Select value={filterCostCenter} onChange={(e) => { setFilterCostCenter(e.target.value); setPage(0); }} label="Költséghely">
-                <MenuItem value="">Mind</MenuItem>
-                {costCenters.map((cc) => (
-                  <MenuItem key={cc.id} value={cc.id}>
-                    {'  '.repeat((cc.level || 1) - 1)}{cc.icon || '📁'} {cc.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Box sx={{ minWidth: 250 }}>
+              <CostCenterSelector
+                value={filterCostCenter}
+                onChange={(val) => { setFilterCostCenter(val); setPage(0); }}
+                costCenters={costCenters}
+                costCenterTree={costCenterTree}
+                label="Költséghely"
+              />
+            </Box>
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel>Kategória</InputLabel>
               <Select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(0); }} label="Kategória">
@@ -547,6 +427,31 @@ function Invoices() {
         )}
       </Paper>
 
+      {/* Bulk action toolbar */}
+      {selectedIds.size > 0 && (
+        <Paper sx={{ mb: 2 }}>
+          <Toolbar variant="dense" sx={{ bgcolor: 'rgba(37, 99, 235, 0.06)', borderRadius: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+              {selectedIds.size} számla kiválasztva
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="outlined" color="success" startIcon={<BulkPaidIcon />}
+                onClick={handleBulkMarkPaid}>
+                Fizetve megjelölés
+              </Button>
+              <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}>
+                Törlés
+              </Button>
+              <Button size="small" variant="outlined" startIcon={<ExportIcon />}
+                onClick={handleBulkExportCsv}>
+                Export CSV
+              </Button>
+            </Stack>
+          </Toolbar>
+        </Paper>
+      )}
+
       {/* Table */}
       <Paper>
         {loading ? (
@@ -569,13 +474,22 @@ function Invoices() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={selectedIds.size > 0 && selectedIds.size < invoices.length}
+                        checked={selectedIds.size === invoices.length && invoices.length > 0}
+                        onChange={handleSelectAll}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Dátum</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Számlaszám</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Szállító</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Költséghely</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Nettó</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">ÁFA</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Bruttó</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Kategória</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }} align="right">Bruttó összeg</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Számla dátum</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Határidő</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 600, width: 130 }}>Műveletek</TableCell>
                   </TableRow>
@@ -585,6 +499,14 @@ function Invoices() {
                     const overdue = isOverdue(inv);
                     return (
                       <TableRow key={inv.id} hover sx={{ bgcolor: overdue ? 'rgba(239,68,68,0.04)' : 'transparent' }}>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={selectedIds.has(inv.id)}
+                            onChange={() => handleToggleSelect(inv.id)}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>{formatDate(inv.invoice_date)}</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>{inv.invoice_number || '-'}</TableCell>
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>{inv.vendor_name || '-'}</Typography>
@@ -598,19 +520,21 @@ function Invoices() {
                             size="small" variant="outlined"
                           />
                         </TableCell>
-                        <TableCell>
-                          {inv.category_name ? (
-                            <Chip label={`${inv.category_icon || ''} ${inv.category_name}`} size="small" variant="outlined" />
-                          ) : '-'}
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          {formatCurrency(inv.amount, inv.currency)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>
+                          {formatCurrency(inv.vat_amount, inv.currency)}
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                           {formatCurrency(inv.total_amount, inv.currency)}
                         </TableCell>
-                        <TableCell>{formatDate(inv.invoice_date)}</TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ color: overdue ? '#ef4444' : 'inherit', fontWeight: overdue ? 600 : 400 }}>
-                            {formatDate(inv.due_date)}
-                          </Typography>
+                          {inv.category_name ? (
+                            <Chip label={`${inv.category_icon || ''} ${inv.category_name}`} size="small" variant="outlined"
+                              sx={{ bgcolor: inv.category_color ? `${inv.category_color}18` : undefined }}
+                            />
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
@@ -665,10 +589,10 @@ function Invoices() {
       </Paper>
 
       {/* Dialogs */}
-      <InvoiceFormDialog
+      <InvoiceFormModal
         open={formOpen} onClose={() => setFormOpen(false)}
         onSave={handleSave} editData={editData}
-        costCenters={costCenters} categories={categories}
+        costCenters={costCenters} costCenterTree={costCenterTree} categories={categories}
       />
 
       <InvoiceDetailDialog

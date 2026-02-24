@@ -1004,6 +1004,23 @@ export const costCentersAPI = {
     const response = await api.delete(`/cost-centers/invoices/${id}`);
     return response.data;
   },
+
+  getInvoiceStats: async () => {
+    const response = await api.get('/cost-centers/invoices/stats');
+    return response.data;
+  },
+
+  bulkInvoiceAction: async (action, ids) => {
+    const response = await api.post('/cost-centers/invoices/bulk-action', { action, ids });
+    return response.data;
+  },
+
+  uploadInvoiceFile: async (id, formData) => {
+    const response = await api.post(`/cost-centers/invoices/${id}/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 export default api;
