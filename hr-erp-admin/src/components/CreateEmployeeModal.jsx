@@ -4,7 +4,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Avatar,
   Button,
   TextField,
   Grid,
@@ -23,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { employeesAPI, accommodationsAPI, roomsAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import UserAvatar from './common/UserAvatar';
 
 const initialFormData = {
   first_name: '',
@@ -190,12 +190,14 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
           {/* Profile Photo */}
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
-              <Avatar
-                src={photoPreview || undefined}
-                sx={{ width: 100, height: 100, mb: 1, bgcolor: '#2563eb', fontSize: '2rem' }}
-              >
-                {(formData.last_name?.[0] || '') + (formData.first_name?.[0] || '')}
-              </Avatar>
+              <UserAvatar
+                firstName={formData.first_name}
+                lastName={formData.last_name}
+                photoUrl={photoPreview || undefined}
+                size="xl"
+                tooltip={false}
+                sx={{ mb: 1 }}
+              />
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <input
                   type="file"

@@ -27,7 +27,6 @@ import {
   CircularProgress,
   Tooltip,
   Stack,
-  Avatar,
   Badge,
 } from '@mui/material';
 import {
@@ -44,6 +43,7 @@ import { toast } from 'react-toastify';
 import { usersAPI, permissionsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import UserFormModal from '../../components/admin/UserFormModal';
+import UserAvatar from '../../components/common/UserAvatar';
 
 const ROLE_COLORS = {
   superadmin: { bg: '#fef2f2', color: '#dc2626', chipColor: 'error' },
@@ -171,16 +171,6 @@ function AdminUsers() {
     return ROLE_COLORS[slug]?.chipColor || 'default';
   };
 
-  const getUserInitials = (user) => {
-    const f = user.first_name?.[0] || '';
-    const l = user.last_name?.[0] || '';
-    return (f + l).toUpperCase();
-  };
-
-  const getAvatarColor = (user) => {
-    const role = user.roles?.[0]?.slug;
-    return ROLE_COLORS[role]?.color || '#667eea';
-  };
 
   return (
     <Box>
@@ -327,17 +317,7 @@ function AdminUsers() {
                             ) : null
                           }
                         >
-                          <Avatar
-                            sx={{
-                              width: 38,
-                              height: 38,
-                              bgcolor: getAvatarColor(user),
-                              fontSize: '0.85rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {getUserInitials(user)}
-                          </Avatar>
+                          <UserAvatar user={user} size={38} tooltip={false} />
                         </Badge>
                       </TableCell>
                       <TableCell>

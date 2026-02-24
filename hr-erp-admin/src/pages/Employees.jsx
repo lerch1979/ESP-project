@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Avatar,
   Box,
   Paper,
   Typography,
@@ -44,6 +43,7 @@ import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import BulkEmailModal from '../components/BulkEmailModal';
 import FilterBuilder from '../components/FilterBuilder';
 import ResponsiveTable from '../components/ResponsiveTable';
+import UserAvatar from '../components/common/UserAvatar';
 
 const EMPLOYEE_FILTER_FIELDS = [
   { key: 'status', label: 'Státusz', type: 'dynamic' },
@@ -464,12 +464,12 @@ function Employees() {
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Avatar
-                            src={emp.profile_photo_url ? `${UPLOADS_BASE_URL}${emp.profile_photo_url}` : undefined}
-                            sx={{ width: 36, height: 36, fontSize: '0.85rem', bgcolor: '#2563eb' }}
-                          >
-                            {(emp.last_name?.[0] || '') + (emp.first_name?.[0] || '')}
-                          </Avatar>
+                          <UserAvatar
+                            user={emp}
+                            photoUrl={emp.profile_photo_url ? `${UPLOADS_BASE_URL}${emp.profile_photo_url}` : undefined}
+                            size="small"
+                            tooltip={false}
+                          />
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
                             {emp.last_name && emp.first_name
                               ? `${emp.last_name} ${emp.first_name}`

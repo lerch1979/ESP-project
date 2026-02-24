@@ -14,7 +14,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Avatar,
   Menu,
   MenuItem,
   useTheme,
@@ -58,6 +57,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
+import UserAvatar from './common/UserAvatar';
 
 const DRAWER_OPEN_WIDTH = 260;
 const DRAWER_COLLAPSED_WIDTH = 68;
@@ -252,20 +252,11 @@ function Layout({ children }) {
       {user && (
         <Box sx={{ px: collapsed && !isMobile ? 0.5 : 2, py: 1.5, display: 'flex', flexDirection: 'column', alignItems: collapsed && !isMobile ? 'center' : 'flex-start' }}>
           {collapsed && !isMobile ? (
-            <Tooltip title={`${user.firstName} ${user.lastName}`} placement="right">
-              <Avatar
-                sx={{
-                  width: 36,
-                  height: 36,
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                }}
-              >
-                {user.firstName?.[0]}{user.lastName?.[0]}
-              </Avatar>
-            </Tooltip>
+            <UserAvatar
+              user={user}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+            />
           ) : (
             <>
               <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -536,9 +527,7 @@ function Layout({ children }) {
             color="inherit"
           >
             {user ? (
-              <Avatar sx={{ width: 36, height: 36, bgcolor: '#2563eb' }}>
-                {user.firstName?.[0]}{user.lastName?.[0]}
-              </Avatar>
+              <UserAvatar user={user} size={36} tooltip={false} />
             ) : (
               <AccountCircle />
             )}

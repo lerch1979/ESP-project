@@ -4,7 +4,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Avatar,
   Button,
   TextField,
   Grid,
@@ -59,6 +58,7 @@ import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
 import { employeesAPI, accommodationsAPI, roomsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
+import UserAvatar from './common/UserAvatar';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
 const MARITAL_LABELS = { single: 'Egyedülálló', married: 'Házas', divorced: 'Elvált', widowed: 'Özvegy' };
@@ -907,15 +907,21 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
         {employee.profile_photo_url ? (
           <Zoom>
-            <Avatar
-              src={`${UPLOADS_BASE_URL}${employee.profile_photo_url}`}
-              sx={{ width: 150, height: 150, mb: 1, cursor: 'zoom-in' }}
+            <UserAvatar
+              user={employee}
+              photoUrl={`${UPLOADS_BASE_URL}${employee.profile_photo_url}`}
+              size="xxl"
+              tooltip={false}
+              sx={{ mb: 1, cursor: 'zoom-in' }}
             />
           </Zoom>
         ) : (
-          <Avatar sx={{ width: 150, height: 150, mb: 1, bgcolor: '#2563eb', fontSize: '3rem' }}>
-            {(employee.last_name?.[0] || '') + (employee.first_name?.[0] || '')}
-          </Avatar>
+          <UserAvatar
+            user={employee}
+            size="xxl"
+            tooltip={false}
+            sx={{ mb: 1 }}
+          />
         )}
         <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
           <input
@@ -1057,16 +1063,13 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
       {/* Profile Photo */}
       <Grid item xs={12}>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
-          {employee?.profile_photo_url ? (
-            <Avatar
-              src={`${UPLOADS_BASE_URL}${employee.profile_photo_url}`}
-              sx={{ width: 120, height: 120, mb: 1 }}
-            />
-          ) : (
-            <Avatar sx={{ width: 120, height: 120, mb: 1, bgcolor: '#2563eb', fontSize: '2.5rem' }}>
-              {(employee?.last_name?.[0] || '') + (employee?.first_name?.[0] || '')}
-            </Avatar>
-          )}
+          <UserAvatar
+            user={employee}
+            photoUrl={employee?.profile_photo_url ? `${UPLOADS_BASE_URL}${employee.profile_photo_url}` : undefined}
+            size={120}
+            tooltip={false}
+            sx={{ mb: 1 }}
+          />
           <Box sx={{ display: 'flex', gap: 1 }}>
             <input
               type="file"

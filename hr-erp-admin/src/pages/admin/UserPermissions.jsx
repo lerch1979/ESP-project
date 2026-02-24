@@ -17,7 +17,6 @@ import {
   MenuItem,
   Stack,
   Divider,
-  Avatar,
   IconButton,
   Tooltip,
 } from '@mui/material';
@@ -35,6 +34,7 @@ import {
 import { toast } from 'react-toastify';
 import { usersAPI, permissionsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import UserAvatar from '../../components/common/UserAvatar';
 
 const ROLE_COLORS = {
   superadmin: { bg: '#fef2f2', color: '#dc2626', chipColor: 'error' },
@@ -253,17 +253,7 @@ function UserPermissions() {
       {/* User Info Card */}
       <Paper sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ md: 'center' }}>
-          <Avatar
-            sx={{
-              width: 64,
-              height: 64,
-              bgcolor: ROLE_COLORS[user.roles?.[0]?.slug]?.color || '#667eea',
-              fontSize: '1.5rem',
-              fontWeight: 700,
-            }}
-          >
-            {(user.first_name?.[0] || '') + (user.last_name?.[0] || '')}
-          </Avatar>
+          <UserAvatar user={user} size="large" tooltip={false} />
 
           <Box sx={{ flex: 1 }}>
             <Typography variant="h5" fontWeight={700}>

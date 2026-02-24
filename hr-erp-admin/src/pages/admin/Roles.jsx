@@ -28,7 +28,6 @@ import {
   FormGroup,
   Alert,
   Divider,
-  Avatar,
   AvatarGroup,
 } from '@mui/material';
 import {
@@ -46,6 +45,7 @@ import {
 import { toast } from 'react-toastify';
 import { permissionsAPI, usersAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import UserAvatar from '../../components/common/UserAvatar';
 
 const ROLE_COLORS = {
   superadmin: { bg: '#fef2f2', color: '#dc2626', chipColor: 'error' },
@@ -331,11 +331,7 @@ function Roles() {
                         {roleUsersList.length > 0 && (
                           <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 28, height: 28, fontSize: '0.75rem' } }}>
                             {roleUsersList.slice(0, 3).map(u => (
-                              <Tooltip key={u.id} title={`${u.first_name} ${u.last_name}`}>
-                                <Avatar sx={{ bgcolor: ROLE_COLORS[role.slug]?.color || '#667eea' }}>
-                                  {(u.first_name?.[0] || '') + (u.last_name?.[0] || '')}
-                                </Avatar>
-                              </Tooltip>
+                              <UserAvatar key={u.id} user={u} size="xs" tooltip={true} />
                             ))}
                           </AvatarGroup>
                         )}
@@ -556,16 +552,7 @@ function Roles() {
             <Stack spacing={1}>
               {roleUsers.map(user => (
                 <Paper key={user.id} sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: ROLE_COLORS[selectedRoleForUsers?.slug]?.color || '#667eea',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    {(user.first_name?.[0] || '') + (user.last_name?.[0] || '')}
-                  </Avatar>
+                  <UserAvatar user={user} size="small" tooltip={false} />
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="body2" fontWeight={600}>
                       {user.first_name} {user.last_name}

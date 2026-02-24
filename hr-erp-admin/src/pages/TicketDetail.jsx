@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { ticketsAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import UserAvatar from '../components/common/UserAvatar';
 
 function TicketDetail() {
   const { id } = useParams();
@@ -260,9 +261,7 @@ function TicketDetail() {
                   <Box key={`${item.type}-${item.id}`}>
                     {item.type === 'comment' ? (
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                        <Avatar sx={{ width: 40, height: 40, bgcolor: '#2563eb', fontSize: '0.875rem' }}>
-                          {item.author?.[0] || '?'}
-                        </Avatar>
+                        <UserAvatar name={item.author} size="medium" tooltip={false} />
                         <Box sx={{ flex: 1 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                             <Stack direction="row" spacing={1} alignItems="center">
