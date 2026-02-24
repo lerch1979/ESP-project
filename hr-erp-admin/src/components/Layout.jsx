@@ -52,6 +52,7 @@ import {
   AdminPanelSettings as AdminPanelSettingsIcon,
   Shield as ShieldIcon,
   ManageAccounts as ManageAccountsIcon,
+  Receipt as ReceiptIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -85,6 +86,7 @@ const allMenuItems = [
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
   { text: 'Költségközpontok', icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
+  { text: 'Számlák', icon: <ReceiptIcon />, path: '/invoices', permission: 'settings.edit' },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },
   {
     text: 'Chatbot', icon: <SmartToyIcon />, permission: 'faq.edit', children: [
