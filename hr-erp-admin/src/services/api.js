@@ -906,4 +906,104 @@ export const emailTemplatesAPI = {
   },
 };
 
+// Cost Centers API
+export const costCentersAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/cost-centers', { params });
+    return response.data;
+  },
+
+  getTree: async (params = {}) => {
+    const response = await api.get('/cost-centers/tree', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/cost-centers/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/cost-centers', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/cost-centers/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/cost-centers/${id}`);
+    return response.data;
+  },
+
+  getAncestors: async (id) => {
+    const response = await api.get(`/cost-centers/${id}/ancestors`);
+    return response.data;
+  },
+
+  getDescendants: async (id) => {
+    const response = await api.get(`/cost-centers/${id}/descendants`);
+    return response.data;
+  },
+
+  getBudgetSummary: async (id) => {
+    const response = await api.get(`/cost-centers/${id}/budget-summary`);
+    return response.data;
+  },
+
+  move: async (id, newParentId) => {
+    const response = await api.post(`/cost-centers/${id}/move`, { new_parent_id: newParentId });
+    return response.data;
+  },
+
+  // Invoice Categories
+  getInvoiceCategories: async () => {
+    const response = await api.get('/cost-centers/invoice-categories/list');
+    return response.data;
+  },
+
+  createInvoiceCategory: async (data) => {
+    const response = await api.post('/cost-centers/invoice-categories', data);
+    return response.data;
+  },
+
+  updateInvoiceCategory: async (id, data) => {
+    const response = await api.put(`/cost-centers/invoice-categories/${id}`, data);
+    return response.data;
+  },
+
+  deleteInvoiceCategory: async (id) => {
+    const response = await api.delete(`/cost-centers/invoice-categories/${id}`);
+    return response.data;
+  },
+
+  // Invoices
+  getInvoices: async (params = {}) => {
+    const response = await api.get('/cost-centers/invoices/list', { params });
+    return response.data;
+  },
+
+  getInvoiceById: async (id) => {
+    const response = await api.get(`/cost-centers/invoices/${id}`);
+    return response.data;
+  },
+
+  createInvoice: async (data) => {
+    const response = await api.post('/cost-centers/invoices', data);
+    return response.data;
+  },
+
+  updateInvoice: async (id, data) => {
+    const response = await api.put(`/cost-centers/invoices/${id}`, data);
+    return response.data;
+  },
+
+  deleteInvoice: async (id) => {
+    const response = await api.delete(`/cost-centers/invoices/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

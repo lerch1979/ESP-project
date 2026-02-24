@@ -84,6 +84,7 @@ const allMenuItems = [
   { text: 'FAQ', icon: <HelpOutlineIcon />, path: '/faq', permission: 'faq.view' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
+  { text: 'Költségközpontok', icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },
   {
     text: 'Chatbot', icon: <SmartToyIcon />, permission: 'faq.edit', children: [
