@@ -1031,4 +1031,19 @@ export const costCentersAPI = {
   },
 };
 
+// Invoice Reports API
+export const invoiceReportsAPI = {
+  generate: async (filters) => {
+    const response = await api.post('/invoice-reports/generate', filters);
+    return response.data;
+  },
+  export: async (filters, format) => {
+    const response = await api.post('/invoice-reports/export', { ...filters, format }, {
+      responseType: 'blob',
+      timeout: 180000, // 3 min for large exports
+    });
+    return response;
+  },
+};
+
 export default api;
