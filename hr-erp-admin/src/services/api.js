@@ -1021,6 +1021,14 @@ export const costCentersAPI = {
     });
     return response.data;
   },
+
+  exportToFolder: async (filters) => {
+    const response = await api.post('/cost-centers/invoices/export-to-folder', filters, {
+      responseType: 'blob',
+      timeout: 120000, // 2 min for large exports
+    });
+    return response;
+  },
 };
 
 export default api;

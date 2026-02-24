@@ -2,6 +2,8 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
+const XLSX = require('xlsx');
+const archiver = require('archiver');
 
 // ============================================
 // TREE HELPERS
@@ -1162,6 +1164,258 @@ const uploadInvoiceFile = async (req, res) => {
 };
 
 // ============================================
+// EXPORT TO FOLDER (ZIP)
+// ============================================
+
+const PAYMENT_STATUS_LABELS = {
+  pending: 'Függőben',
+  paid: 'Fizetve',
+  overdue: 'Lejárt',
+  cancelled: 'Sztornó',
+};
+
+const MONTHS_HU = [
+  'Január', 'Február', 'Március', 'Április', 'Május', 'Június',
+  'Július', 'Augusztus', 'Szeptember', 'Október', 'November', 'December',
+];
+
+function sanitizeFileName(name) {
+  return (name || '')
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 60)
+    .trim();
+}
+
+function fmtDate(val) {
+  if (!val) return '';
+  return new Date(val).toLocaleDateString('hu-HU');
+}
+
+function generateInvoiceFileName(invoice, index, format) {
+  const num = String(index + 1).padStart(3, '0');
+  const ext = invoice.file_path ? path.extname(invoice.file_path) : '.pdf';
+  const invoiceNum = sanitizeFileName(invoice.invoice_number || 'N-A');
+  const vendor = sanitizeFileName(invoice.vendor_name || 'ismeretlen');
+  const ccName = sanitizeFileName(invoice.cost_center_name || 'egyeb');
+  const date = invoice.invoice_date
+    ? new Date(invoice.invoice_date).toISOString().substring(0, 10).replace(/-/g, '')
+    : 'nodate';
+
+  switch (format) {
+    case 'vendor':
+      return `${invoiceNum}_${vendor}${ext}`;
+    case 'date':
+      return `${date}_${invoiceNum}${ext}`;
+    case 'detailed':
+    default:
+      return `${num}_${ccName}_${invoiceNum}${ext}`;
+  }
+}
+
+const exportToFolder = async (req, res) => {
+  try {
+    const {
+      mode, year, month,
+      costCenterId, dateFrom, dateTo,
+      includeFiles = true, includeSummary = true,
+      fileNamingFormat = 'detailed',
+    } = req.body;
+
+    if (!mode) {
+      return res.status(400).json({ success: false, message: 'Export mód megadása kötelező' });
+    }
+
+    // Build filter query
+    let sql = `
+      SELECT i.*,
+        cc.name AS cost_center_name, cc.code AS cost_center_code, cc.icon AS cost_center_icon,
+        ic.name AS category_name, ic.icon AS category_icon
+      FROM invoices i
+      LEFT JOIN cost_centers cc ON i.cost_center_id = cc.id
+      LEFT JOIN invoice_categories ic ON i.category_id = ic.id
+      WHERE 1=1`;
+    const params = [];
+    let paramIdx = 0;
+
+    if (mode === 'monthly') {
+      if (!year || !month) {
+        return res.status(400).json({ success: false, message: 'Év és hónap megadása kötelező' });
+      }
+      paramIdx++;
+      sql += ` AND EXTRACT(YEAR FROM i.invoice_date) = $${paramIdx}`;
+      params.push(year);
+      paramIdx++;
+      sql += ` AND EXTRACT(MONTH FROM i.invoice_date) = $${paramIdx}`;
+      params.push(month);
+    } else if (mode === 'cost_center') {
+      if (!costCenterId) {
+        return res.status(400).json({ success: false, message: 'Költséghely megadása kötelező' });
+      }
+      // Include descendants
+      paramIdx++;
+      sql += ` AND i.cost_center_id IN (
+        WITH RECURSIVE subtree AS (
+          SELECT id FROM cost_centers WHERE id = $${paramIdx}
+          UNION ALL
+          SELECT cc2.id FROM cost_centers cc2 JOIN subtree st ON cc2.parent_id = st.id
+        )
+        SELECT id FROM subtree
+      )`;
+      params.push(costCenterId);
+      if (year) {
+        paramIdx++;
+        sql += ` AND EXTRACT(YEAR FROM i.invoice_date) = $${paramIdx}`;
+        params.push(year);
+      }
+    } else if (mode === 'custom') {
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ success: false, message: 'Dátum tartomány megadása kötelező' });
+      }
+      paramIdx++;
+      sql += ` AND i.invoice_date >= $${paramIdx}`;
+      params.push(dateFrom);
+      paramIdx++;
+      sql += ` AND i.invoice_date <= $${paramIdx}`;
+      params.push(dateTo);
+    }
+
+    sql += ' ORDER BY i.invoice_date ASC, i.invoice_number ASC';
+
+    const result = await query(sql, params);
+    const invoices = result.rows;
+
+    if (invoices.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nincs számla a megadott szűrőknek megfelelően',
+      });
+    }
+
+    // Generate folder name
+    let folderName;
+    if (mode === 'monthly') {
+      const monthStr = String(month).padStart(2, '0');
+      const monthName = MONTHS_HU[month - 1] || '';
+      folderName = `Szamlak_${year}_${monthStr}_${monthName.toLowerCase()}`;
+    } else if (mode === 'cost_center') {
+      const ccName = sanitizeFileName(invoices[0]?.cost_center_name || 'Koltsegyhely');
+      folderName = `${ccName}_${year || new Date().getFullYear()}`;
+    } else {
+      folderName = `Szamlak_export_${dateFrom}_${dateTo}`;
+    }
+
+    // Set response headers for ZIP download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${folderName}.zip"`);
+
+    // Create ZIP archive
+    const archive = archiver('zip', { zlib: { level: 6 } });
+
+    archive.on('error', (err) => {
+      logger.error('Archiver hiba:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: 'Hiba az archívum létrehozásakor' });
+      }
+    });
+
+    archive.pipe(res);
+
+    // Add invoice files to ZIP
+    if (includeFiles) {
+      for (let i = 0; i < invoices.length; i++) {
+        const inv = invoices[i];
+        if (!inv.file_path) continue;
+
+        const fullPath = path.join(__dirname, '..', '..', inv.file_path);
+        if (fs.existsSync(fullPath)) {
+          const zipFileName = generateInvoiceFileName(inv, i, fileNamingFormat);
+          archive.file(fullPath, { name: `${folderName}/${zipFileName}` });
+        }
+      }
+    }
+
+    // Generate and add Excel summary
+    if (includeSummary) {
+      const excelData = invoices.map((inv, idx) => ({
+        'Sorszám': idx + 1,
+        'Számlaszám': inv.invoice_number || '',
+        'Szállító': inv.vendor_name || '',
+        'Szállító adószám': inv.vendor_tax_number || '',
+        'Számla dátum': fmtDate(inv.invoice_date),
+        'Fizetési határidő': fmtDate(inv.due_date),
+        'Fizetés dátuma': fmtDate(inv.payment_date),
+        'Nettó összeg': inv.amount ? parseFloat(inv.amount) : 0,
+        'ÁFA összeg': inv.vat_amount ? parseFloat(inv.vat_amount) : 0,
+        'Bruttó összeg': inv.total_amount ? parseFloat(inv.total_amount) : 0,
+        'Pénznem': inv.currency || 'HUF',
+        'Fizetési státusz': PAYMENT_STATUS_LABELS[inv.payment_status] || inv.payment_status,
+        'Költséghely': inv.cost_center_name || '',
+        'Költséghely kód': inv.cost_center_code || '',
+        'Kategória': inv.category_name || '',
+        'Leírás': inv.description || '',
+        'Megjegyzés': inv.notes || '',
+      }));
+
+      // Add summary row
+      const totalNet = invoices.reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
+      const totalVat = invoices.reduce((sum, inv) => sum + (parseFloat(inv.vat_amount) || 0), 0);
+      const totalGross = invoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+
+      excelData.push({
+        'Sorszám': '',
+        'Számlaszám': '',
+        'Szállító': 'ÖSSZESEN:',
+        'Szállító adószám': '',
+        'Számla dátum': '',
+        'Fizetési határidő': '',
+        'Fizetés dátuma': '',
+        'Nettó összeg': totalNet,
+        'ÁFA összeg': totalVat,
+        'Bruttó összeg': totalGross,
+        'Pénznem': '',
+        'Fizetési státusz': '',
+        'Költséghely': '',
+        'Költséghely kód': '',
+        'Kategória': '',
+        'Leírás': `${invoices.length} db számla`,
+        'Megjegyzés': '',
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 8 }, { wch: 18 }, { wch: 25 }, { wch: 18 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+        { wch: 8 }, { wch: 14 }, { wch: 22 }, { wch: 12 },
+        { wch: 16 }, { wch: 30 }, { wch: 20 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Számlák');
+      const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      archive.append(excelBuffer, { name: `${folderName}/${folderName}_osszesito.xlsx` });
+    }
+
+    // Finalize ZIP
+    await archive.finalize();
+
+    logger.info('Invoice export to folder:', {
+      mode, invoiceCount: invoices.length, folderName,
+      userId: req.user?.id,
+    });
+  } catch (error) {
+    logger.error('Export to folder hiba:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Hiba az export során' });
+    }
+  }
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -1191,4 +1445,5 @@ module.exports = {
   getInvoiceStats,
   bulkInvoiceAction,
   uploadInvoiceFile,
+  exportToFolder,
 };

@@ -14,13 +14,15 @@ import {
   AccessTime as PendingIcon, CheckCircle as PaidIcon,
   Warning as OverdueIcon, Visibility as ViewIcon,
   CalendarMonth as MonthlyIcon, FileDownload as ExportIcon,
-  CheckBox as BulkPaidIcon,
+  CheckBox as BulkPaidIcon, FolderZip as FolderExportIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
-import { costCentersAPI } from '../services/api';
+import { costCentersAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import InvoiceDetailDialog from '../components/invoices/InvoiceDetailDialog';
 import InvoiceFormModal from '../components/invoices/InvoiceFormModal';
+import ExportToFolderModal from '../components/invoices/ExportToFolderModal';
 
 // ============================================
 // CONSTANTS
@@ -124,6 +126,9 @@ function Invoices() {
 
   // Stats
   const [stats, setStats] = useState(null);
+
+  // Export modal
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -333,10 +338,20 @@ function Invoices() {
           <Typography variant="h4" sx={{ fontWeight: 700 }}>Számlakezelés</Typography>
           <Typography variant="body2" color="text.secondary">Számlák nyilvántartása és költségkövetés</Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
-          Új számla
-        </Button>
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            variant="outlined"
+            startIcon={<FolderExportIcon />}
+            onClick={() => setExportOpen(true)}
+            sx={{ borderColor: '#f59e0b', color: '#d97706', '&:hover': { borderColor: '#d97706', bgcolor: 'rgba(245, 158, 11, 0.04)' } }}
+          >
+            Mappába exportálás
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+            Új számla
+          </Button>
+        </Stack>
       </Box>
 
       {/* Stats cards */}
@@ -564,6 +579,13 @@ function Invoices() {
                             <Tooltip title="Szerkesztés">
                               <IconButton size="small" onClick={() => handleEdit(inv)}><EditIcon fontSize="small" /></IconButton>
                             </Tooltip>
+                            {inv.file_path && (
+                              <Tooltip title="Letöltés">
+                                <IconButton size="small" component="a" href={`${UPLOADS_BASE_URL}/${inv.file_path}`} target="_blank" rel="noopener">
+                                  <DownloadIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Törlés">
                               <IconButton size="small" color="error" onClick={() => setDeleteConfirm(inv)}><DeleteIcon fontSize="small" /></IconButton>
                             </Tooltip>
@@ -598,6 +620,14 @@ function Invoices() {
       <InvoiceDetailDialog
         open={detailOpen} onClose={() => setDetailOpen(false)}
         invoice={detailInvoice}
+      />
+
+      {/* Export to folder modal */}
+      <ExportToFolderModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        costCenters={costCenters}
+        costCenterTree={costCenterTree}
       />
 
       {/* Delete confirmation */}

@@ -90,6 +90,7 @@ router.delete('/invoice-categories/:id', checkPermission('settings.edit'), contr
 router.get('/invoices/stats', controller.getInvoiceStats);
 router.get('/invoices/list', controller.getInvoices);
 router.post('/invoices/bulk-action', checkPermission('settings.edit'), controller.bulkInvoiceAction);
+router.post('/invoices/export-to-folder', checkPermission('settings.edit'), controller.exportToFolder);
 router.get('/invoices/:id', controller.getInvoiceById);
 router.post('/invoices/:id/upload', checkPermission('settings.edit'), invoiceUpload.single('file'), controller.uploadInvoiceFile);
 router.post('/invoices', checkPermission('settings.edit'), controller.createInvoice);
