@@ -20,6 +20,7 @@ import {
   useTheme,
   useMediaQuery,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -40,6 +41,7 @@ import {
   ExpandLess,
   ExpandMore,
   Menu as MenuIcon,
+  ChevronLeft as ChevronLeftIcon,
   Email as EmailIcon,
   SmartToy as SmartToyIcon,
   QuestionAnswer as QuestionAnswerIcon,
@@ -57,8 +59,9 @@ import { useAuth } from '../contexts/AuthContext';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
 
-
-const drawerWidth = 260;
+const DRAWER_OPEN_WIDTH = 260;
+const DRAWER_COLLAPSED_WIDTH = 68;
+const TRANSITION = 'width 0.3s ease, margin-left 0.3s ease';
 
 // Menu items with required permissions
 const allMenuItems = [
@@ -121,6 +124,25 @@ function Layout({ children }) {
   const [openSubmenus, setOpenSubmenus] = useState({});
   const { user, logout, hasPermission } = useAuth();
 
+  // Sidebar collapsed state — persisted in localStorage
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebarCollapsed', String(next)); } catch {}
+      return next;
+    });
+  };
+
+  const currentWidth = isMobile ? DRAWER_OPEN_WIDTH : (collapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_OPEN_WIDTH);
+
   // Filter menu items based on user permissions
   const menuItems = useMemo(() => {
     return allMenuItems
@@ -154,7 +176,14 @@ function Layout({ children }) {
   }, [location.pathname, menuItems]);
 
   const handleSubmenuToggle = (text) => {
-    setOpenSubmenus(prev => ({ ...prev, [text]: !prev[text] }));
+    if (collapsed && !isMobile) {
+      // Expand sidebar when clicking a submenu while collapsed
+      setCollapsed(false);
+      try { localStorage.setItem('sidebarCollapsed', 'false'); } catch {}
+      setOpenSubmenus(prev => ({ ...prev, [text]: true }));
+    } else {
+      setOpenSubmenus(prev => ({ ...prev, [text]: !prev[text] }));
+    }
   };
 
   // Close drawer on navigation (mobile)
@@ -185,45 +214,114 @@ function Layout({ children }) {
   // Get display role name
   const userRoleDisplay = user?.roles?.[0] || '';
 
+  // Whether to show text (expanded state)
+  const showText = isMobile || !collapsed;
+
   const drawerContent = (
     <>
-      <Toolbar sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 2 }}>
-        <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: 'white', textAlign: 'center' }}>
-          HOUSING SOLUTIONS
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
-          Employee Support Portal
-        </Typography>
+      {/* Logo area */}
+      <Toolbar
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          py: 2,
+          minHeight: collapsed && !isMobile ? 64 : 80,
+          transition: 'min-height 0.3s ease',
+        }}
+      >
+        {showText ? (
+          <>
+            <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: 'white', textAlign: 'center', whiteSpace: 'nowrap' }}>
+              HOUSING SOLUTIONS
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
+              Employee Support Portal
+            </Typography>
+          </>
+        ) : (
+          <Typography variant="h6" component="div" sx={{ fontWeight: 900, color: 'white', textAlign: 'center' }}>
+            HS
+          </Typography>
+        )}
       </Toolbar>
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
       {/* User info in sidebar */}
       {user && (
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="body2" sx={{ color: 'white', fontWeight: 600 }}>
-            {user.firstName} {user.lastName}
-          </Typography>
-          <Chip
-            label={userRoleDisplay}
-            size="small"
-            sx={{
-              mt: 0.5,
-              bgcolor: 'rgba(255,255,255,0.15)',
-              color: 'white',
-              fontSize: '0.7rem',
-              height: 22,
-            }}
-          />
+        <Box sx={{ px: collapsed && !isMobile ? 0.5 : 2, py: 1.5, display: 'flex', flexDirection: 'column', alignItems: collapsed && !isMobile ? 'center' : 'flex-start' }}>
+          {collapsed && !isMobile ? (
+            <Tooltip title={`${user.firstName} ${user.lastName}`} placement="right">
+              <Avatar
+                sx={{
+                  width: 36,
+                  height: 36,
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                }}
+              >
+                {user.firstName?.[0]}{user.lastName?.[0]}
+              </Avatar>
+            </Tooltip>
+          ) : (
+            <>
+              <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {user.firstName} {user.lastName}
+              </Typography>
+              <Chip
+                label={userRoleDisplay}
+                size="small"
+                sx={{
+                  mt: 0.5,
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                  color: 'white',
+                  fontSize: '0.7rem',
+                  height: 22,
+                }}
+              />
+            </>
+          )}
         </Box>
       )}
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
-      <List sx={{ mt: 1 }}>
+      {/* Menu items */}
+      <List sx={{ mt: 1, overflowX: 'hidden' }}>
         {menuItems.map((item) => {
           // Submenu with children
           if (item.children) {
             const isOpen = !!openSubmenus[item.text];
             const hasActiveChild = item.children.some(c => location.pathname === c.path);
+
+            // Collapsed: show only parent icon with tooltip, click navigates to first child
+            if (collapsed && !isMobile) {
+              return (
+                <Tooltip key={item.text} title={item.text} placement="right" arrow>
+                  <ListItem disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemButton
+                      onClick={() => handleSubmenuToggle(item.text)}
+                      sx={{
+                        mx: 0.5,
+                        borderRadius: 2,
+                        minHeight: 48,
+                        justifyContent: 'center',
+                        px: 1.5,
+                        ...(hasActiveChild && { bgcolor: 'rgba(255,255,255,0.1)' }),
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+                      }}
+                    >
+                      <ListItemIcon sx={{ color: 'white', minWidth: 0, justifyContent: 'center' }}>
+                        {item.icon}
+                      </ListItemIcon>
+                    </ListItemButton>
+                  </ListItem>
+                </Tooltip>
+              );
+            }
+
             return (
               <React.Fragment key={item.text}>
                 <ListItem disablePadding sx={{ mb: 0.5 }}>
@@ -246,7 +344,7 @@ function Layout({ children }) {
                     </ListItemIcon>
                     <ListItemText
                       primary={item.text}
-                      primaryTypographyProps={{ fontWeight: 500 }}
+                      primaryTypographyProps={{ fontWeight: 500, noWrap: true }}
                     />
                     {isOpen ? <ExpandLess sx={{ color: 'rgba(255,255,255,0.7)' }} /> : <ExpandMore sx={{ color: 'rgba(255,255,255,0.7)' }} />}
                   </ListItemButton>
@@ -279,7 +377,7 @@ function Layout({ children }) {
                           </ListItemIcon>
                           <ListItemText
                             primary={child.text}
-                            primaryTypographyProps={{ fontWeight: 400, fontSize: '0.9rem' }}
+                            primaryTypographyProps={{ fontWeight: 400, fontSize: '0.9rem', noWrap: true }}
                           />
                         </ListItemButton>
                       </ListItem>
@@ -290,7 +388,37 @@ function Layout({ children }) {
             );
           }
 
-          // Regular menu item
+          // Regular menu item — collapsed
+          if (collapsed && !isMobile) {
+            return (
+              <Tooltip key={item.text} title={item.text} placement="right" arrow>
+                <ListItem disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      mx: 0.5,
+                      borderRadius: 2,
+                      minHeight: 48,
+                      justifyContent: 'center',
+                      px: 1.5,
+                      '&.Mui-selected': {
+                        bgcolor: '#6366f1',
+                        '&:hover': { bgcolor: '#3b82f6' },
+                      },
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'white', minWidth: 0, justifyContent: 'center' }}>
+                      {item.icon}
+                    </ListItemIcon>
+                  </ListItemButton>
+                </ListItem>
+              </Tooltip>
+            );
+          }
+
+          // Regular menu item — expanded
           return (
             <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
@@ -316,13 +444,45 @@ function Layout({ children }) {
                 </ListItemIcon>
                 <ListItemText
                   primary={item.text}
-                  primaryTypographyProps={{ fontWeight: 500 }}
+                  primaryTypographyProps={{ fontWeight: 500, noWrap: true }}
                 />
               </ListItemButton>
             </ListItem>
           );
         })}
       </List>
+
+      {/* Collapse toggle at bottom (desktop only) */}
+      {!isMobile && (
+        <Box sx={{ mt: 'auto', p: 1 }}>
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />
+          <Tooltip title={collapsed ? 'Kinyitás' : 'Összecsukás'} placement="right">
+            <ListItemButton
+              onClick={toggleCollapsed}
+              sx={{
+                borderRadius: 2,
+                minHeight: 44,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                px: collapsed ? 1.5 : 2,
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'white', minWidth: collapsed ? 0 : 40, justifyContent: 'center' }}>
+                <ChevronLeftIcon sx={{
+                  transform: collapsed ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.3s ease',
+                }} />
+              </ListItemIcon>
+              {!collapsed && (
+                <ListItemText
+                  primary="Összecsukás"
+                  primaryTypographyProps={{ fontWeight: 500, fontSize: '0.85rem', noWrap: true }}
+                />
+              )}
+            </ListItemButton>
+          </Tooltip>
+        </Box>
+      )}
     </>
   );
 
@@ -332,19 +492,29 @@ function Layout({ children }) {
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          width: { md: `calc(100% - ${currentWidth}px)` },
+          ml: { md: `${currentWidth}px` },
           bgcolor: 'white',
           color: '#1e293b',
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          transition: TRANSITION,
         }}
       >
         <Toolbar>
-          {isMobile && (
+          {isMobile ? (
             <IconButton
               color="inherit"
               edge="start"
               onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          ) : (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={toggleCollapsed}
               sx={{ mr: 2 }}
             >
               <MenuIcon />
@@ -412,7 +582,7 @@ function Layout({ children }) {
           ModalProps={{ keepMounted: true }}
           sx={{
             '& .MuiDrawer-paper': {
-              width: drawerWidth,
+              width: DRAWER_OPEN_WIDTH,
               boxSizing: 'border-box',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
@@ -425,13 +595,17 @@ function Layout({ children }) {
         <Drawer
           variant="permanent"
           sx={{
-            width: drawerWidth,
+            width: currentWidth,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
-              width: drawerWidth,
+              width: currentWidth,
               boxSizing: 'border-box',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
+              transition: TRANSITION,
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
             },
           }}
           open
@@ -449,12 +623,12 @@ function Layout({ children }) {
           p: { xs: 2, md: 3 },
           minHeight: '100vh',
           mt: 8,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
+          width: { md: `calc(100% - ${currentWidth}px)` },
+          transition: TRANSITION,
         }}
       >
         {children}
       </Box>
-
     </Box>
   );
 }
