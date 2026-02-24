@@ -20,7 +20,7 @@ import {
   ListItem,
   ListItemText,
 } from '@mui/material';
-import { CloudUpload as UploadIcon } from '@mui/icons-material';
+import { CloudUpload as UploadIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { employeesAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
@@ -32,6 +32,86 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const fileInputRef = useRef(null);
+
+  const downloadTemplate = () => {
+    const headers = [
+      'Vezetéknév', 'Keresztnév', 'Nem', 'Születési dátum', 'Születési hely',
+      'Anyja neve', 'Családi állapot', 'Adóazonosító', 'Útlevélszám', 'TAJ szám',
+      'Email', 'Telefon', 'Munkakör', 'Törzsszám', 'Munkahely',
+      'Érkezés dátuma', 'Vízum lejárat', 'Szálláshely', 'Szobaszám',
+      'Bankszámlaszám', 'Irányítószám', 'Ország', 'Megye', 'Város',
+      'Utca', 'Házszám', 'Cégnév', 'Céges email', 'Céges telefon',
+    ];
+
+    const exampleRow = [
+      'Kovács', 'János', 'Férfi', '1990-05-15', 'Budapest',
+      'Nagy Mária', 'Nős', '8461234567', 'BA1234567', '123 456 789',
+      'kovacs.janos@example.com', '+36301234567', 'Villanyszerelő', 'EMP-0001', 'Budapest központ',
+      '2026-01-15', '2027-01-15', 'Fő utca szálló', '101',
+      'HU12 1234 5678 9012 3456 7890 1234', '1011', 'Magyarország', 'Pest', 'Budapest',
+      'Fő utca', '12/A', 'Housing Solutions Kft', 'kovacs@housingsolutions.hu', '+3612345678',
+    ];
+
+    // Data sheet
+    const dataSheet = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+
+    // Column widths
+    dataSheet['!cols'] = headers.map((h) => ({ wch: Math.max(h.length + 4, 18) }));
+
+    // Instructions sheet
+    const instructions = [
+      ['Munkavállaló importálás - Útmutató'],
+      [],
+      ['Általános szabályok:'],
+      ['- Az első sor (fejléc) NE legyen módosítva'],
+      ['- A 2. sorban egy minta adat található, azt töröld ki és írd be a sajátodat'],
+      ['- Minimum a Vezetéknév VAGY Keresztnév megadása kötelező'],
+      ['- A dátumok formátuma: ÉÉÉÉ-HH-NN (pl. 2026-01-15)'],
+      ['- A Nem mező értékei: Férfi, Nő'],
+      ['- A Szálláshely mező a rendszerben létező szálláshely nevét várja'],
+      [],
+      ['Oszlop magyarázatok:'],
+      ['Vezetéknév', 'Munkavállaló vezetékneve (kötelező)'],
+      ['Keresztnév', 'Munkavállaló keresztneve (kötelező)'],
+      ['Nem', 'Férfi vagy Nő'],
+      ['Születési dátum', 'Formátum: ÉÉÉÉ-HH-NN'],
+      ['Születési hely', 'Település neve'],
+      ['Anyja neve', 'Teljes név'],
+      ['Családi állapot', 'Pl. Egyedülálló, Házas, Nős, Elvált'],
+      ['Adóazonosító', '10 számjegyű adóazonosító jel'],
+      ['Útlevélszám', 'Útlevél száma'],
+      ['TAJ szám', 'Társadalombiztosítási Azonosító Jel (XXX XXX XXX)'],
+      ['Email', 'Személyes email cím'],
+      ['Telefon', 'Telefonszám (+36...)'],
+      ['Munkakör', 'Betöltött pozíció/munkakör'],
+      ['Törzsszám', 'Alkalmazotti azonosító (ha üres, automatikusan generálódik)'],
+      ['Munkahely', 'Munkavégzés helye'],
+      ['Érkezés dátuma', 'Munkába állás dátuma (ÉÉÉÉ-HH-NN)'],
+      ['Vízum lejárat', 'Vízum lejárati dátuma (ÉÉÉÉ-HH-NN)'],
+      ['Szálláshely', 'A rendszerben létező szálláshely neve'],
+      ['Szobaszám', 'Szobaszám a szálláshelyen'],
+      ['Bankszámlaszám', 'IBAN vagy bankszámlaszám'],
+      ['Irányítószám', 'Állandó lakcím irányítószáma'],
+      ['Ország', 'Állandó lakcím országa'],
+      ['Megye', 'Állandó lakcím megyéje'],
+      ['Város', 'Állandó lakcím városa'],
+      ['Utca', 'Állandó lakcím utcája'],
+      ['Házszám', 'Állandó lakcím házszáma'],
+      ['Cégnév', 'Foglalkoztató cég neve'],
+      ['Céges email', 'Munkahelyi email cím'],
+      ['Céges telefon', 'Munkahelyi telefonszám'],
+    ];
+    const guideSheet = XLSX.utils.aoa_to_sheet(instructions);
+    guideSheet['!cols'] = [{ wch: 25 }, { wch: 55 }];
+
+    // Build workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, dataSheet, 'Munkavállalók');
+    XLSX.utils.book_append_sheet(wb, guideSheet, 'Útmutató');
+
+    XLSX.writeFile(wb, 'munkavallakok_sablon.xlsx');
+    toast.success('Sablon letöltve!');
+  };
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
@@ -101,6 +181,32 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
       </DialogTitle>
 
       <DialogContent>
+        {/* Template download */}
+        {!result && (
+          <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f7ff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Sablon letöltése
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Töltsd le a sablont, töltsd ki, majd töltsd fel itt
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={downloadTemplate}
+              sx={{
+                borderColor: '#2563eb',
+                color: '#2563eb',
+                '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
+              }}
+            >
+              .xlsx sablon
+            </Button>
+          </Box>
+        )}
+
         {/* File drop zone */}
         {!file && (
           <Box
