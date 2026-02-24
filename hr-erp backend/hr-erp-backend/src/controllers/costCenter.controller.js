@@ -284,12 +284,12 @@ const update = async (req, res) => {
     // Prevent circular reference
     if (parent_id) {
       const descendants = await query(
-        `WITH RECURSIVE desc AS (
+        `WITH RECURSIVE subtree AS (
           SELECT id FROM cost_centers WHERE parent_id = $1
           UNION ALL
-          SELECT cc.id FROM cost_centers cc JOIN desc d ON cc.parent_id = d.id
+          SELECT cc.id FROM cost_centers cc JOIN subtree st ON cc.parent_id = st.id
         )
-        SELECT id FROM desc WHERE id = $2`,
+        SELECT id FROM subtree WHERE id = $2`,
         [id, parent_id]
       );
       if (descendants.rows.length > 0) {
@@ -582,12 +582,12 @@ const move = async (req, res) => {
 
       // Prevent circular: new parent can't be a descendant
       const circularCheck = await query(
-        `WITH RECURSIVE desc AS (
+        `WITH RECURSIVE subtree AS (
           SELECT id FROM cost_centers WHERE parent_id = $1
           UNION ALL
-          SELECT cc.id FROM cost_centers cc JOIN desc d ON cc.parent_id = d.id
+          SELECT cc.id FROM cost_centers cc JOIN subtree st ON cc.parent_id = st.id
         )
-        SELECT id FROM desc WHERE id = $2`,
+        SELECT id FROM subtree WHERE id = $2`,
         [id, new_parent_id]
       );
       if (circularCheck.rows.length > 0) {
@@ -733,12 +733,12 @@ const getInvoices = async (req, res) => {
       // Include all descendants of the cost center
       paramIdx++;
       sql += ` AND i.cost_center_id IN (
-        WITH RECURSIVE desc AS (
+        WITH RECURSIVE subtree AS (
           SELECT id FROM cost_centers WHERE id = $${paramIdx}
           UNION ALL
-          SELECT cc.id FROM cost_centers cc JOIN desc d ON cc.parent_id = d.id
+          SELECT cc.id FROM cost_centers cc JOIN subtree st ON cc.parent_id = st.id
         )
-        SELECT id FROM desc
+        SELECT id FROM subtree
       )`;
       params.push(cost_center_id);
     }
