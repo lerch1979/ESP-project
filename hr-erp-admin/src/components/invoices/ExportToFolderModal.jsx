@@ -150,9 +150,18 @@ export default function ExportToFolderModal({
         setProgress(0);
       }, 1000);
     } catch (error) {
-      const message = error.response?.status === 404
-        ? 'Nincs számla a megadott szűrőknek megfelelően'
-        : error.response?.data?.message || 'Hiba az export során';
+      let message = 'Hiba az export során';
+      if (error.response?.status === 404) {
+        message = 'Nincs számla a megadott szűrőknek megfelelően';
+      } else if (error.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const json = JSON.parse(text);
+          if (json.message) message = json.message;
+        } catch { /* use default */ }
+      } else if (error.response?.data?.message) {
+        message = error.response.data.message;
+      }
       toast.error(message);
       setProgress(0);
     } finally {
