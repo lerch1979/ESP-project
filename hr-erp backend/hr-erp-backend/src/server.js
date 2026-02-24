@@ -33,6 +33,7 @@ const chatbotRoutes = require('./routes/chatbot.routes');
 const permissionRoutes = require('./routes/permission.routes');
 const emailTemplateRoutes = require('./routes/email-template.routes');
 const costCenterRoutes = require('./routes/costCenter.routes');
+const invoiceReportRoutes = require('./routes/invoiceReport.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 
@@ -126,6 +127,7 @@ app.use(`${API_PREFIX}/chatbot`, chatbotRoutes);
 app.use(`${API_PREFIX}/permissions`, permissionRoutes);
 app.use(`${API_PREFIX}/email-templates`, emailTemplateRoutes);
 app.use(`${API_PREFIX}/cost-centers`, costCenterRoutes);
+app.use(`${API_PREFIX}/invoice-reports`, invoiceReportRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
