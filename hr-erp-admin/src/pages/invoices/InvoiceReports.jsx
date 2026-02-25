@@ -557,6 +557,7 @@ export default function InvoiceReports() {
 
   // Load initial data (cost centers, categories, vendors)
   useEffect(() => {
+    let cancelled = false;
     const loadInitialData = async () => {
       try {
         const [treeRes, allRes, catRes] = await Promise.all([
@@ -564,6 +565,7 @@ export default function InvoiceReports() {
           costCentersAPI.getAll({ limit: 500 }),
           costCentersAPI.getInvoiceCategories(),
         ]);
+        if (cancelled) return;
         setCostCenterTree(treeRes?.data || []);
         setCostCenters(allRes?.data || []);
         setCategories(catRes?.data || []);
@@ -571,6 +573,7 @@ export default function InvoiceReports() {
         // Load distinct vendors from all invoices
         try {
           const invRes = await costCentersAPI.getInvoices({ limit: 1000, fields: 'vendor_name' });
+          if (cancelled) return;
           const invList = invRes?.data || [];
           const uniqueVendors = [...new Set(invList.map((i) => i.vendor_name).filter(Boolean))].sort();
           setVendors(uniqueVendors);
@@ -578,10 +581,11 @@ export default function InvoiceReports() {
           // Vendors will be empty, that's ok
         }
       } catch (err) {
-        toast.error('Hiba az adatok betöltésekor');
+        if (!cancelled) toast.error('Hiba az adatok betöltésekor');
       }
     };
     loadInitialData();
+    return () => { cancelled = true; };
   }, []);
 
   // Build filters object
@@ -850,8 +854,8 @@ export default function InvoiceReports() {
               sx={{ minWidth: 250, flex: 1 }}
               limitTags={2}
               disableCloseOnSelect
-              renderOption={(props, option, { selected }) => (
-                <li {...props}>
+              renderOption={({ key, ...optionProps }, option, { selected }) => (
+                <li key={key} {...optionProps}>
                   <Checkbox size="small" checked={selected} sx={{ mr: 1, p: 0 }} />
                   <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>{option}</Typography>
                 </li>
