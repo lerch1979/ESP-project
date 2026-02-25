@@ -1046,4 +1046,137 @@ export const invoiceReportsAPI = {
   },
 };
 
+// Projects API
+export const projectsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/projects', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/projects/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/projects', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/projects/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/projects/${id}`);
+    return response.data;
+  },
+
+  getDashboard: async () => {
+    const response = await api.get('/projects/dashboard');
+    return response.data;
+  },
+
+  getTimeline: async (id) => {
+    const response = await api.get(`/projects/${id}/timeline`);
+    return response.data;
+  },
+
+  getBudgetSummary: async (id) => {
+    const response = await api.get(`/projects/${id}/budget-summary`);
+    return response.data;
+  },
+
+  assignTeamMember: async (id, data) => {
+    const response = await api.post(`/projects/${id}/team`, data);
+    return response.data;
+  },
+
+  removeTeamMember: async (id, userId) => {
+    const response = await api.delete(`/projects/${id}/team/${userId}`);
+    return response.data;
+  },
+};
+
+// Tasks API
+export const tasksAPI = {
+  getAll: async (projectId, params = {}) => {
+    const response = await api.get(`/projects/${projectId}/tasks`, { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/tasks/${id}`);
+    return response.data;
+  },
+
+  create: async (projectId, data) => {
+    const response = await api.post(`/projects/${projectId}/tasks`, data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/tasks/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/tasks/${id}`);
+    return response.data;
+  },
+
+  updateStatus: async (id, statusData) => {
+    const response = await api.put(`/tasks/${id}/status`, statusData);
+    return response.data;
+  },
+
+  addComment: async (id, data) => {
+    const response = await api.post(`/tasks/${id}/comments`, data);
+    return response.data;
+  },
+
+  addAttachment: async (id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/tasks/${id}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  getSubtasks: async (id) => {
+    const response = await api.get(`/tasks/${id}/subtasks`);
+    return response.data;
+  },
+
+  addDependency: async (id, data) => {
+    const response = await api.post(`/tasks/${id}/dependencies`, data);
+    return response.data;
+  },
+};
+
+// Timesheets API
+export const timesheetsAPI = {
+  logHours: async (data) => {
+    const response = await api.post('/timesheets', data);
+    return response.data;
+  },
+
+  getByTask: async (taskId) => {
+    const response = await api.get(`/timesheets/task/${taskId}`);
+    return response.data;
+  },
+
+  getByUser: async (userId, params = {}) => {
+    const response = await api.get(`/timesheets/user/${userId}`, { params });
+    return response.data;
+  },
+
+  getByProject: async (projectId) => {
+    const response = await api.get(`/timesheets/project/${projectId}`);
+    return response.data;
+  },
+};
+
 export default api;

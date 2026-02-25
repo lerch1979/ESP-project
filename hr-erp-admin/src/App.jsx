@@ -30,6 +30,8 @@ import AdminUserPermissions from './pages/admin/UserPermissions';
 import AdminRoles from './pages/admin/Roles';
 import AdminFAQCategories from './pages/admin/FAQCategories';
 import AdminFAQKnowledgeBase from './pages/admin/FAQKnowledgeBase';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -80,6 +82,8 @@ function App() {
             <Route path="admin/roles" element={<PermissionGuard permission="users.manage_permissions"><AdminRoles /></PermissionGuard>} />
             <Route path="admin/faq-categories" element={<PermissionGuard permission="faq.edit"><AdminFAQCategories /></PermissionGuard>} />
             <Route path="admin/faq-knowledge-base" element={<PermissionGuard permission="faq.edit"><AdminFAQKnowledgeBase /></PermissionGuard>} />
+            <Route path="projects" element={<PermissionGuard permission="projects.view"><Projects /></PermissionGuard>} />
+            <Route path="projects/:id" element={<PermissionGuard permission="projects.view"><ProjectDetail /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
