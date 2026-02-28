@@ -2,6 +2,7 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
 const autoAssignService = require('../services/autoAssign.service');
+const slaService = require('../services/sla.service');
 
 const TICKET_FILTER_FIELD_MAP = {
   status: 'ts.slug',
@@ -130,7 +131,11 @@ const getTickets = async (req, res) => {
         creator.first_name || ' ' || creator.last_name as created_by_name,
         creator.email as created_by_email,
         assignee.first_name || ' ' || assignee.last_name as assigned_to_name,
-        assignee.email as assigned_to_email
+        assignee.email as assigned_to_email,
+        t.sla_response_deadline,
+        t.sla_resolution_deadline,
+        t.first_response_at,
+        t.sla_policy_id
       FROM tickets t
       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
@@ -188,7 +193,8 @@ const getTicketById = async (req, res) => {
         p.level as priority_level,
         creator.first_name || ' ' || creator.last_name as created_by_name,
         assignee.first_name || ' ' || assignee.last_name as assigned_to_name,
-        tn.name as contractor_name
+        tn.name as contractor_name,
+        sp.name as sla_policy_name
       FROM tickets t
       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
@@ -196,6 +202,7 @@ const getTicketById = async (req, res) => {
       LEFT JOIN users creator ON t.created_by = creator.id
       LEFT JOIN users assignee ON t.assigned_to = assignee.id
       LEFT JOIN contractors tn ON t.contractor_id = tn.id
+      LEFT JOIN sla_policies sp ON t.sla_policy_id = sp.id
       WHERE t.id = $1
     `;
 
@@ -361,6 +368,23 @@ const createTicket = async (req, res) => {
         }
       }
 
+      // Apply SLA deadlines
+      const priorityResult = priority_id
+        ? await client.query('SELECT slug FROM priorities WHERE id = $1', [priority_id])
+        : null;
+      const prioritySlug = priorityResult?.rows[0]?.slug || 'normal';
+
+      const slaData = await slaService.applyToTicket(ticketId, {
+        contractorId: req.user.contractorId,
+        categoryId: category_id || null,
+        prioritySlug,
+        createdAt: ticketData.created_at,
+      });
+
+      if (slaData) {
+        ticketData = { ...ticketData, ...slaData };
+      }
+
       res.status(201).json({
         success: true,
         message: 'Ticket sikeresen létrehozva',
@@ -395,7 +419,7 @@ const updateTicketStatus = async (req, res) => {
     await transaction(async (client) => {
       // Jelenlegi ticket lekérése
       const currentResult = await client.query(
-        'SELECT status_id, contractor_id, assigned_to FROM tickets WHERE id = $1',
+        'SELECT status_id, contractor_id, assigned_to, first_response_at FROM tickets WHERE id = $1',
         [id]
       );
 
@@ -413,7 +437,7 @@ const updateTicketStatus = async (req, res) => {
       }
 
       const oldStatusResult = await client.query(
-        'SELECT name FROM ticket_statuses WHERE id = $1',
+        'SELECT name, slug FROM ticket_statuses WHERE id = $1',
         [currentTicket.status_id]
       );
 
@@ -426,9 +450,15 @@ const updateTicketStatus = async (req, res) => {
       const updateFields = ['status_id = $1'];
       const updateParams = [status_id, id];
 
+      // First response tracking: when status changes FROM 'new'
+      if (oldStatusResult.rows[0].slug === 'new' && !currentTicket.first_response_at) {
+        updateFields.push('first_response_at = CURRENT_TIMESTAMP');
+      }
+
       // Ha végső státusz (lezárva), akkor záró időpontot is beállítjuk
       if (newStatusResult.rows[0].is_final) {
         updateFields.push('closed_at = CURRENT_TIMESTAMP');
+        updateFields.push('resolved_at = CURRENT_TIMESTAMP');
       }
 
       await client.query(
@@ -492,7 +522,10 @@ const addComment = async (req, res) => {
 
     // Ticket ellenőrzés és jogosultság
     const ticketCheck = await query(
-      'SELECT contractor_id, assigned_to FROM tickets WHERE id = $1',
+      `SELECT t.contractor_id, t.assigned_to, t.first_response_at, ts.slug as status_slug
+       FROM tickets t
+       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+       WHERE t.id = $1`,
       [id]
     );
 
@@ -522,11 +555,18 @@ const addComment = async (req, res) => {
       [id, req.user.id, comment, is_internal]
     );
 
-    // Ticket frissítése (updated_at)
-    await query(
-      'UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [id]
-    );
+    // First response tracking: first comment on a 'new' ticket counts as response
+    if (ticket.status_slug === 'new' && !ticket.first_response_at) {
+      await query(
+        'UPDATE tickets SET updated_at = CURRENT_TIMESTAMP, first_response_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [id]
+      );
+    } else {
+      await query(
+        'UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [id]
+      );
+    }
 
     logger.info('Megjegyzés hozzáadva', {
       ticketId: id,

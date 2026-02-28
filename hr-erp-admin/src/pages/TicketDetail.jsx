@@ -16,12 +16,16 @@ import {
   MenuItem,
   FormControl,
   Chip,
+  LinearProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
   Send as SendIcon,
   History as HistoryIcon,
   Comment as CommentIcon,
+  AccessTime as ClockIcon,
+  CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { ticketsAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -171,6 +175,40 @@ function TicketDetail() {
       return `${item.field}: ${item.oldValue || '–'} → ${item.newValue || '–'}`;
     }
     return item.action || 'Módosítás';
+  };
+
+  const getSlaStatus = (deadline, respondedAt) => {
+    if (!deadline) return null;
+    const now = new Date();
+    const dl = new Date(deadline);
+
+    if (respondedAt) {
+      const responded = new Date(respondedAt);
+      return {
+        label: 'Teljesítve',
+        color: '#4caf50',
+        progress: 100,
+        onTime: responded <= dl,
+      };
+    }
+
+    const total = dl.getTime() - now.getTime();
+    const hoursLeft = total / 3600000;
+
+    if (hoursLeft <= 0) {
+      return { label: 'Lejárt', color: '#f44336', progress: 100 };
+    }
+    if (hoursLeft < 4) {
+      const pct = Math.max(0, Math.min(100, ((1 - hoursLeft / 4) * 100)));
+      return { label: `${Math.ceil(hoursLeft)} óra van hátra`, color: '#ff9800', progress: pct };
+    }
+    // Calculate progress as percentage of elapsed time
+    return { label: `${Math.ceil(hoursLeft)} óra van hátra`, color: '#4caf50', progress: Math.min(50, 100 - hoursLeft) };
+  };
+
+  const formatDeadline = (d) => {
+    if (!d) return '-';
+    return new Date(d).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
   if (loading) {
@@ -354,6 +392,102 @@ function TicketDetail() {
               {ticket.contractor_name || '-'}
             </Typography>
           </Paper>
+
+          {/* SLA */}
+          {ticket.sla_policy_id && (
+            <Paper sx={{ p: 2.5, mb: 2 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, mb: 2, display: 'block' }}>
+                SLA
+              </Typography>
+
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 2 }}>
+                {ticket.sla_policy_name || 'SLA szabályzat'}
+              </Typography>
+
+              {/* Response deadline */}
+              {ticket.sla_response_deadline && (() => {
+                const status = getSlaStatus(ticket.sla_response_deadline, ticket.first_response_at);
+                return (
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Válasz határidő
+                      </Typography>
+                      {status && (
+                        <Chip
+                          icon={status.label === 'Teljesítve' ? <CheckIcon sx={{ fontSize: 14 }} /> : <ClockIcon sx={{ fontSize: 14 }} />}
+                          label={status.label}
+                          size="small"
+                          sx={{
+                            bgcolor: status.color + '20',
+                            color: status.color,
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            height: 22,
+                          }}
+                        />
+                      )}
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 0.5, fontSize: '0.8rem' }}>
+                      {formatDeadline(ticket.sla_response_deadline)}
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={status?.progress || 0}
+                      sx={{
+                        height: 6,
+                        borderRadius: 3,
+                        bgcolor: '#e0e0e0',
+                        '& .MuiLinearProgress-bar': { bgcolor: status?.color || '#4caf50', borderRadius: 3 },
+                      }}
+                    />
+                  </Box>
+                );
+              })()}
+
+              {/* Resolution deadline */}
+              {ticket.sla_resolution_deadline && (() => {
+                const isFinal = ticket.status_slug === 'completed' || ticket.status_slug === 'rejected' || ticket.status_slug === 'not_feasible';
+                const status = getSlaStatus(ticket.sla_resolution_deadline, isFinal ? (ticket.resolved_at || ticket.closed_at) : null);
+                return (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Megoldás határidő
+                      </Typography>
+                      {status && (
+                        <Chip
+                          icon={status.label === 'Teljesítve' ? <CheckIcon sx={{ fontSize: 14 }} /> : <ClockIcon sx={{ fontSize: 14 }} />}
+                          label={status.label}
+                          size="small"
+                          sx={{
+                            bgcolor: status.color + '20',
+                            color: status.color,
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            height: 22,
+                          }}
+                        />
+                      )}
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 0.5, fontSize: '0.8rem' }}>
+                      {formatDeadline(ticket.sla_resolution_deadline)}
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={status?.progress || 0}
+                      sx={{
+                        height: 6,
+                        borderRadius: 3,
+                        bgcolor: '#e0e0e0',
+                        '& .MuiLinearProgress-bar': { bgcolor: status?.color || '#4caf50', borderRadius: 3 },
+                      }}
+                    />
+                  </Box>
+                );
+              })()}
+            </Paper>
+          )}
 
           {/* Hibajegy adatok */}
           <Paper sx={{ p: 2.5 }}>

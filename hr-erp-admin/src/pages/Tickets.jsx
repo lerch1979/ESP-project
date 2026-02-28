@@ -21,6 +21,7 @@ import {
   Search as SearchIcon,
   Add as AddIcon,
   Download as DownloadIcon,
+  AccessTime as ClockIcon,
 } from '@mui/icons-material';
 import { ticketsAPI, exportAPI, reportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -153,6 +154,27 @@ function Tickets() {
     return colors[slug] || 'default';
   };
 
+  const getDeadlineChip = (ticket) => {
+    if (!ticket.sla_resolution_deadline) return null;
+
+    const isFinal = ['completed', 'rejected', 'not_feasible'].includes(ticket.status_slug);
+    if (isFinal) {
+      return { label: new Date(ticket.sla_resolution_deadline).toLocaleDateString('hu-HU'), color: '#9e9e9e', bg: '#f5f5f5' };
+    }
+
+    const now = new Date();
+    const deadline = new Date(ticket.sla_resolution_deadline);
+    const hoursLeft = (deadline.getTime() - now.getTime()) / 3600000;
+
+    if (hoursLeft <= 0) {
+      return { label: 'Lejárt', color: '#f44336', bg: '#ffebee' };
+    }
+    if (hoursLeft < 4) {
+      return { label: `${Math.ceil(hoursLeft)}h`, color: '#ff9800', bg: '#fff3e0' };
+    }
+    return { label: new Date(ticket.sla_resolution_deadline).toLocaleDateString('hu-HU'), color: '#4caf50', bg: '#e8f5e9' };
+  };
+
   const handleRowClick = (ticketId) => {
     navigate(`/tickets/${ticketId}`);
   };
@@ -277,6 +299,7 @@ function Tickets() {
                     <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Prioritás</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Felelős</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Határidő</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Létrehozva</TableCell>
                   </TableRow>
                 </TableHead>
@@ -337,6 +360,25 @@ function Tickets() {
                         <Typography variant="body2" color="text.secondary">
                           {ticket.assigned_to_name || '-'}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const chip = getDeadlineChip(ticket);
+                          if (!chip) return <Typography variant="body2" color="text.secondary">-</Typography>;
+                          return (
+                            <Chip
+                              icon={<ClockIcon sx={{ fontSize: 14 }} />}
+                              label={chip.label}
+                              size="small"
+                              sx={{
+                                bgcolor: chip.bg,
+                                color: chip.color,
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                              }}
+                            />
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
