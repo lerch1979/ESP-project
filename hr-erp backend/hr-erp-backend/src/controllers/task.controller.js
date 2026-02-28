@@ -688,6 +688,89 @@ const addDependency = async (req, res) => {
 };
 
 /**
+ * GET /api/v1/tasks/my
+ * Az aktuális felhasználóhoz rendelt feladatok az összes projektből
+ */
+const getMyTasks = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { status, priority, search, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereConditions = ['t.assigned_to = $1'];
+    let params = [userId];
+    let paramIndex = 2;
+
+    if (status && status !== 'all') {
+      whereConditions.push(`t.status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (priority && priority !== 'all') {
+      whereConditions.push(`t.priority = $${paramIndex}`);
+      params.push(priority);
+      paramIndex++;
+    }
+
+    if (search) {
+      whereConditions.push(`(t.title ILIKE $${paramIndex} OR t.description ILIKE $${paramIndex})`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM tasks t ${whereClause}`,
+      params
+    );
+
+    const result = await query(
+      `SELECT t.*,
+        p.name as project_name, p.code as project_code,
+        u_creator.first_name as creator_first_name, u_creator.last_name as creator_last_name,
+        (SELECT COUNT(*) FROM tasks sub WHERE sub.parent_task_id = t.id) as subtask_count,
+        (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) as comment_count
+       FROM tasks t
+       LEFT JOIN projects p ON t.project_id = p.id
+       LEFT JOIN users u_creator ON t.created_by = u_creator.id
+       ${whereClause}
+       ORDER BY
+        CASE t.priority
+          WHEN 'critical' THEN 1
+          WHEN 'high' THEN 2
+          WHEN 'medium' THEN 3
+          WHEN 'low' THEN 4
+        END,
+        t.due_date NULLS LAST,
+        t.created_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        tasks: result.rows,
+        pagination: {
+          total: parseInt(countResult.rows[0].total),
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(countResult.rows[0].total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Saját feladatok lekérdezési hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Saját feladatok lekérdezési hiba'
+    });
+  }
+};
+
+/**
  * Helper: Update project completion percentage based on task statuses
  */
 async function updateProjectCompletion(projectId) {
@@ -716,6 +799,7 @@ async function updateProjectCompletion(projectId) {
 module.exports = {
   getAll,
   getById,
+  getMyTasks,
   create,
   update,
   remove,

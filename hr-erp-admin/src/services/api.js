@@ -1106,6 +1106,11 @@ export const tasksAPI = {
     return response.data;
   },
 
+  getMyTasks: async (params = {}) => {
+    const response = await api.get('/tasks/my', { params });
+    return response.data;
+  },
+
   getById: async (id) => {
     const response = await api.get(`/tasks/${id}`);
     return response.data;

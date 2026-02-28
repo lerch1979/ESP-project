@@ -40,6 +40,12 @@ router.use(authenticateToken);
 // ============================================
 
 /**
+ * GET /api/v1/tasks/my
+ * Saját feladatok lekérdezése (összes projektből)
+ */
+router.get('/my', checkPermission('tasks.view'), taskController.getMyTasks);
+
+/**
  * GET /api/v1/tasks/:id
  * Egyedi feladat lekérdezése
  */

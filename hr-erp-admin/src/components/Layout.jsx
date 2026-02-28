@@ -69,6 +69,7 @@ const TRANSITION = 'width 0.3s ease, margin-left 0.3s ease';
 // Menu items with required permissions
 const allMenuItems = [
   { text: 'Kezdőlap', icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
+  { text: 'Feladataim', icon: <AssignmentIcon />, path: '/my-tasks', permission: 'dashboard.view' },
   { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets', permission: 'tickets.view' },
   { text: 'Szállásolt munkavállalók', icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
   { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },

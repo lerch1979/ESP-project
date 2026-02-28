@@ -32,6 +32,7 @@ import AdminFAQCategories from './pages/admin/FAQCategories';
 import AdminFAQKnowledgeBase from './pages/admin/FAQKnowledgeBase';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
+import MyTasks from './pages/MyTasks';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -58,6 +59,7 @@ function App() {
           <Route path="/" element={<PrivateRoute />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<PermissionGuard permission="dashboard.view"><Dashboard /></PermissionGuard>} />
+            <Route path="my-tasks" element={<PermissionGuard permission="dashboard.view"><MyTasks /></PermissionGuard>} />
             <Route path="tickets" element={<PermissionGuard permission="tickets.view"><Tickets /></PermissionGuard>} />
             <Route path="tickets/:id" element={<PermissionGuard permission="tickets.view"><TicketDetail /></PermissionGuard>} />
             <Route path="users" element={<PermissionGuard permission="users.view"><Users /></PermissionGuard>} />
