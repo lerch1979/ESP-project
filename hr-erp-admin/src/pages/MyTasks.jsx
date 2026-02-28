@@ -21,7 +21,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Stack,
-  Badge,
 } from '@mui/material';
 import {
   ViewList as ViewListIcon,
@@ -36,7 +35,6 @@ import {
 } from '@mui/icons-material';
 import { tasksAPI, ticketsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/Layout';
 
 // --- Status / priority maps ---
 
@@ -344,17 +342,14 @@ function MyTasks() {
 
   if (loading) {
     return (
-      <Layout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-          <CircularProgress />
-        </Box>
-      </Layout>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <Layout>
-      <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
         {/* Header */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
@@ -401,7 +396,7 @@ function MyTasks() {
                 <ToggleButton key={f.key} value={f.key} sx={{ textTransform: 'none', px: 2 }}>
                   {f.label}
                   {f.key === 'overdue' && overdueCount > 0 && (
-                    <Badge badgeContent={overdueCount} color="error" sx={{ ml: 1 }} />
+                    <Chip label={overdueCount} color="error" size="small" sx={{ ml: 1, height: 20, minWidth: 20, fontSize: '0.7rem' }} />
                   )}
                 </ToggleButton>
               ))}
@@ -521,7 +516,6 @@ function MyTasks() {
           </Box>
         )}
       </Box>
-    </Layout>
   );
 }
 
