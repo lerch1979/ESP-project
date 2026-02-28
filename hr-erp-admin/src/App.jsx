@@ -33,6 +33,7 @@ import AdminFAQKnowledgeBase from './pages/admin/FAQKnowledgeBase';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import MyTasks from './pages/MyTasks';
+import AssignmentRules from './pages/AssignmentRules';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -86,6 +87,7 @@ function App() {
             <Route path="admin/faq-knowledge-base" element={<PermissionGuard permission="faq.edit"><AdminFAQKnowledgeBase /></PermissionGuard>} />
             <Route path="projects" element={<PermissionGuard permission="projects.view"><Projects /></PermissionGuard>} />
             <Route path="projects/:id" element={<PermissionGuard permission="projects.view"><ProjectDetail /></PermissionGuard>} />
+            <Route path="assignment-rules" element={<PermissionGuard permission="settings.view"><AssignmentRules /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

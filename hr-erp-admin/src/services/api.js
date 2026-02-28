@@ -1184,4 +1184,65 @@ export const timesheetsAPI = {
   },
 };
 
+// Assignment Rules API
+export const assignmentRulesAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/assignment-rules', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/assignment-rules/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/assignment-rules', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/assignment-rules/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/assignment-rules/${id}`);
+    return response.data;
+  },
+};
+
+// User Workload API
+export const userWorkloadAPI = {
+  getAll: async () => {
+    const response = await api.get('/user-workload');
+    return response.data;
+  },
+
+  getByUserId: async (userId) => {
+    const response = await api.get(`/user-workload/${userId}`);
+    return response.data;
+  },
+
+  recalculate: async () => {
+    const response = await api.post('/user-workload/recalculate');
+    return response.data;
+  },
+
+  getSkills: async (params = {}) => {
+    const response = await api.get('/user-workload/skills/all', { params });
+    return response.data;
+  },
+
+  addSkill: async (data) => {
+    const response = await api.post('/user-workload/skills', data);
+    return response.data;
+  },
+
+  removeSkill: async (id) => {
+    const response = await api.delete(`/user-workload/skills/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

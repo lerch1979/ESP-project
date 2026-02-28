@@ -55,6 +55,7 @@ import {
   Receipt as ReceiptIcon,
   Assignment as AssignmentIcon,
   ListAlt as ListAltIcon,
+  AutoAwesome as AutoAssignIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -88,6 +89,7 @@ const allMenuItems = [
   { text: 'FAQ', icon: <HelpOutlineIcon />, path: '/faq', permission: 'faq.view' },
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
+  { text: 'Auto-kiosztás', icon: <AutoAssignIcon />, path: '/assignment-rules', permission: 'settings.view' },
   {
     text: 'Projektkezelés', icon: <AssignmentIcon />, permission: 'projects.view', children: [
       { text: 'Projektek', icon: <ListAltIcon />, path: '/projects', permission: 'projects.view' },
