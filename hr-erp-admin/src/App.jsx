@@ -35,6 +35,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import MyTasks from './pages/MyTasks';
 import AssignmentRules from './pages/AssignmentRules';
 import UserWorkload from './pages/UserWorkload';
+import UserSkills from './pages/UserSkills';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -90,6 +91,7 @@ function App() {
             <Route path="projects/:id" element={<PermissionGuard permission="projects.view"><ProjectDetail /></PermissionGuard>} />
             <Route path="assignment-rules" element={<PermissionGuard permission="settings.view"><AssignmentRules /></PermissionGuard>} />
             <Route path="user-workload" element={<PermissionGuard permission="users.view"><UserWorkload /></PermissionGuard>} />
+            <Route path="user-skills" element={<PermissionGuard permission="users.view"><UserSkills /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
