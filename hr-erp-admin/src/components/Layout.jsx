@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
+  Badge,
   Box,
   Collapse,
   Drawer,
@@ -59,6 +60,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import { tasksAPI } from '../services/api';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
 import UserAvatar from './common/UserAvatar';
@@ -141,6 +143,24 @@ function Layout({ children }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [openSubmenus, setOpenSubmenus] = useState({});
   const { user, logout, hasPermission } = useAuth();
+
+  // My-tasks badge count
+  const [myTasksCount, setMyTasksCount] = useState(0);
+
+  const loadMyTasksCount = useCallback(async () => {
+    try {
+      const response = await tasksAPI.getMyTasksStats();
+      setMyTasksCount(response.data?.total || 0);
+    } catch {
+      // Silently ignore — badge just won't show
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMyTasksCount();
+    const interval = setInterval(loadMyTasksCount, 30000);
+    return () => clearInterval(interval);
+  }, [loadMyTasksCount]);
 
   // Sidebar collapsed state — persisted in localStorage
   const [collapsed, setCollapsed] = useState(() => {
@@ -397,6 +417,8 @@ function Layout({ children }) {
             );
           }
 
+          const showBadge = item.path === '/my-tasks' && myTasksCount > 0;
+
           // Regular menu item — collapsed
           if (collapsed && !isMobile) {
             return (
@@ -419,7 +441,11 @@ function Layout({ children }) {
                     }}
                   >
                     <ListItemIcon sx={{ color: 'white', minWidth: 0, justifyContent: 'center' }}>
-                      {item.icon}
+                      {showBadge ? (
+                        <Badge badgeContent={myTasksCount} color="error" max={99}>
+                          {item.icon}
+                        </Badge>
+                      ) : item.icon}
                     </ListItemIcon>
                   </ListItemButton>
                 </ListItem>
@@ -455,6 +481,9 @@ function Layout({ children }) {
                   primary={item.text}
                   primaryTypographyProps={{ fontWeight: 500, noWrap: true }}
                 />
+                {showBadge && (
+                  <Badge badgeContent={myTasksCount} color="error" max={99} />
+                )}
               </ListItemButton>
             </ListItem>
           );

@@ -40,6 +40,12 @@ router.use(authenticateToken);
 // ============================================
 
 /**
+ * GET /api/v1/tasks/my/stats
+ * Saját feladatok statisztikái (dashboard widget + sidebar badge)
+ */
+router.get('/my/stats', checkPermission('tasks.view'), taskController.getMyTasksStats);
+
+/**
  * GET /api/v1/tasks/my
  * Saját feladatok lekérdezése (összes projektből)
  */

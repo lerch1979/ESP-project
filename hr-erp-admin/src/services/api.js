@@ -1111,6 +1111,11 @@ export const tasksAPI = {
     return response.data;
   },
 
+  getMyTasksStats: async () => {
+    const response = await api.get('/tasks/my/stats');
+    return response.data;
+  },
+
   getById: async (id) => {
     const response = await api.get(`/tasks/${id}`);
     return response.data;

@@ -806,10 +806,63 @@ async function updateProjectCompletion(projectId) {
   }
 }
 
+/**
+ * GET /api/v1/tasks/my/stats
+ * Saját feladatok és hibajegyek statisztikái
+ */
+const getMyTasksStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await query(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE type = 'ticket') as tickets,
+        COUNT(*) FILTER (WHERE type = 'task') as tasks,
+        COUNT(*) FILTER (WHERE priority IN ('urgent', 'critical')) as urgent,
+        COUNT(*) FILTER (WHERE due_date < NOW()) as overdue,
+        COUNT(*) FILTER (WHERE status IN ('new', 'todo')) as new
+      FROM (
+        SELECT 'ticket' as type, p.slug as priority, NULL as due_date, ts.slug as status
+        FROM tickets t
+        JOIN ticket_statuses ts ON t.status_id = ts.id
+        LEFT JOIN priorities p ON t.priority_id = p.id
+        WHERE t.assigned_to = $1 AND ts.slug NOT IN ('closed', 'resolved', 'completed')
+
+        UNION ALL
+
+        SELECT 'task' as type, priority, due_date, status
+        FROM tasks
+        WHERE assigned_to = $1 AND status NOT IN ('done', 'cancelled')
+      ) combined
+    `, [userId]);
+
+    const stats = result.rows[0];
+    res.json({
+      success: true,
+      data: {
+        total: parseInt(stats.total),
+        tickets: parseInt(stats.tickets),
+        tasks: parseInt(stats.tasks),
+        urgent: parseInt(stats.urgent),
+        overdue: parseInt(stats.overdue),
+        new: parseInt(stats.new),
+      }
+    });
+  } catch (error) {
+    logger.error('Saját feladatok statisztika hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Saját feladatok statisztika hiba'
+    });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   getMyTasks,
+  getMyTasksStats,
   create,
   update,
   remove,

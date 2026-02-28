@@ -54,6 +54,7 @@ import {
 import { dashboardAPI, preferencesAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import ResponsiveTable from '../components/ResponsiveTable';
+import MyTasksWidget from '../components/dashboard/MyTasksWidget';
 
 const ACCOMMODATION_COLORS = {
   available: '#10b981',
@@ -61,9 +62,10 @@ const ACCOMMODATION_COLORS = {
   maintenance: '#ef4444',
 };
 
-const DEFAULT_WIDGET_ORDER = ['stats', 'charts', 'urgent', 'recent'];
+const DEFAULT_WIDGET_ORDER = ['myTasks', 'stats', 'charts', 'urgent', 'recent'];
 
 const WIDGET_LABELS = {
+  myTasks: 'Feladataim',
   stats: 'Statisztikák',
   charts: 'Grafikonok',
   urgent: 'Sürgős teendők',
@@ -252,6 +254,7 @@ function Dashboard() {
 
   // Widget components
   const widgetComponents = {
+    myTasks: <MyTasksWidget key="myTasks" />,
     stats: (
       <Grid container spacing={3} sx={{ mb: 4 }} key="stats">
         <Grid item xs={12} sm={6} md={3}>
