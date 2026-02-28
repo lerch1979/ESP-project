@@ -56,6 +56,7 @@ import {
   Assignment as AssignmentIcon,
   ListAlt as ListAltIcon,
   AutoAwesome as AutoAssignIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -90,6 +91,7 @@ const allMenuItems = [
   { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
   { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
   { text: 'Auto-kiosztás', icon: <AutoAssignIcon />, path: '/assignment-rules', permission: 'settings.view' },
+  { text: 'Munkaterhelés', icon: <SpeedIcon />, path: '/user-workload', permission: 'users.view' },
   {
     text: 'Projektkezelés', icon: <AssignmentIcon />, permission: 'projects.view', children: [
       { text: 'Projektek', icon: <ListAltIcon />, path: '/projects', permission: 'projects.view' },
