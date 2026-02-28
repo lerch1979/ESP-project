@@ -310,7 +310,7 @@ const createTicket = async (req, res) => {
       });
     }
 
-    await transaction(async (client) => {
+    let ticketData = await transaction(async (client) => {
       // Ticket szám generálás (egyszerű: következő ID)
       const ticketNumberResult = await client.query(
         'SELECT COALESCE(MAX(CAST(SUBSTRING(ticket_number FROM 2) AS INTEGER)), 0) + 1 as next_number FROM tickets'
@@ -325,7 +325,7 @@ const createTicket = async (req, res) => {
       // Ticket létrehozása
       const insertQuery = `
         INSERT INTO tickets (
-          contractor_id, ticket_number, title, description, 
+          contractor_id, ticket_number, title, description,
           category_id, status_id, priority_id, created_by, assigned_to
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
@@ -352,6 +352,11 @@ const createTicket = async (req, res) => {
         [ticketId, req.user.id, title]
       );
 
+      // Look up priority slug inside the transaction
+      const priorityResult = priority_id
+        ? await client.query('SELECT slug FROM priorities WHERE id = $1', [priority_id])
+        : null;
+
       logger.info('Új ticket létrehozva', {
         ticketId,
         ticketNumber,
@@ -359,37 +364,39 @@ const createTicket = async (req, res) => {
         contractorId: req.user.contractorId
       });
 
-      // Auto-assign if no assignee was specified
-      let ticketData = result.rows[0];
-      if (!assigned_to) {
-        const autoAssigned = await autoAssignService.assignTicket(ticketId);
-        if (autoAssigned) {
-          ticketData = autoAssigned;
-        }
+      return {
+        ticket: result.rows[0],
+        prioritySlug: priorityResult?.rows[0]?.slug || 'normal',
+      };
+    });
+
+    // Post-transaction: auto-assign and SLA (these use pool queries, must run after COMMIT)
+    const { ticket: createdTicket, prioritySlug } = ticketData;
+
+    if (!assigned_to) {
+      const autoAssigned = await autoAssignService.assignTicket(createdTicket.id);
+      if (autoAssigned) {
+        ticketData = { ...ticketData, ticket: autoAssigned };
       }
+    }
 
-      // Apply SLA deadlines
-      const priorityResult = priority_id
-        ? await client.query('SELECT slug FROM priorities WHERE id = $1', [priority_id])
-        : null;
-      const prioritySlug = priorityResult?.rows[0]?.slug || 'normal';
+    // Apply SLA deadlines
+    const slaData = await slaService.applyToTicket(createdTicket.id, {
+      contractorId: req.user.contractorId,
+      categoryId: category_id || null,
+      prioritySlug,
+      createdAt: createdTicket.created_at,
+    });
 
-      const slaData = await slaService.applyToTicket(ticketId, {
-        contractorId: req.user.contractorId,
-        categoryId: category_id || null,
-        prioritySlug,
-        createdAt: ticketData.created_at,
-      });
+    let responseTicket = ticketData.ticket;
+    if (slaData) {
+      responseTicket = { ...responseTicket, ...slaData };
+    }
 
-      if (slaData) {
-        ticketData = { ...ticketData, ...slaData };
-      }
-
-      res.status(201).json({
-        success: true,
-        message: 'Ticket sikeresen létrehozva',
-        data: { ticket: ticketData }
-      });
+    res.status(201).json({
+      success: true,
+      message: 'Ticket sikeresen létrehozva',
+      data: { ticket: responseTicket }
     });
 
   } catch (error) {
