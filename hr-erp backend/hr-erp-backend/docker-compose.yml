@@ -67,6 +67,18 @@ services:
         condition: service_healthy
     command: npm run dev
 
+  # Frontend (React + Nginx)
+  frontend:
+    build:
+      context: ../../hr-erp-admin
+      dockerfile: Dockerfile
+    container_name: hr-erp-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
     driver: local
