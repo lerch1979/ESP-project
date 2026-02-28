@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Button, Stack, TextField, InputAdornment,
-  CircularProgress, Chip, Card, CardContent,
+  CircularProgress, Chip, Card, CardContent, CardActions,
   Table, TableBody, TableCell, TableHead, TableRow,
   TablePagination, MenuItem, Select, FormControl, InputLabel,
-  LinearProgress,
+  LinearProgress, Grid, AvatarGroup, IconButton,
+  ToggleButtonGroup, ToggleButton,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Search as SearchIcon, Add as AddIcon,
   Assignment as ProjectIcon, PlayArrow as ActiveIcon,
   Warning as OverdueIcon, AccountBalance as BudgetIcon,
+  ViewModule as ViewModuleIcon, ViewList as ViewListIcon,
+  Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
+  CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
 import { projectsAPI, usersAPI, costCentersAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import ResponsiveTable from '../components/ResponsiveTable';
 import ProjectFormModal from '../components/projects/ProjectFormModal';
+import UserAvatar from '../components/common/UserAvatar';
 
 // ============================================
 // CONSTANTS
@@ -35,6 +41,13 @@ const PRIORITY_MAP = {
   high: { label: 'Magas', color: 'warning' },
   critical: { label: 'Kritikus', color: 'error' },
 };
+
+const SORT_OPTIONS = [
+  { value: 'name', label: 'Név' },
+  { value: 'start_date', label: 'Kezdés dátuma' },
+  { value: 'completion', label: 'Haladás' },
+  { value: 'budget', label: 'Költségvetés' },
+];
 
 const formatCurrency = (val) => {
   if (!val && val !== 0) return '-';
@@ -68,6 +81,158 @@ function StatCard({ title, value, subtitle, color, icon }) {
 }
 
 // ============================================
+// PROJECT CARD (for grid view)
+// ============================================
+
+function ProjectCard({ project, onView, onEdit, onDelete }) {
+  const completion = project.completion_percentage != null
+    ? project.completion_percentage
+    : (project.task_count > 0 && project.completed_task_count != null)
+      ? Math.round((project.completed_task_count / project.task_count) * 100)
+      : 0;
+
+  const budgetOver = project.actual_cost > project.budget;
+  const doneCount = project.completed_task_count || project.task_summary?.done || 0;
+  const totalCount = project.task_count || project.task_summary?.total || 0;
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'box-shadow 0.2s',
+        '&:hover': { boxShadow: 3, cursor: 'pointer' },
+      }}
+      onClick={() => onView(project)}
+    >
+      <CardContent sx={{ flex: 1, p: 2 }}>
+        {/* Name + code */}
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1, lineHeight: 1.3 }} noWrap>
+            {project.name}
+          </Typography>
+          {project.code && (
+            <Chip label={project.code} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+          )}
+        </Stack>
+
+        {/* Status chip */}
+        <Stack direction="row" spacing={0.5} sx={{ mb: 1.5 }}>
+          <Chip
+            label={STATUS_MAP[project.status]?.label || project.status}
+            color={STATUS_MAP[project.status]?.color || 'default'}
+            size="small"
+          />
+          <Chip
+            label={PRIORITY_MAP[project.priority]?.label || project.priority}
+            color={PRIORITY_MAP[project.priority]?.color || 'default'}
+            size="small"
+            variant="outlined"
+          />
+        </Stack>
+
+        {/* Progress */}
+        <Box sx={{ mb: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">Haladás</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 700 }}>{completion}%</Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={completion}
+            sx={{ height: 6, borderRadius: 3 }}
+          />
+        </Box>
+
+        {/* Budget */}
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="caption" color="text.secondary">Költségvetés</Typography>
+          <Stack direction="row" spacing={1} alignItems="baseline">
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {formatCurrency(project.budget)}
+            </Typography>
+            {project.actual_cost > 0 && (
+              <Typography
+                variant="caption"
+                sx={{ color: budgetOver ? '#ef4444' : '#22c55e', fontWeight: 500 }}
+              >
+                / {formatCurrency(project.actual_cost)}
+              </Typography>
+            )}
+          </Stack>
+        </Box>
+
+        {/* Date range */}
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1 }}>
+          <CalendarIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+          <Typography variant="caption" color="text.secondary">
+            {formatDate(project.start_date)} — {formatDate(project.end_date)}
+          </Typography>
+        </Stack>
+
+        {/* Task summary */}
+        <Typography variant="caption" color="text.secondary">
+          {doneCount}/{totalCount} feladat kész
+        </Typography>
+
+        {/* Team avatars */}
+        {project.team_members?.length > 0 && (
+          <Box sx={{ mt: 1 }}>
+            <AvatarGroup max={5} sx={{ justifyContent: 'flex-start' }}>
+              {project.team_members.map((m) => (
+                <UserAvatar
+                  key={m.user_id}
+                  firstName={m.first_name}
+                  lastName={m.last_name}
+                  size="xs"
+                  tooltip
+                />
+              ))}
+            </AvatarGroup>
+          </Box>
+        )}
+
+        {/* PM name if no team_members */}
+        {!project.team_members?.length && project.pm_last_name && (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              PM: {project.pm_last_name} {project.pm_first_name}
+            </Typography>
+          </Box>
+        )}
+      </CardContent>
+
+      <CardActions sx={{ px: 2, pb: 1.5, pt: 0 }}>
+        <Button
+          size="small"
+          startIcon={<ViewIcon />}
+          onClick={(e) => { e.stopPropagation(); onView(project); }}
+        >
+          Megtekintés
+        </Button>
+        <Button
+          size="small"
+          startIcon={<EditIcon />}
+          onClick={(e) => { e.stopPropagation(); onEdit(project); }}
+        >
+          Szerkesztés
+        </Button>
+        <Box sx={{ flex: 1 }} />
+        <IconButton
+          size="small"
+          color="error"
+          onClick={(e) => { e.stopPropagation(); onDelete(project); }}
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </CardActions>
+    </Card>
+  );
+}
+
+// ============================================
 // MAIN PAGE
 // ============================================
 
@@ -84,12 +249,18 @@ export default function Projects() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
 
+  // View & sort
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('projectsViewMode') || 'grid');
+  const [sortBy, setSortBy] = useState('name');
+
   // Dashboard stats
   const [dashboard, setDashboard] = useState(null);
 
   // Modal
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Lookups
   const [users, setUsers] = useState([]);
@@ -169,9 +340,32 @@ export default function Projects() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!deleteTarget) return;
+    try {
+      const response = await projectsAPI.delete(deleteTarget.id);
+      if (response.success) {
+        toast.success('Projekt törölve');
+        loadProjects();
+        loadDashboard();
+      }
+    } catch (error) {
+      toast.error('Hiba a projekt törlésekor');
+    }
+    setDeleteConfirmOpen(false);
+    setDeleteTarget(null);
+  };
+
   const handleOpenCreate = () => {
     setEditData(null);
     setFormModalOpen(true);
+  };
+
+  const handleViewModeChange = (e, newMode) => {
+    if (newMode) {
+      setViewMode(newMode);
+      localStorage.setItem('projectsViewMode', newMode);
+    }
   };
 
   const getCompletionPercent = (p) => {
@@ -181,6 +375,28 @@ export default function Projects() {
     }
     return 0;
   };
+
+  // Sort projects for grid view
+  const sortedProjects = useMemo(() => {
+    const sorted = [...projects];
+    switch (sortBy) {
+      case 'name':
+        sorted.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'hu'));
+        break;
+      case 'start_date':
+        sorted.sort((a, b) => new Date(a.start_date || 0) - new Date(b.start_date || 0));
+        break;
+      case 'completion':
+        sorted.sort((a, b) => getCompletionPercent(b) - getCompletionPercent(a));
+        break;
+      case 'budget':
+        sorted.sort((a, b) => (b.budget || 0) - (a.budget || 0));
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [projects, sortBy]);
 
   return (
     <Box>
@@ -223,9 +439,23 @@ export default function Projects() {
         </Stack>
       )}
 
-      {/* Filters */}
+      {/* Filters + View Toggle */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center">
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={handleViewModeChange}
+            size="small"
+          >
+            <ToggleButton value="grid">
+              <ViewModuleIcon fontSize="small" sx={{ mr: 0.5 }} /> Kártyák
+            </ToggleButton>
+            <ToggleButton value="table">
+              <ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> Táblázat
+            </ToggleButton>
+          </ToggleButtonGroup>
+
           <TextField
             placeholder="Keresés név, kód szerint..."
             value={search}
@@ -262,113 +492,147 @@ export default function Projects() {
               ))}
             </Select>
           </FormControl>
+
+          {viewMode === 'grid' && (
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Rendezés</InputLabel>
+              <Select
+                value={sortBy}
+                label="Rendezés"
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </Stack>
       </Paper>
 
-      {/* Table */}
-      <Paper>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
-            <CircularProgress />
-          </Box>
-        ) : projects.length === 0 ? (
-          <Box sx={{ p: 5, textAlign: 'center' }}>
-            <Typography variant="h6" color="text.secondary">Nincsenek projektek</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Hozzon létre egy új projektet a fenti gombbal.
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <ResponsiveTable>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Név</TableCell>
-                    <TableCell>Kód</TableCell>
-                    <TableCell>Státusz</TableCell>
-                    <TableCell>Prioritás</TableCell>
-                    <TableCell>Haladás</TableCell>
-                    <TableCell>Projektvezető</TableCell>
-                    <TableCell>Határidő</TableCell>
-                    <TableCell align="right">Feladatok</TableCell>
-                    <TableCell align="right">Költségvetés</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {projects.map((p) => {
-                    const completion = getCompletionPercent(p);
-                    return (
-                      <TableRow
-                        key={p.id}
-                        hover
-                        onClick={() => navigate(`/projects/${p.id}`)}
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {p.name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">{p.code || '-'}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={STATUS_MAP[p.status]?.label || p.status}
-                            color={STATUS_MAP[p.status]?.color || 'default'}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={PRIORITY_MAP[p.priority]?.label || p.priority}
-                            color={PRIORITY_MAP[p.priority]?.color || 'default'}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell sx={{ minWidth: 120 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={completion}
-                              sx={{ flex: 1, height: 6, borderRadius: 3 }}
-                            />
-                            <Typography variant="caption" sx={{ minWidth: 30 }}>
-                              {completion}%
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          {p.pm_last_name
-                            ? `${p.pm_last_name} ${p.pm_first_name}`
-                            : '-'}
-                        </TableCell>
-                        <TableCell>{formatDate(p.end_date)}</TableCell>
-                        <TableCell align="right">{p.task_count || 0}</TableCell>
-                        <TableCell align="right">{formatCurrency(p.budget)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </ResponsiveTable>
+      {/* Loading */}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+          <CircularProgress />
+        </Box>
+      ) : projects.length === 0 ? (
+        <Paper sx={{ p: 5, textAlign: 'center' }}>
+          <Typography variant="h6" color="text.secondary">Nincsenek projektek</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Hozzon létre egy új projektet a fenti gombbal.
+          </Typography>
+        </Paper>
+      ) : (
+        <>
+          {/* Grid View */}
+          {viewMode === 'grid' && (
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              {sortedProjects.map((p) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={p.id}>
+                  <ProjectCard
+                    project={p}
+                    onView={(proj) => navigate(`/projects/${proj.id}`)}
+                    onEdit={(proj) => { setEditData(proj); setFormModalOpen(true); }}
+                    onDelete={(proj) => { setDeleteTarget(proj); setDeleteConfirmOpen(true); }}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
 
-            <TablePagination
-              component="div"
-              count={total}
-              page={page}
-              onPageChange={(e, newPage) => setPage(newPage)}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
-              rowsPerPageOptions={[10, 20, 50]}
-              labelRowsPerPage="Sorok száma:"
-              labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
-            />
-          </>
-        )}
-      </Paper>
+          {/* Table View */}
+          {viewMode === 'table' && (
+            <Paper>
+              <ResponsiveTable>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Név</TableCell>
+                      <TableCell>Kód</TableCell>
+                      <TableCell>Státusz</TableCell>
+                      <TableCell>Prioritás</TableCell>
+                      <TableCell>Haladás</TableCell>
+                      <TableCell>Projektvezető</TableCell>
+                      <TableCell>Határidő</TableCell>
+                      <TableCell align="right">Feladatok</TableCell>
+                      <TableCell align="right">Költségvetés</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {projects.map((p) => {
+                      const completion = getCompletionPercent(p);
+                      return (
+                        <TableRow
+                          key={p.id}
+                          hover
+                          onClick={() => navigate(`/projects/${p.id}`)}
+                          sx={{ cursor: 'pointer' }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {p.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{p.code || '-'}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={STATUS_MAP[p.status]?.label || p.status}
+                              color={STATUS_MAP[p.status]?.color || 'default'}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={PRIORITY_MAP[p.priority]?.label || p.priority}
+                              color={PRIORITY_MAP[p.priority]?.color || 'default'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell sx={{ minWidth: 120 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={completion}
+                                sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                              />
+                              <Typography variant="caption" sx={{ minWidth: 30 }}>
+                                {completion}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            {p.pm_last_name
+                              ? `${p.pm_last_name} ${p.pm_first_name}`
+                              : '-'}
+                          </TableCell>
+                          <TableCell>{formatDate(p.end_date)}</TableCell>
+                          <TableCell align="right">{p.task_count || 0}</TableCell>
+                          <TableCell align="right">{formatCurrency(p.budget)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </ResponsiveTable>
+            </Paper>
+          )}
+
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            onPageChange={(e, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
+            rowsPerPageOptions={[10, 20, 50]}
+            labelRowsPerPage="Sorok száma:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
+          />
+        </>
+      )}
 
       {/* Form Modal */}
       <ProjectFormModal
@@ -379,6 +643,21 @@ export default function Projects() {
         users={users}
         costCenters={costCenters}
       />
+
+      {/* Delete confirmation */}
+      <Dialog open={deleteConfirmOpen} onClose={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }}>
+        <DialogTitle>Projekt törlése</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Biztosan törölni szeretné a(z) <strong>{deleteTarget?.name}</strong> projektet?
+            A projekt archiválásra kerül.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }}>Mégse</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteProject}>Törlés</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

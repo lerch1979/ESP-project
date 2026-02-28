@@ -7,11 +7,14 @@ import {
   Card, CardContent, TextField, InputAdornment,
   MenuItem, Select, FormControl, InputLabel,
   Dialog, DialogTitle, DialogContent, DialogActions,
+  ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon, Edit as EditIcon, Delete as DeleteIcon,
   Add as AddIcon, Search as SearchIcon, PersonAdd as PersonAddIcon,
   PersonRemove as PersonRemoveIcon, AccessTime as TimeIcon,
+  ViewModule as ViewModuleIcon, ViewList as ViewListIcon,
+  Timeline as TimelineIcon, FiberManualRecord as DotIcon,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -24,6 +27,7 @@ import ProjectFormModal from '../components/projects/ProjectFormModal';
 import TaskFormModal from '../components/projects/TaskFormModal';
 import TaskDetailDialog from '../components/projects/TaskDetailDialog';
 import TimesheetDialog from '../components/projects/TimesheetDialog';
+import KanbanBoard from '../components/projects/KanbanBoard';
 
 // ============================================
 // CONSTANTS
@@ -69,6 +73,14 @@ const formatCurrency = (val) => {
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('hu-HU') : '-';
 
+const formatDateTime = (d) => {
+  if (!d) return '-';
+  return new Date(d).toLocaleString('hu-HU', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
+
 // ============================================
 // STAT CARD
 // ============================================
@@ -99,6 +111,7 @@ export default function ProjectDetail() {
 
   // Tasks
   const [tasks, setTasks] = useState([]);
+  const [kanbanTasks, setKanbanTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskPage, setTaskPage] = useState(0);
   const [taskRowsPerPage, setTaskRowsPerPage] = useState(20);
@@ -106,6 +119,11 @@ export default function ProjectDetail() {
   const [taskSearch, setTaskSearch] = useState('');
   const [taskFilterStatus, setTaskFilterStatus] = useState('');
   const [taskFilterPriority, setTaskFilterPriority] = useState('');
+  const [tasksView, setTasksView] = useState(() => localStorage.getItem('projectTasksView') || 'kanban');
+
+  // Timeline
+  const [timeline, setTimeline] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   // Budget
   const [budget, setBudget] = useState(null);
@@ -132,8 +150,18 @@ export default function ProjectDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (tabValue === 1) loadTasks();
-  }, [tabValue, taskPage, taskRowsPerPage, taskSearch, taskFilterStatus, taskFilterPriority]);
+    if (tabValue === 1) {
+      if (tasksView === 'kanban') {
+        loadKanbanTasks();
+      } else {
+        loadTasks();
+      }
+    }
+  }, [tabValue, tasksView, taskPage, taskRowsPerPage, taskSearch, taskFilterStatus, taskFilterPriority]);
+
+  useEffect(() => {
+    if (tabValue === 2) loadTimeline();
+  }, [tabValue]);
 
   useEffect(() => {
     if (tabValue === 3) loadBudget();
@@ -188,6 +216,34 @@ export default function ProjectDetail() {
     }
   };
 
+  const loadKanbanTasks = async () => {
+    setTasksLoading(true);
+    try {
+      const response = await tasksAPI.getAll(id, { limit: 500 });
+      if (response.success) {
+        setKanbanTasks(response.data.tasks || []);
+      }
+    } catch (error) {
+      toast.error('Hiba a feladatok betöltésekor');
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  const loadTimeline = async () => {
+    setTimelineLoading(true);
+    try {
+      const response = await projectsAPI.getTimeline(id);
+      if (response.success) {
+        setTimeline(response.data.timeline || response.data.events || response.data || []);
+      }
+    } catch (error) {
+      console.error('Timeline betöltési hiba:', error);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
   const loadBudget = async () => {
     setBudgetLoading(true);
     try {
@@ -227,7 +283,8 @@ export default function ProjectDetail() {
     const response = await tasksAPI.create(id, data);
     if (response.success) {
       toast.success('Feladat létrehozva');
-      loadTasks();
+      if (tasksView === 'kanban') loadKanbanTasks();
+      else loadTasks();
       loadProject();
     }
   };
@@ -236,9 +293,23 @@ export default function ProjectDetail() {
     const response = await tasksAPI.update(taskEditData.id, data);
     if (response.success) {
       toast.success('Feladat frissítve');
-      loadTasks();
+      if (tasksView === 'kanban') loadKanbanTasks();
+      else loadTasks();
       loadProject();
       setTaskEditData(null);
+    }
+  };
+
+  const handleQuickAddTask = async (data) => {
+    try {
+      const response = await tasksAPI.create(id, data);
+      if (response.success) {
+        toast.success('Feladat létrehozva');
+        loadKanbanTasks();
+        loadProject();
+      }
+    } catch (error) {
+      toast.error('Hiba a feladat létrehozásakor');
     }
   };
 
@@ -277,16 +348,34 @@ export default function ProjectDetail() {
   };
 
   const handleTaskStatusChange = async (taskId, newStatus) => {
+    // Optimistic update for kanban
+    if (tasksView === 'kanban') {
+      setKanbanTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+    }
     try {
       const response = await tasksAPI.updateStatus(taskId, { status: newStatus });
       if (response.success) {
         toast.success('Státusz frissítve');
-        loadTasks();
+        if (tasksView === 'kanban') loadKanbanTasks();
+        else loadTasks();
         loadProject();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Hiba a státusz frissítésekor');
+      if (tasksView === 'kanban') loadKanbanTasks();
     }
+  };
+
+  const handleTasksViewChange = (e, newView) => {
+    if (newView) {
+      setTasksView(newView);
+      localStorage.setItem('projectTasksView', newView);
+    }
+  };
+
+  const handleTaskCardClick = (task) => {
+    setSelectedTaskId(task.id);
+    setTaskDetailOpen(true);
   };
 
   // ============================================
@@ -302,6 +391,15 @@ export default function ProjectDetail() {
       { name: 'Kész', value: parseInt(ts.done) || 0 },
       { name: 'Blokkolva', value: parseInt(ts.blocked) || 0 },
     ].filter(d => d.value > 0);
+  };
+
+  // Days remaining
+  const getDaysRemaining = () => {
+    if (!project?.end_date) return null;
+    const end = new Date(project.end_date);
+    const now = new Date();
+    const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
   // ============================================
@@ -327,6 +425,7 @@ export default function ProjectDetail() {
 
   const completion = project.completion_percentage || 0;
   const taskStatusData = getTaskStatusChartData();
+  const daysRemaining = getDaysRemaining();
 
   return (
     <Box>
@@ -375,6 +474,61 @@ export default function ProjectDetail() {
         </Stack>
       </Stack>
 
+      {/* Progress ring + days remaining cards */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
+        <Card variant="outlined" sx={{ minWidth: 150 }}>
+          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+              <CircularProgress
+                variant="determinate"
+                value={completion}
+                size={56}
+                thickness={5}
+                sx={{ color: completion >= 100 ? '#22c55e' : '#3b82f6' }}
+              />
+              <Box sx={{
+                position: 'absolute', top: 0, left: 0, bottom: 0, right: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                  {completion}%
+                </Typography>
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Haladás</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {project.task_summary?.done || 0}/{project.task_summary?.total || 0} feladat
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {daysRemaining !== null && (
+          <Card variant="outlined" sx={{ minWidth: 150 }}>
+            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+              <Typography variant="caption" color="text.secondary">Hátralévő napok</Typography>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                  color: daysRemaining < 0 ? '#ef4444' : daysRemaining < 7 ? '#f59e0b' : '#22c55e',
+                }}
+              >
+                {daysRemaining < 0 ? `${Math.abs(daysRemaining)} nap késés` : `${daysRemaining} nap`}
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+
+        <StatCard title="Költségvetés" value={formatCurrency(project.budget)} />
+        <StatCard
+          title="Tényleges költség"
+          value={formatCurrency(project.actual_cost)}
+          color={project.actual_cost > project.budget ? '#ef4444' : undefined}
+        />
+      </Stack>
+
       {/* Tabs */}
       <Paper sx={{ mb: 3 }}>
         <Tabs
@@ -385,8 +539,10 @@ export default function ProjectDetail() {
         >
           <Tab label="Áttekintés" />
           <Tab label="Feladatok" />
-          <Tab label="Csapat" />
+          <Tab label="Idővonal" />
           <Tab label="Költségvetés" />
+          <Tab label="Csapat" />
+          <Tab label="Tevékenység" />
         </Tabs>
       </Paper>
 
@@ -395,14 +551,6 @@ export default function ProjectDetail() {
       {/* ============================================ */}
       {tabValue === 0 && (
         <Box>
-          {/* Info cards */}
-          <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
-            <StatCard title="Feladatok" value={project.task_summary?.total || 0} color="#6366f1" />
-            <StatCard title="Kész feladatok" value={project.task_summary?.done || 0} color="#22c55e" />
-            <StatCard title="Költségvetés" value={formatCurrency(project.budget)} />
-            <StatCard title="Tényleges költség" value={formatCurrency(project.actual_cost)} />
-          </Stack>
-
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
             {/* Left: project details */}
             <Paper sx={{ p: 3, flex: 1 }}>
@@ -507,45 +655,64 @@ export default function ProjectDetail() {
       {/* ============================================ */}
       {tabValue === 1 && (
         <Box>
-          {/* Task filters */}
+          {/* Task header with view toggle */}
           <Paper sx={{ p: 2, mb: 2 }}>
             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center">
-              <TextField
-                placeholder="Keresés..."
-                value={taskSearch}
-                onChange={(e) => { setTaskSearch(e.target.value); setTaskPage(0); }}
+              <ToggleButtonGroup
+                value={tasksView}
+                exclusive
+                onChange={handleTasksViewChange}
                 size="small"
-                sx={{ minWidth: 200 }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
-                }}
-              />
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel>Státusz</InputLabel>
-                <Select
-                  value={taskFilterStatus}
-                  label="Státusz"
-                  onChange={(e) => { setTaskFilterStatus(e.target.value); setTaskPage(0); }}
-                >
-                  <MenuItem value="">Összes</MenuItem>
-                  {Object.entries(TASK_STATUS_MAP).map(([val, { label }]) => (
-                    <MenuItem key={val} value={val}>{label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel>Prioritás</InputLabel>
-                <Select
-                  value={taskFilterPriority}
-                  label="Prioritás"
-                  onChange={(e) => { setTaskFilterPriority(e.target.value); setTaskPage(0); }}
-                >
-                  <MenuItem value="">Összes</MenuItem>
-                  {Object.entries(PRIORITY_MAP).map(([val, { label }]) => (
-                    <MenuItem key={val} value={val}>{label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              >
+                <ToggleButton value="kanban">
+                  <ViewModuleIcon fontSize="small" sx={{ mr: 0.5 }} /> Kanban
+                </ToggleButton>
+                <ToggleButton value="table">
+                  <ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> Táblázat
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              {tasksView === 'table' && (
+                <>
+                  <TextField
+                    placeholder="Keresés..."
+                    value={taskSearch}
+                    onChange={(e) => { setTaskSearch(e.target.value); setTaskPage(0); }}
+                    size="small"
+                    sx={{ minWidth: 200 }}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
+                    }}
+                  />
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Státusz</InputLabel>
+                    <Select
+                      value={taskFilterStatus}
+                      label="Státusz"
+                      onChange={(e) => { setTaskFilterStatus(e.target.value); setTaskPage(0); }}
+                    >
+                      <MenuItem value="">Összes</MenuItem>
+                      {Object.entries(TASK_STATUS_MAP).map(([val, { label }]) => (
+                        <MenuItem key={val} value={val}>{label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel>Prioritás</InputLabel>
+                    <Select
+                      value={taskFilterPriority}
+                      label="Prioritás"
+                      onChange={(e) => { setTaskFilterPriority(e.target.value); setTaskPage(0); }}
+                    >
+                      <MenuItem value="">Összes</MenuItem>
+                      {Object.entries(PRIORITY_MAP).map(([val, { label }]) => (
+                        <MenuItem key={val} value={val}>{label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </>
+              )}
+
               <Box sx={{ flex: 1 }} />
               <Button
                 variant="contained"
@@ -557,175 +724,183 @@ export default function ProjectDetail() {
             </Stack>
           </Paper>
 
-          {/* Task table */}
-          <Paper>
-            {tasksLoading ? (
+          {/* Kanban view */}
+          {tasksView === 'kanban' && (
+            tasksLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
                 <CircularProgress />
               </Box>
-            ) : tasks.length === 0 ? (
-              <Box sx={{ p: 5, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary">Nincsenek feladatok</Typography>
-              </Box>
             ) : (
-              <>
-                <ResponsiveTable>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Cím</TableCell>
-                        <TableCell>Státusz</TableCell>
-                        <TableCell>Prioritás</TableCell>
-                        <TableCell>Felelős</TableCell>
-                        <TableCell>Határidő</TableCell>
-                        <TableCell align="right">Órák</TableCell>
-                        <TableCell align="right">Alfeladatok</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {tasks.map((t) => (
-                        <TableRow
-                          key={t.id}
-                          hover
-                          onClick={() => { setSelectedTaskId(t.id); setTaskDetailOpen(true); }}
-                          sx={{ cursor: 'pointer' }}
-                        >
-                          <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {t.parent_task_id ? '↳ ' : ''}{t.title}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={t.status}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleTaskStatusChange(t.id, e.target.value);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              size="small"
-                              sx={{ minWidth: 130, fontSize: '0.8rem' }}
-                            >
-                              {Object.entries(TASK_STATUS_MAP).map(([val, { label }]) => (
-                                <MenuItem key={val} value={val}>{label}</MenuItem>
-                              ))}
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={PRIORITY_MAP[t.priority]?.label || t.priority}
-                              color={PRIORITY_MAP[t.priority]?.color || 'default'}
-                              size="small"
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {t.assigned_first_name
-                              ? `${t.assigned_last_name} ${t.assigned_first_name}`
-                              : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              color={t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done' ? 'error' : 'text.primary'}
-                            >
-                              {formatDate(t.due_date)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            {t.actual_hours || 0} / {t.estimated_hours || '-'}
-                          </TableCell>
-                          <TableCell align="right">{t.subtask_count || 0}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ResponsiveTable>
+              <KanbanBoard
+                tasks={kanbanTasks}
+                onStatusChange={handleTaskStatusChange}
+                onTaskClick={handleTaskCardClick}
+                onQuickAdd={handleQuickAddTask}
+                users={users}
+              />
+            )
+          )}
 
-                <TablePagination
-                  component="div"
-                  count={taskTotal}
-                  page={taskPage}
-                  onPageChange={(e, newPage) => setTaskPage(newPage)}
-                  rowsPerPage={taskRowsPerPage}
-                  onRowsPerPageChange={(e) => { setTaskRowsPerPage(parseInt(e.target.value)); setTaskPage(0); }}
-                  rowsPerPageOptions={[10, 20, 50]}
-                  labelRowsPerPage="Sorok:"
-                  labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
-                />
-              </>
-            )}
-          </Paper>
+          {/* Table view */}
+          {tasksView === 'table' && (
+            <Paper>
+              {tasksLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+                  <CircularProgress />
+                </Box>
+              ) : tasks.length === 0 ? (
+                <Box sx={{ p: 5, textAlign: 'center' }}>
+                  <Typography variant="body1" color="text.secondary">Nincsenek feladatok</Typography>
+                </Box>
+              ) : (
+                <>
+                  <ResponsiveTable>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Cím</TableCell>
+                          <TableCell>Státusz</TableCell>
+                          <TableCell>Prioritás</TableCell>
+                          <TableCell>Felelős</TableCell>
+                          <TableCell>Határidő</TableCell>
+                          <TableCell align="right">Órák</TableCell>
+                          <TableCell align="right">Alfeladatok</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {tasks.map((t) => (
+                          <TableRow
+                            key={t.id}
+                            hover
+                            onClick={() => { setSelectedTaskId(t.id); setTaskDetailOpen(true); }}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {t.parent_task_id ? '↳ ' : ''}{t.title}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={t.status}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  handleTaskStatusChange(t.id, e.target.value);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                size="small"
+                                sx={{ minWidth: 130, fontSize: '0.8rem' }}
+                              >
+                                {Object.entries(TASK_STATUS_MAP).map(([val, { label }]) => (
+                                  <MenuItem key={val} value={val}>{label}</MenuItem>
+                                ))}
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={PRIORITY_MAP[t.priority]?.label || t.priority}
+                                color={PRIORITY_MAP[t.priority]?.color || 'default'}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {t.assigned_first_name
+                                ? `${t.assigned_last_name} ${t.assigned_first_name}`
+                                : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                color={t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done' ? 'error' : 'text.primary'}
+                              >
+                                {formatDate(t.due_date)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              {t.actual_hours || 0} / {t.estimated_hours || '-'}
+                            </TableCell>
+                            <TableCell align="right">{t.subtask_count || 0}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ResponsiveTable>
+
+                  <TablePagination
+                    component="div"
+                    count={taskTotal}
+                    page={taskPage}
+                    onPageChange={(e, newPage) => setTaskPage(newPage)}
+                    rowsPerPage={taskRowsPerPage}
+                    onRowsPerPageChange={(e) => { setTaskRowsPerPage(parseInt(e.target.value)); setTaskPage(0); }}
+                    rowsPerPageOptions={[10, 20, 50]}
+                    labelRowsPerPage="Sorok:"
+                    labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
+                  />
+                </>
+              )}
+            </Paper>
+          )}
         </Box>
       )}
 
       {/* ============================================ */}
-      {/* TAB 2: Team */}
+      {/* TAB 2: Timeline */}
       {/* ============================================ */}
       {tabValue === 2 && (
         <Box>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Csapattagok ({project.team_members?.length || 0})
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<PersonAddIcon />}
-              onClick={() => setAddMemberOpen(true)}
-            >
-              Tag hozzáadása
-            </Button>
-          </Stack>
-
-          <Paper>
-            {!project.team_members || project.team_members.length === 0 ? (
-              <Box sx={{ p: 5, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary">Nincsenek csapattagok</Typography>
-              </Box>
-            ) : (
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Név</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Szerepkör</TableCell>
-                    <TableCell>Hozzáadva</TableCell>
-                    <TableCell align="right">Művelet</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {project.team_members.map((m) => (
-                    <TableRow key={m.user_id} hover>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {m.last_name} {m.first_name}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{m.email}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={TEAM_ROLES[m.role] || m.role}
-                          size="small"
-                          color={m.role === 'project_manager' ? 'primary' : 'default'}
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>{formatDate(m.assigned_at)}</TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleRemoveTeamMember(m.user_id)}
-                        >
-                          <PersonRemoveIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </Paper>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Idővonal</Typography>
+          {timelineLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+              <CircularProgress />
+            </Box>
+          ) : Array.isArray(timeline) && timeline.length > 0 ? (
+            <Paper sx={{ p: 2 }}>
+              {timeline.map((event, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    display: 'flex',
+                    gap: 2,
+                    py: 1.5,
+                    borderBottom: index < timeline.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 20 }}>
+                    <DotIcon sx={{ fontSize: 12, color: '#3b82f6' }} />
+                    {index < timeline.length - 1 && (
+                      <Box sx={{ width: 2, flex: 1, bgcolor: 'divider' }} />
+                    )}
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {event.title || event.description || event.action || 'Esemény'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDateTime(event.date || event.created_at || event.timestamp)}
+                    </Typography>
+                    {event.user_name && (
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                        — {event.user_name}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Paper>
+          ) : (
+            <Paper sx={{ p: 5, textAlign: 'center' }}>
+              <TimelineIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="body1" color="text.secondary">
+                Még nincsenek idővonal események
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Az idővonal automatikusan frissül a projekt tevékenységeivel.
+              </Typography>
+            </Paper>
+          )}
         </Box>
       )}
 
@@ -812,6 +987,133 @@ export default function ProjectDetail() {
       )}
 
       {/* ============================================ */}
+      {/* TAB 4: Team */}
+      {/* ============================================ */}
+      {tabValue === 4 && (
+        <Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Csapattagok ({project.team_members?.length || 0})
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<PersonAddIcon />}
+              onClick={() => setAddMemberOpen(true)}
+            >
+              Tag hozzáadása
+            </Button>
+          </Stack>
+
+          <Paper>
+            {!project.team_members || project.team_members.length === 0 ? (
+              <Box sx={{ p: 5, textAlign: 'center' }}>
+                <Typography variant="body1" color="text.secondary">Nincsenek csapattagok</Typography>
+              </Box>
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Név</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Szerepkör</TableCell>
+                    <TableCell>Hozzáadva</TableCell>
+                    <TableCell align="right">Művelet</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {project.team_members.map((m) => (
+                    <TableRow key={m.user_id} hover>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {m.last_name} {m.first_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{m.email}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={TEAM_ROLES[m.role] || m.role}
+                          size="small"
+                          color={m.role === 'project_manager' ? 'primary' : 'default'}
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>{formatDate(m.assigned_at)}</TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveTeamMember(m.user_id)}
+                        >
+                          <PersonRemoveIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Paper>
+        </Box>
+      )}
+
+      {/* ============================================ */}
+      {/* TAB 5: Activity */}
+      {/* ============================================ */}
+      {tabValue === 5 && (
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Tevékenység</Typography>
+          <Paper sx={{ p: 5, textAlign: 'center' }}>
+            <TimeIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+            <Typography variant="body1" color="text.secondary">
+              Tevékenységnapló
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              A feladatok létrehozása, státuszváltozások és megjegyzések itt jelennek meg.
+            </Typography>
+
+            {/* Show recent task status changes from kanban tasks if available */}
+            {kanbanTasks.length > 0 && (
+              <Box sx={{ mt: 3, textAlign: 'left' }}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Legutóbbi feladatok
+                </Typography>
+                {kanbanTasks
+                  .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+                  .slice(0, 10)
+                  .map((t) => (
+                    <Box
+                      key={t.id}
+                      sx={{
+                        display: 'flex', alignItems: 'center', gap: 1,
+                        py: 1, borderBottom: '1px solid', borderColor: 'divider',
+                      }}
+                    >
+                      <DotIcon sx={{
+                        fontSize: 10,
+                        color: t.status === 'done' ? '#22c55e' :
+                               t.status === 'in_progress' ? '#3b82f6' :
+                               t.status === 'blocked' ? '#ef4444' : '#94a3b8',
+                      }} />
+                      <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>
+                        {t.title}
+                      </Typography>
+                      <Chip
+                        label={TASK_STATUS_MAP[t.status]?.label || t.status}
+                        size="small"
+                        color={TASK_STATUS_MAP[t.status]?.color || 'default'}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDateTime(t.updated_at || t.created_at)}
+                      </Typography>
+                    </Box>
+                  ))}
+              </Box>
+            )}
+          </Paper>
+        </Box>
+      )}
+
+      {/* ============================================ */}
       {/* MODALS */}
       {/* ============================================ */}
 
@@ -832,7 +1134,7 @@ export default function ProjectDetail() {
         onSave={taskEditData ? handleEditTask : handleCreateTask}
         editData={taskEditData}
         users={users}
-        tasks={tasks}
+        tasks={tasksView === 'kanban' ? kanbanTasks : tasks}
         projectId={id}
       />
 
@@ -843,7 +1145,11 @@ export default function ProjectDetail() {
         taskId={selectedTaskId}
         projectId={id}
         users={users}
-        onUpdate={() => { loadTasks(); loadProject(); }}
+        onUpdate={() => {
+          if (tasksView === 'kanban') loadKanbanTasks();
+          else loadTasks();
+          loadProject();
+        }}
       />
 
       {/* Add team member dialog */}
