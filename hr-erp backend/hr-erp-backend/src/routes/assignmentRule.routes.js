@@ -16,6 +16,13 @@ router.use(checkContractorAccess);
 router.get('/', checkPermission('settings.view'), controller.getAll);
 
 /**
+ * POST /api/v1/assignment-rules/simulate
+ * Szimuláció: milyen szabály illeszkedne és ki lenne kijelölve
+ * Body: { type: 'ticket'|'task', item: { status_slug, category_slug, priority_slug, ... } }
+ */
+router.post('/simulate', checkPermission('settings.view'), controller.simulate);
+
+/**
  * GET /api/v1/assignment-rules/:id
  * Egy kiosztási szabály részletei
  */

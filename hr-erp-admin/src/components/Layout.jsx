@@ -58,6 +58,7 @@ import {
   AutoAwesome as AutoAssignIcon,
   Speed as SpeedIcon,
   Star as SkillIcon,
+  Science as SimulateIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -94,6 +95,7 @@ const allMenuItems = [
   { text: 'Auto-kiosztás', icon: <AutoAssignIcon />, path: '/assignment-rules', permission: 'settings.view' },
   { text: 'Munkaterhelés', icon: <SpeedIcon />, path: '/user-workload', permission: 'users.view' },
   { text: 'Képességek', icon: <SkillIcon />, path: '/user-skills', permission: 'users.view' },
+  { text: 'Kiosztás teszt', icon: <SimulateIcon />, path: '/auto-assign-simulator', permission: 'settings.view' },
   {
     text: 'Projektkezelés', icon: <AssignmentIcon />, permission: 'projects.view', children: [
       { text: 'Projektek', icon: <ListAltIcon />, path: '/projects', permission: 'projects.view' },

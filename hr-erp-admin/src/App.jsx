@@ -36,6 +36,7 @@ import MyTasks from './pages/MyTasks';
 import AssignmentRules from './pages/AssignmentRules';
 import UserWorkload from './pages/UserWorkload';
 import UserSkills from './pages/UserSkills';
+import AutoAssignSimulator from './pages/AutoAssignSimulator';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -92,6 +93,7 @@ function App() {
             <Route path="assignment-rules" element={<PermissionGuard permission="settings.view"><AssignmentRules /></PermissionGuard>} />
             <Route path="user-workload" element={<PermissionGuard permission="users.view"><UserWorkload /></PermissionGuard>} />
             <Route path="user-skills" element={<PermissionGuard permission="users.view"><UserSkills /></PermissionGuard>} />
+            <Route path="auto-assign-simulator" element={<PermissionGuard permission="settings.view"><AutoAssignSimulator /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

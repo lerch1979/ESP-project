@@ -1210,6 +1210,11 @@ export const assignmentRulesAPI = {
     const response = await api.delete(`/assignment-rules/${id}`);
     return response.data;
   },
+
+  simulate: async (data) => {
+    const response = await api.post('/assignment-rules/simulate', data);
+    return response.data;
+  },
 };
 
 // User Workload API

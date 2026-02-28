@@ -307,10 +307,170 @@ const remove = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/v1/assignment-rules/simulate
+ * Szimuláció: milyen szabály illeszkedne és ki lenne kijelölve
+ * Nem ment semmit az adatbázisba
+ */
+const simulate = async (req, res) => {
+  try {
+    const { type, item } = req.body;
+
+    if (!type || !['ticket', 'task'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Típus (ticket/task) megadása kötelező'
+      });
+    }
+
+    if (!item || typeof item !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'Item objektum megadása kötelező'
+      });
+    }
+
+    const autoAssignService = require('../services/autoAssign.service');
+
+    // Inject contractor_id from user if not provided
+    const simulatedItem = {
+      ...item,
+      contractor_id: item.contractor_id || req.user.contractorId,
+    };
+
+    // Step 1: Find matching rule
+    const matchedRule = await autoAssignService.findMatchingRule(type, simulatedItem);
+
+    // Step 2: Get all rules to show which were evaluated
+    const allRulesResult = await query(`
+      SELECT id, name, type, conditions, assign_to_role, assign_to_user_id, assign_strategy, priority, is_active
+      FROM assignment_rules
+      WHERE type = $1
+        AND is_active = TRUE
+        AND (contractor_id IS NULL OR contractor_id = $2)
+      ORDER BY priority DESC, created_at ASC
+    `, [type, simulatedItem.contractor_id]);
+
+    const evaluatedRules = allRulesResult.rows.map(rule => ({
+      ...rule,
+      matched: autoAssignService.matchesConditions(simulatedItem, rule.conditions),
+    }));
+
+    // Step 3: If rule found, get candidates and determine who would be assigned
+    let candidates = [];
+    let wouldAssignTo = null;
+    let strategyUsed = null;
+    let fallback = false;
+
+    if (matchedRule) {
+      if (matchedRule.assign_to_user_id) {
+        // Direct user assignment
+        const userResult = await query(
+          "SELECT id, first_name, last_name, email FROM users WHERE id = $1",
+          [matchedRule.assign_to_user_id]
+        );
+        if (userResult.rows.length > 0) {
+          wouldAssignTo = userResult.rows[0];
+          candidates = [userResult.rows[0]];
+          strategyUsed = 'direct_user';
+        }
+      } else {
+        candidates = await autoAssignService.getCandidateUsers(matchedRule, simulatedItem.contractor_id);
+
+        if (candidates.length > 0) {
+          wouldAssignTo = await autoAssignService.applyStrategy(
+            matchedRule.assign_strategy,
+            candidates,
+            simulatedItem
+          );
+          strategyUsed = matchedRule.assign_strategy;
+        }
+      }
+    }
+
+    // Step 4: If no match or no candidates, check fallback
+    if (!wouldAssignTo) {
+      fallback = true;
+      const admin = await query(`
+        SELECT u.id, u.first_name, u.last_name, u.email
+        FROM users u
+        JOIN user_roles ur ON u.id = ur.user_id
+        JOIN roles r ON ur.role_id = r.id
+        WHERE r.slug IN ('admin', 'superadmin')
+          AND u.is_active = TRUE
+          AND ($1::uuid IS NULL OR u.contractor_id = $1)
+        ORDER BY CASE r.slug WHEN 'superadmin' THEN 1 WHEN 'admin' THEN 2 END
+        LIMIT 1
+      `, [simulatedItem.contractor_id]);
+
+      if (admin.rows.length > 0) {
+        wouldAssignTo = admin.rows[0];
+        strategyUsed = 'fallback_admin';
+      }
+    }
+
+    // Step 5: Get workload info for candidates
+    const candidateIds = candidates.map(c => c.id);
+    let candidateWorkloads = [];
+    if (candidateIds.length > 0) {
+      const wlResult = await query(`
+        SELECT uw.user_id, uw.active_tickets, uw.active_tasks, uw.total_pending_items, uw.last_assignment_at
+        FROM user_workload uw
+        WHERE uw.user_id = ANY($1)
+      `, [candidateIds]);
+
+      candidateWorkloads = candidates.map(c => {
+        const wl = wlResult.rows.find(w => w.user_id === c.id);
+        return {
+          ...c,
+          active_tickets: wl?.active_tickets || 0,
+          active_tasks: wl?.active_tasks || 0,
+          total_pending_items: wl?.total_pending_items || 0,
+          last_assignment_at: wl?.last_assignment_at || null,
+        };
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        simulation: {
+          input: { type, item: simulatedItem },
+          matched_rule: matchedRule ? {
+            id: matchedRule.id,
+            name: matchedRule.name,
+            conditions: matchedRule.conditions,
+            assign_to_role: matchedRule.assign_to_role,
+            assign_strategy: matchedRule.assign_strategy,
+            priority: matchedRule.priority,
+          } : null,
+          evaluated_rules: evaluatedRules,
+          candidates: candidateWorkloads,
+          would_assign_to: wouldAssignTo ? {
+            id: wouldAssignTo.id,
+            name: `${wouldAssignTo.first_name} ${wouldAssignTo.last_name}`,
+            email: wouldAssignTo.email,
+          } : null,
+          strategy_used: strategyUsed,
+          is_fallback: fallback,
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Szimuláció hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Szimuláció hiba'
+    });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
-  remove
+  remove,
+  simulate
 };
