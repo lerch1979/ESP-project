@@ -1,6 +1,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
+const autoAssignService = require('../services/autoAssign.service');
 const path = require('path');
 const fs = require('fs');
 
@@ -271,10 +272,19 @@ const create = async (req, res) => {
       metadata: { title, project_id: projectId }
     });
 
+    // Auto-assign if no assignee was specified
+    let taskData = result.rows[0];
+    if (!assigned_to) {
+      const autoAssigned = await autoAssignService.assignTask(result.rows[0].id);
+      if (autoAssigned) {
+        taskData = autoAssigned;
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Feladat létrehozva',
-      data: { task: result.rows[0] }
+      data: { task: taskData }
     });
   } catch (error) {
     logger.error('Feladat létrehozási hiba:', error);

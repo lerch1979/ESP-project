@@ -1,6 +1,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
+const autoAssignService = require('../services/autoAssign.service');
 
 const TICKET_FILTER_FIELD_MAP = {
   status: 'ts.slug',
@@ -351,10 +352,19 @@ const createTicket = async (req, res) => {
         contractorId: req.user.contractorId
       });
 
+      // Auto-assign if no assignee was specified
+      let ticketData = result.rows[0];
+      if (!assigned_to) {
+        const autoAssigned = await autoAssignService.assignTicket(ticketId);
+        if (autoAssigned) {
+          ticketData = autoAssigned;
+        }
+      }
+
       res.status(201).json({
         success: true,
         message: 'Ticket sikeresen létrehozva',
-        data: { ticket: result.rows[0] }
+        data: { ticket: ticketData }
       });
     });
 

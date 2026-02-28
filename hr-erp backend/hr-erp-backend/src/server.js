@@ -38,6 +38,8 @@ const projectRoutes = require('./routes/project.routes');
 const taskRoutes = require('./routes/task.routes');
 const taskDirectRoutes = require('./routes/taskDirect.routes');
 const timesheetRoutes = require('./routes/timesheet.routes');
+const assignmentRuleRoutes = require('./routes/assignmentRule.routes');
+const userWorkloadRoutes = require('./routes/userWorkload.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 
@@ -136,6 +138,8 @@ app.use(`${API_PREFIX}/projects`, projectRoutes);
 app.use(`${API_PREFIX}/projects/:projectId/tasks`, taskRoutes); // /projects/:projectId/tasks (nested)
 app.use(`${API_PREFIX}/tasks`, taskDirectRoutes); // /tasks/:id (direct)
 app.use(`${API_PREFIX}/timesheets`, timesheetRoutes);
+app.use(`${API_PREFIX}/assignment-rules`, assignmentRuleRoutes);
+app.use(`${API_PREFIX}/user-workload`, userWorkloadRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
