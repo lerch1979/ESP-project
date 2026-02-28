@@ -16,6 +16,7 @@ import {
   ViewModule as ViewModuleIcon, ViewList as ViewListIcon,
   Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
   CalendarToday as CalendarIcon,
+  FilterListOff as FilterListOffIcon,
 } from '@mui/icons-material';
 import { projectsAPI, usersAPI, costCentersAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -506,6 +507,16 @@ export default function Projects() {
                 ))}
               </Select>
             </FormControl>
+          )}
+
+          {(search || filterStatus || filterPriority) && (
+            <Button
+              size="small"
+              startIcon={<FilterListOffIcon />}
+              onClick={() => { setSearch(''); setFilterStatus(''); setFilterPriority(''); setPage(0); }}
+            >
+              Szűrők törlése
+            </Button>
           )}
         </Stack>
       </Paper>

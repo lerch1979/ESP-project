@@ -31,4 +31,16 @@ router.get('/accommodations', checkPermission('reports.export'), exportControlle
  */
 router.get('/tickets', checkPermission('reports.export'), checkContractorAccess, exportController.exportTickets);
 
+/**
+ * GET /api/v1/export/projects/:id
+ * Projekt exportálása Excel fájlba (3 munkalap)
+ */
+router.get('/projects/:id', checkPermission('projects.view'), exportController.exportProject);
+
+/**
+ * GET /api/v1/export/projects/:id/tasks-csv
+ * Projekt feladatainak exportálása CSV fájlba
+ */
+router.get('/projects/:id/tasks-csv', checkPermission('projects.view'), exportController.exportProjectTasksCsv);
+
 module.exports = router;

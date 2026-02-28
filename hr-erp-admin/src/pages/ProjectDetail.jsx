@@ -8,6 +8,7 @@ import {
   MenuItem, Select, FormControl, InputLabel,
   Dialog, DialogTitle, DialogContent, DialogActions,
   ToggleButtonGroup, ToggleButton,
+  Menu, ListItemIcon, ListItemText, AvatarGroup, Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -15,12 +16,15 @@ import {
   PersonRemove as PersonRemoveIcon, AccessTime as TimeIcon,
   ViewModule as ViewModuleIcon, ViewList as ViewListIcon,
   Timeline as TimelineIcon, FiberManualRecord as DotIcon,
+  Download as DownloadIcon, Description as DescriptionIcon,
+  People as PeopleIcon, CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { projectsAPI, tasksAPI, usersAPI, costCentersAPI, timesheetsAPI } from '../services/api';
+import { projectsAPI, tasksAPI, usersAPI, costCentersAPI, timesheetsAPI, exportAPI } from '../services/api';
+import UserAvatar from '../components/common/UserAvatar';
 import { toast } from 'react-toastify';
 import ResponsiveTable from '../components/ResponsiveTable';
 import ProjectFormModal from '../components/projects/ProjectFormModal';
@@ -98,6 +102,184 @@ function StatCard({ title, value, subtitle, color }) {
 }
 
 // ============================================
+// TIMELINE BAR CHART
+// ============================================
+
+const TIMELINE_STATUS_COLORS = {
+  todo: '#94a3b8',
+  in_progress: '#3b82f6',
+  review: '#f59e0b',
+  done: '#22c55e',
+  blocked: '#ef4444',
+};
+
+function TimelineBarChart({ tasks, project }) {
+  if (!tasks || tasks.length === 0) {
+    return (
+      <Paper sx={{ p: 5, textAlign: 'center' }}>
+        <Typography variant="body1" color="text.secondary">
+          Nincsenek feladatok az idővonalhoz
+        </Typography>
+      </Paper>
+    );
+  }
+
+  // Filter tasks that have at least a start_date or due_date
+  const timelineTasks = tasks.filter(t => t.start_date || t.due_date);
+  if (timelineTasks.length === 0) {
+    return (
+      <Paper sx={{ p: 5, textAlign: 'center' }}>
+        <Typography variant="body1" color="text.secondary">
+          Nincsenek dátummal rendelkező feladatok
+        </Typography>
+      </Paper>
+    );
+  }
+
+  // Calculate date range
+  const allDates = [];
+  timelineTasks.forEach(t => {
+    if (t.start_date) allDates.push(new Date(t.start_date));
+    if (t.due_date) allDates.push(new Date(t.due_date));
+  });
+  if (project?.start_date) allDates.push(new Date(project.start_date));
+  if (project?.end_date) allDates.push(new Date(project.end_date));
+
+  const minDate = new Date(Math.min(...allDates));
+  const maxDate = new Date(Math.max(...allDates));
+
+  // Add padding
+  minDate.setDate(minDate.getDate() - 3);
+  maxDate.setDate(maxDate.getDate() + 3);
+
+  const totalDays = Math.max(1, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)));
+
+  // Generate month markers
+  const months = [];
+  const cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  while (cursor <= maxDate) {
+    const offset = Math.max(0, (cursor - minDate) / (1000 * 60 * 60 * 24));
+    months.push({
+      label: cursor.toLocaleDateString('hu-HU', { year: 'numeric', month: 'short' }),
+      offset: (offset / totalDays) * 100,
+    });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  // Today marker
+  const today = new Date();
+  const todayOffset = ((today - minDate) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+  const showToday = todayOffset >= 0 && todayOffset <= 100;
+
+  return (
+    <Paper sx={{ p: 2 }}>
+      {/* Legend */}
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+        {Object.entries(TASK_STATUS_MAP).map(([key, { label }]) => (
+          <Stack key={key} direction="row" spacing={0.5} alignItems="center">
+            <Box sx={{ width: 12, height: 12, borderRadius: '2px', bgcolor: TIMELINE_STATUS_COLORS[key] }} />
+            <Typography variant="caption">{label}</Typography>
+          </Stack>
+        ))}
+      </Stack>
+
+      {/* Month headers */}
+      <Box sx={{ position: 'relative', height: 24, mb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+        {months.map((m, i) => (
+          <Typography
+            key={i}
+            variant="caption"
+            sx={{
+              position: 'absolute',
+              left: `${m.offset}%`,
+              top: 0,
+              fontWeight: 600,
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {m.label}
+          </Typography>
+        ))}
+      </Box>
+
+      {/* Task bars */}
+      <Box sx={{ position: 'relative', overflowY: 'auto', maxHeight: 500 }}>
+        {showToday && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: `${todayOffset}%`,
+              top: 0,
+              bottom: 0,
+              width: 2,
+              bgcolor: '#ef4444',
+              zIndex: 1,
+              opacity: 0.5,
+            }}
+          />
+        )}
+        {timelineTasks.map((task) => {
+          const start = task.start_date ? new Date(task.start_date) : new Date(task.due_date);
+          const end = task.due_date ? new Date(task.due_date) : new Date(task.start_date);
+          const leftPct = ((start - minDate) / (1000 * 60 * 60 * 24) / totalDays) * 100;
+          const widthPct = Math.max(1, ((end - start) / (1000 * 60 * 60 * 24) / totalDays) * 100);
+
+          return (
+            <Box
+              key={task.id}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                height: 32,
+                mb: 0.5,
+                position: 'relative',
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  width: 180,
+                  minWidth: 180,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  pr: 1,
+                  fontWeight: 500,
+                }}
+                title={task.title}
+              >
+                {task.title}
+              </Typography>
+              <Box sx={{ flex: 1, position: 'relative', height: '100%' }}>
+                <Tooltip
+                  title={`${task.title} (${formatDate(task.start_date)} – ${formatDate(task.due_date)})`}
+                >
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      minWidth: 8,
+                      height: 20,
+                      top: 6,
+                      bgcolor: TIMELINE_STATUS_COLORS[task.status] || '#94a3b8',
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.8 },
+                    }}
+                  />
+                </Tooltip>
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+    </Paper>
+  );
+}
+
+// ============================================
 // MAIN PAGE
 // ============================================
 
@@ -139,6 +321,10 @@ export default function ProjectDetail() {
   const [newMemberUserId, setNewMemberUserId] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('member');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // Export
+  const [exportAnchorEl, setExportAnchorEl] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   // Lookups
   const [users, setUsers] = useState([]);
@@ -235,7 +421,7 @@ export default function ProjectDetail() {
     try {
       const response = await projectsAPI.getTimeline(id);
       if (response.success) {
-        setTimeline(response.data.timeline || response.data.events || response.data || []);
+        setTimeline(response.data.tasks || response.data.timeline || response.data.events || response.data || []);
       }
     } catch (error) {
       console.error('Timeline betöltési hiba:', error);
@@ -378,6 +564,48 @@ export default function ProjectDetail() {
     setTaskDetailOpen(true);
   };
 
+  const handleExportExcel = async () => {
+    setExportAnchorEl(null);
+    setExporting(true);
+    try {
+      const response = await exportAPI.project(id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `projekt_${project.code || id}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel exportálva');
+    } catch (error) {
+      toast.error('Hiba az exportáláskor');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setExportAnchorEl(null);
+    setExporting(true);
+    try {
+      const response = await exportAPI.projectTasksCsv(id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `projekt_feladatok_${id}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('CSV exportálva');
+    } catch (error) {
+      toast.error('Hiba az exportáláskor');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ============================================
   // Task status donut chart data
   // ============================================
@@ -458,6 +686,28 @@ export default function ProjectDetail() {
         <Stack direction="row" spacing={1}>
           <Button
             variant="outlined"
+            startIcon={exporting ? <CircularProgress size={18} /> : <DownloadIcon />}
+            onClick={(e) => setExportAnchorEl(e.currentTarget)}
+            disabled={exporting}
+          >
+            Exportálás
+          </Button>
+          <Menu
+            anchorEl={exportAnchorEl}
+            open={Boolean(exportAnchorEl)}
+            onClose={() => setExportAnchorEl(null)}
+          >
+            <MenuItem onClick={handleExportExcel}>
+              <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Excel (XLSX)</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleExportCsv}>
+              <ListItemIcon><DescriptionIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Feladatok CSV</ListItemText>
+            </MenuItem>
+          </Menu>
+          <Button
+            variant="outlined"
             startIcon={<EditIcon />}
             onClick={() => setEditProjectOpen(true)}
           >
@@ -527,6 +777,45 @@ export default function ProjectDetail() {
           value={formatCurrency(project.actual_cost)}
           color={project.actual_cost > project.budget ? '#ef4444' : undefined}
         />
+
+        <Card variant="outlined" sx={{ minWidth: 150 }}>
+          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CheckCircleIcon sx={{ fontSize: 28, color: '#22c55e' }} />
+            <Box>
+              <Typography variant="caption" color="text.secondary">Feladatok</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {project.task_summary?.done || 0}/{project.task_summary?.total || 0} kész
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card variant="outlined" sx={{ minWidth: 150 }}>
+          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <PeopleIcon sx={{ fontSize: 28, color: '#6366f1' }} />
+            <Box>
+              <Typography variant="caption" color="text.secondary">Csapat</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {project.team_members?.length || 0} fő
+              </Typography>
+              {project.team_members?.length > 0 && (
+                <AvatarGroup max={4} sx={{ justifyContent: 'flex-start', mt: 0.5 }}>
+                  {project.team_members.map((m) => (
+                    <Tooltip key={m.user_id} title={`${m.last_name} ${m.first_name}`}>
+                      <Box>
+                        <UserAvatar
+                          firstName={m.first_name}
+                          lastName={m.last_name}
+                          size="xs"
+                        />
+                      </Box>
+                    </Tooltip>
+                  ))}
+                </AvatarGroup>
+              )}
+            </Box>
+          </CardContent>
+        </Card>
       </Stack>
 
       {/* Tabs */}
@@ -855,51 +1144,8 @@ export default function ProjectDetail() {
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
               <CircularProgress />
             </Box>
-          ) : Array.isArray(timeline) && timeline.length > 0 ? (
-            <Paper sx={{ p: 2 }}>
-              {timeline.map((event, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    display: 'flex',
-                    gap: 2,
-                    py: 1.5,
-                    borderBottom: index < timeline.length - 1 ? '1px solid' : 'none',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 20 }}>
-                    <DotIcon sx={{ fontSize: 12, color: '#3b82f6' }} />
-                    {index < timeline.length - 1 && (
-                      <Box sx={{ width: 2, flex: 1, bgcolor: 'divider' }} />
-                    )}
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {event.title || event.description || event.action || 'Esemény'}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatDateTime(event.date || event.created_at || event.timestamp)}
-                    </Typography>
-                    {event.user_name && (
-                      <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                        — {event.user_name}
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              ))}
-            </Paper>
           ) : (
-            <Paper sx={{ p: 5, textAlign: 'center' }}>
-              <TimelineIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-              <Typography variant="body1" color="text.secondary">
-                Még nincsenek idővonal események
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Az idővonal automatikusan frissül a projekt tevékenységeivel.
-              </Typography>
-            </Paper>
+            <TimelineBarChart tasks={timeline} project={project} />
           )}
         </Box>
       )}
@@ -1150,6 +1396,7 @@ export default function ProjectDetail() {
           else loadTasks();
           loadProject();
         }}
+        onNavigateTask={(navTaskId) => setSelectedTaskId(navTaskId)}
       />
 
       {/* Add team member dialog */}

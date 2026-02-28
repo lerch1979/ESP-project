@@ -34,7 +34,7 @@ const PRIORITY_MAP = {
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('hu-HU') : '-';
 const formatDateTime = (d) => d ? new Date(d).toLocaleString('hu-HU') : '-';
 
-export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, projectId, users = [] }) {
+export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, projectId, users = [], onNavigateTask }) {
   const [loading, setLoading] = useState(true);
   const [task, setTask] = useState(null);
   const [tabValue, setTabValue] = useState(0);
@@ -43,6 +43,11 @@ export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, proj
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [timesheetOpen, setTimesheetOpen] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Dependency management
+  const [addingDependency, setAddingDependency] = useState(false);
+  const [newDependencyTaskId, setNewDependencyTaskId] = useState('');
+  const [availableTasks, setAvailableTasks] = useState([]);
 
   useEffect(() => {
     if (open && taskId) {
@@ -119,6 +124,41 @@ export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, proj
       toast.success('Munkaidő rögzítve');
       loadTask();
       onUpdate?.();
+    }
+  };
+
+  const handleOpenAddDependency = async () => {
+    setAddingDependency(true);
+    setNewDependencyTaskId('');
+    try {
+      const response = await tasksAPI.getAll(projectId, { limit: 500 });
+      if (response.success) {
+        const allTasks = response.data.tasks || [];
+        // Exclude current task and already-depended tasks
+        const existingDepIds = (task?.dependencies || []).map(d => d.depends_on_task_id);
+        setAvailableTasks(allTasks.filter(t => t.id !== taskId && !existingDepIds.includes(t.id)));
+      }
+    } catch (error) {
+      toast.error('Hiba a feladatok betöltésekor');
+    }
+  };
+
+  const handleAddDependency = async () => {
+    if (!newDependencyTaskId) return;
+    try {
+      const response = await tasksAPI.addDependency(taskId, {
+        depends_on_task_id: newDependencyTaskId,
+        dependency_type: 'finish_to_start',
+      });
+      if (response.success) {
+        toast.success('Függőség hozzáadva');
+        setAddingDependency(false);
+        setNewDependencyTaskId('');
+        loadTask();
+        onUpdate?.();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Hiba a függőség hozzáadásakor');
     }
   };
 
@@ -418,6 +458,67 @@ export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, proj
               {/* Dependencies Tab */}
               {tabValue === 3 && (
                 <Box>
+                  {/* Blocking alert */}
+                  {(() => {
+                    const incompleteDeps = task.dependencies?.filter(d => d.depends_on_status && d.depends_on_status !== 'done') || [];
+                    if (incompleteDeps.length > 0) {
+                      return (
+                        <Box sx={{
+                          p: 1.5, mb: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca',
+                          borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1,
+                        }}>
+                          <ScheduleIcon sx={{ color: '#ef4444', fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 500 }}>
+                            {incompleteDeps.length} befejezetlen függőség blokkolja ezt a feladatot
+                          </Typography>
+                        </Box>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Add dependency */}
+                  {addingDependency ? (
+                    <Stack direction="row" spacing={1} sx={{ mb: 2 }} alignItems="center">
+                      <FormControl size="small" sx={{ minWidth: 250 }}>
+                        <InputLabel>Feladat kiválasztása</InputLabel>
+                        <Select
+                          value={newDependencyTaskId}
+                          label="Feladat kiválasztása"
+                          onChange={(e) => setNewDependencyTaskId(e.target.value)}
+                        >
+                          {availableTasks.map((t) => (
+                            <MenuItem key={t.id} value={t.id}>{t.title}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleAddDependency}
+                        disabled={!newDependencyTaskId}
+                      >
+                        Hozzáadás
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => setAddingDependency(false)}
+                      >
+                        Mégse
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      onClick={handleOpenAddDependency}
+                      size="small"
+                      sx={{ mb: 2 }}
+                    >
+                      Függőség hozzáadása
+                    </Button>
+                  )}
+
                   {task.dependencies?.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
                       Nincsenek függőségek
@@ -433,8 +534,24 @@ export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, proj
                       </TableHead>
                       <TableBody>
                         {task.dependencies?.map((d) => (
-                          <TableRow key={d.id || d.depends_on_task_id} hover>
-                            <TableCell>{d.depends_on_title}</TableCell>
+                          <TableRow
+                            key={d.id || d.depends_on_task_id}
+                            hover
+                            sx={{ cursor: onNavigateTask ? 'pointer' : 'default' }}
+                            onClick={() => {
+                              if (onNavigateTask && d.depends_on_task_id) {
+                                onNavigateTask(d.depends_on_task_id);
+                              }
+                            }}
+                          >
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: onNavigateTask ? '#2563eb' : 'inherit', fontWeight: 500 }}
+                              >
+                                {d.depends_on_title}
+                              </Typography>
+                            </TableCell>
                             <TableCell>
                               <Chip
                                 label={STATUS_MAP[d.depends_on_status]?.label || d.depends_on_status}

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Box, Typography, Stack, IconButton, Chip,
   FormControl, Select, MenuItem, InputLabel,
+  ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -28,14 +29,32 @@ export default function KanbanBoard({ tasks, onStatusChange, onTaskClick, onQuic
   const [quickAddColumn, setQuickAddColumn] = useState(null);
   const [filterAssignee, setFilterAssignee] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
+  const [filterDueDate, setFilterDueDate] = useState('');
 
   const filteredTasks = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
+
     return tasks.filter((t) => {
       if (filterAssignee && t.assigned_to != filterAssignee) return false;
       if (filterPriority && t.priority !== filterPriority) return false;
+      if (filterDueDate) {
+        if (!t.due_date) return false;
+        const due = new Date(t.due_date);
+        const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+        if (filterDueDate === 'overdue') {
+          if (!(dueDay < today && t.status !== 'done')) return false;
+        } else if (filterDueDate === 'today') {
+          if (dueDay.getTime() !== today.getTime()) return false;
+        } else if (filterDueDate === 'this_week') {
+          if (dueDay < today || dueDay > endOfWeek) return false;
+        }
+      }
       return true;
     });
-  }, [tasks, filterAssignee, filterPriority]);
+  }, [tasks, filterAssignee, filterPriority, filterDueDate]);
 
   const columnTasks = useMemo(() => {
     const grouped = {};
@@ -92,6 +111,17 @@ export default function KanbanBoard({ tasks, onStatusChange, onTaskClick, onQuic
             ))}
           </Select>
         </FormControl>
+
+        <ToggleButtonGroup
+          value={filterDueDate}
+          exclusive
+          onChange={(e, val) => setFilterDueDate(val || '')}
+          size="small"
+        >
+          <ToggleButton value="overdue" sx={{ color: '#ef4444' }}>Lejárt</ToggleButton>
+          <ToggleButton value="today">Ma</ToggleButton>
+          <ToggleButton value="this_week">E hét</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
 
       {/* Kanban columns */}

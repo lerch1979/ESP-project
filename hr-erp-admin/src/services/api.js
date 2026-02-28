@@ -515,6 +515,8 @@ export const exportAPI = {
   contractors: (params) => api.get('/export/contractors', { params, responseType: 'blob' }),
   accommodations: (params) => api.get('/export/accommodations', { params, responseType: 'blob' }),
   tickets: (params) => api.get('/export/tickets', { params, responseType: 'blob' }),
+  project: (id) => api.get(`/export/projects/${id}`, { responseType: 'blob' }),
+  projectTasksCsv: (id) => api.get(`/export/projects/${id}/tasks-csv`, { responseType: 'blob' }),
 };
 
 // Videos API
