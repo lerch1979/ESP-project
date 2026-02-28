@@ -1250,4 +1250,32 @@ export const userWorkloadAPI = {
   },
 };
 
+// SLA Policies API
+export const slaPoliciesAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/sla-policies', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/sla-policies/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/sla-policies', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/sla-policies/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/sla-policies/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

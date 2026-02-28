@@ -37,6 +37,7 @@ import AssignmentRules from './pages/AssignmentRules';
 import UserWorkload from './pages/UserWorkload';
 import UserSkills from './pages/UserSkills';
 import AutoAssignSimulator from './pages/AutoAssignSimulator';
+import SLAPolicies from './pages/SLAPolicies';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -94,6 +95,7 @@ function App() {
             <Route path="user-workload" element={<PermissionGuard permission="users.view"><UserWorkload /></PermissionGuard>} />
             <Route path="user-skills" element={<PermissionGuard permission="users.view"><UserSkills /></PermissionGuard>} />
             <Route path="auto-assign-simulator" element={<PermissionGuard permission="settings.view"><AutoAssignSimulator /></PermissionGuard>} />
+            <Route path="sla-policies" element={<PermissionGuard permission="settings.view"><SLAPolicies /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
