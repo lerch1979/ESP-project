@@ -122,6 +122,8 @@ export default function EmailInbox() {
   const [docReviewItem, setDocReviewItem] = useState(null);
   const inboxFileRef = useRef(null);
   const [inboxUploading, setInboxUploading] = useState(false);
+  const [inboxPolling, setInboxPolling] = useState(false);
+  const [gmailStatus, setGmailStatus] = useState(null);
 
   // ============================================
   // DATA LOADING - Invoice Drafts
@@ -181,9 +183,16 @@ export default function EmailInbox() {
     } catch (e) { /* silent */ }
   }, []);
 
+  const loadGmailStatus = useCallback(async () => {
+    try {
+      const res = await emailInboxAPI.getGmailStatus();
+      if (res.success) setGmailStatus(res.data);
+    } catch (e) { /* silent */ }
+  }, []);
+
   useEffect(() => { loadLookups(); }, [loadLookups]);
   useEffect(() => { if (tab === 0) { loadDrafts(); loadDraftStats(); } }, [tab, loadDrafts, loadDraftStats]);
-  useEffect(() => { if (tab === 1) { loadInboxItems(); loadInboxStats(); } }, [tab, loadInboxItems, loadInboxStats]);
+  useEffect(() => { if (tab === 1) { loadInboxItems(); loadInboxStats(); loadGmailStatus(); } }, [tab, loadInboxItems, loadInboxStats, loadGmailStatus]);
 
   // ============================================
   // HANDLERS - Invoice Drafts
@@ -257,6 +266,18 @@ export default function EmailInbox() {
   // ============================================
   // HANDLERS - Email Inbox
   // ============================================
+
+  const handleInboxPollEmails = async () => {
+    setInboxPolling(true);
+    try {
+      const res = await emailInboxAPI.pollEmails();
+      const data = res.data || {};
+      toast.success(`Email lekérdezés kész: ${data.processed || 0} feldolgozva, ${data.skipped || 0} kihagyva`);
+      loadInboxItems();
+      loadInboxStats();
+    } catch (e) { toast.error(e.response?.data?.message || 'Hiba az email lekérdezéskor'); }
+    finally { setInboxPolling(false); }
+  };
 
   const handleInboxUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -444,7 +465,20 @@ export default function EmailInbox() {
       {tab === 1 && (
         <>
           {/* Actions */}
-          <Stack direction="row" spacing={1.5} sx={{ mb: 2 }} justifyContent="flex-end">
+          <Stack direction="row" spacing={1.5} sx={{ mb: 2 }} alignItems="center" justifyContent="flex-end">
+            {gmailStatus && (
+              <Chip
+                size="small"
+                label={gmailStatus.connected ? 'Gmail csatlakozva' : gmailStatus.configured ? 'Gmail konfigurálva' : 'Gmail nincs beállítva'}
+                color={gmailStatus.connected ? 'success' : gmailStatus.configured ? 'warning' : 'default'}
+                variant="outlined"
+                sx={{ mr: 'auto' }}
+              />
+            )}
+            <Button variant="outlined" startIcon={inboxPolling ? <CircularProgress size={18} /> : <EmailIcon />}
+              onClick={handleInboxPollEmails} disabled={inboxPolling || (gmailStatus && !gmailStatus.configured)}>
+              Email lekérdezés
+            </Button>
             <input ref={inboxFileRef} type="file" hidden accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt" onChange={handleInboxUpload} />
             <Button variant="contained" startIcon={inboxUploading ? <CircularProgress size={18} color="inherit" /> : <UploadIcon />}
               onClick={() => inboxFileRef.current?.click()} disabled={inboxUploading}
@@ -522,6 +556,7 @@ export default function EmailInbox() {
                     <TableHead>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Beérkezés</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Forrás</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Tárgy / Fájlnév</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Dokumentum típus</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>AI bizonyosság</TableCell>
@@ -538,6 +573,13 @@ export default function EmailInbox() {
                         return (
                           <TableRow key={item.id} hover sx={{ cursor: 'pointer' }} onClick={() => { setDocReviewItem(item); setDocReviewOpen(true); }}>
                             <TableCell>{formatDate(item.createdAt)}</TableCell>
+                            <TableCell>
+                              {item.source === 'gmail' ? (
+                                <Chip label="Gmail" size="small" sx={{ bgcolor: '#ea4335', color: '#fff', fontSize: '0.7rem', height: 22 }} />
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">Kézi</Typography>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500, maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.emailSubject || '-'}</Typography>
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{item.attachmentFilename || item.emailFrom || '-'}</Typography>

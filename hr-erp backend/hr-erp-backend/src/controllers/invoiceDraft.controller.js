@@ -533,12 +533,13 @@ const reRunOCR = async (req, res) => {
 
 /**
  * POST /api/v1/invoice-drafts/poll-emails
- * Manually trigger email polling
+ * Manually trigger email polling (delegates to universal poller)
  */
 const pollEmails = async (req, res) => {
   try {
-    await gmailMCP.pollForInvoices();
-    res.json({ success: true, message: 'Email lekérdezés elindítva' });
+    const gmailUniversalPoller = require('../services/gmailUniversalPoller.service');
+    const result = await gmailUniversalPoller.pollAllEmails();
+    res.json({ success: true, message: 'Email lekérdezés befejezve', data: result });
   } catch (error) {
     logger.error('Error polling emails:', error);
     res.status(500).json({ success: false, message: 'Hiba az email lekérdezéskor' });

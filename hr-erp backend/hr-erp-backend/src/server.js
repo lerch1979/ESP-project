@@ -46,7 +46,7 @@ const emailInboxRoutes = require('./routes/emailInbox.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 const cron = require('node-cron');
-const gmailMCP = require('./services/gmailMCP.service');
+const gmailUniversalPoller = require('./services/gmailUniversalPoller.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -188,14 +188,14 @@ async function startServer() {
     // Start report scheduler
     startScheduler();
 
-    // Start Gmail invoice polling (every 5 minutes)
+    // Start Gmail universal polling (every 5 minutes)
     if (process.env.GMAIL_REFRESH_TOKEN) {
       cron.schedule('*/5 * * * *', () => {
-        gmailMCP.pollForInvoices();
+        gmailUniversalPoller.pollAllEmails();
       });
-      logger.info('📧 Gmail invoice polling started (every 5 min)');
+      logger.info('📧 Gmail universal polling started (every 5 min)');
     } else {
-      logger.info('📧 Gmail invoice polling disabled (GMAIL_REFRESH_TOKEN not set)');
+      logger.info('📧 Gmail universal polling disabled (GMAIL_REFRESH_TOKEN not set)');
     }
 
     // Szerver indítása

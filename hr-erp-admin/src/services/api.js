@@ -1392,6 +1392,16 @@ export const emailInboxAPI = {
     const response = await api.delete(`/email-inbox/${id}`);
     return response.data;
   },
+
+  pollEmails: async () => {
+    const response = await api.post('/email-inbox/poll-emails');
+    return response.data;
+  },
+
+  getGmailStatus: async () => {
+    const response = await api.get('/email-inbox/gmail-status');
+    return response.data;
+  },
 };
 
 export default api;

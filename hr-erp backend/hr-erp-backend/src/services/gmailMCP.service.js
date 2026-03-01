@@ -46,54 +46,13 @@ class GmailMCPService {
   }
 
   /**
-   * Poll Gmail for new invoice emails
-   * Called by cron job every 5 minutes
+   * @deprecated Use gmailUniversalPoller.pollAllEmails() instead.
+   * Delegates to the universal poller for backward compatibility.
    */
   async pollForInvoices() {
-    if (this.isProcessing) {
-      logger.info('Gmail poll already in progress, skipping');
-      return;
-    }
-
-    if (!this.gmail) {
-      const initialized = await this.initialize();
-      if (!initialized) {
-        logger.warn('Gmail MCP not configured, skipping poll');
-        return;
-      }
-    }
-
-    this.isProcessing = true;
-
-    try {
-      // Build search query for invoice-related emails with PDF attachments
-      const searchQuery = SEARCH_KEYWORDS
-        .map(kw => `subject:${kw}`)
-        .join(' OR ');
-
-      const response = await this.gmail.users.messages.list({
-        userId: 'me',
-        q: `(${searchQuery}) has:attachment filename:pdf is:unread`,
-        maxResults: 10,
-      });
-
-      const messages = response.data.messages || [];
-
-      if (messages.length === 0) {
-        logger.debug('No new invoice emails found');
-        return;
-      }
-
-      logger.info(`Found ${messages.length} potential invoice emails`);
-
-      for (const msg of messages) {
-        await this.processEmail(msg.id);
-      }
-    } catch (error) {
-      logger.error('Gmail poll error:', error);
-    } finally {
-      this.isProcessing = false;
-    }
+    logger.warn('gmailMCP.pollForInvoices() is deprecated — delegating to gmailUniversalPoller.pollAllEmails()');
+    const gmailUniversalPoller = require('./gmailUniversalPoller.service');
+    return gmailUniversalPoller.pollAllEmails();
   }
 
   /**

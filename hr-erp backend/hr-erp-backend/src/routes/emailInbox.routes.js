@@ -43,11 +43,13 @@ router.use(authenticateToken);
 // Read endpoints - specific paths BEFORE /:id param
 router.get('/', controller.getAll);
 router.get('/stats', controller.getStats);
+router.get('/gmail-status', controller.getGmailStatus);
 router.get('/routing-log/:id', controller.getRoutingLog);
 router.get('/:id', controller.getById);
 
 // Write endpoints - require settings.edit permission
 router.post('/upload', checkPermission('settings.edit'), upload.single('file'), controller.upload);
+router.post('/poll-emails', checkPermission('settings.edit'), controller.pollEmails);
 router.post('/classify/:id', checkPermission('settings.edit'), controller.classify);
 router.post('/route/:id', checkPermission('settings.edit'), controller.route);
 router.post('/reclassify/:id', checkPermission('settings.edit'), controller.reclassify);

@@ -5,6 +5,7 @@ const documentClassifier = require('../services/documentClassifier.service');
 const entityExtractor = require('../services/entityExtractor.service');
 const documentRouter = require('../services/documentRouter.service');
 const path = require('path');
+const fs = require('fs');
 
 /**
  * Format an email inbox row for API response
@@ -29,9 +30,143 @@ function formatInbox(row) {
     reviewedBy: row.reviewed_by,
     reviewerName: row.reviewer_name || null,
     contractorId: row.contractor_id,
+    emailMessageId: row.email_message_id || null,
+    source: row.source || 'manual',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Reusable document processing pipeline: OCR → classify → extract → insert → auto-route
+ * Called by both the upload endpoint and the Gmail universal poller.
+ *
+ * @param {string} filePath - Absolute path to the file on disk
+ * @param {object} metadata - { emailFrom, emailSubject, originalFilename, emailMessageId, source }
+ * @returns {object} { inboxItem, routingResult }
+ */
+async function processDocumentFile(filePath, metadata = {}) {
+  const relativePath = path.relative(path.join(__dirname, '..', '..'), filePath);
+  const filename = metadata.originalFilename || path.basename(filePath);
+
+  // Step 1: OCR text extraction
+  let extractedText = '';
+  try {
+    const ocrData = await claudeOCR.extractInvoiceData(filePath);
+    if (ocrData) {
+      extractedText = Object.values(ocrData).filter(v => typeof v === 'string' && v).join(' ');
+    }
+  } catch (e) {
+    logger.warn('OCR extraction failed:', e.message);
+  }
+
+  // Also try raw text extraction for classification
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.pdf') {
+    try {
+      const pdfParse = require('pdf-parse');
+      const buffer = fs.readFileSync(filePath);
+      const pdfData = await pdfParse(buffer);
+      if (pdfData.text && pdfData.text.length > extractedText.length) {
+        extractedText = pdfData.text;
+      }
+    } catch (e) {
+      logger.warn('PDF text extraction for classification failed:', e.message);
+    }
+  } else if (ext === '.txt') {
+    try {
+      const textContent = fs.readFileSync(filePath, 'utf8');
+      if (textContent.length > extractedText.length) {
+        extractedText = textContent;
+      }
+    } catch (e) {
+      logger.warn('Text file read failed:', e.message);
+    }
+  }
+
+  // Step 2: Classify document
+  const classification = documentClassifier.classifyDocument(extractedText, filename);
+
+  // Step 3: Extract entities based on type
+  let extractedData = {};
+  if (classification.documentType === 'invoice') {
+    try {
+      extractedData = await claudeOCR.extractInvoiceData(filePath) || {};
+    } catch (e) {
+      logger.warn('Invoice OCR failed:', e.message);
+    }
+  } else {
+    extractedData = entityExtractor.extract(extractedText, classification.documentType);
+  }
+
+  // Step 4: Create email_inbox record
+  const needsReview = classification.confidence < 70 || classification.documentType === 'other';
+
+  const result = await query(`
+    INSERT INTO email_inbox (
+      email_from, email_subject, email_date,
+      attachment_filename, attachment_path,
+      document_type, confidence_score, classification_reasoning,
+      extracted_text, extracted_data,
+      status, needs_review,
+      email_message_id, source
+    ) VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    RETURNING *
+  `, [
+    metadata.emailFrom || 'manual_upload',
+    metadata.emailSubject || filename || 'Kézi feltöltés',
+    filename,
+    relativePath,
+    classification.documentType,
+    classification.confidence,
+    classification.reasoning,
+    extractedText.substring(0, 10000),
+    JSON.stringify(extractedData),
+    needsReview ? 'needs_review' : 'pending',
+    needsReview,
+    metadata.emailMessageId || null,
+    metadata.source || 'manual',
+  ]);
+
+  const inboxItem = result.rows[0];
+
+  // Step 5: Auto-route if confidence is high enough
+  let routingResult = null;
+  if (!needsReview) {
+    try {
+      routingResult = await documentRouter.routeDocument(inboxItem.id);
+    } catch (e) {
+      logger.error('Auto-routing failed:', e.message);
+    }
+  }
+
+  return { inboxItem, routingResult, needsReview };
+}
+
+/**
+ * Process an email body (no attachment) — save as .txt then run the pipeline
+ *
+ * @param {string} bodyText - Plain text email body
+ * @param {object} metadata - { emailFrom, emailSubject, emailMessageId, source }
+ * @returns {object} { inboxItem, routingResult }
+ */
+async function processEmailBody(bodyText, metadata = {}) {
+  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'documents');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const timestamp = Date.now();
+  const safeName = (metadata.emailSubject || 'email_body').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const fileName = `${timestamp}_${safeName}.txt`;
+  const filePath = path.join(uploadsDir, fileName);
+
+  fs.writeFileSync(filePath, bodyText, 'utf8');
+
+  return processDocumentFile(filePath, {
+    ...metadata,
+    originalFilename: fileName,
+  });
 }
 
 /**
@@ -179,105 +314,12 @@ const upload = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Fájl szükséges' });
     }
 
-    const filePath = req.file.path;
-    const relativePath = path.relative(
-      path.join(__dirname, '..', '..'),
-      filePath
-    );
-
-    // Step 1: OCR text extraction
-    let extractedText = '';
-    try {
-      const ocrData = await claudeOCR.extractInvoiceData(filePath);
-      if (ocrData) {
-        // Build full text from extracted data for classification
-        extractedText = Object.values(ocrData).filter(v => typeof v === 'string' && v).join(' ');
-      }
-    } catch (e) {
-      logger.warn('OCR extraction failed:', e.message);
-    }
-
-    // Also try raw text extraction for classification
-    const fs = require('fs');
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.pdf') {
-      try {
-        const pdfParse = require('pdf-parse');
-        const buffer = fs.readFileSync(filePath);
-        const pdfData = await pdfParse(buffer);
-        if (pdfData.text && pdfData.text.length > extractedText.length) {
-          extractedText = pdfData.text;
-        }
-      } catch (e) {
-        logger.warn('PDF text extraction for classification failed:', e.message);
-      }
-    } else if (ext === '.txt') {
-      try {
-        const textContent = fs.readFileSync(filePath, 'utf8');
-        if (textContent.length > extractedText.length) {
-          extractedText = textContent;
-        }
-      } catch (e) {
-        logger.warn('Text file read failed:', e.message);
-      }
-    }
-
-    // Step 2: Classify document
-    const classification = documentClassifier.classifyDocument(
-      extractedText,
-      req.file.originalname
-    );
-
-    // Step 3: Extract entities based on type
-    let extractedData = {};
-    if (classification.documentType === 'invoice') {
-      // Use full OCR extraction for invoices
-      try {
-        extractedData = await claudeOCR.extractInvoiceData(filePath) || {};
-      } catch (e) {
-        logger.warn('Invoice OCR failed:', e.message);
-      }
-    } else {
-      extractedData = entityExtractor.extract(extractedText, classification.documentType);
-    }
-
-    // Step 4: Create email_inbox record
-    const needsReview = classification.confidence < 70 || classification.documentType === 'other';
-
-    const result = await query(`
-      INSERT INTO email_inbox (
-        email_from, email_subject, email_date,
-        attachment_filename, attachment_path,
-        document_type, confidence_score, classification_reasoning,
-        extracted_text, extracted_data,
-        status, needs_review
-      ) VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *
-    `, [
-      req.user.email || 'manual_upload',
-      req.body.emailSubject || req.body.subject || req.file.originalname || 'Kézi feltöltés',
-      req.file.originalname,
-      relativePath,
-      classification.documentType,
-      classification.confidence,
-      classification.reasoning,
-      extractedText.substring(0, 10000),
-      JSON.stringify(extractedData),
-      needsReview ? 'needs_review' : 'pending',
-      needsReview,
-    ]);
-
-    const inboxItem = result.rows[0];
-
-    // Step 5: Auto-route if confidence is high enough
-    let routingResult = null;
-    if (!needsReview) {
-      try {
-        routingResult = await documentRouter.routeDocument(inboxItem.id);
-      } catch (e) {
-        logger.error('Auto-routing failed:', e.message);
-      }
-    }
+    const { inboxItem, routingResult, needsReview } = await processDocumentFile(req.file.path, {
+      emailFrom: req.user.email || 'manual_upload',
+      emailSubject: req.body.emailSubject || req.body.subject || req.file.originalname || 'Kézi feltöltés',
+      originalFilename: req.file.originalname,
+      source: 'manual',
+    });
 
     // Re-fetch for response
     const finalResult = await query(`
@@ -476,6 +518,57 @@ const remove = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/v1/email-inbox/poll-emails
+ * Trigger Gmail universal poller manually
+ */
+const pollEmails = async (req, res) => {
+  try {
+    const gmailUniversalPoller = require('../services/gmailUniversalPoller.service');
+    const result = await gmailUniversalPoller.pollAllEmails();
+    res.json({
+      success: true,
+      message: 'Email lekérdezés befejezve',
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Error polling emails:', error);
+    res.status(500).json({ success: false, message: 'Hiba az email lekérdezéskor' });
+  }
+};
+
+/**
+ * GET /api/v1/email-inbox/gmail-status
+ * Returns whether Gmail integration is configured and connected
+ */
+const getGmailStatus = async (req, res) => {
+  try {
+    const configured = !!(
+      process.env.GMAIL_CLIENT_ID &&
+      process.env.GMAIL_CLIENT_SECRET &&
+      process.env.GMAIL_REFRESH_TOKEN
+    );
+
+    let connected = false;
+    if (configured) {
+      try {
+        const gmailUniversalPoller = require('../services/gmailUniversalPoller.service');
+        connected = await gmailUniversalPoller.testConnection();
+      } catch (e) {
+        logger.warn('Gmail connection test failed:', e.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: { configured, connected },
+    });
+  } catch (error) {
+    logger.error('Error checking Gmail status:', error);
+    res.status(500).json({ success: false, message: 'Hiba a Gmail státusz ellenőrzésekor' });
+  }
+};
+
 module.exports = {
   getAll,
   getStats,
@@ -486,4 +579,8 @@ module.exports = {
   reclassify,
   getRoutingLog,
   remove,
+  pollEmails,
+  getGmailStatus,
+  processDocumentFile,
+  processEmailBody,
 };
