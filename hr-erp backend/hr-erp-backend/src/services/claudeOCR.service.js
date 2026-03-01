@@ -95,10 +95,10 @@ const PATTERNS = {
     new RegExp(`[oö]sszesen${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
   ],
   invoiceDate: [
-    new RegExp(`kelt${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    new RegExp(`kelte?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
     new RegExp(`sz[aá]mla\\s*d[aá]tum[a]?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
     /invoice\s*date[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
-    new RegExp(`ki[aá]ll[ií]t[aá]s${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    new RegExp(`ki[aá]ll[ií]t[aá]s[ai]?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
   ],
   dueDate: [
     new RegExp(`fizet[eé]si\\s*hat[aá]rid[oő]${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),

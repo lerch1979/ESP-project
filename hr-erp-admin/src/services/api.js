@@ -1345,4 +1345,53 @@ export const invoiceDraftsAPI = {
   },
 };
 
+export const emailInboxAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/email-inbox', { params });
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/email-inbox/stats');
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/email-inbox/${id}`);
+    return response.data;
+  },
+
+  upload: async (formData) => {
+    const response = await api.post('/email-inbox/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  classify: async (id) => {
+    const response = await api.post(`/email-inbox/classify/${id}`);
+    return response.data;
+  },
+
+  route: async (id) => {
+    const response = await api.post(`/email-inbox/route/${id}`);
+    return response.data;
+  },
+
+  reclassify: async (id, documentType) => {
+    const response = await api.post(`/email-inbox/reclassify/${id}`, { documentType });
+    return response.data;
+  },
+
+  getRoutingLog: async (id) => {
+    const response = await api.get(`/email-inbox/routing-log/${id}`);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/email-inbox/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

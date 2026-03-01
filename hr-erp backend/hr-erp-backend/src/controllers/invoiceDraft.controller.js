@@ -280,6 +280,10 @@ const approve = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Költséghely megadása kötelező' });
     }
 
+    // Validate NOT NULL fields for invoices table, provide defaults
+    const invoiceDate = d.invoice_date || new Date().toISOString().split('T')[0];
+    const amount = d.net_amount || d.gross_amount || 0;
+
     // Transaction: create invoice + update draft
     const result = await transaction(async (client) => {
       // Create final invoice
@@ -296,10 +300,10 @@ const approve = async (req, res) => {
         d.invoice_number,
         d.vendor_name,
         d.vendor_tax_number,
-        d.net_amount,
+        amount,
         d.vat_amount,
         d.gross_amount,
-        d.invoice_date,
+        invoiceDate,
         d.due_date,
         finalCostCenterId,
         d.description,

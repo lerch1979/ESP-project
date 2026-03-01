@@ -42,6 +42,7 @@ const assignmentRuleRoutes = require('./routes/assignmentRule.routes');
 const userWorkloadRoutes = require('./routes/userWorkload.routes');
 const slaPolicyRoutes = require('./routes/sla.routes');
 const invoiceDraftRoutes = require('./routes/invoiceDraft.routes');
+const emailInboxRoutes = require('./routes/emailInbox.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 const cron = require('node-cron');
@@ -150,6 +151,7 @@ app.use(`${API_PREFIX}/assignment-rules`, assignmentRuleRoutes);
 app.use(`${API_PREFIX}/user-workload`, userWorkloadRoutes);
 app.use(`${API_PREFIX}/sla-policies`, slaPolicyRoutes);
 app.use(`${API_PREFIX}/invoice-drafts`, invoiceDraftRoutes);
+app.use(`${API_PREFIX}/email-inbox`, emailInboxRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
