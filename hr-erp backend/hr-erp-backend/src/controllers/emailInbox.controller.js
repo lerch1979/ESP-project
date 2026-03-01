@@ -211,6 +211,15 @@ const upload = async (req, res) => {
       } catch (e) {
         logger.warn('PDF text extraction for classification failed:', e.message);
       }
+    } else if (ext === '.txt') {
+      try {
+        const textContent = fs.readFileSync(filePath, 'utf8');
+        if (textContent.length > extractedText.length) {
+          extractedText = textContent;
+        }
+      } catch (e) {
+        logger.warn('Text file read failed:', e.message);
+      }
     }
 
     // Step 2: Classify document
@@ -246,7 +255,7 @@ const upload = async (req, res) => {
       RETURNING *
     `, [
       req.user.email || 'manual_upload',
-      req.body.subject || req.file.originalname || 'Kézi feltöltés',
+      req.body.emailSubject || req.body.subject || req.file.originalname || 'Kézi feltöltés',
       req.file.originalname,
       relativePath,
       classification.documentType,

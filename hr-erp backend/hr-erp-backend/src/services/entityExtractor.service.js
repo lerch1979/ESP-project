@@ -166,8 +166,8 @@ class EntityExtractorService {
       subject: null,
     };
 
-    // Extract parties (company names)
-    const companyPattern = /([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ&][a-záéíóöőúüű]*)*\s+(?:Kft|Bt|Zrt|Nyrt|Ltd|GmbH|Inc)\.?)/g;
+    // Extract parties (company names) - support all-caps prefixes like "ABC"
+    const companyPattern = /([A-ZÁÉÍÓÖŐÚÜŰ][A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ]+(?:\s+[A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ&]+)*\s+(?:Kft|Bt|Zrt|Nyrt|Ltd|GmbH|Inc)\.?)/g;
     let match;
     while ((match = companyPattern.exec(text)) !== null) {
       if (!result.parties.includes(match[1])) {
@@ -175,10 +175,11 @@ class EntityExtractorService {
       }
     }
 
-    // Extract dates
+    // Extract dates - support bilingual "Kezdo datum / Start date: 2026.04.01"
+    const BI = '(?:\\s*/\\s*[A-Za-z][A-Za-z\\s]*)?';
     const datePatterns = [
-      /(?:kezd[eő]|start|hat[aá]lyba\s*l[eé]p|effective)[:\s]*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/i,
-      /(?:lej[aá]rat|end|v[eé]ge|expir)[:\s]*(\d{4}[.\-/]\d{2}[.\-/]\d{2})/i,
+      new RegExp(`(?:kezd[eő]\\s*d[aá]tum|start\\s*date|hat[aá]lyba\\s*l[eé]p|effective)${BI}[:\\s]*(\\d{4}[.\\-/]\\d{2}[.\\-/]\\d{2})`, 'i'),
+      new RegExp(`(?:lej[aá]rat|end\\s*date|v[eé]ge|expir)${BI}[:\\s]*(\\d{4}[.\\-/]\\d{2}[.\\-/]\\d{2})`, 'i'),
     ];
 
     const startMatch = text.match(datePatterns[0]);
@@ -187,10 +188,9 @@ class EntityExtractorService {
     const endMatch = text.match(datePatterns[1]);
     if (endMatch) result.endDate = this.normalizeDate(endMatch[1]);
 
-    // Contract subject
+    // Contract subject - handle bilingual "targya / Subject:" by consuming separator
     const subjectPatterns = [
-      /(?:t[aá]rgya?|subject)[:\s]*(.+?)(?:\n|$)/i,
-      /(?:szerz[oő]d[eé]s\s*t[aá]rgya)[:\s]*(.+?)(?:\n|$)/i,
+      new RegExp(`(?:szerz[oő]d[eé]s\\s*t[aá]rgya|t[aá]rgya?)${BI}[:\\s]*\\n?\\s*(.+?)(?:\\n|$)`, 'i'),
     ];
 
     for (const pattern of subjectPatterns) {
@@ -201,8 +201,8 @@ class EntityExtractorService {
       }
     }
 
-    // Contract value
-    const valueMatch = text.match(/(?:d[ií]j|[eé]rt[eé]k|value|amount)[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)/i);
+    // Contract value - match "berleti dij: 1 250 000 Ft" or "Havi berleti dij: ..."
+    const valueMatch = text.match(/(?:b[eé]rleti\s*d[ií]j|d[ií]j|[eé]rt[eé]k|value|amount|fee)[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)/i);
     if (valueMatch) {
       result.value = valueMatch[1].replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
     }
