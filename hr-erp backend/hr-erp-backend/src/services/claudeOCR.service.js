@@ -52,12 +52,15 @@ async function extractWithClaude(absolutePath, ext) {
 // REGEX PATTERNS for Hungarian invoice parsing
 // ============================================
 
+// Bilingual separator: consumes optional " / English Label" between HU label and value
+const BI = '(?:\\s*/\\s*[A-Za-z][A-Za-z\\s]*)?';
+
 const PATTERNS = {
   invoiceNumber: [
-    /sz[aá]mlasz[aá]m[:\s]*([A-Z0-9/_-]{3,30})/i,
-    /invoice\s*(?:no|number|#)?[:\s]*([A-Z0-9/_-]{3,30})/i,
+    new RegExp(`sz[aá]mlasz[aá]m${BI}[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
+    new RegExp(`invoice\\s*(?:no|number|#)?[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
     /(?:INV|SZ|SZLA)[-/]?\d{4}[-/]\d{3,6}/i,
-    /sorsz[aá]m[:\s]*([A-Z0-9/_-]{3,30})/i,
+    new RegExp(`sorsz[aá]m${BI}[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
   ],
   vendorName: [
     /sz[aá]ll[ií]t[oó](?:\s*\/\s*supplier)?[:\s]*\n\s*(.+?)(?:\n|$)/i,
@@ -66,46 +69,45 @@ const PATTERNS = {
     /ki[aá]ll[ií]t[oó][:\s]*\n\s*(.+?)(?:\n|$)/i,
   ],
   vendorTaxNumber: [
-    /ad[oó]sz[aá]m[:\s]*(\d{8}[-–]\d[-–]\d{2})/i,
+    new RegExp(`ad[oó]sz[aá]m${BI}[:\\s]*(\\d{8}[-–]\\d[-–]\\d{2})`, 'i'),
     /tax\s*(?:no|number|id)?[:\s]*(\d{8}[-–]\d[-–]\d{2})/i,
     /(\d{8}-\d-\d{2})/,
   ],
   iban: [
-    /(?:IBAN|banksz[aá]mlasz[aá]m|banksz[aá]mla)[:\s]*([A-Z]{2}\d{2}[\s\d]{10,30})/i,
+    new RegExp(`(?:IBAN|banksz[aá]mlasz[aá]m|banksz[aá]mla)${BI}\\)?[:\\s]*([A-Z]{2}\\d{2}[\\s\\d]{10,30})`, 'i'),
     /(HU\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4})/i,
-    /(?:IBAN|banksz[aá]mlasz[aá]m|banksz[aá]mla)\)?[:\s]*(HU[\d\s]{10,40})/i,
     /(?:banksz[aá]mla|sz[aá]mlasz[aá]m)[:\s]*([\d\s-]{16,34})/i,
   ],
   netAmount: [
-    /nett[oó]\s*(?:[oö]sszeg)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
+    new RegExp(`nett[oó]\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
     /net\s*(?:amount|total)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
-    /ad[oó]alap[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
+    new RegExp(`ad[oó]alap${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
   ],
   vatAmount: [
-    /[aá]fa\s*(?:[oö]sszeg)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
+    new RegExp(`[aá]fa\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
     /(?:VAT|[aá]fa)\s*\(\d+%?\)[:\s]*([\d\s.,]+)/i,
     /[aá]fa\s*\d+%?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
   ],
   grossAmount: [
-    /brutt[oó]\s*(?:[oö]sszeg)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
+    new RegExp(`brutt[oó]\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
     /gross\s*(?:amount|total)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
-    /fizetend[oő]\s*(?:[oö]sszeg)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
-    /[oö]sszesen[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
+    new RegExp(`fizetend[oő]\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
+    new RegExp(`[oö]sszesen${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
   ],
   invoiceDate: [
-    /kelt[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
-    /sz[aá]mla\s*d[aá]tum[a]?[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
+    new RegExp(`kelt${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    new RegExp(`sz[aá]mla\\s*d[aá]tum[a]?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
     /invoice\s*date[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
-    /ki[aá]ll[ií]t[aá]s[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
+    new RegExp(`ki[aá]ll[ií]t[aá]s${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
   ],
   dueDate: [
-    /fizet[eé]si\s*hat[aá]rid[oő][:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
+    new RegExp(`fizet[eé]si\\s*hat[aá]rid[oő]${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
     /due\s*date[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
-    /esed[eé]kess[eé]g[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
-    /hat[aá]rid[oő][:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
+    new RegExp(`esed[eé]kess[eé]g${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    new RegExp(`hat[aá]rid[oő]${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
   ],
   currency: [
-    /p[eé]nznem[:\s]*(HUF|EUR|USD|GBP|CHF)/i,
+    new RegExp(`p[eé]nznem${BI}[:\\s]*(HUF|EUR|USD|GBP|CHF)`, 'i'),
     /currency[:\s]*(HUF|EUR|USD|GBP|CHF)/i,
   ],
 };

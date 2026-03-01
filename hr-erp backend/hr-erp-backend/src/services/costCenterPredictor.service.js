@@ -49,6 +49,10 @@ const KEYWORD_MAPPINGS = {
   'irodaszer': 'OPR-IRODA',
   'nyomtató': 'OPR-IRODA',
   'papír': 'OPR-IRODA',
+  'takarítás': 'OPR-IRODA',
+  'takaritas': 'OPR-IRODA',
+  'tisztítás': 'OPR-IRODA',
+  'cleanpro': 'OPR-IRODA',
 
   // IT
   'szoftver': 'STR-IT',

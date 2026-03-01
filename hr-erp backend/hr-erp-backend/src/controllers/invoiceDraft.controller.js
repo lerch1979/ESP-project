@@ -417,15 +417,25 @@ const uploadPDF = async (req, res) => {
       filePath
     );
 
-    const draft = await gmailMCP.processUploadedPDF(relativePath, {
+    const rawDraft = await gmailMCP.processUploadedPDF(relativePath, {
       from: req.user.email || 'manual_upload',
       subject: req.body.subject || 'Kézi feltöltés',
     });
 
+    // Re-fetch with JOINs for full response
+    const result = await query(`
+      SELECT d.*,
+        cc.name as cost_center_name,
+        cc.code as cost_center_code
+      FROM invoice_drafts d
+      LEFT JOIN cost_centers cc ON d.suggested_cost_center_id = cc.id
+      WHERE d.id = $1
+    `, [rawDraft.id]);
+
     res.json({
       success: true,
       message: 'PDF feldolgozva, piszkozat létrehozva',
-      data: formatDraft(draft),
+      data: formatDraft(result.rows[0]),
     });
   } catch (error) {
     logger.error('Error uploading PDF:', error);
@@ -460,7 +470,7 @@ const reRunOCR = async (req, res) => {
     const prediction = await costCenterPredictor.predict(extractedData);
 
     // Update draft
-    const result = await query(`
+    await query(`
       UPDATE invoice_drafts SET
         invoice_number = $1,
         vendor_name = $2,
@@ -478,7 +488,6 @@ const reRunOCR = async (req, res) => {
         suggestion_reasoning = $14,
         status = 'pending'
       WHERE id = $15
-      RETURNING *
     `, [
       extractedData.invoiceNumber,
       extractedData.vendorName,
@@ -496,6 +505,16 @@ const reRunOCR = async (req, res) => {
       prediction?.reasoning || null,
       id,
     ]);
+
+    // Re-fetch with JOINs for full response
+    const result = await query(`
+      SELECT d.*,
+        cc.name as cost_center_name,
+        cc.code as cost_center_code
+      FROM invoice_drafts d
+      LEFT JOIN cost_centers cc ON d.suggested_cost_center_id = cc.id
+      WHERE d.id = $1
+    `, [id]);
 
     res.json({
       success: true,
