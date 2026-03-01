@@ -41,8 +41,11 @@ const timesheetRoutes = require('./routes/timesheet.routes');
 const assignmentRuleRoutes = require('./routes/assignmentRule.routes');
 const userWorkloadRoutes = require('./routes/userWorkload.routes');
 const slaPolicyRoutes = require('./routes/sla.routes');
+const invoiceDraftRoutes = require('./routes/invoiceDraft.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
+const cron = require('node-cron');
+const gmailMCP = require('./services/gmailMCP.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -146,6 +149,7 @@ app.use(`${API_PREFIX}/timesheets`, timesheetRoutes);
 app.use(`${API_PREFIX}/assignment-rules`, assignmentRuleRoutes);
 app.use(`${API_PREFIX}/user-workload`, userWorkloadRoutes);
 app.use(`${API_PREFIX}/sla-policies`, slaPolicyRoutes);
+app.use(`${API_PREFIX}/invoice-drafts`, invoiceDraftRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
@@ -181,6 +185,16 @@ async function startServer() {
 
     // Start report scheduler
     startScheduler();
+
+    // Start Gmail invoice polling (every 5 minutes)
+    if (process.env.GMAIL_REFRESH_TOKEN) {
+      cron.schedule('*/5 * * * *', () => {
+        gmailMCP.pollForInvoices();
+      });
+      logger.info('📧 Gmail invoice polling started (every 5 min)');
+    } else {
+      logger.info('📧 Gmail invoice polling disabled (GMAIL_REFRESH_TOKEN not set)');
+    }
 
     // Szerver indítása
     app.listen(PORT, () => {

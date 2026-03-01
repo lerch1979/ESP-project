@@ -99,6 +99,7 @@ const allMenuItems = [
   },
   {
     text: 'Pénzügy', icon: <ReceiptIcon />, permission: 'settings.edit', children: [
+      { text: 'Email számlák', icon: <EmailIcon />, path: '/email-inbox', permission: 'settings.edit' },
       { text: 'Költségközpontok', icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
       { text: 'Számlák', icon: <ReceiptIcon />, path: '/invoices', permission: 'settings.edit' },
       { text: 'Számlariportok', icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },

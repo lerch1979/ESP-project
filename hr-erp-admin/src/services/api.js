@@ -1290,4 +1290,59 @@ export const slaPoliciesAPI = {
   },
 };
 
+// Invoice Drafts API (Email Invoice Automation)
+export const invoiceDraftsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/invoice-drafts', { params });
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/invoice-drafts/stats');
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/invoice-drafts/${id}`);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/invoice-drafts/${id}`, data);
+    return response.data;
+  },
+
+  approve: async (id, data = {}) => {
+    const response = await api.post(`/invoice-drafts/${id}/approve`, data);
+    return response.data;
+  },
+
+  reject: async (id) => {
+    const response = await api.post(`/invoice-drafts/${id}/reject`);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/invoice-drafts/${id}`);
+    return response.data;
+  },
+
+  uploadPDF: async (formData) => {
+    const response = await api.post('/invoice-drafts/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  reRunOCR: async (id) => {
+    const response = await api.post(`/invoice-drafts/${id}/re-ocr`);
+    return response.data;
+  },
+
+  pollEmails: async () => {
+    const response = await api.post('/invoice-drafts/poll-emails');
+    return response.data;
+  },
+};
+
 export default api;
