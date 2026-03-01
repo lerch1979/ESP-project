@@ -32,10 +32,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token lejárt vagy érvénytelen
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Ne kezeljük a login/refresh endpoint 401-es válaszait - azokat a komponens kezeli
+      const url = error.config?.url || '';
+      if (!url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+        // Token lejárt vagy érvénytelen - csak nem-auth kéréseknél
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

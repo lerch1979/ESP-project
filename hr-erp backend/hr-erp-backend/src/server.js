@@ -51,6 +51,10 @@ const PORT = process.env.PORT || 3000;
 // MIDDLEWARE
 // ============================================
 
+// Trust proxy - szükséges Docker/Nginx mögötti futáshoz
+// (express-rate-limit és req.ip helyes működéséhez)
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
