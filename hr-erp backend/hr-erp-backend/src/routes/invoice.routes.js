@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoice.controller');
+const paymentController = require('../controllers/payment.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -36,5 +37,11 @@ router.put('/:id', checkPermission('settings.edit'), invoiceController.update);
  * Számla törlése (soft delete)
  */
 router.delete('/:id', checkPermission('settings.edit'), invoiceController.remove);
+
+/**
+ * GET /api/v1/invoices/:invoiceId/payments
+ * Számla fizetéseinek listája
+ */
+router.get('/:invoiceId/payments', checkPermission('settings.view'), paymentController.getByInvoiceId);
 
 module.exports = router;
