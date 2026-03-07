@@ -17,6 +17,7 @@ import ProjectListScreen from '../screens/projects/ProjectListScreen';
 import ProjectDetailScreen from '../screens/projects/ProjectDetailScreen';
 import TaskListScreen from '../screens/projects/TaskListScreen';
 import TaskDetailScreen from '../screens/projects/TaskDetailScreen';
+import InvoiceListScreen from '../screens/invoices/InvoiceListScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -48,6 +49,7 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="MyTasks" component={TaskListScreen} options={{ title: 'Feladataim' }} />
       <Stack.Screen name="MyTaskDetail" component={TaskDetailScreen} options={{ title: 'Feladat' }} />
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} options={{ title: 'Feladat' }} />
+      <Stack.Screen name="InvoiceList" component={InvoiceListScreen} options={{ title: 'Számlák' }} />
     </Stack.Navigator>
   );
 }

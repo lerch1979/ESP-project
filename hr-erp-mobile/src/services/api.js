@@ -339,6 +339,18 @@ export const taskAPI = {
   },
 };
 
+// Invoices API
+export const invoiceAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/invoices', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/invoices/${id}`);
+    return response.data;
+  },
+};
+
 // Chatbot API (Tier 1 - user endpoints only)
 export const chatbotAPI = {
   createConversation: async (data = {}) => {

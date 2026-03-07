@@ -13,6 +13,12 @@ const menuSections = [
     ],
   },
   {
+    title: 'Pénzügy',
+    items: [
+      { key: 'invoices', icon: 'wallet-outline', label: 'Számlák', screen: 'InvoiceList' },
+    ],
+  },
+  {
     title: 'Tartalom',
     items: [
       { key: 'accommodations', icon: 'home-outline', label: 'Szálláshelyek', screen: 'AccommodationList' },
