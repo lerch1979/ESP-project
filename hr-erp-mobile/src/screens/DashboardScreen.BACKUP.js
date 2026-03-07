@@ -4,26 +4,21 @@ import {
   Text,
   ScrollView,
   RefreshControl,
-  TouchableOpacity,
+  FlatList,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { dashboardAPI, taskAPI, projectAPI } from '../services/api';
+import { dashboardAPI } from '../services/api';
 import { colors } from '../constants/colors';
 import StatCard from '../components/StatCard';
 import TicketCard from '../components/TicketCard';
-import ExpandableSection from '../components/ExpandableSection';
-import TaskCard from '../components/TaskCard';
-import ProjectCard from '../components/ProjectCard';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorState from '../components/ErrorState';
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const [stats, setStats] = useState(null);
-  const [myTasks, setMyTasks] = useState([]);
-  const [activeProjects, setActiveProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -31,14 +26,8 @@ export default function DashboardScreen() {
   const fetchStats = useCallback(async () => {
     try {
       setError(null);
-      const [statsRes, tasksRes, projectsRes] = await Promise.all([
-        dashboardAPI.getStats(),
-        taskAPI.getAll({ my_tasks: true, status: 'in_progress', limit: 5 }).catch(() => ({ data: [] })),
-        projectAPI.getAll({ status: 'active', limit: 3 }).catch(() => ({ data: [] })),
-      ]);
-      setStats(statsRes.data);
-      setMyTasks(tasksRes.data || []);
-      setActiveProjects(projectsRes.data || []);
+      const response = await dashboardAPI.getStats();
+      setStats(response.data);
     } catch (err) {
       setError('Nem sikerült betölteni az adatokat');
     } finally {
@@ -105,66 +94,6 @@ export default function DashboardScreen() {
           iconColor={colors.success}
         />
       </View>
-
-      {myTasks.length > 0 && (
-        <ExpandableSection
-          title="Feladataim"
-          icon="checkbox-outline"
-          count={myTasks.length}
-          defaultExpanded={true}
-        >
-          {myTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              compact
-              onPress={() =>
-                navigation.navigate('More', {
-                  screen: 'MyTaskDetail',
-                  params: { id: task.id },
-                })
-              }
-            />
-          ))}
-          <TouchableOpacity
-            style={styles.seeAllButton}
-            onPress={() => navigation.navigate('More', { screen: 'MyTasks' })}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.seeAllText}>Összes feladat</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-          </TouchableOpacity>
-        </ExpandableSection>
-      )}
-
-      {activeProjects.length > 0 && (
-        <ExpandableSection
-          title="Aktív projektek"
-          icon="folder-outline"
-          count={activeProjects.length}
-        >
-          {activeProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onPress={() =>
-                navigation.navigate('More', {
-                  screen: 'ProjectDetail',
-                  params: { id: project.id },
-                })
-              }
-            />
-          ))}
-          <TouchableOpacity
-            style={styles.seeAllButton}
-            onPress={() => navigation.navigate('More', { screen: 'Projects' })}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.seeAllText}>Összes projekt</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-          </TouchableOpacity>
-        </ExpandableSection>
-      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Legutóbbi hibajegyek</Text>
@@ -233,19 +162,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     padding: 24,
-  },
-  seeAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    marginTop: 6,
-    gap: 4,
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
   },
   bottomPadding: {
     height: 20,

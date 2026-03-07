@@ -311,6 +311,34 @@ export const videosAPI = {
   },
 };
 
+// Projects API
+export const projectAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/projects', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/projects/${id}`);
+    return response.data;
+  },
+};
+
+// Tasks API
+export const taskAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/tasks', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/tasks/${id}`);
+    return response.data;
+  },
+  updateStatus: async (id, statusData) => {
+    const response = await api.patch(`/tasks/${id}/status`, statusData);
+    return response.data;
+  },
+};
+
 // Chatbot API (Tier 1 - user endpoints only)
 export const chatbotAPI = {
   createConversation: async (data = {}) => {

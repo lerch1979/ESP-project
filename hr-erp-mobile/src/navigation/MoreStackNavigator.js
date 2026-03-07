@@ -13,6 +13,10 @@ import ChatbotConversationListScreen from '../screens/chatbot/ChatbotConversatio
 import ChatbotChatScreen from '../screens/chatbot/ChatbotChatScreen';
 import ChatbotFaqScreen from '../screens/chatbot/ChatbotFaqScreen';
 import FAQScreen from '../screens/faq/FAQScreen';
+import ProjectListScreen from '../screens/projects/ProjectListScreen';
+import ProjectDetailScreen from '../screens/projects/ProjectDetailScreen';
+import TaskListScreen from '../screens/projects/TaskListScreen';
+import TaskDetailScreen from '../screens/projects/TaskDetailScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -39,6 +43,11 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: 'Chatbot Asszisztens' }} />
       <Stack.Screen name="ChatbotFaq" component={ChatbotFaqScreen} options={{ title: 'GYIK' }} />
       <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'FAQ / GYIK' }} />
+      <Stack.Screen name="Projects" component={ProjectListScreen} options={{ title: 'Projektek' }} />
+      <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ title: 'Projekt' }} />
+      <Stack.Screen name="MyTasks" component={TaskListScreen} options={{ title: 'Feladataim' }} />
+      <Stack.Screen name="MyTaskDetail" component={TaskDetailScreen} options={{ title: 'Feladat' }} />
+      <Stack.Screen name="TaskDetail" component={TaskDetailScreen} options={{ title: 'Feladat' }} />
     </Stack.Navigator>
   );
 }
