@@ -8,7 +8,10 @@
     "dev": "nodemon src/server.js",
     "test": "jest --coverage",
     "db:migrate": "node src/database/migrate.js",
-    "db:seed": "node src/database/seed.js"
+    "db:seed": "node src/database/seed.js",
+    "agent:ceo": "node scripts/ceo_agent.js",
+    "agent:standup": "node scripts/daily_standup.js",
+    "agent:qa": "node scripts/qa_agent.js"
   },
   "keywords": [
     "hr",
