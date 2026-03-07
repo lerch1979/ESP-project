@@ -4,6 +4,18 @@ const { logActivity, diffObjects } = require('../utils/activityLogger');
 
 const VALID_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
 
+const VALID_SORT_COLUMNS = {
+  invoice_date: 'i.invoice_date',
+  total_amount: 'i.total_amount',
+  payment_status: 'i.payment_status',
+  created_at: 'i.created_at',
+  vendor_name: 'i.vendor_name',
+};
+
+function getSortColumn(col) {
+  return VALID_SORT_COLUMNS[col] || 'i.created_at';
+}
+
 /**
  * Generate invoice number: INV-000001
  */
@@ -19,7 +31,7 @@ async function generateInvoiceNumber() {
  */
 const getAll = async (req, res) => {
   try {
-    const { payment_status, vendor_name, search, date_from, date_to, page = 1, limit = 50 } = req.query;
+    const { payment_status, vendor_name, search, date_from, date_to, sort_by, sort_order, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
     let whereConditions = ['i.deleted_at IS NULL'];
@@ -73,7 +85,7 @@ const getAll = async (req, res) => {
        LEFT JOIN invoice_categories ic ON i.category_id = ic.id
        LEFT JOIN users u ON i.created_by = u.id
        ${whereClause}
-       ORDER BY i.created_at DESC
+       ORDER BY ${getSortColumn(sort_by)} ${sort_order === 'ASC' ? 'ASC' : 'DESC'}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, parseInt(limit), parseInt(offset)]
     );

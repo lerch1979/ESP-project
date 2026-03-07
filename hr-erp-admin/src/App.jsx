@@ -25,6 +25,7 @@ import EmailTemplates from './pages/EmailTemplates';
 import CostCenters from './pages/CostCenters';
 import Invoices from './pages/Invoices';
 import InvoiceReports from './pages/invoices/InvoiceReports';
+import InvoiceListPage from './pages/invoices/InvoiceListPage';
 import AdminUsers from './pages/admin/Users';
 import AdminUserPermissions from './pages/admin/UserPermissions';
 import AdminRoles from './pages/admin/Roles';
@@ -81,6 +82,7 @@ function App() {
             <Route path="cost-centers" element={<PermissionGuard permission="settings.edit"><CostCenters /></PermissionGuard>} />
             <Route path="invoices" element={<PermissionGuard permission="settings.edit"><Invoices /></PermissionGuard>} />
             <Route path="invoice-reports" element={<PermissionGuard permission="settings.edit"><InvoiceReports /></PermissionGuard>} />
+            <Route path="invoice-management" element={<PermissionGuard permission="settings.edit"><InvoiceListPage /></PermissionGuard>} />
             <Route path="admin/users" element={<PermissionGuard permission="users.manage_permissions"><AdminUsers /></PermissionGuard>} />
             <Route path="admin/users/:id/permissions" element={<PermissionGuard permission="users.manage_permissions"><AdminUserPermissions /></PermissionGuard>} />
             <Route path="admin/roles" element={<PermissionGuard permission="users.manage_permissions"><AdminRoles /></PermissionGuard>} />

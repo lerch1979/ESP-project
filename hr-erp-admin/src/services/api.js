@@ -1404,4 +1404,70 @@ export const emailInboxAPI = {
   },
 };
 
+// Invoices API (new invoice module with payments)
+export const invoicesAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/invoices', { params });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await api.get(`/invoices/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/invoices', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/invoices/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/invoices/${id}`);
+    return response.data;
+  },
+
+  downloadPDF: async (id) => {
+    const response = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });
+    return response;
+  },
+
+  sendEmail: async (id, data) => {
+    const response = await api.post(`/invoices/${id}/send-email`, data);
+    return response.data;
+  },
+
+  getPayments: async (invoiceId) => {
+    const response = await api.get(`/invoices/${invoiceId}/payments`);
+    return response.data;
+  },
+};
+
+// Payments API
+export const paymentsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/payments', { params });
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/payments', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/payments/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/payments/${id}`);
+    return response.data;
+  },
+};
+
 export default api;
