@@ -1,0 +1,10 @@
+{
+  "backup_interval": "daily",
+  "backup_path": "../../backups",
+  "auto_commit": true,
+  "auto_push": true,
+  "google_drive_path": null,
+  "max_backups": 30,
+  "test_before_backup": true,
+  "include_test_results": true
+}

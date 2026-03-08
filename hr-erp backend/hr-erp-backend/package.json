@@ -11,7 +11,9 @@
     "db:seed": "node src/database/seed.js",
     "agent:ceo": "node scripts/ceo_agent.js",
     "agent:standup": "node scripts/daily_standup.js",
-    "agent:qa": "node scripts/qa_agent.js"
+    "agent:qa": "node scripts/qa_agent.js",
+    "backup:now": "node scripts/auto_backup.js",
+    "backup:dry": "node scripts/auto_backup.js --dry-run"
   },
   "keywords": [
     "hr",
