@@ -1,26 +1,24 @@
 FROM node:20-alpine
 
-# Munkamappa beállítása
 WORKDIR /app
 
-# Package fájlok másolása
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
+# Package files
 COPY package*.json ./
 
-# Függőségek telepítése
-RUN npm ci --only=production && \
-    npm cache clean --force
+# Install all dependencies (dev included for nodemon in dev mode)
+RUN npm ci && npm cache clean --force
 
-# Alkalmazás fájlok másolása
+# Copy application files
 COPY . .
 
-# Logs és uploads mappák létrehozása
+# Create required directories
 RUN mkdir -p logs uploads
 
-# Port expose
+# Expose port
 EXPOSE 3000
 
-# Felhasználó váltás (security)
-USER node
-
-# Alkalmazás indítása
+# Start
 CMD ["npm", "start"]

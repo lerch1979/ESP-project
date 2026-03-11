@@ -15,7 +15,9 @@ const globalSearch = async (req, res) => {
       });
     }
 
-    const searchTerm = `%${q.trim()}%`;
+    // Limit search length to prevent DoS
+    const trimmed = q.trim().substring(0, 200);
+    const searchTerm = `%${trimmed}%`;
 
     const [employeesResult, ticketsResult, accommodationsResult, contractorsResult] = await Promise.all([
       query(

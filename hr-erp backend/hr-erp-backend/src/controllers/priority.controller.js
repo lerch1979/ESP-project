@@ -1,4 +1,5 @@
 const pool = require('../database/connection');
+const { logger } = require('../utils/logger');
 
 // Összes prioritás lekérése
 const getPriorities = async (req, res) => {
@@ -6,7 +7,7 @@ const getPriorities = async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, slug, color, created_at
        FROM priorities
-       ORDER BY 
+       ORDER BY
          CASE slug
            WHEN 'critical' THEN 1
            WHEN 'urgent' THEN 2
@@ -23,11 +24,10 @@ const getPriorities = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Prioritások lekérdezési hiba:', error);
+    logger.error('Prioritások lekérdezési hiba:', error);
     res.status(500).json({
       success: false,
       message: 'Hiba a prioritások lekérdezése során',
-      error: error.message,
     });
   }
 };

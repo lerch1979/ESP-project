@@ -465,11 +465,10 @@ const updateStatus = async (req, res) => {
       }
     }
 
-    const completedAt = status === 'done' ? 'NOW()' : 'NULL';
     const progress = status === 'done' ? 100 : (status === 'todo' ? 0 : current.rows[0].progress);
 
     const result = await query(
-      `UPDATE tasks SET status = $1, progress = $2, completed_at = ${completedAt}
+      `UPDATE tasks SET status = $1, progress = $2, completed_at = CASE WHEN $1 = 'done' THEN NOW() ELSE NULL END
        WHERE id = $3
        RETURNING *`,
       [status, progress, id]

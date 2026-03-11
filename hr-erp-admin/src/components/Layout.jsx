@@ -57,6 +57,7 @@ import {
   Assignment as AssignmentIcon,
   ListAlt as ListAltIcon,
   AutoAwesome as AutoAssignIcon,
+  MonetizationOn as MonetizationOnIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -103,6 +104,7 @@ const allMenuItems = [
       { text: 'Költségközpontok', icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
       { text: 'Számlák', icon: <ReceiptIcon />, path: '/invoices', permission: 'settings.edit' },
       { text: 'Számlariportok', icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
+      { text: 'Bértranszparencia', icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
     ],
   },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },

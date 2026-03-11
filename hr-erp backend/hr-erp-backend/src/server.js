@@ -45,6 +45,7 @@ const invoiceRoutes = require('./routes/invoice.routes');
 const invoiceDraftRoutes = require('./routes/invoiceDraft.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const emailInboxRoutes = require('./routes/emailInbox.routes');
+const salaryRoutes = require('./routes/salary.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 const cron = require('node-cron');
@@ -61,30 +62,49 @@ const PORT = process.env.PORT || 3000;
 // (express-rate-limit és req.ip helyes működéséhez)
 app.set('trust proxy', 1);
 
-// Security
+// Security headers
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginResourcePolicy: { policy: "same-origin" },
+  contentSecurityPolicy: false, // Let frontend handle CSP
 }));
 
-// CORS
+// CORS - never fall back to wildcard '*' with credentials
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(',') || '*',
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+    : ['http://localhost:3001', 'http://localhost:3000'],
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
+if (!process.env.CORS_ORIGIN) {
+  logger.warn('CORS_ORIGIN not set — using localhost defaults only');
+}
 app.use(cors(corsOptions));
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing — reduced from 10mb to 2mb (per-route overrides for file uploads)
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
-// Rate limiting
+// General rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: 'Túl sok kérés erről az IP címről, kérjük próbálja később.'
+  message: { success: false, message: 'Túl sok kérés erről az IP címről, kérjük próbálja később.' },
 });
 app.use('/api/', limiter);
+
+// Strict login rate limiter — brute force protection
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 login attempts per window
+  message: { success: false, message: 'Túl sok bejelentkezési kísérlet. Próbálja újra 15 perc múlva.' },
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.loginLimiter = loginLimiter; // Expose for auth routes
 
 // Request logging
 app.use((req, res, next) => {
@@ -107,12 +127,34 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 // ============================================
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+app.get('/health', async (req, res) => {
+  const health = {
+    status: 'OK',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+    uptime: process.uptime(),
+    database: 'unknown',
+  };
+
+  try {
+    await db.query('SELECT 1');
+    health.database = 'connected';
+  } catch {
+    health.status = 'DEGRADED';
+    health.database = 'disconnected';
+  }
+
+  const code = health.status === 'OK' ? 200 : 503;
+  res.status(code).json(health);
+});
+
+// API health (under prefix)
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'ERROR', message: 'Database unavailable' });
+  }
 });
 
 // API Routes
@@ -156,6 +198,7 @@ app.use(`${API_PREFIX}/invoices`, invoiceRoutes);
 app.use(`${API_PREFIX}/payments`, paymentRoutes);
 app.use(`${API_PREFIX}/invoice-drafts`, invoiceDraftRoutes);
 app.use(`${API_PREFIX}/email-inbox`, emailInboxRoutes);
+app.use(`${API_PREFIX}/salary`, salaryRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
@@ -168,14 +211,15 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
+// Error handler — never leak stack traces or internal details
 app.use((err, req, res, next) => {
-  logger.error('Server error:', err);
-  
+  logger.error('Server error:', { message: err.message, stack: err.stack, path: req.path });
+
+  const isDev = process.env.NODE_ENV === 'development';
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Szerver hiba történt',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: isDev ? err.message : 'Szerver hiba történt',
+    ...(isDev && { stack: err.stack }),
   });
 });
 

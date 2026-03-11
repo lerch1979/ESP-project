@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # PostgreSQL adatbázis
+  # PostgreSQL 16
   postgres:
     image: postgres:16-alpine
     container_name: hr-erp-postgres
@@ -16,18 +14,21 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-hr_erp_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    networks:
+      - hr-erp-net
 
-  # Redis cache (opcionális, későbbi használatra)
+  # Redis cache
   redis:
     image: redis:7-alpine
     container_name: hr-erp-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -35,6 +36,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - hr-erp-net
 
   # Backend API (Node.js)
   backend:
@@ -43,6 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: hr-erp-backend
     restart: unless-stopped
+    env_file: .env
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -53,21 +57,34 @@ services:
       DB_NAME: ${DB_NAME:-hr_erp_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
     volumes:
       - ./src:/app/src
+      - ./migrations:/app/migrations
+      - ./database_schema.sql:/app/database_schema.sql
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     command: npm run dev
+    networks:
+      - hr-erp-net
 
-  # Frontend (React + Nginx)
+  # Frontend (React + Nginx) — optional, only if Dockerfile exists
   frontend:
     build:
       context: ../../hr-erp-admin
@@ -77,10 +94,19 @@ services:
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    networks:
+      - hr-erp-net
+    profiles:
+      - with-frontend
 
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
+
+networks:
+  hr-erp-net:
+    driver: bridge

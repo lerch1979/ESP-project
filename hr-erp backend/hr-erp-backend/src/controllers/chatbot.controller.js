@@ -1,5 +1,6 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { isValidUUID } = require('../utils/validation');
 const chatbotService = require('../services/chatbot.service');
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -543,6 +544,12 @@ const bulkActionKnowledgeBase = async (req, res) => {
     }
     if (!action) {
       return res.status(400).json({ success: false, message: 'action megadása kötelező' });
+    }
+
+    // Validate all IDs are proper UUIDs to prevent injection
+    const invalidIds = ids.filter(id => !isValidUUID(id));
+    if (invalidIds.length > 0) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen UUID formátum az ids tömbben' });
     }
 
     const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');

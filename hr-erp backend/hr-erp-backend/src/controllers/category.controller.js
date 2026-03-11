@@ -1,4 +1,5 @@
 const pool = require('../database/connection');
+const { logger } = require('../utils/logger');
 
 // Összes kategória lekérése
 const getCategories = async (req, res) => {
@@ -16,11 +17,10 @@ const getCategories = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Kategóriák lekérdezési hiba:', error);
+    logger.error('Kategóriák lekérdezési hiba:', error);
     res.status(500).json({
       success: false,
       message: 'Hiba a kategóriák lekérdezése során',
-      error: error.message,
     });
   }
 };

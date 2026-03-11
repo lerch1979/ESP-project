@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const XLSX = require('xlsx');
 const archiver = require('archiver');
+const { isValidUUID, sanitizeString, sanitizeSearch } = require('../utils/validation');
 
 // ============================================
 // TREE HELPERS
@@ -192,6 +193,9 @@ const getTree = async (req, res) => {
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     const result = await query(
       `SELECT cc.*, p.name AS parent_name, p.code AS parent_code
@@ -314,6 +318,9 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
     const { name, code, parent_id, description, budget, color, icon, is_active, contractor_id } = req.body;
 
     // Check exists
@@ -415,6 +422,9 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     // Check has children
     const childrenCheck = await query(

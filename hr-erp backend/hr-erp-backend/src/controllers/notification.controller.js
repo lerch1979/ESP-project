@@ -1,5 +1,6 @@
 const { query } = require('../database/connection');
 const { sendEmail, sendBulkEmails, interpolateTemplate, verifyConnection } = require('../utils/emailService');
+const { logger } = require('../utils/logger');
 
 /**
  * GET /templates - List all notification templates
@@ -11,7 +12,7 @@ const getTemplates = async (req, res) => {
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('getTemplates error:', error);
+    logger.error('getTemplates error:', error);
     res.status(500).json({ success: false, message: 'Hiba a sablonok lekérésekor' });
   }
 };
@@ -46,7 +47,7 @@ const getFilterOptions = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('getFilterOptions error:', error);
+    logger.error('getFilterOptions error:', error);
     res.status(500).json({ success: false, message: 'Hiba a szűrő opciók lekérésekor' });
   }
 };
@@ -215,7 +216,7 @@ const filterRecipients = async (req, res) => {
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('filterRecipients error:', error);
+    logger.error('filterRecipients error:', error);
     res.status(500).json({ success: false, message: 'Hiba a címzettek szűrésekor' });
   }
 };
@@ -331,7 +332,7 @@ const sendBulk = async (req, res) => {
           ]
         );
       } catch (logError) {
-        console.error('Email log insert error:', logError);
+        logger.error('Email log insert error:', logError);
       }
 
       // Insert notification for users that have a user_id
@@ -343,7 +344,7 @@ const sendBulk = async (req, res) => {
             [recipient.user_id, personalSubject, personalBody, new Date()]
           );
         } catch (notifError) {
-          console.error('Notification insert error:', notifError);
+          logger.error('Notification insert error:', notifError);
         }
       }
     }
@@ -357,7 +358,7 @@ const sendBulk = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('sendBulk error:', error);
+    logger.error('sendBulk error:', error);
     res.status(500).json({ success: false, message: 'Hiba a tömeges email küldésekor' });
   }
 };
@@ -377,7 +378,7 @@ const getTemplateById = async (req, res) => {
     }
     res.json({ success: true, data: { template: result.rows[0] } });
   } catch (error) {
-    console.error('getTemplateById error:', error);
+    logger.error('getTemplateById error:', error);
     res.status(500).json({ success: false, message: 'Hiba a sablon lekérésekor' });
   }
 };
@@ -399,7 +400,7 @@ const createTemplate = async (req, res) => {
     );
     res.status(201).json({ success: true, data: { template: result.rows[0] } });
   } catch (error) {
-    console.error('createTemplate error:', error);
+    logger.error('createTemplate error:', error);
     if (error.code === '23505') {
       return res.status(409).json({ success: false, message: 'Ez a slug már létezik' });
     }
@@ -427,7 +428,7 @@ const updateTemplate = async (req, res) => {
     }
     res.json({ success: true, data: { template: result.rows[0] } });
   } catch (error) {
-    console.error('updateTemplate error:', error);
+    logger.error('updateTemplate error:', error);
     if (error.code === '23505') {
       return res.status(409).json({ success: false, message: 'Ez a slug már létezik' });
     }
@@ -447,7 +448,7 @@ const deleteTemplate = async (req, res) => {
     }
     res.json({ success: true, message: 'Sablon törölve' });
   } catch (error) {
-    console.error('deleteTemplate error:', error);
+    logger.error('deleteTemplate error:', error);
     res.status(500).json({ success: false, message: 'Hiba a sablon törlésekor' });
   }
 };
@@ -464,7 +465,7 @@ const previewTemplate = async (req, res) => {
     const html = interpolateTemplate(body_html, variables || {});
     res.json({ success: true, data: { html } });
   } catch (error) {
-    console.error('previewTemplate error:', error);
+    logger.error('previewTemplate error:', error);
     res.status(500).json({ success: false, message: 'Hiba az előnézet generálásakor' });
   }
 };
@@ -494,7 +495,7 @@ const getEmailLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('getEmailLogs error:', error);
+    logger.error('getEmailLogs error:', error);
     res.status(500).json({ success: false, message: 'Hiba az email naplók lekérésekor' });
   }
 };
@@ -597,7 +598,7 @@ const testEmail = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('testEmail error:', error);
+    logger.error('testEmail error:', error);
     res.status(500).json({ success: false, message: 'Hiba a teszt email küldésekor' });
   }
 };

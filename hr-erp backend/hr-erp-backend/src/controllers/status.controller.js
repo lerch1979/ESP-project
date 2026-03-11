@@ -1,4 +1,5 @@
 const pool = require('../database/connection');
+const { logger } = require('../utils/logger');
 
 // Összes státusz lekérése
 const getStatuses = async (req, res) => {
@@ -16,11 +17,10 @@ const getStatuses = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Státuszok lekérdezési hiba:', error);
+    logger.error('Státuszok lekérdezési hiba:', error);
     res.status(500).json({
       success: false,
       message: 'Hiba a státuszok lekérdezése során',
-      error: error.message,
     });
   }
 };

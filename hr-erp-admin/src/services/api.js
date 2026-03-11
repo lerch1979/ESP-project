@@ -1470,4 +1470,75 @@ export const paymentsAPI = {
   },
 };
 
+// Salary Transparency API (Bértranszparencia)
+export const salaryAPI = {
+  // Salary Bands
+  getBands: async (params = {}) => {
+    const response = await api.get('/salary/bands', { params });
+    return response.data;
+  },
+
+  getBandById: async (id) => {
+    const response = await api.get(`/salary/bands/${id}`);
+    return response.data;
+  },
+
+  createBand: async (data) => {
+    const response = await api.post('/salary/bands', data);
+    return response.data;
+  },
+
+  updateBand: async (id, data) => {
+    const response = await api.put(`/salary/bands/${id}`, data);
+    return response.data;
+  },
+
+  deleteBand: async (id) => {
+    const response = await api.delete(`/salary/bands/${id}`);
+    return response.data;
+  },
+
+  // Employee Salaries
+  getEmployeeSalaries: async (params = {}) => {
+    const response = await api.get('/salary/employees', { params });
+    return response.data;
+  },
+
+  getEmployeeSalaryById: async (id) => {
+    const response = await api.get(`/salary/employees/${id}`);
+    return response.data;
+  },
+
+  createEmployeeSalary: async (data) => {
+    const response = await api.post('/salary/employees', data);
+    return response.data;
+  },
+
+  updateEmployeeSalary: async (id, data) => {
+    const response = await api.put(`/salary/employees/${id}`, data);
+    return response.data;
+  },
+
+  deleteEmployeeSalary: async (id) => {
+    const response = await api.delete(`/salary/employees/${id}`);
+    return response.data;
+  },
+
+  getEmployeeSalaryHistory: async (employeeId) => {
+    const response = await api.get(`/salary/employees/${employeeId}/history`);
+    return response.data;
+  },
+
+  // Statistics
+  getStats: async (params = {}) => {
+    const response = await api.get('/salary/stats', { params });
+    return response.data;
+  },
+
+  getDepartments: async () => {
+    const response = await api.get('/salary/departments');
+    return response.data;
+  },
+};
+
 export default api;

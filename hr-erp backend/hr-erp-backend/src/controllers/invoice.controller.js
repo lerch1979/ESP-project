@@ -1,8 +1,18 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
+const { isValidUUID, sanitizeString, validateAmount, sanitizeSearch, parsePagination } = require('../utils/validation');
 
 const VALID_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+
+// Valid invoice status transitions (state machine)
+const VALID_TRANSITIONS = {
+  'draft': ['sent', 'cancelled'],
+  'sent': ['paid', 'overdue', 'cancelled'],
+  'paid': ['overdue'],    // overpayment correction
+  'overdue': ['paid', 'cancelled'],
+  'cancelled': [],         // terminal state
+};
 
 const VALID_SORT_COLUMNS = {
   invoice_date: 'i.invoice_date',
@@ -31,8 +41,9 @@ async function generateInvoiceNumber() {
  */
 const getAll = async (req, res) => {
   try {
-    const { payment_status, vendor_name, search, date_from, date_to, sort_by, sort_order, page = 1, limit = 50 } = req.query;
-    const offset = (page - 1) * limit;
+    const { payment_status, vendor_name, date_from, date_to, sort_by, sort_order } = req.query;
+    const { page, limit, offset } = parsePagination(req.query);
+    const search = sanitizeSearch(req.query.search, { maxLength: 200 });
 
     let whereConditions = ['i.deleted_at IS NULL'];
     let params = [];
@@ -118,6 +129,9 @@ const getAll = async (req, res) => {
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     const result = await query(
       `SELECT i.*,
@@ -172,11 +186,26 @@ const create = async (req, res) => {
       });
     }
 
+    // Validate amount is positive
+    const amountVal = validateAmount(amount);
+    if (!amountVal.valid) {
+      return res.status(400).json({ success: false, message: `Összeg: ${amountVal.error}` });
+    }
+
     if (!cost_center_id) {
       return res.status(400).json({
         success: false,
         message: 'Költségközpont megadása kötelező'
       });
+    }
+
+    if (!isValidUUID(cost_center_id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen költségközpont azonosító' });
+    }
+
+    // Validate due_date is not before invoice_date
+    if (due_date && invoice_date && new Date(due_date) < new Date(invoice_date)) {
+      return res.status(400).json({ success: false, message: 'A fizetési határidő nem lehet a számla dátuma előtt' });
     }
 
     const invoiceNumber = await generateInvoiceNumber();
@@ -230,6 +259,9 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
     const {
       vendor_name, vendor_tax_number, amount, currency,
       vat_amount, total_amount, invoice_date, due_date, payment_date,
@@ -253,6 +285,26 @@ const update = async (req, res) => {
         success: false,
         message: `Érvénytelen státusz. Lehetséges értékek: ${VALID_STATUSES.join(', ')}`
       });
+    }
+
+    // Validate status transitions (state machine)
+    if (payment_status && payment_status !== current.rows[0].payment_status) {
+      const currentStatus = current.rows[0].payment_status;
+      const allowed = VALID_TRANSITIONS[currentStatus] || [];
+      if (!allowed.includes(payment_status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Érvénytelen státuszváltás: ${currentStatus} → ${payment_status}. Lehetséges: ${allowed.join(', ') || 'nincs'}`
+        });
+      }
+    }
+
+    // Validate amount if being updated
+    if (amount !== undefined) {
+      const amountVal = validateAmount(amount);
+      if (!amountVal.valid) {
+        return res.status(400).json({ success: false, message: `Összeg: ${amountVal.error}` });
+      }
     }
 
     const result = await query(
@@ -320,6 +372,9 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     const current = await query(
       'SELECT * FROM invoices WHERE id = $1 AND deleted_at IS NULL',
