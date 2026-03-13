@@ -1,6 +1,7 @@
 const { query } = require('../database/connection');
 const { sendEmail, sendBulkEmails, interpolateTemplate, verifyConnection } = require('../utils/emailService');
 const { logger } = require('../utils/logger');
+const { isValidUUID, sanitizeString, parsePagination } = require('../utils/validation');
 
 /**
  * GET /templates - List all notification templates
@@ -369,6 +370,9 @@ const sendBulk = async (req, res) => {
 const getTemplateById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen sablon ID formátum' });
+    }
     const result = await query(
       'SELECT * FROM notification_templates WHERE id = $1',
       [id]
@@ -414,6 +418,9 @@ const createTemplate = async (req, res) => {
 const updateTemplate = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen sablon ID formátum' });
+    }
     const { name, slug, subject, body_html, body_text, event_type, available_variables, is_active } = req.body;
     const result = await query(
       `UPDATE notification_templates
@@ -442,6 +449,9 @@ const updateTemplate = async (req, res) => {
 const deleteTemplate = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen sablon ID formátum' });
+    }
     const result = await query('DELETE FROM notification_templates WHERE id = $1', [id]);
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Sablon nem található' });
@@ -475,9 +485,7 @@ const previewTemplate = async (req, res) => {
  */
 const getEmailLogs = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = parsePagination(req.query);
 
     const countResult = await query('SELECT COUNT(*) FROM email_logs');
     const total = parseInt(countResult.rows[0].count);

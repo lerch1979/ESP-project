@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('../middleware/permission');
+const { sanitizeString } = require('../utils/validation');
 
 /**
  * Felhasználó bejelentkezés
@@ -19,13 +20,19 @@ const login = async (req, res) => {
       });
     }
 
+    // Sanitize email input
+    const cleanEmail = sanitizeString(email, 255);
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen email formátum' });
+    }
+
     // Felhasználó keresése
     const userResult = await query(
       `SELECT u.*, t.name as contractor_name, t.slug as contractor_slug, t.is_active as contractor_active
        FROM users u
        LEFT JOIN contractors t ON u.contractor_id = t.id
        WHERE u.email = $1`,
-      [email.toLowerCase()]
+      [cleanEmail.toLowerCase()]
     );
 
     if (userResult.rows.length === 0) {

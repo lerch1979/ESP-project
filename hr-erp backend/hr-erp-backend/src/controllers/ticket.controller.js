@@ -3,6 +3,7 @@ const { logger } = require('../utils/logger');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
 const autoAssignService = require('../services/autoAssign.service');
 const slaService = require('../services/sla.service');
+const { isValidUUID, sanitizeString, parsePagination, sanitizeSearch } = require('../utils/validation');
 
 const TICKET_FILTER_FIELD_MAP = {
   status: 'ts.slug',
@@ -16,8 +17,9 @@ const TICKET_FILTER_FIELD_MAP = {
  */
 const getTickets = async (req, res) => {
   try {
-    const { status, category, priority, assigned_to, search, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const { status, category, priority, assigned_to } = req.query;
+    const { page, limit, offset } = parsePagination(req.query, { page: 1, limit: 20, maxLimit: 200 });
+    const search = sanitizeSearch(req.query.search);
 
     let whereConditions = [];
     let params = [];
@@ -178,6 +180,9 @@ const getTickets = async (req, res) => {
 const getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     const ticketQuery = `
       SELECT 
@@ -303,7 +308,7 @@ const createTicket = async (req, res) => {
     const { title, description, category_id, priority_id, assigned_to } = req.body;
 
     // Validáció
-    if (!title) {
+    if (!title || (typeof title === 'string' && !title.trim())) {
       return res.status(400).json({
         success: false,
         message: 'Cím megadása kötelező'
@@ -414,6 +419,9 @@ const createTicket = async (req, res) => {
 const updateTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
     const { status_id, comment } = req.body;
 
     if (!status_id) {
@@ -518,6 +526,9 @@ const updateTicketStatus = async (req, res) => {
 const addComment = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
     const { comment, is_internal = false } = req.body;
 
     if (!comment) {

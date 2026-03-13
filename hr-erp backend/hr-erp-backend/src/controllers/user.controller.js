@@ -1,12 +1,16 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { isValidUUID, sanitizeString, parsePagination, sanitizeSearch } = require('../utils/validation');
+const { isValidEmail } = require('../middleware/validate');
 
 // Felhasználók lekérdezése (role szűrővel)
 const getUsers = async (req, res) => {
   try {
-    const { role, search, page = 1, limit = 50 } = req.query;
+    const { role } = req.query;
     const contractorId = req.user?.contractorId;
+    const { page, limit, offset } = parsePagination(req.query);
+    const search = sanitizeSearch(req.query.search);
 
     let query = `
       SELECT
@@ -64,9 +68,8 @@ const getUsers = async (req, res) => {
     query += ` GROUP BY u.id, c.name ORDER BY u.first_name, u.last_name`;
 
     // Lapozás
-    const offset = (parseInt(page) - 1) * parseInt(limit);
     query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(parseInt(limit), offset);
+    params.push(limit, offset);
 
     const result = await pool.query(query, params);
 
@@ -75,8 +78,8 @@ const getUsers = async (req, res) => {
       data: {
         users: result.rows,
         count: result.rows.length,
-        page: parseInt(page),
-        limit: parseInt(limit)
+        page,
+        limit
       },
     });
   } catch (error) {
@@ -92,6 +95,9 @@ const getUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     const result = await pool.query(
       `SELECT
@@ -157,6 +163,14 @@ const createUser = async (req, res) => {
         success: false,
         message: 'Email, jelszó, vezetéknév és keresztnév megadása kötelező'
       });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen email formátum' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, message: 'A jelszónak legalább 8 karakter hosszúnak kell lennie' });
     }
 
     // Check email uniqueness
@@ -232,7 +246,17 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
     const { firstName, lastName, phone, email, isActive, roleId } = req.body;
+
+    if (email !== undefined && !isValidEmail(email)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen email formátum' });
+    }
+    if (roleId !== undefined && roleId !== null && !isValidUUID(roleId)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen roleId formátum' });
+    }
 
     // Check user exists
     const existing = await pool.query('SELECT id, contractor_id FROM users WHERE id = $1', [id]);
@@ -347,6 +371,9 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
 
     // Prevent self-deletion
     if (id === req.user.id) {
@@ -393,6 +420,9 @@ const deleteUser = async (req, res) => {
 const updateUserRole = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
     const { roleId } = req.body;
 
     if (!roleId) {

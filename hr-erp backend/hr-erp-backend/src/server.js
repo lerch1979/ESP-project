@@ -1,10 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const { logger } = require('./utils/logger');
 const db = require('./database/connection');
+
+// Security middleware
+const { createSecurityHeaders, cspReportHandler, additionalHeaders } = require('./middleware/securityHeaders');
+const { globalLimiter, authLimiter, speedLimiter } = require('./middleware/rateLimiter');
+const { csrfProtection, csrfTokenHandler } = require('./middleware/csrf');
 
 // Routes
 const authRoutes = require('./routes/auth.routes');
@@ -62,13 +66,11 @@ const PORT = process.env.PORT || 3000;
 // (express-rate-limit és req.ip helyes működéséhez)
 app.set('trust proxy', 1);
 
-// Security headers
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "same-origin" },
-  contentSecurityPolicy: false, // Let frontend handle CSP
-}));
+// 1. Security headers (Helmet + custom) — first in stack
+app.use(createSecurityHeaders());
+app.use(additionalHeaders);
 
-// CORS - never fall back to wildcard '*' with credentials
+// 2. CORS - never fall back to wildcard '*' with credentials
 const corsOptions = {
   origin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
@@ -76,37 +78,30 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
 };
 if (!process.env.CORS_ORIGIN) {
   logger.warn('CORS_ORIGIN not set — using localhost defaults only');
 }
 app.use(cors(corsOptions));
 
-// Body parsing — reduced from 10mb to 2mb (per-route overrides for file uploads)
+// 3. Cookie parser (required for CSRF double-submit cookie)
+app.use(cookieParser());
+
+// 4. Body parsing — reduced from 10mb to 2mb (per-route overrides for file uploads)
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
-// General rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: { success: false, message: 'Túl sok kérés erről az IP címről, kérjük próbálja később.' },
-});
-app.use('/api/', limiter);
+// 5. Rate limiting — global + speed limiter
+app.use('/api/', globalLimiter);
+app.use('/api/', speedLimiter);
 
-// Strict login rate limiter — brute force protection
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 login attempts per window
-  message: { success: false, message: 'Túl sok bejelentkezési kísérlet. Próbálja újra 15 perc múlva.' },
-  skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.loginLimiter = loginLimiter; // Expose for auth routes
+// 6. CSRF protection (skips JWT Bearer requests automatically)
+app.use(csrfProtection({
+  exemptPaths: ['/auth/google/callback', '/api/health', '/health'],
+}));
 
-// Request logging
+// 7. Request logging
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
@@ -159,6 +154,10 @@ app.get('/api/health', async (req, res) => {
 
 // API Routes
 const API_PREFIX = `/api/${process.env.API_VERSION || 'v1'}`;
+
+// Security endpoints
+app.get(`${API_PREFIX}/csrf-token`, csrfTokenHandler);
+app.post(`${API_PREFIX}/csp-report`, express.json({ type: 'application/csp-report' }), cspReportHandler);
 
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);

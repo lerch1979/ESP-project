@@ -55,6 +55,8 @@ const MIGRATIONS = [
   { id: '035', name: 'add_invoices_api',             file: 'migrations/add_invoices_api.sql' },
   { id: '036', name: 'add_payments',                 file: 'migrations/add_payments.sql' },
   { id: '037', name: 'salary_transparency',          file: 'migrations/salary_transparency.sql' },
+  { id: '040', name: 'encrypt_pii_data',             file: 'migrations/encrypt_pii_data.sql' },
+  { id: '041', name: 'audit_triggers',               file: 'migrations/audit_triggers.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)
@@ -69,12 +71,20 @@ const SEEDS = [
 const ROOT = path.resolve(__dirname, '../..');
 
 function getPool() {
+  const sslConfig = process.env.DB_SSL === 'true'
+    ? {
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+        ca: process.env.DB_SSL_CA || undefined,
+      }
+    : false;
+
   return new Pool({
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME || 'hr_erp_db',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD,
+    ssl: sslConfig,
   });
 }
 

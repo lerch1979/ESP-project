@@ -6,6 +6,7 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
+const { encrypt, decrypt, decryptPiiFields, decryptPiiRows } = require('../services/encryption.service');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -249,7 +250,7 @@ const getEmployees = async (req, res) => {
     res.json({
       success: true,
       data: {
-        employees: result.rows,
+        employees: decryptPiiRows(result.rows),
         pagination: {
           total: parseInt(countResult.rows[0].total),
           page: parseInt(page),
@@ -317,7 +318,7 @@ const getEmployeeById = async (req, res) => {
 
     res.json({
       success: true,
-      data: { employee: result.rows[0] }
+      data: { employee: decryptPiiFields(result.rows[0]) }
     });
   } catch (error) {
     logger.error('Munkavallaló lekerdesi hiba:', error);
@@ -438,6 +439,12 @@ const createEmployee = async (req, res) => {
       RETURNING *
     `;
 
+    // Encrypt PII fields before storing
+    const encryptedTaxId = tax_id ? encrypt(tax_id) : null;
+    const encryptedPassport = passport_number ? encrypt(passport_number) : null;
+    const encryptedSsn = social_security_number ? encrypt(social_security_number) : null;
+    const encryptedBank = bank_account ? encrypt(bank_account) : null;
+
     const result = await query(insertQuery, [
       userId,
       contractor_id || null,
@@ -453,14 +460,14 @@ const createEmployee = async (req, res) => {
       birth_date || null,
       birth_place || null,
       mothers_name || null,
-      tax_id || null,
-      passport_number || null,
-      social_security_number || null,
+      encryptedTaxId,
+      encryptedPassport,
+      encryptedSsn,
       marital_status || null,
       arrival_date || null,
       visa_expiry || null,
       room_number || null,
-      bank_account || null,
+      encryptedBank,
       workplace || null,
       permanent_address_zip || null,
       permanent_address_country || null,
@@ -604,11 +611,13 @@ const updateEmployee = async (req, res) => {
       }
     }
 
-    // All new employee direct fields
+    // All new employee direct fields (encrypt PII before storing)
+    const PII_ENCRYPT_FIELDS = ['social_security_number', 'passport_number', 'bank_account', 'tax_id'];
     for (const field of EMPLOYEE_DIRECT_FIELDS) {
       if (body[field] !== undefined) {
         fields.push(`${field} = $${paramIndex}`);
-        params.push(body[field] || null);
+        const value = body[field] || null;
+        params.push(PII_ENCRYPT_FIELDS.includes(field) && value ? encrypt(value) : value);
         paramIndex++;
       }
     }
@@ -651,7 +660,7 @@ const updateEmployee = async (req, res) => {
     res.json({
       success: true,
       message: 'Munkavallaló sikeresen frissitve',
-      data: { employee: result.rows[0] }
+      data: { employee: decryptPiiFields(result.rows[0]) }
     });
   } catch (error) {
     if (error.code === '23505' && error.constraint === 'unique_employee_number') {
@@ -849,14 +858,14 @@ const bulkImportEmployees = async (req, res) => {
               row.birth_date || null,
               row.birth_place || null,
               row.mothers_name || null,
-              row.tax_id || null,
-              row.passport_number || null,
-              row.social_security_number || null,
+              row.tax_id ? encrypt(row.tax_id) : null,
+              row.passport_number ? encrypt(row.passport_number) : null,
+              row.social_security_number ? encrypt(row.social_security_number) : null,
               row.marital_status || null,
               row.arrival_date || null,
               row.visa_expiry || null,
               row.room_number || null,
-              row.bank_account || null,
+              row.bank_account ? encrypt(row.bank_account) : null,
               row.workplace || null,
               row.permanent_address_zip || null,
               row.permanent_address_country || null,
@@ -1431,7 +1440,10 @@ const bulkExport = async (req, res) => {
       return new Date(val).toLocaleDateString('hu-HU');
     }
 
-    const data = result.rows.map(row => ({
+    // Decrypt PII fields before export
+    const decryptedRows = decryptPiiRows(result.rows);
+
+    const data = decryptedRows.map(row => ({
       'Törzsszám': row.employee_number || '',
       'Vezetéknév': row.last_name || '',
       'Keresztnév': row.first_name || '',

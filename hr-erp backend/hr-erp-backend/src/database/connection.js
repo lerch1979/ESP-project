@@ -1,6 +1,14 @@
 const { Pool } = require('pg');
 const { logger } = require('../utils/logger');
 
+// SSL configuration for production
+const sslConfig = process.env.DB_SSL === 'true'
+  ? {
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+      ca: process.env.DB_SSL_CA || undefined,
+    }
+  : false;
+
 // PostgreSQL connection pool
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -11,6 +19,7 @@ const pool = new Pool({
   max: 20, // Maximum pool connections
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  ssl: sslConfig,
 });
 
 // Pool event handlers

@@ -1,24 +1,14 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { authenticateToken } = require('../middleware/auth');
-
-// Brute-force protection: 10 attempts per 15 minutes per IP
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Túl sok bejelentkezési kísérlet. Próbálja újra 15 perc múlva.' },
-  skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const { authLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 
 /**
  * POST /api/v1/auth/login
- * Bejelentkezés
+ * Bejelentkezés — strict rate limit (5 attempts / 15 min)
  */
-router.post('/login', loginLimiter, authController.login);
+router.post('/login', authLimiter, authController.login);
 
 /**
  * POST /api/v1/auth/refresh
