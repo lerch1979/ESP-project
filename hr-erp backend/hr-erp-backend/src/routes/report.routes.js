@@ -56,4 +56,22 @@ router.get('/occupancy/monthly', checkPermission('reports.view'), occupancyContr
  */
 router.get('/occupancy/range', checkPermission('reports.view'), occupancyController.getRangeOccupancy);
 
+/**
+ * GET /api/v1/reports/dashboard
+ * Dashboard összesítő metrikák (JSON)
+ */
+router.get('/dashboard', checkPermission('reports.view'), reportController.getDashboardMetrics);
+
+/**
+ * GET /api/v1/reports/dashboard/pdf
+ * Dashboard riport letöltése PDF formátumban
+ */
+router.get('/dashboard/pdf', checkPermission('reports.view'), reportController.getDashboardPDF);
+
+/**
+ * GET /api/v1/reports/dashboard/excel
+ * Dashboard riport letöltése Excel formátumban
+ */
+router.get('/dashboard/excel', checkPermission('reports.view'), reportController.getDashboardExcel);
+
 module.exports = router;

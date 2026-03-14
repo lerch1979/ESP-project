@@ -23,6 +23,10 @@
     "security:generate-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     "test:security": "jest tests/security/ tests/encryption.test.js tests/rateLimiter.test.js tests/csrf.test.js tests/securityHeaders.test.js --verbose",
     "test:security:watch": "jest tests/security/ tests/encryption.test.js tests/rateLimiter.test.js tests/csrf.test.js tests/securityHeaders.test.js --watch",
+    "report:daily": "node scripts/daily_report.js",
+    "report:daily:dry": "node scripts/daily_report.js --dry-run",
+    "report:daily:pdf": "node scripts/daily_report.js --dry-run --pdf-only",
+    "report:daily:excel": "node scripts/daily_report.js --dry-run --excel-only",
     "security:scan-sql": "node scripts/scan_sql_injection.js",
     "security:audit-validation": "node scripts/audit_validation.js"
   },

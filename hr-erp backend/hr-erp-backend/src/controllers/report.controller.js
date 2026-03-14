@@ -1,6 +1,8 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { buildFilterWhere, buildDateRangeClause } = require('../utils/filterBuilder');
+const analyticsService = require('../services/analytics.service');
+const { generateDashboardPDF, generateDashboardExcel, pdfToBuffer } = require('../services/reportGenerator.service');
 
 
 // ============================================================
@@ -622,10 +624,67 @@ const getContractorsSummary = async (req, res) => {
 };
 
 
+// ============================================================
+// GET /dashboard — Full dashboard metrics (JSON)
+// ============================================================
+
+const getDashboardMetrics = async (req, res) => {
+  try {
+    const data = await analyticsService.getDashboardMetrics();
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('Dashboard metrics hiba:', error);
+    res.status(500).json({ success: false, message: 'Dashboard metrikák lekérési hiba' });
+  }
+};
+
+// ============================================================
+// GET /dashboard/pdf — Download dashboard as PDF
+// ============================================================
+
+const getDashboardPDF = async (req, res) => {
+  try {
+    const data = await analyticsService.getDashboardMetrics();
+    const pdfDoc = generateDashboardPDF(data);
+    const buffer = await pdfToBuffer(pdfDoc);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=HR-ERP_Riport_${dateStr}.pdf`);
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Dashboard PDF hiba:', error);
+    res.status(500).json({ success: false, message: 'PDF generálási hiba' });
+  }
+};
+
+// ============================================================
+// GET /dashboard/excel — Download dashboard as Excel
+// ============================================================
+
+const getDashboardExcel = async (req, res) => {
+  try {
+    const data = await analyticsService.getDashboardMetrics();
+    const buffer = generateDashboardExcel(data);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=HR-ERP_Riport_${dateStr}.xlsx`);
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Dashboard Excel hiba:', error);
+    res.status(500).json({ success: false, message: 'Excel generálási hiba' });
+  }
+};
+
+
 module.exports = {
   getReportFilterOptions,
   getEmployeesSummary,
   getAccommodationsSummary,
   getTicketsSummary,
   getContractorsSummary,
+  getDashboardMetrics,
+  getDashboardPDF,
+  getDashboardExcel,
 };
