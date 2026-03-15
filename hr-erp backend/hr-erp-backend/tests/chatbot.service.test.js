@@ -244,45 +244,45 @@ describe('getSignificantWords', () => {
 // WORD SEQUENCE MATCHING
 // ═══════════════════════════════════════════════════════════════════════
 
-describe('computeWordSequenceScore', () => {
-  test('returns 1.0 for identical word arrays', () => {
-    const score = chatbotService.computeWordSequenceScore(
-      ['szabadsag', 'keres'],
-      ['szabadsag', 'keres']
+describe('scoreEntry', () => {
+  test('returns high score for keyword match', () => {
+    const score = chatbotService.scoreEntry(
+      ['szabadsag'],
+      { keywords: ['szabadság', 'szabadságot'], question: 'Hogyan kérhetek szabadságot?', answer: 'Szabadság igénylése', priority: 0 }
     );
-    expect(score).toBe(1.0);
+    expect(score).toBeGreaterThan(0);
   });
 
-  test('returns high score for subsequence match', () => {
-    const score = chatbotService.computeWordSequenceScore(
-      ['szabadsag', 'keres'],
-      ['szabadsag', 'keres', 'folyamat']
-    );
-    expect(score).toBe(1.0);
-  });
-
-  test('returns partial score for partial match', () => {
-    const score = chatbotService.computeWordSequenceScore(
+  test('returns 0 for no match', () => {
+    const score = chatbotService.scoreEntry(
       ['projekt', 'letrehozas'],
-      ['szabadsag', 'keres']
+      { keywords: ['szabadság'], question: 'Hogyan kérhetek szabadságot?', answer: 'Szabadság', priority: 0 }
     );
     expect(score).toBe(0);
   });
 
-  test('returns 0 for empty input', () => {
-    expect(chatbotService.computeWordSequenceScore([], ['foo'])).toBe(0);
-  });
-
-  test('returns 0 for empty question', () => {
-    expect(chatbotService.computeWordSequenceScore(['foo'], [])).toBe(0);
-  });
-
-  test('handles single word match', () => {
-    const score = chatbotService.computeWordSequenceScore(
-      ['projekt'],
-      ['projekt', 'letrehozas', 'folyamat']
+  test('returns 0 for empty input words', () => {
+    const score = chatbotService.scoreEntry(
+      [],
+      { keywords: ['test'], question: 'Test?', answer: 'Test', priority: 0 }
     );
-    expect(score).toBe(1.0);
+    expect(score).toBe(0);
+  });
+
+  test('keyword match scores higher than question-only match', () => {
+    const entry = { keywords: ['projekt'], question: 'Hogyan hozzak létre projektet?', answer: 'Projekt létrehozás', priority: 0 };
+    const kwScore = chatbotService.scoreEntry(['projekt'], entry);
+    const entry2 = { keywords: ['szabadsag'], question: 'Hogyan hozzak létre projektet?', answer: 'Projekt létrehozás', priority: 0 };
+    const noKwScore = chatbotService.scoreEntry(['projekt'], entry2);
+    expect(kwScore).toBeGreaterThan(noKwScore);
+  });
+
+  test('handles entry without keywords', () => {
+    const score = chatbotService.scoreEntry(
+      ['test'],
+      { keywords: null, question: 'Test question?', answer: 'Test answer', priority: 0 }
+    );
+    expect(score).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -296,7 +296,7 @@ describe('Module Exports', () => {
     expect(typeof chatbotService.extractWords).toBe('function');
     expect(typeof chatbotService.sanitizeInput).toBe('function');
     expect(typeof chatbotService.getSignificantWords).toBe('function');
-    expect(typeof chatbotService.computeWordSequenceScore).toBe('function');
+    expect(typeof chatbotService.scoreEntry).toBe('function');
     expect(typeof chatbotService.getWelcomeMessage).toBe('function');
     expect(typeof chatbotService.getFallbackMessage).toBe('function');
     expect(typeof chatbotService.getEscalationMessage).toBe('function');

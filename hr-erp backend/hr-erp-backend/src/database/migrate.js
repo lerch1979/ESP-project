@@ -58,6 +58,7 @@ const MIGRATIONS = [
   { id: '040', name: 'encrypt_pii_data',             file: 'migrations/encrypt_pii_data.sql' },
   { id: '041', name: 'audit_triggers',               file: 'migrations/audit_triggers.sql' },
   { id: '050', name: 'chatbot_system_enhancements',  file: 'migrations/050_chatbot_system.sql' },
+  { id: '052', name: 'chatbot_quality_faqs',         file: 'migrations/052_chatbot_quality_faqs.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)

@@ -90,167 +90,116 @@ function invalidateConfigCache(contractorId) {
   configCache.delete(`config_${contractorId}`);
 }
 
-// ─── Knowledge Base matching (tiered: exact → phrase → sequence → FTS) ──────
+// ─── Knowledge Base matching (simple keyword scoring) ───────────────────────
 
-// Hungarian stop words to exclude from keyword matching
+// Hungarian stop words — filtered out before scoring
 const STOP_WORDS = new Set([
   'a', 'az', 'es', 'is', 'de', 'nem', 'hogy', 'van', 'egy', 'meg',
-  'ha', 'vagy', 'mi', 'ez', 'azt', 'mint', 'mar', 'csak', 'meg',
+  'ha', 'vagy', 'mi', 'ez', 'azt', 'mint', 'mar', 'csak',
   'el', 'ki', 'be', 'le', 'fel', 'at', 'ra', 'nak', 'nek',
-  'ban', 'ben', 'bol', 'bol', 'rol', 'tol', 'val', 'vel',
+  'ban', 'ben', 'bol', 'rol', 'tol', 'val', 'vel',
   'hogyan', 'hol', 'mikor', 'mit', 'kinek', 'mik', 'milyen',
+  'tudok', 'lehet', 'kell', 'szeretnek', 'akarok',
 ]);
 
 function getSignificantWords(text) {
   return extractWords(text).filter(w => !STOP_WORDS.has(w) && w.length > 2);
 }
 
-function computeWordSequenceScore(inputWords, questionWords) {
-  if (inputWords.length === 0 || questionWords.length === 0) return 0;
+/**
+ * Score a single FAQ entry against user input.
+ * Returns a number 0-100. Higher = better match.
+ *
+ * Scoring:
+ *   1. Keyword array hits (strongest signal — curated by us)   weight: 4
+ *   2. Question word overlap (words from FAQ question)          weight: 2
+ *   3. Answer word hits (weaker signal)                         weight: 1
+ *   4. Prefix matching bonus (partial word matches)             weight: 1
+ */
+function scoreEntry(inputWords, entry) {
+  if (inputWords.length === 0) return 0;
 
-  let maxSeqLen = 0;
-  for (let i = 0; i < questionWords.length; i++) {
-    let seqLen = 0;
-    let qi = i;
-    for (let j = 0; j < inputWords.length && qi < questionWords.length; j++) {
-      if (inputWords[j] === questionWords[qi]) {
-        seqLen++;
-        qi++;
-      }
+  const entryKeywords = (entry.keywords || []).map(k => normalizeText(k));
+  const questionWords = getSignificantWords(entry.question);
+  const answerWords = getSignificantWords(entry.answer).slice(0, 20); // Limit answer words
+
+  let keywordHits = 0;
+  let questionHits = 0;
+  let answerHits = 0;
+  let prefixHits = 0;
+
+  for (const w of inputWords) {
+    // Exact keyword match
+    if (entryKeywords.some(kw => kw === w)) {
+      keywordHits++;
     }
-    maxSeqLen = Math.max(maxSeqLen, seqLen);
+    // Prefix keyword match (user typed partial word)
+    else if (entryKeywords.some(kw => kw.startsWith(w) || w.startsWith(kw))) {
+      prefixHits++;
+    }
+
+    // Question word match
+    if (questionWords.some(qw => qw === w || qw.startsWith(w) || w.startsWith(qw))) {
+      questionHits++;
+    }
+
+    // Answer word match
+    if (answerWords.some(aw => aw === w)) {
+      answerHits++;
+    }
   }
 
-  // Score = fraction of input words matched in sequence
-  return maxSeqLen / Math.max(inputWords.length, 1);
+  const total = inputWords.length;
+  const score =
+    (keywordHits / total) * 40 +    // Up to 40 points for keyword matches
+    (prefixHits / total) * 10 +     // Up to 10 points for prefix matches
+    (questionHits / total) * 30 +   // Up to 30 points for question word matches
+    (answerHits / total) * 10 +     // Up to 10 points for answer word matches
+    (entry.priority || 0) * 0.1;    // Small priority bonus
+
+  return Math.round(score * 100) / 100;
 }
 
-async function matchKnowledgeBase(text, contractorId, contextKeywords) {
-  const userWords = extractWords(text);
-  if (userWords.length === 0) return null;
-
+async function matchKnowledgeBase(text, contractorId, _contextKeywords) {
   const normalizedInput = normalizeText(text);
-  const significantInput = getSignificantWords(text);
-  const threshold = await getKeywordThreshold(contractorId);
+  const inputWords = getSignificantWords(text);
+  if (inputWords.length === 0) return null;
 
-  // ── TIER 1: Exact match (normalized question == normalized input) ──────
-  const exactResult = await query(
+  // Load all active FAQ entries
+  const result = await query(
     `SELECT id, question, answer, keywords, priority
      FROM chatbot_knowledge_base
      WHERE contractor_id = $1 AND is_active = true`,
     [contractorId]
   );
+  const entries = result.rows;
 
-  const allEntries = exactResult.rows;
-
-  for (const entry of allEntries) {
-    const normalizedQ = normalizeText(entry.question);
-    if (normalizedQ === normalizedInput) {
-      entry.combined_score = 10; // Max confidence
+  // Step 1: Exact normalized question match → instant win
+  for (const entry of entries) {
+    if (normalizeText(entry.question) === normalizedInput) {
+      entry.combined_score = 100;
       await query(`UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`, [entry.id]);
       return entry;
     }
   }
 
-  // ── TIER 2: Phrase containment (input in question OR question in input) ─
-  let bestPhrase = null;
-  let bestPhraseScore = 0;
+  // Step 2: Score all entries by keyword/question/answer overlap
+  let bestEntry = null;
+  let bestScore = 0;
 
-  for (const entry of allEntries) {
-    const normalizedQ = normalizeText(entry.question);
-    let score = 0;
-
-    if (normalizedQ.includes(normalizedInput) && normalizedInput.length > 5) {
-      // User input is a substring of the FAQ question
-      score = normalizedInput.length / normalizedQ.length;
-    } else if (normalizedInput.includes(normalizedQ) && normalizedQ.length > 5) {
-      // FAQ question is a substring of the user input
-      score = normalizedQ.length / normalizedInput.length;
-    }
-
-    if (score > 0.6 && score > bestPhraseScore) {
-      bestPhraseScore = score;
-      bestPhrase = entry;
-      bestPhrase.combined_score = 5 + score * 3; // 5.6 - 8.0
+  for (const entry of entries) {
+    const score = scoreEntry(inputWords, entry);
+    if (score > bestScore) {
+      bestScore = score;
+      bestEntry = entry;
     }
   }
 
-  if (bestPhrase) {
-    await query(`UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`, [bestPhrase.id]);
-    return bestPhrase;
-  }
-
-  // ── TIER 3: Significant word sequence + keyword overlap ────────────────
-  let bestSeq = null;
-  let bestSeqScore = 0;
-
-  for (const entry of allEntries) {
-    const qWords = extractWords(entry.question);
-    const significantQ = getSignificantWords(entry.question);
-    const entryKeywords = (entry.keywords || []).map(k => normalizeText(k));
-
-    // Word sequence score (order matters)
-    const seqScore = computeWordSequenceScore(significantInput, significantQ);
-
-    // Significant word overlap (order doesn't matter)
-    const overlapCount = significantInput.filter(w =>
-      significantQ.some(qw => qw === w || qw.startsWith(w) || w.startsWith(qw))
-    ).length;
-    const overlapScore = significantInput.length > 0
-      ? overlapCount / significantInput.length
-      : 0;
-
-    // Keyword array match bonus
-    const keywordHits = significantInput.filter(w =>
-      entryKeywords.some(kw => kw === w || kw.startsWith(w) || w.startsWith(kw))
-    ).length;
-    const keywordBonus = significantInput.length > 0
-      ? (keywordHits / significantInput.length) * 0.5
-      : 0;
-
-    // Priority bonus
-    const priorityBonus = (entry.priority || 0) * 0.01;
-
-    const totalScore = (seqScore * 2) + overlapScore + keywordBonus + priorityBonus;
-
-    if (totalScore > bestSeqScore) {
-      bestSeqScore = totalScore;
-      bestSeq = entry;
-      bestSeq.combined_score = totalScore;
-    }
-  }
-
-  // If strong sequence/overlap match, return it
-  if (bestSeq && bestSeqScore >= 1.2) {
-    await query(`UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`, [bestSeq.id]);
-    return bestSeq;
-  }
-
-  // ── TIER 4: FTS + trigram fallback (original method) ───────────────────
-  let allWords = [...userWords];
-  if (contextKeywords && contextKeywords.length > 0) {
-    allWords = [...new Set([...allWords, ...contextKeywords])];
-  }
-
-  const tsqueryTerms = allWords.map(w => `${w}:*`).join(' | ');
-
-  const ftsResult = await query(
-    `SELECT id, question, answer, keywords, priority,
-            ts_rank(search_vector, to_tsquery('simple', $2)) * 2 AS fts_score,
-            similarity(LOWER(question), $3) AS trgm_score,
-            (ts_rank(search_vector, to_tsquery('simple', $2)) * 2 + similarity(LOWER(question), $3) + COALESCE(priority, 0) * 0.1) AS combined_score
-     FROM chatbot_knowledge_base
-     WHERE contractor_id = $1 AND is_active = true
-       AND (search_vector @@ to_tsquery('simple', $2) OR similarity(LOWER(question), $3) > 0.2)
-     ORDER BY combined_score DESC
-     LIMIT 1`,
-    [contractorId, tsqueryTerms, normalizedInput]
-  );
-
-  const bestMatch = ftsResult.rows[0];
-  if (bestMatch && bestMatch.combined_score >= threshold * 0.8) {
-    await query(`UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`, [bestMatch.id]);
-    return bestMatch;
+  // Minimum threshold: at least 15 points to return a match
+  if (bestEntry && bestScore >= 15) {
+    bestEntry.combined_score = bestScore;
+    await query(`UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`, [bestEntry.id]);
+    return bestEntry;
   }
 
   return null;
@@ -743,7 +692,7 @@ module.exports = {
   getFallbackMessage,
   getEscalationMessage,
   getSignificantWords,
-  computeWordSequenceScore,
+  scoreEntry,
   matchKnowledgeBase,
   matchDecisionTree,
   navigateTree,
