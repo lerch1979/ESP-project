@@ -792,6 +792,14 @@ export const chatbotAPI = {
     const response = await api.get('/chatbot/admin/analytics/global');
     return response.data;
   },
+  selectSuggestion: async (conversationId, kbId) => {
+    const response = await api.post(`/chatbot/conversations/${conversationId}/suggestions`, { kb_id: kbId });
+    return response.data;
+  },
+  sendFeedback: async (messageId, helpful) => {
+    const response = await api.post('/chatbot/feedback', { messageId, helpful });
+    return response.data;
+  },
 };
 
 // Users API

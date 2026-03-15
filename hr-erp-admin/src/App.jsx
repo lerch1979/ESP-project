@@ -37,6 +37,14 @@ import MyTasks from './pages/MyTasks';
 import AutoAssign from './pages/admin/AutoAssign';
 import EmailInbox from './pages/finance/EmailInbox';
 import SalaryTransparency from './pages/SalaryTransparency';
+import ChatbotPage from './pages/ChatbotPage';
+import ChatbotKnowledgeBase from './pages/ChatbotKnowledgeBase';
+import ChatbotDecisionTrees from './pages/ChatbotDecisionTrees';
+import ChatbotFaqCategories from './pages/ChatbotFaqCategories';
+import ChatbotConversations from './pages/ChatbotConversations';
+import ChatbotConversationDetail from './pages/ChatbotConversationDetail';
+import ChatbotAnalytics from './pages/ChatbotAnalytics';
+import ChatbotConfig from './pages/ChatbotConfig';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -94,6 +102,14 @@ function App() {
             <Route path="admin/auto-assign" element={<PermissionGuard permission="settings.view"><AutoAssign /></PermissionGuard>} />
             <Route path="email-inbox" element={<PermissionGuard permission="settings.edit"><EmailInbox /></PermissionGuard>} />
             <Route path="salary-transparency" element={<PermissionGuard permission="settings.view"><SalaryTransparency /></PermissionGuard>} />
+            <Route path="chatbot" element={<PermissionGuard permission="dashboard.view"><ChatbotPage /></PermissionGuard>} />
+            <Route path="chatbot/knowledge-base" element={<PermissionGuard permission="faq.edit"><ChatbotKnowledgeBase /></PermissionGuard>} />
+            <Route path="chatbot/decision-trees" element={<PermissionGuard permission="faq.edit"><ChatbotDecisionTrees /></PermissionGuard>} />
+            <Route path="chatbot/faq-categories" element={<PermissionGuard permission="faq.edit"><ChatbotFaqCategories /></PermissionGuard>} />
+            <Route path="chatbot/conversations" element={<PermissionGuard permission="faq.edit"><ChatbotConversations /></PermissionGuard>} />
+            <Route path="chatbot/conversations/:id" element={<PermissionGuard permission="faq.edit"><ChatbotConversationDetail /></PermissionGuard>} />
+            <Route path="chatbot/analytics" element={<PermissionGuard permission="faq.edit"><ChatbotAnalytics /></PermissionGuard>} />
+            <Route path="chatbot/config" element={<PermissionGuard permission="faq.edit"><ChatbotConfig /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

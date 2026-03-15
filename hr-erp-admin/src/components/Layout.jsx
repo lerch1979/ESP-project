@@ -108,8 +108,9 @@ const allMenuItems = [
     ],
   },
   { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },
+  { text: 'Segítség', icon: <ChatIcon />, path: '/chatbot', permission: 'dashboard.view' },
   {
-    text: 'Chatbot', icon: <SmartToyIcon />, permission: 'faq.edit', children: [
+    text: 'Chatbot kezelés', icon: <SmartToyIcon />, permission: 'faq.edit', children: [
       { text: 'Tudásbázis', icon: <QuestionAnswerIcon />, path: '/chatbot/knowledge-base', permission: 'faq.edit' },
       { text: 'Döntési fák', icon: <AccountTreeIcon />, path: '/chatbot/decision-trees', permission: 'faq.edit' },
       { text: 'GYIK Kategóriák', icon: <CategoryIcon />, path: '/chatbot/faq-categories', permission: 'faq.edit' },
