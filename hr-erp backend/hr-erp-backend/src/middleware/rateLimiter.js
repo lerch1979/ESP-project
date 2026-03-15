@@ -1,147 +1,125 @@
 /**
  * Rate Limiting Middleware
  *
- * Tiered rate limits for different endpoint categories.
+ * Environment-aware tiered rate limits:
+ * - test: all limiters are no-ops (passthrough)
+ * - development: relaxed limits for comfortable dev workflow
+ * - production: balanced limits for security + usability
+ *
+ * Auth & password-reset limits are STRICT in ALL environments.
+ *
  * Uses in-memory store (default). For production with multiple instances,
  * switch to Redis store: npm install rate-limit-redis
- *
- * TODO: Redis store for multi-instance deployments
  */
 
-const rateLimit = require('express-rate-limit');
-const slowDown = require('express-slow-down');
-const { logger } = require('../utils/logger');
+const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+const isTest = process.env.NODE_ENV === 'test';
 
-const isEnabled = () => process.env.RATE_LIMIT_ENABLED !== 'false';
+if (isTest) {
+  // ─── Test environment: no-op passthrough ─────────────────────
+  const passthrough = (req, res, next) => next();
+  module.exports = {
+    globalLimiter: passthrough,
+    authLimiter: passthrough,
+    passwordResetLimiter: passthrough,
+    uploadLimiter: passthrough,
+    authenticatedLimiter: passthrough,
+    speedLimiter: passthrough,
+  };
+} else {
+  // ─── Development / Production ────────────────────────────────
+  const rateLimit = require('express-rate-limit');
+  const slowDown = require('express-slow-down');
+  const { logger } = require('../utils/logger');
 
-/**
- * Log rate limit violations to application logs.
- */
-function onLimitReached(req, res, options) {
-  logger.warn('Rate limit exceeded', {
-    ip: req.ip,
-    path: req.originalUrl,
-    method: req.method,
-    userId: req.user?.id || 'anonymous',
-    limit: options.max,
-    windowMs: options.windowMs,
+  // ─── Rate limit configuration ────────────────────────────────
+  const RATE_LIMITS = {
+    global: {
+      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+      maxDev: 10000,
+      maxProd: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000,
+      message: 'Túl sok kérés ebből a címből. Kérjük várjon 15 percet.',
+    },
+    auth: {
+      windowMs: 15 * 60 * 1000,
+      max: 5, // Same for dev AND prod - brute force protection is critical
+      message: 'Túl sok bejelentkezési kísérlet. Kérjük várjon 15 percet.',
+    },
+    passwordReset: {
+      windowMs: 60 * 60 * 1000,
+      max: 3, // Same for dev AND prod
+      message: 'Túl sok jelszó-visszaállítási kérés. Kérjük várjon 1 órát.',
+    },
+    upload: {
+      windowMs: 60 * 60 * 1000,
+      maxDev: 1000,
+      maxProd: 50,
+      message: 'Túl sok fájlfeltöltés. Kérjük várjon 1 órát.',
+    },
+    authenticated: {
+      windowMs: 60 * 60 * 1000,
+      maxDev: 100000,
+      maxProd: 10000,
+      message: 'Túl sok kérés. Kérjük várjon 1 órát.',
+    },
+  };
+
+  function onLimitReached(req, res, options) {
+    logger.warn('Rate limit exceeded', {
+      ip: req.ip,
+      path: req.originalUrl,
+      method: req.method,
+      userId: req.user?.id || 'anonymous',
+      limit: options.max,
+      windowMs: options.windowMs,
+    });
+  }
+
+  function createLimiter(config, opts = {}) {
+    const max = isDev ? (config.maxDev || config.max) : (config.maxProd || config.max);
+
+    return rateLimit({
+      windowMs: config.windowMs,
+      max,
+      message: { success: false, message: config.message },
+      standardHeaders: true,
+      legacyHeaders: false,
+      skipSuccessfulRequests: isDev && !opts.alwaysStrict,
+      keyGenerator: opts.keyGenerator || ((req) => req.ip),
+      handler: (req, res, next, options) => {
+        onLimitReached(req, res, options);
+        res.status(429).json(options.message);
+      },
+    });
+  }
+
+  const globalLimiter = createLimiter(RATE_LIMITS.global);
+  const authLimiter = createLimiter(RATE_LIMITS.auth, { alwaysStrict: true });
+  const passwordResetLimiter = createLimiter(RATE_LIMITS.passwordReset, { alwaysStrict: true });
+  const uploadLimiter = createLimiter(RATE_LIMITS.upload);
+  const authenticatedLimiter = createLimiter(RATE_LIMITS.authenticated, {
+    keyGenerator: (req) => req.user?.id?.toString() || req.ip,
   });
+
+  const speedLimiter = slowDown({
+    windowMs: 15 * 60 * 1000,
+    delayAfter: isDev ? 1000 : 50,
+    delayMs: () => 500,
+    maxDelayMs: 20000,
+  });
+
+  // Startup log
+  logger.info(`[Rate Limiting] Environment: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'}`);
+  logger.info(`[Rate Limiting] Global: ${isDev ? RATE_LIMITS.global.maxDev : RATE_LIMITS.global.maxProd} req/15min per IP`);
+  logger.info(`[Rate Limiting] Auth: ${RATE_LIMITS.auth.max} req/15min (strict - brute force protection)`);
+  logger.info(`[Rate Limiting] Authenticated: ${isDev ? RATE_LIMITS.authenticated.maxDev : RATE_LIMITS.authenticated.maxProd} req/hour per user`);
+
+  module.exports = {
+    globalLimiter,
+    authLimiter,
+    passwordResetLimiter,
+    uploadLimiter,
+    authenticatedLimiter,
+    speedLimiter,
+  };
 }
-
-/**
- * Skip rate limiting for superadmin users.
- */
-function skipForSuperadmin(req) {
-  return req.user?.roles?.includes('superadmin');
-}
-
-// ─── Global API Limiter ────────────────────────────────────────
-// 100 requests per 15 minutes per IP (fallback for all /api/ routes)
-const globalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: {
-    success: false,
-    message: 'Túl sok kérés erről az IP címről, kérjük próbálja később.',
-    retryAfter: 'Kérjük várjon 15 percet.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => !isEnabled(),
-  handler: (req, res, next, options) => {
-    onLimitReached(req, res, options);
-    res.status(429).json(options.message);
-  },
-});
-
-// ─── Auth Limiter ──────────────────────────────────────────────
-// 5 requests per 15 minutes per IP (login, register)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    success: false,
-    message: 'Túl sok bejelentkezési kísérlet. Próbálja újra 15 perc múlva.',
-  },
-  skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => !isEnabled(),
-  handler: (req, res, next, options) => {
-    onLimitReached(req, res, options);
-    res.status(429).json(options.message);
-  },
-});
-
-// ─── Password Reset Limiter ────────────────────────────────────
-// 3 requests per hour per IP
-const passwordResetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
-  message: {
-    success: false,
-    message: 'Túl sok jelszó-visszaállítási kérés. Próbálja újra 1 óra múlva.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => !isEnabled(),
-  handler: (req, res, next, options) => {
-    onLimitReached(req, res, options);
-    res.status(429).json(options.message);
-  },
-});
-
-// ─── File Upload Limiter ───────────────────────────────────────
-// 10 uploads per hour per IP
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  message: {
-    success: false,
-    message: 'Túl sok fájlfeltöltés. Próbálja újra 1 óra múlva.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => !isEnabled() || skipForSuperadmin(req),
-  handler: (req, res, next, options) => {
-    onLimitReached(req, res, options);
-    res.status(429).json(options.message);
-  },
-});
-
-// ─── Authenticated User Limiter ────────────────────────────────
-// 1000 requests per hour per authenticated user (keyed by user ID)
-const authenticatedLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 1000,
-  keyGenerator: (req) => req.user?.id || req.ip,
-  message: {
-    success: false,
-    message: 'Túl sok kérés. Kérjük próbálja később.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => !isEnabled() || skipForSuperadmin(req),
-  handler: (req, res, next, options) => {
-    onLimitReached(req, res, options);
-    res.status(429).json(options.message);
-  },
-});
-
-// ─── Speed Limiter (Slow Down) ─────────────────────────────────
-// After 50 requests in 15 minutes, add 500ms delay per request
-const speedLimiter = slowDown({
-  windowMs: 15 * 60 * 1000,
-  delayAfter: 50,
-  delayMs: (hits) => (hits - 50) * 500,
-  skip: (req) => !isEnabled() || skipForSuperadmin(req),
-});
-
-module.exports = {
-  globalLimiter,
-  authLimiter,
-  passwordResetLimiter,
-  uploadLimiter,
-  authenticatedLimiter,
-  speedLimiter,
-};

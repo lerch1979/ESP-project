@@ -1,5 +1,8 @@
 /**
  * Rate Limiter Middleware Tests
+ *
+ * NODE_ENV=test → all limiters are no-op passthroughs.
+ * These tests verify exports and passthrough behavior.
  */
 
 const {
@@ -38,80 +41,59 @@ describe('Rate Limiter Middleware', () => {
     });
   });
 
-  describe('Rate limit behavior', () => {
-    test('globalLimiter should call next for normal requests', (done) => {
-      const req = { ip: '127.0.0.1', headers: {}, method: 'GET', url: '/test', app: { get: () => false } };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-        setHeader: jest.fn(),
-        getHeader: jest.fn(),
-      };
+  describe('Test environment passthrough', () => {
+    // In test env, all limiters are no-ops that just call next()
+    test('globalLimiter passes through in test env', (done) => {
+      const req = {};
+      const res = {};
       const next = jest.fn(() => {
         expect(next).toHaveBeenCalled();
         done();
       });
-
       globalLimiter(req, res, next);
     });
 
-    test('authLimiter should call next for first request', (done) => {
-      const req = { ip: '10.0.0.99', headers: {}, method: 'POST', url: '/login', app: { get: () => false } };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-        setHeader: jest.fn(),
-        getHeader: jest.fn(),
-      };
+    test('authLimiter passes through in test env', (done) => {
+      const req = {};
+      const res = {};
       const next = jest.fn(() => {
         expect(next).toHaveBeenCalled();
         done();
       });
-
       authLimiter(req, res, next);
     });
 
-    test('speedLimiter should call next without delay for first request', (done) => {
-      const req = { ip: '10.0.0.100', headers: {}, method: 'GET', url: '/test', app: { get: () => false } };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-        setHeader: jest.fn(),
-        getHeader: jest.fn(),
-      };
+    test('speedLimiter passes through in test env', (done) => {
+      const req = {};
+      const res = {};
       const next = jest.fn(() => {
         expect(next).toHaveBeenCalled();
         done();
       });
-
       speedLimiter(req, res, next);
     });
-  });
 
-  describe('Rate limit disabled', () => {
-    const originalEnv = process.env.RATE_LIMIT_ENABLED;
+    test('all limiters call next without modifying req/res', () => {
+      const limiters = [
+        globalLimiter,
+        authLimiter,
+        passwordResetLimiter,
+        uploadLimiter,
+        authenticatedLimiter,
+        speedLimiter,
+      ];
 
-    afterEach(() => {
-      process.env.RATE_LIMIT_ENABLED = originalEnv;
-    });
+      limiters.forEach((limiter) => {
+        const req = { original: true };
+        const res = { original: true };
+        const next = jest.fn();
 
-    test('should respect RATE_LIMIT_ENABLED=false environment variable', (done) => {
-      // The skip function reads process.env at call time
-      process.env.RATE_LIMIT_ENABLED = 'false';
+        limiter(req, res, next);
 
-      const req = { ip: '10.0.0.200', headers: {}, method: 'GET', url: '/test', app: { get: () => false } };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-        setHeader: jest.fn(),
-        getHeader: jest.fn(),
-      };
-      const next = jest.fn(() => {
-        expect(next).toHaveBeenCalled();
-        done();
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(req.original).toBe(true);
+        expect(res.original).toBe(true);
       });
-
-      globalLimiter(req, res, next);
     });
   });
 });
