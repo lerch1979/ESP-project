@@ -42,12 +42,14 @@ if (isTest) {
     },
     auth: {
       windowMs: 15 * 60 * 1000,
-      max: 5, // Same for dev AND prod - brute force protection is critical
+      maxDev: 1000,  // Dev: effectively unlimited
+      maxProd: 5,    // Prod: brute force protection
       message: 'Túl sok bejelentkezési kísérlet. Kérjük várjon 15 percet.',
     },
     passwordReset: {
       windowMs: 60 * 60 * 1000,
-      max: 3, // Same for dev AND prod
+      maxDev: 100,   // Dev: relaxed
+      maxProd: 3,    // Prod: strict
       message: 'Túl sok jelszó-visszaállítási kérés. Kérjük várjon 1 órát.',
     },
     upload: {
@@ -94,8 +96,8 @@ if (isTest) {
   }
 
   const globalLimiter = createLimiter(RATE_LIMITS.global);
-  const authLimiter = createLimiter(RATE_LIMITS.auth, { alwaysStrict: true });
-  const passwordResetLimiter = createLimiter(RATE_LIMITS.passwordReset, { alwaysStrict: true });
+  const authLimiter = createLimiter(RATE_LIMITS.auth);
+  const passwordResetLimiter = createLimiter(RATE_LIMITS.passwordReset);
   const uploadLimiter = createLimiter(RATE_LIMITS.upload);
   const authenticatedLimiter = createLimiter(RATE_LIMITS.authenticated, {
     keyGenerator: (req) => req.user?.id?.toString() || req.ip,
@@ -111,7 +113,7 @@ if (isTest) {
   // Startup log
   logger.info(`[Rate Limiting] Environment: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'}`);
   logger.info(`[Rate Limiting] Global: ${isDev ? RATE_LIMITS.global.maxDev : RATE_LIMITS.global.maxProd} req/15min per IP`);
-  logger.info(`[Rate Limiting] Auth: ${RATE_LIMITS.auth.max} req/15min (strict - brute force protection)`);
+  logger.info(`[Rate Limiting] Auth: ${isDev ? RATE_LIMITS.auth.maxDev : RATE_LIMITS.auth.maxProd} req/15min${isDev ? ' (dev - relaxed)' : ' (strict - brute force protection)'}`);
   logger.info(`[Rate Limiting] Authenticated: ${isDev ? RATE_LIMITS.authenticated.maxDev : RATE_LIMITS.authenticated.maxProd} req/hour per user`);
 
   module.exports = {
