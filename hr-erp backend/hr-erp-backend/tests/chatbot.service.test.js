@@ -209,6 +209,84 @@ describe('Edge Cases', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
+// SIGNIFICANT WORDS (stop word filtering)
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('getSignificantWords', () => {
+  test('filters out Hungarian stop words', () => {
+    const words = chatbotService.getSignificantWords('hogyan kérhetek szabadságot');
+    expect(words).toContain('kerhetek');
+    expect(words).toContain('szabadsagot');
+    expect(words).not.toContain('hogyan');
+  });
+
+  test('filters out short words (<=2 chars)', () => {
+    const words = chatbotService.getSignificantWords('a mi az nem jó');
+    expect(words).not.toContain('mi');
+    expect(words).not.toContain('az');
+    expect(words).not.toContain('nem');
+  });
+
+  test('returns empty for all stop words', () => {
+    const words = chatbotService.getSignificantWords('a az és is');
+    expect(words).toEqual([]);
+  });
+
+  test('preserves significant content words', () => {
+    const words = chatbotService.getSignificantWords('fizetés szabadság projekt');
+    expect(words).toContain('fizetes');
+    expect(words).toContain('szabadsag');
+    expect(words).toContain('projekt');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// WORD SEQUENCE MATCHING
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('computeWordSequenceScore', () => {
+  test('returns 1.0 for identical word arrays', () => {
+    const score = chatbotService.computeWordSequenceScore(
+      ['szabadsag', 'keres'],
+      ['szabadsag', 'keres']
+    );
+    expect(score).toBe(1.0);
+  });
+
+  test('returns high score for subsequence match', () => {
+    const score = chatbotService.computeWordSequenceScore(
+      ['szabadsag', 'keres'],
+      ['szabadsag', 'keres', 'folyamat']
+    );
+    expect(score).toBe(1.0);
+  });
+
+  test('returns partial score for partial match', () => {
+    const score = chatbotService.computeWordSequenceScore(
+      ['projekt', 'letrehozas'],
+      ['szabadsag', 'keres']
+    );
+    expect(score).toBe(0);
+  });
+
+  test('returns 0 for empty input', () => {
+    expect(chatbotService.computeWordSequenceScore([], ['foo'])).toBe(0);
+  });
+
+  test('returns 0 for empty question', () => {
+    expect(chatbotService.computeWordSequenceScore(['foo'], [])).toBe(0);
+  });
+
+  test('handles single word match', () => {
+    const score = chatbotService.computeWordSequenceScore(
+      ['projekt'],
+      ['projekt', 'letrehozas', 'folyamat']
+    );
+    expect(score).toBe(1.0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
 // MODULE EXPORTS
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -217,6 +295,8 @@ describe('Module Exports', () => {
     expect(typeof chatbotService.normalizeText).toBe('function');
     expect(typeof chatbotService.extractWords).toBe('function');
     expect(typeof chatbotService.sanitizeInput).toBe('function');
+    expect(typeof chatbotService.getSignificantWords).toBe('function');
+    expect(typeof chatbotService.computeWordSequenceScore).toBe('function');
     expect(typeof chatbotService.getWelcomeMessage).toBe('function');
     expect(typeof chatbotService.getFallbackMessage).toBe('function');
     expect(typeof chatbotService.getEscalationMessage).toBe('function');
