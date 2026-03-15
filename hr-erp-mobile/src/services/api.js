@@ -389,6 +389,10 @@ export const chatbotAPI = {
     const response = await api.get('/chatbot/faq/entries', { params });
     return response.data;
   },
+  sendFeedback: async (messageId, helpful) => {
+    const response = await api.post('/chatbot/feedback', { messageId, helpful });
+    return response.data;
+  },
 };
 
 export default api;

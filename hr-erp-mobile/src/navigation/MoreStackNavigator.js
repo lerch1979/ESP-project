@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MoreMenuScreen from '../screens/more/MoreMenuScreen';
+import CalendarScreen from '../screens/CalendarScreen';
 import AccommodationListScreen from '../screens/more/AccommodationListScreen';
 import AccommodationDetailScreen from '../screens/more/AccommodationDetailScreen';
 import DocumentListScreen from '../screens/more/DocumentListScreen';
@@ -32,7 +33,8 @@ export default function MoreStackNavigator() {
         headerTitleStyle: { fontWeight: '600' },
       }}
     >
-      <Stack.Screen name="MoreMenu" component={MoreMenuScreen} options={{ title: 'Továbbiak' }} />
+      <Stack.Screen name="MoreMenu" component={MoreMenuScreen} options={{ title: 'Tovabbiak' }} />
+      <Stack.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Naptar' }} />
       <Stack.Screen name="AccommodationList" component={AccommodationListScreen} options={{ title: 'Szálláshelyek' }} />
       <Stack.Screen name="AccommodationDetail" component={AccommodationDetailScreen} options={{ title: 'Szálláshely' }} />
       <Stack.Screen name="DocumentList" component={DocumentListScreen} options={{ title: 'Dokumentumok' }} />

@@ -35,9 +35,10 @@ const menuSections = [
     ],
   },
   {
-    title: 'Egyéb',
+    title: 'Egyeb',
     items: [
-      { key: 'googleCalendar', icon: 'logo-google', label: 'Google Naptár', screen: 'GoogleCalendar' },
+      { key: 'calendar', icon: 'calendar-outline', label: 'Naptar', screen: 'Calendar' },
+      { key: 'googleCalendar', icon: 'logo-google', label: 'Google Naptar', screen: 'GoogleCalendar' },
       { key: 'profile', icon: 'person-circle-outline', label: 'Profil', screen: 'Profile' },
     ],
   },

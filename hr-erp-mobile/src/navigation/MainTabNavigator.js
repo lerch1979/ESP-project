@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import TicketStackNavigator from './TicketStackNavigator';
 import EmployeeStackNavigator from './EmployeeStackNavigator';
-import CalendarScreen from '../screens/CalendarScreen';
+import ChatbotStackNavigator from './ChatbotStackNavigator';
 import MoreStackNavigator from './MoreStackNavigator';
 import { colors } from '../constants/colors';
 
@@ -14,7 +14,7 @@ const tabIcons = {
   Dashboard: 'home',
   Tickets: 'ticket',
   Employees: 'people',
-  Calendar: 'calendar',
+  Chatbot: 'chatbubble-ellipses',
   More: 'ellipsis-horizontal',
 };
 
@@ -53,14 +53,14 @@ export default function MainTabNavigator() {
         options={{ headerShown: false, title: 'Munkavállalók' }}
       />
       <Tab.Screen
-        name="Calendar"
-        component={CalendarScreen}
-        options={{ title: 'Naptár' }}
+        name="Chatbot"
+        component={ChatbotStackNavigator}
+        options={{ headerShown: false, title: 'Segitseg' }}
       />
       <Tab.Screen
         name="More"
         component={MoreStackNavigator}
-        options={{ headerShown: false, title: 'Továbbiak' }}
+        options={{ headerShown: false, title: 'Tovabbiak' }}
       />
     </Tab.Navigator>
   );
