@@ -35,6 +35,7 @@ router.post('/conversations/:conversationId/messages', chatMessageLimiter, chatb
 router.post('/conversations/:conversationId/suggestions', chatMessageLimiter, chatbot.selectSuggestion);
 router.post('/conversations/:conversationId/escalate', chatbot.escalateConversation);
 router.post('/conversations/:conversationId/close', chatbot.closeConversation);
+router.post('/feedback', chatbot.submitFeedback);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIER 2: Operator endpoints

@@ -57,6 +57,7 @@ const MIGRATIONS = [
   { id: '037', name: 'salary_transparency',          file: 'migrations/salary_transparency.sql' },
   { id: '040', name: 'encrypt_pii_data',             file: 'migrations/encrypt_pii_data.sql' },
   { id: '041', name: 'audit_triggers',               file: 'migrations/audit_triggers.sql' },
+  { id: '050', name: 'chatbot_system_enhancements',  file: 'migrations/050_chatbot_system.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)
@@ -64,6 +65,7 @@ const SEEDS = [
   { id: 'S001', name: 'seed_notification_templates', file: 'migrations/seed_notification_templates.sql' },
   { id: 'S002', name: 'seed_rooms',                  file: 'migrations/seed_rooms.sql' },
   { id: 'S003', name: 'seed_project_management',     file: 'migrations/seed_project_management.sql' },
+  { id: 'S004', name: 'seed_chatbot_faqs',            file: 'migrations/seed_chatbot_faqs.sql' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────

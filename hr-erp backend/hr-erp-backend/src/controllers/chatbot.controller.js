@@ -152,11 +152,13 @@ const sendMessage = async (req, res) => {
     // Store response_time_ms in bot message metadata
     const metadata = { ...botResponse.metadata, response_time_ms: responseTimeMs };
 
-    // Save bot response
+    // Save bot response (with faq_id and confidence_score if available)
+    const faqId = metadata.kb_id || null;
+    const confidenceScore = metadata.confidence_score || null;
     const botMsg = await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata)
-       VALUES ($1, 'bot', $2, $3, $4) RETURNING *`,
-      [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(metadata)]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, faq_id, confidence_score)
+       VALUES ($1, 'bot', $2, $3, $4, $5, $6) RETURNING *`,
+      [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(metadata), faqId, confidenceScore]
     );
 
     // Update conversation timestamp and title if first user message
@@ -338,6 +340,66 @@ const selectSuggestion = async (req, res) => {
   } catch (error) {
     logger.error('Error selecting suggestion:', error);
     res.status(500).json({ success: false, message: 'Hiba a javaslat kiválasztása közben' });
+  }
+};
+
+const submitFeedback = async (req, res) => {
+  try {
+    const { messageId, helpful } = req.body;
+    const userId = req.user.id;
+
+    if (!messageId) {
+      return res.status(400).json({ success: false, message: 'messageId megadása kötelező' });
+    }
+    if (typeof helpful !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'helpful (true/false) megadása kötelező' });
+    }
+
+    // Verify message belongs to user's conversation
+    const msgCheck = await query(
+      `SELECT m.id, m.faq_id, m.conversation_id, c.user_id
+       FROM chatbot_messages m
+       JOIN chatbot_conversations c ON m.conversation_id = c.id
+       WHERE m.id = $1`,
+      [messageId]
+    );
+    if (msgCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Üzenet nem található' });
+    }
+    if (msgCheck.rows[0].user_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Nincs jogosultsága' });
+    }
+
+    // Update message helpful flag
+    await query(
+      'UPDATE chatbot_messages SET helpful = $1 WHERE id = $2',
+      [helpful, messageId]
+    );
+
+    // Update FAQ counters if linked to a FAQ
+    const faqId = msgCheck.rows[0].faq_id;
+    if (faqId) {
+      if (helpful) {
+        await query(
+          'UPDATE chatbot_knowledge_base SET helpful_count = helpful_count + 1 WHERE id = $1',
+          [faqId]
+        );
+      } else {
+        await query(
+          'UPDATE chatbot_knowledge_base SET not_helpful_count = not_helpful_count + 1 WHERE id = $1',
+          [faqId]
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      message: helpful ? 'Köszönjük a pozitív visszajelzést!' : 'Köszönjük a visszajelzést, javítani fogunk.',
+      data: { messageId, helpful, faqId },
+    });
+  } catch (error) {
+    logger.error('Error submitting feedback:', error);
+    res.status(500).json({ success: false, message: 'Hiba a visszajelzés küldése közben' });
   }
 };
 
@@ -1108,6 +1170,7 @@ module.exports = {
   getUserFaqCategories,
   getUserFaqEntries,
   selectSuggestion,
+  submitFeedback,
   // Tier 2
   adminGetConversations,
   adminGetConversationDetail,

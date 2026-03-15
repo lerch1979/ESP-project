@@ -549,7 +549,12 @@ async function processMessage(conversationId, userText, userId, contractorId) {
     return {
       content: kbMatch.answer,
       message_type: 'text',
-      metadata: { source: 'knowledge_base', kb_id: kbMatch.id, question: kbMatch.question },
+      metadata: {
+        source: 'knowledge_base',
+        kb_id: kbMatch.id,
+        question: kbMatch.question,
+        confidence_score: Math.round((kbMatch.combined_score || 0) * 100) / 100,
+      },
     };
   }
 
