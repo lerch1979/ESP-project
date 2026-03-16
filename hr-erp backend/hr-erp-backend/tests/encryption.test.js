@@ -200,11 +200,62 @@ describe('Encryption Service', () => {
   });
 
   describe('PII_FIELDS constant', () => {
-    test('should contain the expected fields', () => {
+    test('should contain the original fields', () => {
       expect(PII_FIELDS).toContain('social_security_number');
       expect(PII_FIELDS).toContain('passport_number');
       expect(PII_FIELDS).toContain('bank_account');
       expect(PII_FIELDS).toContain('tax_id');
+    });
+
+    test('should contain the extended fields', () => {
+      expect(PII_FIELDS).toContain('company_phone');
+      expect(PII_FIELDS).toContain('mothers_name');
+    });
+
+    test('should have 6 total PII fields', () => {
+      expect(PII_FIELDS).toHaveLength(6);
+    });
+  });
+
+  describe('Extended PII field encryption', () => {
+    test('should encrypt company_phone', () => {
+      const data = { company_phone: '+36201234567', first_name: 'Test' };
+      const encrypted = encryptPiiFields(data);
+      expect(encrypted.company_phone).not.toBe('+36201234567');
+      expect(encrypted.company_phone).toContain(':');
+      expect(encrypted.first_name).toBe('Test');
+
+      const decrypted = decryptPiiFields(encrypted);
+      expect(decrypted.company_phone).toBe('+36201234567');
+    });
+
+    test('should encrypt mothers_name', () => {
+      const data = { mothers_name: 'Nagy Mária' };
+      const encrypted = encryptPiiFields(data);
+      expect(encrypted.mothers_name).toContain(':');
+      const decrypted = decryptPiiFields(encrypted);
+      expect(decrypted.mothers_name).toBe('Nagy Mária');
+    });
+
+    test('should encrypt all 6 PII fields in one object', () => {
+      const data = {
+        social_security_number: '123-456-789',
+        passport_number: 'AB123456',
+        bank_account: 'HU12345678',
+        tax_id: '8765432109',
+        company_phone: '+36201234567',
+        mothers_name: 'Teszt Éva',
+        first_name: 'Unchanged',
+      };
+      const encrypted = encryptPiiFields(data);
+      for (const field of PII_FIELDS) {
+        expect(encrypted[field]).toContain(':');
+      }
+      expect(encrypted.first_name).toBe('Unchanged');
+
+      const decrypted = decryptPiiFields(encrypted);
+      expect(decrypted.social_security_number).toBe('123-456-789');
+      expect(decrypted.mothers_name).toBe('Teszt Éva');
     });
   });
 });

@@ -17,6 +17,8 @@ const PII_FIELDS = [
   'passport_number',
   'bank_account',
   'tax_id',
+  'company_phone',
+  'mothers_name',
 ];
 
 function getEncryptionKey() {
