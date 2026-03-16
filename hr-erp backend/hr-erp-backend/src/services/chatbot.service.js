@@ -1,6 +1,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { TTLCache } = require('../utils/cache');
+const claudeService = require('./claude.service');
 
 // ─── Cache instances ─────────────────────────────────────────────────────────
 
@@ -203,6 +204,66 @@ async function matchKnowledgeBase(text, contractorId, _contextKeywords) {
   }
 
   return null;
+}
+
+// ─── AI-enhanced matching (Claude API) ──────────────────────────────────────
+
+/**
+ * Try to match user question using Claude semantic search.
+ * Falls back gracefully if API is unavailable or returns low confidence.
+ *
+ * @returns {Object|null} - matched entry with combined_score, or null
+ */
+async function semanticMatchKnowledgeBase(text, contractorId) {
+  if (!claudeService.isAvailable()) return null;
+
+  const result = await query(
+    `SELECT id, question, answer, keywords, priority
+     FROM chatbot_knowledge_base
+     WHERE contractor_id = $1 AND is_active = true`,
+    [contractorId]
+  );
+  const entries = result.rows;
+  if (entries.length === 0) return null;
+
+  const match = await claudeService.semanticMatch(text, entries);
+  if (!match || match.faqIndex === 0 || match.confidence < 30) return null;
+
+  const entry = entries[match.faqIndex - 1];
+  if (!entry) return null;
+
+  entry.combined_score = match.confidence;
+  entry._ai_matched = true;
+
+  await query(
+    `UPDATE chatbot_knowledge_base SET usage_count = usage_count + 1 WHERE id = $1`,
+    [entry.id]
+  );
+
+  logger.info('[Chatbot] AI semantic match', {
+    question: text.substring(0, 80),
+    matchedFaq: entry.question.substring(0, 60),
+    confidence: match.confidence,
+  });
+
+  return entry;
+}
+
+/**
+ * Get conversation history formatted for Claude context.
+ */
+async function getConversationHistory(conversationId) {
+  const result = await query(
+    `SELECT sender_type, content FROM chatbot_messages
+     WHERE conversation_id = $1
+     ORDER BY created_at DESC
+     LIMIT 10`,
+    [conversationId]
+  );
+  return result.rows.reverse().map(m => ({
+    role: m.sender_type === 'user' ? 'user' : 'assistant',
+    content: m.content,
+  }));
 }
 
 // ─── Suggestions ("Did you mean?") ──────────────────────────────────────────
@@ -611,12 +672,81 @@ async function processMessage(conversationId, userText, userId, contractorId) {
   // 4. Get conversation context for follow-up detection
   const { contextKeywords, isFollowUp } = await getConversationContext(conversationId);
 
-  // 5. KB matching with FTS + trigram (pass context keywords for follow-ups)
+  // 5. KB matching — keyword-based first (fast, no API cost)
   const kbMatch = await matchKnowledgeBase(
     cleanText,
     contractorId,
     isFollowUp ? contextKeywords : undefined
   );
+
+  if (kbMatch && kbMatch.combined_score >= 30) {
+    // High-confidence keyword match — optionally enhance with AI
+    let answer = kbMatch.answer;
+    let aiEnhanced = false;
+
+    if (claudeService.isAvailable() && kbMatch.combined_score < 80) {
+      const history = await getConversationHistory(conversationId);
+      const enhanced = await claudeService.enhanceResponse(cleanText, kbMatch.answer, history);
+      if (enhanced) {
+        answer = enhanced.enhancedAnswer;
+        aiEnhanced = true;
+      }
+    }
+
+    return {
+      content: answer,
+      message_type: 'text',
+      metadata: {
+        source: 'knowledge_base',
+        kb_id: kbMatch.id,
+        question: kbMatch.question,
+        confidence_score: Math.round((kbMatch.combined_score || 0) * 100) / 100,
+        ai_enhanced: aiEnhanced,
+      },
+    };
+  }
+
+  // 6. AI semantic search — if keyword match was weak or missing
+  if (claudeService.isAvailable()) {
+    const aiMatch = await semanticMatchKnowledgeBase(cleanText, contractorId);
+    if (aiMatch && aiMatch.combined_score >= 50) {
+      // High-confidence AI match — use directly
+      const history = await getConversationHistory(conversationId);
+      const enhanced = await claudeService.enhanceResponse(cleanText, aiMatch.answer, history);
+
+      return {
+        content: enhanced ? enhanced.enhancedAnswer : aiMatch.answer,
+        message_type: 'text',
+        metadata: {
+          source: 'knowledge_base',
+          kb_id: aiMatch.id,
+          question: aiMatch.question,
+          confidence_score: aiMatch.combined_score,
+          ai_matched: true,
+          ai_enhanced: !!enhanced,
+          ...(enhanced?.suggestions?.length ? { ai_suggestions: enhanced.suggestions } : {}),
+        },
+      };
+    }
+
+    if (aiMatch && aiMatch.combined_score >= 30) {
+      // Medium-confidence AI match — show with "Was this helpful?" hint
+      return {
+        content: aiMatch.answer,
+        message_type: 'text',
+        metadata: {
+          source: 'knowledge_base',
+          kb_id: aiMatch.id,
+          question: aiMatch.question,
+          confidence_score: aiMatch.combined_score,
+          ai_matched: true,
+          low_confidence: true,
+        },
+      };
+    }
+  }
+
+  // 7. Low-confidence keyword match (15-30) — still show it
   if (kbMatch) {
     return {
       content: kbMatch.answer,
@@ -626,11 +756,12 @@ async function processMessage(conversationId, userText, userId, contractorId) {
         kb_id: kbMatch.id,
         question: kbMatch.question,
         confidence_score: Math.round((kbMatch.combined_score || 0) * 100) / 100,
+        low_confidence: true,
       },
     };
   }
 
-  // 6. Try decision tree trigger matching
+  // 8. Try decision tree trigger matching
   const treeMatch = await matchDecisionTree(cleanText, contractorId);
   if (treeMatch) {
     const treeResult = await startTree(conversationId, treeMatch.id);
@@ -643,7 +774,24 @@ async function processMessage(conversationId, userText, userId, contractorId) {
     }
   }
 
-  // 7. "Did you mean?" suggestions
+  // 9. AI contextual response (no FAQ match at all)
+  if (claudeService.isAvailable()) {
+    const history = await getConversationHistory(conversationId);
+    const aiResponse = await claudeService.generateContextualResponse(cleanText, history);
+    if (aiResponse && aiResponse.confidence >= 40 && aiResponse.answer) {
+      return {
+        content: aiResponse.answer,
+        message_type: 'text',
+        metadata: {
+          source: 'ai_generated',
+          confidence_score: aiResponse.confidence,
+          ...(aiResponse.suggestions?.length ? { ai_suggestions: aiResponse.suggestions } : {}),
+        },
+      };
+    }
+  }
+
+  // 10. "Did you mean?" suggestions
   const suggestions = await getSuggestions(cleanText, contractorId);
   if (suggestions.length > 0) {
     return {
@@ -660,7 +808,7 @@ async function processMessage(conversationId, userText, userId, contractorId) {
     };
   }
 
-  // 8. Fallback
+  // 11. Fallback
   const fallbackMsg = await getFallbackMessage(contractorId);
   return {
     content: fallbackMsg,
@@ -694,6 +842,8 @@ module.exports = {
   getSignificantWords,
   scoreEntry,
   matchKnowledgeBase,
+  semanticMatchKnowledgeBase,
+  getConversationHistory,
   matchDecisionTree,
   navigateTree,
   startTree,
