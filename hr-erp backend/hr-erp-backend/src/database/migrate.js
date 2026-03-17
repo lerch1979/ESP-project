@@ -63,6 +63,7 @@ const MIGRATIONS = [
   { id: '054', name: 'complete_pii_encryption',     file: 'migrations/054_complete_pii_encryption.sql' },
   { id: '055', name: 'complete_audit_triggers',      file: 'migrations/055_complete_audit_triggers.sql' },
   { id: '056', name: 'password_policies',            file: 'migrations/056_password_policies.sql' },
+  { id: '057', name: 'row_level_security',           file: 'migrations/057_row_level_security.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)

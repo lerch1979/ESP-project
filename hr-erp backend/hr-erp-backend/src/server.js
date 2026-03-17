@@ -9,6 +9,8 @@ const db = require('./database/connection');
 const { createSecurityHeaders, cspReportHandler, additionalHeaders } = require('./middleware/securityHeaders');
 const { globalLimiter, authLimiter, speedLimiter } = require('./middleware/rateLimiter');
 const { csrfProtection, csrfTokenHandler } = require('./middleware/csrf');
+const { enforceHTTPS } = require('./config/ssl.config');
+const { validateSSLConfig } = require('./config/ssl.config');
 
 // Routes
 const authRoutes = require('./routes/auth.routes');
@@ -65,6 +67,9 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy - szükséges Docker/Nginx mögötti futáshoz
 // (express-rate-limit és req.ip helyes működéséhez)
 app.set('trust proxy', 1);
+
+// 0. HTTPS enforcement (production only)
+app.use(enforceHTTPS);
 
 // 1. Security headers (Helmet + custom) — first in stack
 app.use(createSecurityHeaders());
@@ -228,6 +233,9 @@ app.use((err, req, res, next) => {
 
 async function startServer() {
   try {
+    // Validate SSL configuration
+    validateSSLConfig();
+
     // Adatbázis kapcsolat ellenőrzése
     await db.testConnection();
     logger.info('✅ Adatbázis kapcsolat sikeres');

@@ -212,8 +212,8 @@ describe('Encryption Service', () => {
       expect(PII_FIELDS).toContain('mothers_name');
     });
 
-    test('should have 6 total PII fields', () => {
-      expect(PII_FIELDS).toHaveLength(6);
+    test('should have 11 total PII fields', () => {
+      expect(PII_FIELDS).toHaveLength(11);
     });
   });
 
@@ -237,7 +237,7 @@ describe('Encryption Service', () => {
       expect(decrypted.mothers_name).toBe('Nagy Mária');
     });
 
-    test('should encrypt all 6 PII fields in one object', () => {
+    test('should encrypt all 11 PII fields in one object', () => {
       const data = {
         social_security_number: '123-456-789',
         passport_number: 'AB123456',
@@ -245,6 +245,11 @@ describe('Encryption Service', () => {
         tax_id: '8765432109',
         company_phone: '+36201234567',
         mothers_name: 'Teszt Éva',
+        company_email: 'test@company.com',
+        permanent_address_street: 'Fő utca',
+        permanent_address_city: 'Budapest',
+        permanent_address_zip: '1051',
+        permanent_address_number: '10/B',
         first_name: 'Unchanged',
       };
       const encrypted = encryptPiiFields(data);
@@ -256,6 +261,8 @@ describe('Encryption Service', () => {
       const decrypted = decryptPiiFields(encrypted);
       expect(decrypted.social_security_number).toBe('123-456-789');
       expect(decrypted.mothers_name).toBe('Teszt Éva');
+      expect(decrypted.company_email).toBe('test@company.com');
+      expect(decrypted.permanent_address_city).toBe('Budapest');
     });
   });
 });
