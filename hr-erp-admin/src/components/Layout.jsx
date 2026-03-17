@@ -64,6 +64,10 @@ import {
   Campaign as CampaignIcon,
   Quiz as QuizIcon,
   Groups as GroupsIcon,
+  Healing as HealingIcon,
+  Folder as FolderIcon,
+  EventNote as EventNoteIcon,
+  LocalHospital as LocalHospitalIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -133,6 +137,15 @@ const allMenuItems = [
       { text: 'Kérdések', icon: <QuizIcon />, path: '/wellmind/questions', permission: 'dashboard.view' },
       { text: 'Intervenciók', icon: <CampaignIcon />, path: '/wellmind/interventions', permission: 'dashboard.view' },
       { text: 'Csapat metrikák', icon: <GroupsIcon />, path: '/wellmind/team-metrics', permission: 'dashboard.view' },
+    ],
+  },
+  {
+    text: 'CarePath', icon: <HealingIcon />, permission: 'dashboard.view', children: [
+      { text: 'Dashboard', icon: <HealingIcon />, path: '/carepath', permission: 'dashboard.view' },
+      { text: 'Szolgáltatók', icon: <LocalHospitalIcon />, path: '/carepath/providers', permission: 'dashboard.view' },
+      { text: 'Esetek', icon: <FolderIcon />, path: '/carepath/cases', permission: 'dashboard.view' },
+      { text: 'Foglalások', icon: <EventNoteIcon />, path: '/carepath/bookings', permission: 'dashboard.view' },
+      { text: 'Kategóriák', icon: <CategoryIcon />, path: '/carepath/categories', permission: 'dashboard.view' },
     ],
   },
   {

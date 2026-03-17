@@ -45,6 +45,11 @@ import ChatbotConversations from './pages/ChatbotConversations';
 import ChatbotConversationDetail from './pages/ChatbotConversationDetail';
 import ChatbotAnalytics from './pages/ChatbotAnalytics';
 import ChatbotConfig from './pages/ChatbotConfig';
+import CarePathDashboard from './pages/CarePath/CarePathDashboard';
+import ProviderDirectory from './pages/CarePath/ProviderDirectory';
+import CasesManagement from './pages/CarePath/CasesManagement';
+import BookingsOverview from './pages/CarePath/BookingsOverview';
+import ServiceCategories from './pages/CarePath/ServiceCategories';
 import WellMindDashboard from './pages/WellMind/WellMindDashboard';
 import RiskEmployees from './pages/WellMind/RiskEmployees';
 import QuestionManagement from './pages/WellMind/QuestionManagement';
@@ -116,6 +121,13 @@ function App() {
             <Route path="chatbot/conversations/:id" element={<PermissionGuard permission="faq.edit"><ChatbotConversationDetail /></PermissionGuard>} />
             <Route path="chatbot/analytics" element={<PermissionGuard permission="faq.edit"><ChatbotAnalytics /></PermissionGuard>} />
             <Route path="chatbot/config" element={<PermissionGuard permission="faq.edit"><ChatbotConfig /></PermissionGuard>} />
+
+            {/* CarePath */}
+            <Route path="carepath" element={<CarePathDashboard />} />
+            <Route path="carepath/providers" element={<ProviderDirectory />} />
+            <Route path="carepath/cases" element={<CasesManagement />} />
+            <Route path="carepath/bookings" element={<BookingsOverview />} />
+            <Route path="carepath/categories" element={<ServiceCategories />} />
 
             {/* WellMind */}
             <Route path="wellmind" element={<WellMindDashboard />} />
