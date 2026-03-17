@@ -45,6 +45,12 @@ import ChatbotConversations from './pages/ChatbotConversations';
 import ChatbotConversationDetail from './pages/ChatbotConversationDetail';
 import ChatbotAnalytics from './pages/ChatbotAnalytics';
 import ChatbotConfig from './pages/ChatbotConfig';
+import WellMindDashboard from './pages/WellMind/WellMindDashboard';
+import RiskEmployees from './pages/WellMind/RiskEmployees';
+import QuestionManagement from './pages/WellMind/QuestionManagement';
+import TrendsAnalytics from './pages/WellMind/TrendsAnalytics';
+import InterventionsManagement from './pages/WellMind/InterventionsManagement';
+import TeamMetrics from './pages/WellMind/TeamMetrics';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -110,6 +116,14 @@ function App() {
             <Route path="chatbot/conversations/:id" element={<PermissionGuard permission="faq.edit"><ChatbotConversationDetail /></PermissionGuard>} />
             <Route path="chatbot/analytics" element={<PermissionGuard permission="faq.edit"><ChatbotAnalytics /></PermissionGuard>} />
             <Route path="chatbot/config" element={<PermissionGuard permission="faq.edit"><ChatbotConfig /></PermissionGuard>} />
+
+            {/* WellMind */}
+            <Route path="wellmind" element={<WellMindDashboard />} />
+            <Route path="wellmind/risk-employees" element={<RiskEmployees />} />
+            <Route path="wellmind/questions" element={<QuestionManagement />} />
+            <Route path="wellmind/trends" element={<TrendsAnalytics />} />
+            <Route path="wellmind/interventions" element={<InterventionsManagement />} />
+            <Route path="wellmind/team-metrics" element={<TeamMetrics />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

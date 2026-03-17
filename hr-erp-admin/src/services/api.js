@@ -1549,4 +1549,141 @@ export const salaryAPI = {
   },
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WELLMIND API
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const wellmindAPI = {
+  // Admin Dashboard
+  getDashboard: async (contractorId) => {
+    const params = contractorId ? { contractorId } : {};
+    const response = await api.get('/wellmind/admin/dashboard', { params });
+    return response.data;
+  },
+
+  // Risk Employees
+  getRiskEmployees: async (riskLevel = 'red', contractorId = null) => {
+    const params = {};
+    if (riskLevel) params.risk_level = riskLevel;
+    if (contractorId) params.contractorId = contractorId;
+    const response = await api.get('/wellmind/admin/risk-employees', { params });
+    return response.data;
+  },
+
+  // Trends
+  getTrends: async (startDate, endDate, contractorId) => {
+    const params = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (contractorId) params.contractorId = contractorId;
+    const response = await api.get('/wellmind/admin/trends', { params });
+    return response.data;
+  },
+
+  // Questions
+  getQuestions: async (questionType, isActive) => {
+    const params = {};
+    if (questionType) params.question_type = questionType;
+    if (isActive !== undefined && isActive !== null) params.is_active = isActive;
+    const response = await api.get('/wellmind/admin/questions', { params });
+    return response.data;
+  },
+  createQuestion: async (data) => {
+    const response = await api.post('/wellmind/admin/questions', data);
+    return response.data;
+  },
+  updateQuestion: async (id, data) => {
+    const response = await api.put(`/wellmind/admin/questions/${id}`, data);
+    return response.data;
+  },
+  deleteQuestion: async (id) => {
+    const response = await api.delete(`/wellmind/admin/questions/${id}`);
+    return response.data;
+  },
+
+  // Bulk Intervention
+  bulkIntervention: async (data) => {
+    const response = await api.post('/wellmind/admin/bulk-intervention', data);
+    return response.data;
+  },
+
+  // Team Metrics (Manager)
+  getTeamMetrics: async (teamId, startDate, endDate) => {
+    const params = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get(`/wellmind/team/${teamId}/metrics`, { params });
+    return response.data;
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CAREPATH API
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const carepathAPI = {
+  // Categories
+  getCategories: async () => {
+    const response = await api.get('/carepath/categories');
+    return response.data;
+  },
+
+  // Usage Stats (Admin)
+  getUsageStats: async (startMonth, endMonth, contractorId) => {
+    const params = {};
+    if (startMonth) params.startMonth = startMonth;
+    if (endMonth) params.endMonth = endMonth;
+    if (contractorId) params.contractorId = contractorId;
+    const response = await api.get('/carepath/admin/usage-stats', { params });
+    return response.data;
+  },
+
+  // Providers (Admin)
+  getProviders: async (filters = {}) => {
+    const response = await api.get('/carepath/admin/providers', { params: filters });
+    return response.data;
+  },
+  createProvider: async (data) => {
+    const response = await api.post('/carepath/admin/providers', data);
+    return response.data;
+  },
+  updateProvider: async (id, data) => {
+    const response = await api.put(`/carepath/admin/providers/${id}`, data);
+    return response.data;
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WELLBEING INTEGRATION API
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const wellbeingAPI = {
+  // Notifications
+  getNotifications: async (filters = {}) => {
+    const response = await api.get('/wellbeing/notifications', { params: filters });
+    return response.data;
+  },
+  markAsRead: async (id) => {
+    const response = await api.put(`/wellbeing/notifications/${id}/read`);
+    return response.data;
+  },
+  markAllAsRead: async () => {
+    const response = await api.put('/wellbeing/notifications/read-all');
+    return response.data;
+  },
+
+  // Referrals
+  getMyReferrals: async (status) => {
+    const params = status ? { status } : {};
+    const response = await api.get('/wellbeing/my-referrals', { params });
+    return response.data;
+  },
+
+  // Feedback
+  submitFeedback: async (data) => {
+    const response = await api.post('/wellbeing/feedback', data);
+    return response.data;
+  },
+};
+
 export default api;

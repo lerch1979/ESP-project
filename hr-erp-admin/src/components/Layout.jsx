@@ -58,6 +58,12 @@ import {
   ListAlt as ListAltIcon,
   AutoAwesome as AutoAssignIcon,
   MonetizationOn as MonetizationOnIcon,
+  Psychology as PsychologyIcon,
+  Warning as WarningIcon,
+  Timeline as TimelineIcon,
+  Campaign as CampaignIcon,
+  Quiz as QuizIcon,
+  Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -117,6 +123,16 @@ const allMenuItems = [
       { text: 'Beszélgetések', icon: <ChatIcon />, path: '/chatbot/conversations', permission: 'faq.edit' },
       { text: 'Analitika', icon: <BarChartIcon />, path: '/chatbot/analytics', permission: 'faq.edit' },
       { text: 'Konfiguráció', icon: <SmartToyIcon />, path: '/chatbot/config', permission: 'faq.edit' },
+    ],
+  },
+  {
+    text: 'WellMind', icon: <PsychologyIcon />, permission: 'dashboard.view', children: [
+      { text: 'Dashboard', icon: <PsychologyIcon />, path: '/wellmind', permission: 'dashboard.view' },
+      { text: 'Kockázatos munkavállalók', icon: <WarningIcon />, path: '/wellmind/risk-employees', permission: 'dashboard.view' },
+      { text: 'Trend elemzés', icon: <TimelineIcon />, path: '/wellmind/trends', permission: 'dashboard.view' },
+      { text: 'Kérdések', icon: <QuizIcon />, path: '/wellmind/questions', permission: 'dashboard.view' },
+      { text: 'Intervenciók', icon: <CampaignIcon />, path: '/wellmind/interventions', permission: 'dashboard.view' },
+      { text: 'Csapat metrikák', icon: <GroupsIcon />, path: '/wellmind/team-metrics', permission: 'dashboard.view' },
     ],
   },
   {
