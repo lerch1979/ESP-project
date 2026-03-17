@@ -64,6 +64,7 @@ const MIGRATIONS = [
   { id: '055', name: 'complete_audit_triggers',      file: 'migrations/055_complete_audit_triggers.sql' },
   { id: '056', name: 'password_policies',            file: 'migrations/056_password_policies.sql' },
   { id: '057', name: 'row_level_security',           file: 'migrations/057_row_level_security.sql' },
+  { id: '058', name: 'blue_colibri_schema',          file: 'migrations/058_blue_colibri_schema.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)

@@ -121,41 +121,51 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- salary_bands: admin/superadmin only, or own contractor
+-- salary_bands: admin/superadmin only, or own contractor (only if contractor_id column exists)
 DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'salary_bands') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'salary_bands' AND column_name = 'contractor_id') THEN
     ALTER TABLE salary_bands ENABLE ROW LEVEL SECURITY;
     ALTER TABLE salary_bands FORCE ROW LEVEL SECURITY;
-  END IF;
-END $$;
-
-DROP POLICY IF EXISTS salary_bands_rls_policy ON salary_bands;
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'salary_bands') THEN
+    EXECUTE 'DROP POLICY IF EXISTS salary_bands_rls_policy ON salary_bands';
     EXECUTE 'CREATE POLICY salary_bands_rls_policy ON salary_bands
       USING (
         app_is_superadmin()
         OR app_current_role() IN (''admin'', ''data_controller'')
         OR contractor_id = app_current_contractor_id()
       )';
+  ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'salary_bands') THEN
+    -- Table exists but no contractor_id — apply admin-only RLS
+    ALTER TABLE salary_bands ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE salary_bands FORCE ROW LEVEL SECURITY;
+    EXECUTE 'DROP POLICY IF EXISTS salary_bands_rls_policy ON salary_bands';
+    EXECUTE 'CREATE POLICY salary_bands_rls_policy ON salary_bands
+      USING (
+        app_is_superadmin()
+        OR app_current_role() IN (''admin'', ''data_controller'')
+      )';
   END IF;
 END $$;
 
--- documents: contractor isolation
+-- documents: contractor isolation (only if contractor_id column exists)
 DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'documents' AND column_name = 'contractor_id') THEN
     ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
     ALTER TABLE documents FORCE ROW LEVEL SECURITY;
-  END IF;
-END $$;
-
-DROP POLICY IF EXISTS documents_rls_policy ON documents;
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') THEN
+    EXECUTE 'DROP POLICY IF EXISTS documents_rls_policy ON documents';
     EXECUTE 'CREATE POLICY documents_rls_policy ON documents
       USING (
         app_is_superadmin()
         OR contractor_id = app_current_contractor_id()
+      )';
+  ELSIF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') THEN
+    -- Table exists but no contractor_id — apply permissive policy
+    ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE documents FORCE ROW LEVEL SECURITY;
+    EXECUTE 'DROP POLICY IF EXISTS documents_rls_policy ON documents';
+    EXECUTE 'CREATE POLICY documents_rls_policy ON documents
+      USING (
+        app_is_superadmin()
+        OR app_current_role() IN (''admin'', ''data_controller'')
       )';
   END IF;
 END $$;
