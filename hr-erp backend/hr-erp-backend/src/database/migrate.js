@@ -68,6 +68,7 @@ const MIGRATIONS = [
   { id: '059', name: 'eap_schema',                  file: 'migrations/059_eap_schema.sql' },
   { id: '060', name: 'wellbeing_integration',        file: 'migrations/060_wellbeing_integration_schema.sql' },
   { id: '061', name: 'comprehensive_seed_data',      file: 'migrations/061_comprehensive_seed_data.sql' },
+  { id: '062', name: 'rename_wellmind_carepath',     file: 'migrations/062_rename_wellmind_carepath.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)
