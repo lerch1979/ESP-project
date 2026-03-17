@@ -52,6 +52,7 @@ const invoiceDraftRoutes = require('./routes/invoiceDraft.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const emailInboxRoutes = require('./routes/emailInbox.routes');
 const salaryRoutes = require('./routes/salary.routes');
+const wellmindRoutes = require('./routes/wellmind.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 const cron = require('node-cron');
@@ -203,6 +204,7 @@ app.use(`${API_PREFIX}/payments`, paymentRoutes);
 app.use(`${API_PREFIX}/invoice-drafts`, invoiceDraftRoutes);
 app.use(`${API_PREFIX}/email-inbox`, emailInboxRoutes);
 app.use(`${API_PREFIX}/salary`, salaryRoutes);
+app.use(`${API_PREFIX}/wellmind`, wellmindRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
