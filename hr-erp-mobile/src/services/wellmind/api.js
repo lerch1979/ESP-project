@@ -43,10 +43,9 @@ export const assessment = {
     return response.data;
   },
 
-  /** Get active assessment questions. */
+  /** Get active assessment questions (employee-accessible endpoint). */
   getQuestions: async () => {
-    const response = await apiInstance.get('/wellmind/admin/questions', {
-      params: { question_type: 'assessment', is_active: 'true' },
+    const response = await apiInstance.get('/wellmind/assessment/questions', {
     });
     return response.data;
   },

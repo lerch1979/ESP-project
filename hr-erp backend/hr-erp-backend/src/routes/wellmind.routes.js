@@ -17,6 +17,7 @@ router.get('/pulse/today', ctrl.getTodayPulse);
 // Assessments
 router.post('/assessment', ctrl.submitAssessment);
 router.get('/assessment/history', ctrl.getAssessmentHistory);
+router.get('/assessment/questions', ctrl.getAssessmentQuestions);
 
 // Dashboard
 router.get('/my-dashboard', ctrl.getMyDashboard);

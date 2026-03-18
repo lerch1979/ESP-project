@@ -574,9 +574,25 @@ const bulkIntervention = async (req, res) => {
   }
 };
 
+/** GET /api/v1/wellmind/assessment/questions — public endpoint for employees */
+const getAssessmentQuestions = async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, question_text, question_text_en, response_type, category, display_order
+       FROM wellmind_questions
+       WHERE question_type = 'assessment' AND is_active = true
+       ORDER BY display_order, created_at`
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('Error fetching assessment questions:', error);
+    res.status(500).json({ success: false, message: 'Hiba történt' });
+  }
+};
+
 module.exports = {
   submitPulse, getPulseHistory, getTodayPulse,
-  submitAssessment, getAssessmentHistory,
+  submitAssessment, getAssessmentHistory, getAssessmentQuestions,
   getMyDashboard,
   getInterventions, acceptIntervention, completeIntervention, skipIntervention,
   getCoachingSessions, rateCoachingSession,
