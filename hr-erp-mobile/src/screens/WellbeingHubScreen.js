@@ -70,6 +70,8 @@ export default function WellbeingHubScreen({ navigation }) {
           { icon: 'clipboard-outline', label: 'Felmérés', screen: 'Assessment', color: '#9C27B0' },
           { icon: 'bulb-outline', label: 'Beavatkozások', screen: 'Interventions', color: colors.warning },
           { icon: 'people-outline', label: 'Coaching', screen: 'CoachingSessions', color: colors.success },
+          { icon: 'time-outline', label: 'Túlóra nyomon követés', screen: 'OvertimeTracker', color: '#f97316' },
+          { icon: 'home-outline', label: 'Szállás visszajelzés', screen: 'HousingFeedback', color: '#00BCD4' },
         ].map((a) => (
           <TouchableOpacity key={a.screen} style={styles.actionRow} onPress={() => navigation.navigate(a.screen)}>
             <View style={[styles.actionIconSmall, { backgroundColor: a.color + '15' }]}>

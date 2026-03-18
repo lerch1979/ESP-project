@@ -10,6 +10,10 @@ import AssessmentScreen from '../screens/WellMind/AssessmentScreen';
 import AssessmentResultsScreen from '../screens/WellMind/AssessmentResultsScreen';
 import InterventionsScreen from '../screens/WellMind/InterventionsScreen';
 import CoachingSessionsScreen from '../screens/WellMind/CoachingSessionsScreen';
+import OvertimeTrackerScreen from '../screens/WellMind/OvertimeTrackerScreen';
+
+// Housing screens
+import HousingFeedbackScreen from '../screens/Housing/HousingFeedbackScreen';
 
 // CarePath screens
 import CarePathDashboard from '../screens/CarePath/CarePathDashboard';
@@ -45,6 +49,10 @@ export default function WellbeingStackNavigator() {
       <Stack.Screen name="AssessmentResults" component={AssessmentResultsScreen} options={{ title: 'Eredmények' }} />
       <Stack.Screen name="Interventions" component={InterventionsScreen} options={{ title: 'Beavatkozások' }} />
       <Stack.Screen name="CoachingSessions" component={CoachingSessionsScreen} options={{ title: 'Coaching' }} />
+      <Stack.Screen name="OvertimeTracker" component={OvertimeTrackerScreen} options={{ title: 'Túlóra' }} />
+
+      {/* Housing */}
+      <Stack.Screen name="HousingFeedback" component={HousingFeedbackScreen} options={{ title: 'Szállás visszajelzés' }} />
 
       {/* CarePath */}
       <Stack.Screen name="CarePathDashboard" component={CarePathDashboard} options={{ title: 'CarePath' }} />

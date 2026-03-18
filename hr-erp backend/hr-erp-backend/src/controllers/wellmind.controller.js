@@ -590,10 +590,60 @@ const getAssessmentQuestions = async (req, res) => {
   }
 };
 
+/** GET /api/v1/wellmind/overtime/my — Employee overtime history */
+const getMyOvertime = async (req, res) => {
+  try {
+    const months = Math.min(parseInt(req.query.months) || 6, 12);
+    const result = await query(
+      `SELECT month, total_hours, days_worked, overtime_hours, overtime_category
+       FROM v_employee_overtime
+       WHERE user_id = $1
+       ORDER BY month DESC
+       LIMIT $2`,
+      [req.user.id, months]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('Error fetching overtime:', error);
+    res.json({ success: true, data: [] });
+  }
+};
+
+/** GET /api/v1/wellmind/admin/overtime-correlation */
+const getOvertimeCorrelation = async (req, res) => {
+  try {
+    const contractorId = req.query.contractorId || req.user.contractorId;
+    const result = await query(
+      `SELECT * FROM v_overtime_burnout_correlation WHERE contractor_id = $1`,
+      [contractorId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('Error fetching overtime correlation:', error);
+    res.json({ success: true, data: [] });
+  }
+};
+
+/** GET /api/v1/wellmind/admin/sick-leave-correlation */
+const getSickLeaveCorrelation = async (req, res) => {
+  try {
+    const contractorId = req.query.contractorId || req.user.contractorId;
+    const result = await query(
+      `SELECT * FROM v_sick_leave_correlation WHERE contractor_id = $1`,
+      [contractorId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logger.error('Error fetching sick leave correlation:', error);
+    res.json({ success: true, data: [] });
+  }
+};
+
 module.exports = {
   submitPulse, getPulseHistory, getTodayPulse,
   submitAssessment, getAssessmentHistory, getAssessmentQuestions,
   getMyDashboard,
+  getMyOvertime, getOvertimeCorrelation, getSickLeaveCorrelation,
   getInterventions, acceptIntervention, completeIntervention, skipIntervention,
   getCoachingSessions, rateCoachingSession,
   getTeamMetrics,

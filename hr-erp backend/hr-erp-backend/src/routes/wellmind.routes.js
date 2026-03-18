@@ -22,6 +22,19 @@ router.get('/assessment/questions', ctrl.getAssessmentQuestions);
 // Dashboard
 router.get('/my-dashboard', ctrl.getMyDashboard);
 
+// Overtime (employee)
+router.get('/overtime/my', ctrl.getMyOvertime);
+
+// Admin: overtime & sick leave analytics
+router.get('/admin/overtime-correlation',
+  checkPermission('blue_colibri.admin.view'),
+  ctrl.getOvertimeCorrelation
+);
+router.get('/admin/sick-leave-correlation',
+  checkPermission('blue_colibri.admin.view'),
+  ctrl.getSickLeaveCorrelation
+);
+
 // Interventions
 router.get('/interventions', ctrl.getInterventions);
 router.post('/interventions/:id/accept', ctrl.acceptIntervention);
