@@ -35,6 +35,7 @@ import CaseDetailsScreen from '../screens/CarePath/CaseDetailsScreen';
 import ProviderSearchScreen from '../screens/CarePath/ProviderSearchScreen';
 import ProviderDetailsScreen from '../screens/CarePath/ProviderDetailsScreen';
 import BookingScreen from '../screens/CarePath/BookingScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -84,6 +85,7 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="ProviderSearch" component={ProviderSearchScreen} options={{ title: 'Szolgáltató keresés' }} />
       <Stack.Screen name="ProviderDetails" component={ProviderDetailsScreen} options={{ title: 'Szolgáltató' }} />
       <Stack.Screen name="Booking" component={BookingScreen} options={{ title: 'Időpont foglalás' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Értesítések' }} />
     </Stack.Navigator>
   );
 }

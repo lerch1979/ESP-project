@@ -10,6 +10,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { dashboardAPI, taskAPI, projectAPI } from '../services/api';
+import wellmindAPI from '../services/wellmind/api';
+import { normalizeRisk, riskColor, num } from '../components/WellMind/helpers';
+import { MOOD_EMOJIS } from '../components/WellMind/MoodSelector';
 import { colors } from '../constants/colors';
 import StatCard from '../components/StatCard';
 import TicketCard from '../components/TicketCard';
@@ -24,6 +27,7 @@ export default function DashboardScreen() {
   const [stats, setStats] = useState(null);
   const [myTasks, setMyTasks] = useState([]);
   const [activeProjects, setActiveProjects] = useState([]);
+  const [wellmind, setWellmind] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -31,14 +35,16 @@ export default function DashboardScreen() {
   const fetchStats = useCallback(async () => {
     try {
       setError(null);
-      const [statsRes, tasksRes, projectsRes] = await Promise.all([
+      const [statsRes, tasksRes, projectsRes, wmRes] = await Promise.all([
         dashboardAPI.getStats(),
         taskAPI.getAll({ my_tasks: true, status: 'in_progress', limit: 5 }).catch(() => ({ data: [] })),
         projectAPI.getAll({ status: 'active', limit: 3 }).catch(() => ({ data: [] })),
+        wellmindAPI.dashboard.get().catch(() => ({ data: null })),
       ]);
       setStats(statsRes.data);
       setMyTasks(tasksRes.data || []);
       setActiveProjects(projectsRes.data || []);
+      setWellmind(wmRes.data);
     } catch (err) {
       setError('Nem sikerült betölteni az adatokat');
     } finally {
@@ -166,6 +172,46 @@ export default function DashboardScreen() {
         </ExpandableSection>
       )}
 
+      {/* Wellbeing Quick Card */}
+      <View style={styles.wellbeingCard}>
+        <View style={styles.wellbeingHeader}>
+          <Ionicons name="heart" size={20} color={colors.primary} />
+          <Text style={styles.wellbeingSectionTitle}>Jóllét</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Wellbeing')}>
+            <Text style={styles.seeAllText}>Részletek</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.wellbeingRow}>
+          <TouchableOpacity
+            style={styles.wellbeingItem}
+            onPress={() => navigation.navigate('Wellbeing', { screen: 'DailyPulse' })}
+          >
+            <Text style={styles.wellbeingEmoji}>
+              {wellmind?.pulse_today?.mood_score ? MOOD_EMOJIS[wellmind.pulse_today.mood_score] : '😶'}
+            </Text>
+            <Text style={styles.wellbeingLabel}>
+              {wellmind?.pulse_today?.mood_score ? 'Mai hangulat' : 'Check-in'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.wellbeingItem}
+            onPress={() => navigation.navigate('Wellbeing', { screen: 'WellMindDashboard' })}
+          >
+            <Text style={[styles.wellbeingScore, { color: riskColor(wellmind?.health_status) }]}>
+              {num(wellmind?.health_score) || '–'}
+            </Text>
+            <Text style={styles.wellbeingLabel}>Wellbeing</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.wellbeingItem}
+            onPress={() => navigation.navigate('Wellbeing', { screen: 'CreateCase' })}
+          >
+            <Ionicons name="shield-checkmark-outline" size={28} color="#2196F3" />
+            <Text style={styles.wellbeingLabel}>Segítség</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Legutóbbi hibajegyek</Text>
         {recentTickets?.length > 0 ? (
@@ -249,5 +295,50 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 20,
+  },
+  wellbeingCard: {
+    backgroundColor: colors.white,
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  wellbeingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  wellbeingSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  wellbeingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  wellbeingItem: {
+    alignItems: 'center',
+    padding: 8,
+  },
+  wellbeingEmoji: {
+    fontSize: 28,
+  },
+  wellbeingScore: {
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  wellbeingLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginTop: 4,
   },
 });

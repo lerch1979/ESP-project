@@ -145,6 +145,21 @@ export default function AssessmentResultsScreen({ navigation, route }) {
         </View>
       )}
 
+      {/* Cross-module CTA for high risk */}
+      {(risk === 'red' || risk === 'yellow') && (
+        <TouchableOpacity
+          style={styles.helpCard}
+          onPress={() => navigation.navigate('CreateCase')}
+        >
+          <Ionicons name="shield-checkmark-outline" size={24} color="#2196F3" />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.helpTitle}>Segítségre van szükséged?</Text>
+            <Text style={styles.helpDesc}>A CarePath programon keresztül professzionális támogatást kaphatsz.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+        </TouchableOpacity>
+      )}
+
       {/* History */}
       {history.length > 1 && (
         <View style={styles.card}>
@@ -195,4 +210,10 @@ const styles = StyleSheet.create({
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   historyQ: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 },
   historyVal: { fontSize: 12, color: colors.textSecondary },
+  helpCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#2196F3' + '10', marginHorizontal: 16,
+    marginBottom: 12, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#2196F3' + '25',
+  },
+  helpTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
+  helpDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 });

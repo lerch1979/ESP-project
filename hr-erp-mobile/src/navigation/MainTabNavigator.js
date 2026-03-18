@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import TicketStackNavigator from './TicketStackNavigator';
 import EmployeeStackNavigator from './EmployeeStackNavigator';
-import ChatbotStackNavigator from './ChatbotStackNavigator';
+import WellbeingStackNavigator from './WellbeingStackNavigator';
 import MoreStackNavigator from './MoreStackNavigator';
 import { colors } from '../constants/colors';
 
@@ -14,7 +14,7 @@ const tabIcons = {
   Dashboard: 'home',
   Tickets: 'ticket',
   Employees: 'people',
-  Chatbot: 'chatbubble-ellipses',
+  Wellbeing: 'heart',
   More: 'ellipsis-horizontal',
 };
 
@@ -48,19 +48,19 @@ export default function MainTabNavigator() {
         options={{ headerShown: false, title: 'Hibajegyek' }}
       />
       <Tab.Screen
+        name="Wellbeing"
+        component={WellbeingStackNavigator}
+        options={{ headerShown: false, title: 'Jóllét' }}
+      />
+      <Tab.Screen
         name="Employees"
         component={EmployeeStackNavigator}
         options={{ headerShown: false, title: 'Munkavállalók' }}
       />
       <Tab.Screen
-        name="Chatbot"
-        component={ChatbotStackNavigator}
-        options={{ headerShown: false, title: 'Segitseg' }}
-      />
-      <Tab.Screen
         name="More"
         component={MoreStackNavigator}
-        options={{ headerShown: false, title: 'Tovabbiak' }}
+        options={{ headerShown: false, title: 'Továbbiak' }}
       />
     </Tab.Navigator>
   );

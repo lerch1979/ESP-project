@@ -144,6 +144,19 @@ export default function CaseDetailsScreen({ navigation, route }) {
         </View>
       )}
 
+      {/* Cross-module: Track wellbeing */}
+      <TouchableOpacity
+        style={styles.wellbeingLink}
+        onPress={() => navigation.navigate('WellMindDashboard')}
+      >
+        <Ionicons name="heart-outline" size={20} color={colors.primary} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.wellbeingLinkTitle}>Kövesd a jólléted</Text>
+          <Text style={styles.wellbeingLinkDesc}>Napi hangulat check-in és wellbeing dashboard</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+      </TouchableOpacity>
+
       <View style={{ height: 30 }} />
 
       {/* Close Modal */}
@@ -226,4 +239,10 @@ const styles = StyleSheet.create({
   modalCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: 15 },
   modalSubmit: { flex: 1, backgroundColor: colors.error, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   modalSubmitText: { color: colors.white, fontWeight: '600', fontSize: 15 },
+  wellbeingLink: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '08', marginHorizontal: 16,
+    marginBottom: 12, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.primary + '20',
+  },
+  wellbeingLinkTitle: { fontSize: 14, fontWeight: '600', color: colors.text },
+  wellbeingLinkDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
 });

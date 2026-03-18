@@ -50,6 +50,7 @@ const menuSections = [
   {
     title: 'Kommunikáció',
     items: [
+      { key: 'notifications', icon: 'notifications-outline', label: 'Értesítések', screen: 'Notifications' },
       { key: 'chatbot', icon: 'chatbubbles-outline', label: 'Chatbot', screen: 'ChatbotChat' },
       { key: 'chatbotHistory', icon: 'time-outline', label: 'Korábbi beszélgetések', screen: 'ChatbotList' },
       { key: 'faq', icon: 'help-circle-outline', label: 'FAQ / GYIK', screen: 'FAQ' },
