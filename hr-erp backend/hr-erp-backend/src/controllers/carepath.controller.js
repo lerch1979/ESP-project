@@ -2,6 +2,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const carepathService = require('../services/carepath.service');
 const integrationService = require('../services/wellbeingIntegration.service');
+const gamificationService = require('../services/gamification.service');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EMPLOYEE ENDPOINTS
@@ -131,6 +132,11 @@ const closeCase = async (req, res) => {
     } catch (e) {
       logger.warn('Follow-up notification scheduling failed:', e.message);
     }
+
+    // Award gamification points for case resolution
+    gamificationService.awardPoints(
+      req.user.id, req.user.contractorId, 'carepath_case_resolved', req.params.id
+    ).catch(err => logger.error('Gamification error (carepath):', err));
 
     res.json({ success: true, data: { case: closedCase, followup_scheduled: true } });
   } catch (error) {

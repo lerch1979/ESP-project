@@ -14,6 +14,8 @@ const menuSections = [
       { key: 'assessment', icon: 'clipboard-outline', label: 'Negyedéves felmérés', screen: 'Assessment' },
       { key: 'interventions', icon: 'bulb-outline', label: 'Beavatkozások', screen: 'Interventions' },
       { key: 'coaching', icon: 'people-outline', label: 'Coaching', screen: 'CoachingSessions' },
+      { key: 'badges', icon: 'medal-outline', label: 'Jelvények', screen: 'BadgeCollection' },
+      { key: 'leaderboard', icon: 'podium-outline', label: 'Ranglista', screen: 'Leaderboard' },
     ],
   },
   {

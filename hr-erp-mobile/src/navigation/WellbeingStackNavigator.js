@@ -25,6 +25,10 @@ import ProviderSearchScreen from '../screens/CarePath/ProviderSearchScreen';
 import ProviderDetailsScreen from '../screens/CarePath/ProviderDetailsScreen';
 import BookingScreen from '../screens/CarePath/BookingScreen';
 
+// Gamification screens
+import BadgeCollectionScreen from '../screens/Gamification/BadgeCollectionScreen';
+import LeaderboardScreen from '../screens/Gamification/LeaderboardScreen';
+
 // Hub screen
 import WellbeingHubScreen from '../screens/WellbeingHubScreen';
 
@@ -50,6 +54,10 @@ export default function WellbeingStackNavigator() {
       <Stack.Screen name="Interventions" component={InterventionsScreen} options={{ title: 'Beavatkozások' }} />
       <Stack.Screen name="CoachingSessions" component={CoachingSessionsScreen} options={{ title: 'Coaching' }} />
       <Stack.Screen name="OvertimeTracker" component={OvertimeTrackerScreen} options={{ title: 'Túlóra' }} />
+
+      {/* Gamification */}
+      <Stack.Screen name="BadgeCollection" component={BadgeCollectionScreen} options={{ title: 'Jelvények' }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Ranglista' }} />
 
       {/* Housing */}
       <Stack.Screen name="HousingFeedback" component={HousingFeedbackScreen} options={{ title: 'Szállás visszajelzés' }} />

@@ -2,6 +2,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const wellmindService = require('../services/wellmind.service');
 const integrationService = require('../services/wellbeingIntegration.service');
+const gamificationService = require('../services/gamification.service');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EMPLOYEE ENDPOINTS
@@ -17,7 +18,16 @@ const submitPulse = async (req, res) => {
       { mood_score, stress_level, sleep_quality, workload_level, notes }
     );
 
-    res.status(201).json({ success: true, data: pulse });
+    // Award gamification points + update streak
+    const pointsEarned = await gamificationService.awardPoints(
+      req.user.id, req.user.contractorId, 'pulse_survey', pulse.id
+    ).catch(err => { logger.error('Gamification error (pulse):', err); return 0; });
+
+    const streak = await gamificationService.updateStreak(
+      req.user.id, 'pulse_survey'
+    ).catch(err => { logger.error('Gamification streak error:', err); return null; });
+
+    res.status(201).json({ success: true, data: { ...pulse, gamification: { pointsEarned, streak } } });
   } catch (error) {
     if (error.message.includes('mood_score')) {
       return res.status(400).json({ success: false, message: error.message });
@@ -99,6 +109,11 @@ const submitAssessment = async (req, res) => {
 
     // Get generated interventions
     const interventions = await wellmindService.getRecommendedInterventions(req.user.id);
+
+    // Award gamification points
+    await gamificationService.awardPoints(
+      req.user.id, req.user.contractorId, 'assessment_complete', assessment.id
+    ).catch(err => logger.error('Gamification error (assessment):', err));
 
     res.status(201).json({
       success: true,
@@ -211,6 +226,12 @@ const completeIntervention = async (req, res) => {
     const intervention = await wellmindService.completeIntervention(
       req.params.id, req.user.id, completion_notes, effectiveness_rating
     );
+
+    // Award gamification points for intervention completion
+    gamificationService.awardPoints(
+      req.user.id, req.user.contractorId, 'intervention_complete', req.params.id
+    ).catch(err => logger.error('Gamification error (intervention complete):', err));
+
     res.json({ success: true, data: intervention });
   } catch (error) {
     if (error.message.includes('not found')) {
@@ -265,6 +286,12 @@ const rateCoachingSession = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Értékelés 1-5 között legyen' });
     }
     const session = await wellmindService.rateCoachingSession(req.params.id, req.user.id, rating, feedback);
+
+    // Award gamification points for coaching session
+    gamificationService.awardPoints(
+      req.user.id, req.user.contractorId, 'coaching_session', req.params.id
+    ).catch(err => logger.error('Gamification error (coaching):', err));
+
     res.json({ success: true, data: session });
   } catch (error) {
     if (error.message.includes('not found') || error.message.includes('not completed')) {

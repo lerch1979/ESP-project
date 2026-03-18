@@ -6,21 +6,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../constants/colors';
 import wellmindAPI from '../../services/wellmind/api';
+import gamificationAPI from '../../services/gamification/api';
 import WellbeingGauge from '../../components/WellMind/WellbeingGauge';
 import { MOOD_EMOJIS } from '../../components/WellMind/MoodSelector';
 import RiskBadge from '../../components/WellMind/RiskBadge';
 import { normalizeRisk, num, burnoutColor, engagementColor } from '../../components/WellMind/helpers';
+import StreakDisplay from '../../components/Gamification/StreakDisplay';
+import BadgeCarousel from '../../components/Gamification/BadgeCarousel';
 
 export default function WellMindDashboard({ navigation }) {
   const [data, setData] = useState(null);
+  const [gamification, setGamification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchDashboard = useCallback(async () => {
     try {
       setError(null);
-      const response = await wellmindAPI.dashboard.get();
-      setData(response.data);
+      const [dashResponse, gamResponse] = await Promise.all([
+        wellmindAPI.dashboard.get(),
+        gamificationAPI.getMyStats().catch(() => ({ data: null })),
+      ]);
+      setData(dashResponse.data);
+      setGamification(gamResponse.data);
     } catch {
       setError('Nem sikerült betölteni az adatokat.');
     } finally {
@@ -63,6 +71,41 @@ export default function WellMindDashboard({ navigation }) {
           strokeWidth={12}
         />
       </View>
+
+      {/* Gamification Stats */}
+      {gamification && (
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Gamification</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('BadgeCollection')}>
+              <Text style={styles.linkText}>Jelvények</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.gamificationRow}>
+            <View style={styles.gamStat}>
+              <Ionicons name="star" size={20} color={colors.warning} />
+              <Text style={styles.gamValue}>{(gamification.points || 0).toLocaleString('hu-HU')}</Text>
+              <Text style={styles.gamLabel}>pont</Text>
+            </View>
+            <StreakDisplay
+              currentStreak={gamification.currentStreak}
+              longestStreak={gamification.longestStreak}
+              compact
+            />
+            <View style={styles.gamStat}>
+              <Ionicons name="medal" size={20} color={colors.primary} />
+              <Text style={styles.gamValue}>{gamification.badgesEarned?.length || 0}</Text>
+              <Text style={styles.gamLabel}>jelvény</Text>
+            </View>
+          </View>
+          {gamification.badgesEarned?.length > 0 && (
+            <BadgeCarousel
+              earned={gamification.badgesEarned}
+              available={gamification.badgesAvailable}
+            />
+          )}
+        </View>
+      )}
 
       {/* Daily Pulse */}
       <View style={styles.card}>
@@ -188,7 +231,7 @@ export default function WellMindDashboard({ navigation }) {
         {[
           { icon: 'stats-chart-outline', label: 'Trend', screen: 'PulseHistory' },
           { icon: 'clipboard-outline', label: 'Felmérés', screen: 'Assessment' },
-          { icon: 'people-outline', label: 'Coaching', screen: 'CoachingSessions' },
+          { icon: 'podium-outline', label: 'Ranglista', screen: 'Leaderboard' },
         ].map((a) => (
           <TouchableOpacity key={a.screen} style={styles.actionBtn} onPress={() => navigation.navigate(a.screen)}>
             <Ionicons name={a.icon} size={24} color={colors.primary} />
@@ -234,6 +277,10 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 12 },
   listTitle: { fontSize: 14, fontWeight: '500', color: colors.text },
   listSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  gamificationRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 8 },
+  gamStat: { alignItems: 'center', gap: 4 },
+  gamValue: { fontSize: 18, fontWeight: '700', color: colors.text },
+  gamLabel: { fontSize: 11, color: colors.textSecondary },
   actionsRow: { flexDirection: 'row', justifyContent: 'space-around', marginHorizontal: 16, marginTop: 8 },
   actionBtn: {
     alignItems: 'center', padding: 16, backgroundColor: colors.white, borderRadius: 12, minWidth: 100,
