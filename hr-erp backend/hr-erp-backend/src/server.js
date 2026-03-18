@@ -57,8 +57,10 @@ const carepathRoutes = require('./routes/carepath.routes');
 const wellbeingIntegrationRoutes = require('./routes/wellbeingIntegration.routes');
 const housingRoutes = require('./routes/housing.routes');
 const gamificationRoutes = require('./routes/gamification.routes');
+const slackRoutes = require('./routes/slack.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
+const slackBotService = require('./services/slack/slackBot.service');
 const cron = require('node-cron');
 const gmailUniversalPoller = require('./services/gmailUniversalPoller.service');
 
@@ -213,6 +215,7 @@ app.use(`${API_PREFIX}/carepath`, carepathRoutes);
 app.use(`${API_PREFIX}/wellbeing`, wellbeingIntegrationRoutes);
 app.use(`${API_PREFIX}/housing`, housingRoutes);
 app.use(`${API_PREFIX}/gamification`, gamificationRoutes);
+app.use(`${API_PREFIX}/slack`, slackRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
@@ -252,6 +255,17 @@ async function startServer() {
 
     // Start report scheduler
     startScheduler();
+
+    // Initialize Slack bot (if token set)
+    if (process.env.SLACK_BOT_TOKEN) {
+      slackBotService.initialize().then(() => {
+        logger.info('💬 Slack bot initialized');
+      }).catch(err => {
+        logger.warn('💬 Slack bot init skipped:', err.message);
+      });
+    } else {
+      logger.info('💬 Slack integration disabled (SLACK_BOT_TOKEN not set)');
+    }
 
     // Start Gmail universal polling (every 5 minutes)
     if (process.env.GMAIL_REFRESH_TOKEN) {

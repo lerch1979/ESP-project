@@ -50,6 +50,7 @@ import ProviderDirectory from './pages/CarePath/ProviderDirectory';
 import CasesManagement from './pages/CarePath/CasesManagement';
 import BookingsOverview from './pages/CarePath/BookingsOverview';
 import ServiceCategories from './pages/CarePath/ServiceCategories';
+import SlackIntegration from './pages/SlackIntegration';
 import WellMindDashboard from './pages/WellMind/WellMindDashboard';
 import RiskEmployees from './pages/WellMind/RiskEmployees';
 import QuestionManagement from './pages/WellMind/QuestionManagement';
@@ -128,6 +129,9 @@ function App() {
             <Route path="carepath/cases" element={<CasesManagement />} />
             <Route path="carepath/bookings" element={<BookingsOverview />} />
             <Route path="carepath/categories" element={<ServiceCategories />} />
+
+            {/* Slack Integration */}
+            <Route path="slack" element={<PermissionGuard permission="settings.edit"><SlackIntegration /></PermissionGuard>} />
 
             {/* WellMind */}
             <Route path="wellmind" element={<WellMindDashboard />} />

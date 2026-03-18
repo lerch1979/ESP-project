@@ -68,6 +68,7 @@ import {
   Folder as FolderIcon,
   EventNote as EventNoteIcon,
   LocalHospital as LocalHospitalIcon,
+  Forum as SlackIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
@@ -147,6 +148,9 @@ const allMenuItems = [
       { text: 'Foglalások', icon: <EventNoteIcon />, path: '/carepath/bookings', permission: 'dashboard.view' },
       { text: 'Kategóriák', icon: <CategoryIcon />, path: '/carepath/categories', permission: 'dashboard.view' },
     ],
+  },
+  {
+    text: 'Slack', icon: <SlackIcon />, path: '/slack', permission: 'settings.edit',
   },
   {
     text: 'FAQ Kezelés', icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [

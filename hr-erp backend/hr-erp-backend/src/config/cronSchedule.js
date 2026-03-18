@@ -1,4 +1,5 @@
 const cron = require('node-cron');
+const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const {
   dailyPulseReminder,
@@ -10,6 +11,7 @@ const {
   processNotificationQueue,
   refreshWellbeingSummary,
 } = require('../services/cron/wellbeingCronJobs');
+const slackBotService = require('../services/slack/slackBot.service');
 
 const TZ = 'Europe/Budapest';
 
@@ -38,7 +40,18 @@ function initializeWellbeingCronJobs() {
   // 8. Refresh materialized view — 3:00 AM daily
   cron.schedule('0 3 * * *', wrap('refreshWellbeingSummary', refreshWellbeingSummary), { timezone: TZ });
 
-  logger.info('[CRON] Wellbeing cron jobs initialized (8 jobs)');
+  // 9. Daily Slack check-in — 9:00 AM Mon-Fri (sends to all enabled contractors)
+  cron.schedule('0 9 * * 1-5', wrap('slackDailyCheckIn', async () => {
+    const configs = await query(
+      `SELECT contractor_id FROM slack_checkin_config WHERE enabled = true`
+    );
+    for (const config of configs.rows) {
+      const result = await slackBotService.sendDailyCheckIn(config.contractor_id);
+      logger.info(`[SLACK] Check-ins for contractor ${config.contractor_id}: sent=${result.sent}`);
+    }
+  }), { timezone: TZ });
+
+  logger.info('[CRON] Wellbeing cron jobs initialized (9 jobs)');
 }
 
 function wrap(name, fn) {

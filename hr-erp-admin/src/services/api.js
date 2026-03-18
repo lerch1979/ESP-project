@@ -1686,4 +1686,39 @@ export const wellbeingAPI = {
   },
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SLACK INTEGRATION API
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const slackAPI = {
+  getConfig: async () => {
+    const response = await api.get('/slack/config');
+    return response.data;
+  },
+  updateConfig: async (data) => {
+    const response = await api.put('/slack/config', data);
+    return response.data;
+  },
+  syncUsers: async () => {
+    const response = await api.post('/slack/sync-users');
+    return response.data;
+  },
+  getUsers: async () => {
+    const response = await api.get('/slack/users');
+    return response.data;
+  },
+  toggleUser: async (id) => {
+    const response = await api.put(`/slack/users/${id}/toggle`);
+    return response.data;
+  },
+  sendTestMessage: async () => {
+    const response = await api.post('/slack/test-message');
+    return response.data;
+  },
+  getStats: async () => {
+    const response = await api.get('/slack/stats');
+    return response.data;
+  },
+};
+
 export default api;
