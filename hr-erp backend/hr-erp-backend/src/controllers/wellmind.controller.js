@@ -3,6 +3,7 @@ const { logger } = require('../utils/logger');
 const wellmindService = require('../services/wellmind.service');
 const integrationService = require('../services/wellbeingIntegration.service');
 const gamificationService = require('../services/gamification.service');
+const sentimentService = require('../services/nlp/sentimentAnalysis.service');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EMPLOYEE ENDPOINTS
@@ -26,6 +27,13 @@ const submitPulse = async (req, res) => {
     const streak = await gamificationService.updateStreak(
       req.user.id, 'pulse_survey'
     ).catch(err => { logger.error('Gamification streak error:', err); return null; });
+
+    // NLP sentiment analysis (if enabled + consented, non-blocking)
+    if (notes && notes.trim().length > 10) {
+      sentimentService.analyzePulseNote(
+        req.user.id, req.user.contractorId, pulse.id, notes
+      ).catch(err => logger.error('NLP sentiment error:', err));
+    }
 
     res.status(201).json({ success: true, data: { ...pulse, gamification: { pointsEarned, streak } } });
   } catch (error) {

@@ -18,6 +18,7 @@ export default function DailyPulseScreen({ navigation }) {
   const [sleepQuality, setSleepQuality] = useState(null);
   const [workloadLevel, setWorkloadLevel] = useState(null);
   const [notes, setNotes] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => { checkToday(); }, []);
 
@@ -42,11 +43,11 @@ export default function DailyPulseScreen({ navigation }) {
         workload_level: workloadLevel,
         notes: notes.trim() || undefined,
       });
-      Alert.alert('Sikeres!', 'Mai hangulatfelmérés rögzítve.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      setSubmitted(true);
+      setTodayPulse({ mood_score: moodScore, stress_level: stressLevel, sleep_quality: sleepQuality, workload_level: workloadLevel });
+      setAlreadySubmitted(true);
     } catch (err) {
-      Alert.alert('Hiba', err.response?.data?.message || 'Nem sikerült elmenteni.');
+      Alert.alert('Hiba', err.response?.data?.message || 'Nem sikerült elmenteni. Próbáld újra!');
     } finally { setSubmitting(false); }
   };
 
@@ -58,8 +59,21 @@ export default function DailyPulseScreen({ navigation }) {
   if (alreadySubmitted && todayPulse) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.submittedContainer}>
-        <Ionicons name="checkmark-circle" size={64} color={colors.success} />
-        <Text style={styles.submittedTitle}>Mai felmérés kitöltve!</Text>
+        {submitted ? (
+          <>
+            <Text style={styles.successEmoji}>🎉</Text>
+            <Text style={styles.submittedTitle}>Köszönjük!</Text>
+            <Text style={styles.successSubtitle}>Napi hangulatjelentésed rögzítve.</Text>
+            <View style={styles.pointsBadge}>
+              <Text style={styles.pointsText}>+10 pont 🎯</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <Ionicons name="checkmark-circle" size={64} color={colors.success} />
+            <Text style={styles.submittedTitle}>Mai felmérés kitöltve!</Text>
+          </>
+        )}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryEmoji}>{MOOD_EMOJIS[todayPulse.mood_score] || '😐'}</Text>
           <Text style={styles.summaryMood}>Hangulat: {todayPulse.mood_score}/5</Text>
@@ -70,6 +84,10 @@ export default function DailyPulseScreen({ navigation }) {
         <TouchableOpacity style={styles.historyBtn} onPress={() => navigation.navigate('PulseHistory')}>
           <Ionicons name="stats-chart-outline" size={20} color={colors.primary} />
           <Text style={styles.historyBtnText}>Előzmények megtekintése</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.dashboardBtn} onPress={() => navigation.navigate('WellMindDashboard')}>
+          <Ionicons name="grid-outline" size={20} color={colors.white} />
+          <Text style={styles.dashboardBtnText}>Vissza a műszerfalhoz</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -104,7 +122,14 @@ export default function DailyPulseScreen({ navigation }) {
         disabled={!moodScore || submitting}
         activeOpacity={0.8}
       >
-        {submitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.submitText}>Beküldés</Text>}
+        {submitting ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <ActivityIndicator color={colors.white} size="small" />
+            <Text style={styles.submitText}>Küldés...</Text>
+          </View>
+        ) : (
+          <Text style={styles.submitText}>Beküldés</Text>
+        )}
       </TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -126,7 +151,13 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: colors.white, fontSize: 16, fontWeight: '600' },
   submittedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  submittedTitle: { fontSize: 22, fontWeight: '700', color: colors.success, marginTop: 16, marginBottom: 24 },
+  successEmoji: { fontSize: 56, marginBottom: 8 },
+  successSubtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 12 },
+  pointsBadge: {
+    backgroundColor: '#fef3c7', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginBottom: 20,
+  },
+  pointsText: { fontSize: 16, fontWeight: '700', color: '#d97706' },
+  submittedTitle: { fontSize: 22, fontWeight: '700', color: colors.success, marginTop: 4, marginBottom: 8 },
   summaryCard: {
     backgroundColor: colors.white, padding: 24, borderRadius: 16, alignItems: 'center', width: '100%',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2,
@@ -139,4 +170,9 @@ const styles = StyleSheet.create({
     borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
   },
   historyBtnText: { fontSize: 14, color: colors.primary, fontWeight: '500' },
+  dashboardBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 14, backgroundColor: colors.primary,
+    borderRadius: 10,
+  },
+  dashboardBtnText: { fontSize: 14, color: colors.white, fontWeight: '600' },
 });

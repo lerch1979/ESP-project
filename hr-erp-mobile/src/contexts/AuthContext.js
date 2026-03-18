@@ -22,8 +22,10 @@ export function AuthProvider({ children }) {
         // Verify token is still valid
         try {
           const response = await authAPI.getMe();
-          setUser(response.data.user);
-          await setItem('user', JSON.stringify(response.data.user));
+          // authAPI.getMe returns response.data which is { success, data: { user } }
+          const meUser = response.data?.user || response.user;
+          setUser(meUser);
+          await setItem('user', JSON.stringify(meUser));
         } catch {
           // Token might be expired, refresh interceptor will handle it
           // If refresh also fails, user stays null
@@ -38,7 +40,8 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const response = await authAPI.login(email, password);
-    const { token, refreshToken, user: userData } = response.data;
+    // authAPI.login returns response.data which is { success, data: { token, refreshToken, user } }
+    const { token, refreshToken, user: userData } = response.data || response;
 
     await setItem('token', token);
     await setItem('refreshToken', refreshToken);

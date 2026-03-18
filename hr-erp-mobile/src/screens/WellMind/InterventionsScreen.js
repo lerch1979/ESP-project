@@ -60,7 +60,7 @@ export default function InterventionsScreen() {
     setActionLoading(id);
     try {
       await wellmindAPI.interventions.accept(id);
-      Alert.alert('Elfogadva!', 'A beavatkozás elfogadva.');
+      Alert.alert('Elfogadva! ✅', 'A beavatkozás elfogadva.\n+5 pont! 🎯');
       fetchData();
     } catch {
       Alert.alert('Hiba', 'Nem sikerült elfogadni.');
@@ -81,7 +81,7 @@ export default function InterventionsScreen() {
       setCompleteModal(null);
       setCompleteRating(0);
       setCompleteNotes('');
-      Alert.alert('Befejezve!', 'A beavatkozás sikeresen lezárva.');
+      Alert.alert('Szép munka! 🎉', 'A beavatkozás sikeresen lezárva.\n+15 pont! 🎯');
       fetchData();
     } catch {
       Alert.alert('Hiba', 'Nem sikerült befejezni.');

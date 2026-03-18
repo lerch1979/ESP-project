@@ -76,7 +76,7 @@ function createSecurityHeaders() {
     // Cross-Origin policies
     crossOriginEmbedderPolicy: false, // Can break loading of external resources
     crossOriginOpenerPolicy: { policy: 'same-origin' },
-    crossOriginResourcePolicy: { policy: 'same-origin' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 }
 

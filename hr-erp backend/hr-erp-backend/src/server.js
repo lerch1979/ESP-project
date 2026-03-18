@@ -58,6 +58,7 @@ const wellbeingIntegrationRoutes = require('./routes/wellbeingIntegration.routes
 const housingRoutes = require('./routes/housing.routes');
 const gamificationRoutes = require('./routes/gamification.routes');
 const slackRoutes = require('./routes/slack.routes');
+const nlpRoutes = require('./routes/nlp.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 const slackBotService = require('./services/slack/slackBot.service');
@@ -216,6 +217,7 @@ app.use(`${API_PREFIX}/wellbeing`, wellbeingIntegrationRoutes);
 app.use(`${API_PREFIX}/housing`, housingRoutes);
 app.use(`${API_PREFIX}/gamification`, gamificationRoutes);
 app.use(`${API_PREFIX}/slack`, slackRoutes);
+app.use(`${API_PREFIX}/nlp`, nlpRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);

@@ -1721,4 +1721,39 @@ export const slackAPI = {
   },
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// NLP SENTIMENT ANALYSIS API
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const nlpAPI = {
+  getConfig: async () => {
+    const response = await api.get('/nlp/config');
+    return response.data;
+  },
+  updateConfig: async (data) => {
+    const response = await api.put('/nlp/config', data);
+    return response.data;
+  },
+  getStats: async (days = 30) => {
+    const response = await api.get(`/nlp/stats?days=${days}`);
+    return response.data;
+  },
+  getAlerts: async (params = {}) => {
+    const response = await api.get('/nlp/alerts', { params });
+    return response.data;
+  },
+  reviewAlert: async (id, reviewNotes) => {
+    const response = await api.put(`/nlp/alerts/${id}/review`, { review_notes: reviewNotes });
+    return response.data;
+  },
+  getSentimentHistory: async (days = 30) => {
+    const response = await api.get(`/nlp/sentiment-history?days=${days}`);
+    return response.data;
+  },
+  testAnalysis: async (text) => {
+    const response = await api.post('/nlp/test', { text });
+    return response.data;
+  },
+};
+
 export default api;

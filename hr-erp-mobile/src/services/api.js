@@ -11,7 +11,7 @@ const getApiBaseUrl = () => {
   }
 
   // Use LAN IP so physical devices on the same WiFi can reach the backend
-  return `http://${LOCAL_IP}:3000/api/v1`;
+  return `http://${LOCAL_IP}:3001/api/v1`;
 };
 
 const API_BASE_URL = getApiBaseUrl();

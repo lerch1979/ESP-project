@@ -59,7 +59,11 @@ export default function AssessmentScreen({ navigation }) {
               question_id: q.id, category: q.category, score: answers[q.id],
             }));
             const result = await wellmindAPI.assessment.submit(responses);
-            navigation.replace('AssessmentResults', { result: result.data });
+            Alert.alert(
+              'Köszönjük! 🎉',
+              'Felmérésed sikeresen rögzítve.\n+25 pont! 🎯',
+              [{ text: 'Eredmények megtekintése', onPress: () => navigation.replace('AssessmentResults', { result: result.data }) }],
+            );
           } catch (err) {
             Alert.alert('Hiba', err.response?.data?.message || 'Nem sikerült beküldeni.');
           } finally { setSubmitting(false); }

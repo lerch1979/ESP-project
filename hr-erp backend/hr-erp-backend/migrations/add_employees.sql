@@ -23,7 +23,7 @@ ON CONFLICT (slug) DO NOTHING;
 -- 2. employees tábla létrehozása (ha nem létezik)
 CREATE TABLE IF NOT EXISTS employees (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    contractor_id UUID REFERENCES contractors(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     organizational_unit_id UUID REFERENCES organizational_units(id) ON DELETE SET NULL,
     employee_number VARCHAR(50),
@@ -42,7 +42,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'unique_employee_number'
     ) THEN
-        ALTER TABLE employees ADD CONSTRAINT unique_employee_number UNIQUE (tenant_id, employee_number);
+        ALTER TABLE employees ADD CONSTRAINT unique_employee_number UNIQUE (contractor_id, employee_number);
     END IF;
 END
 $$;
@@ -77,10 +77,10 @@ END
 $$;
 
 -- 6. Seed: employee rekordok a 4 meglévő accommodated_employee felhasználóhoz
-INSERT INTO employees (user_id, tenant_id, employee_number, status_id, position, start_date)
+INSERT INTO employees (user_id, contractor_id, employee_number, status_id, position, start_date)
 SELECT
     u.id,
-    u.tenant_id,
+    u.contractor_id,
     'EMP-' || LPAD(ROW_NUMBER() OVER (ORDER BY u.created_at)::text, 4, '0'),
     (SELECT id FROM employee_status_types WHERE slug = 'active'),
     'Szállásolt munkavállaló',

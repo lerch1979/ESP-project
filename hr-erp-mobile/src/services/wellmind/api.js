@@ -114,7 +114,20 @@ export const coaching = {
   },
 };
 
+// ─── NLP Consent ──────────────────────────────────────────────
+
+const nlpConsent = {
+  get: async () => {
+    const response = await apiInstance.get('/nlp/consent');
+    return response.data;
+  },
+  update: async (consented) => {
+    const response = await apiInstance.post('/nlp/consent', { consented });
+    return response.data;
+  },
+};
+
 // ─── Convenience re-export ──────────────────────────────────
 
-const wellmindAPI = { pulse, assessment, dashboard, interventions, coaching };
+const wellmindAPI = { pulse, assessment, dashboard, interventions, coaching, nlpConsent };
 export default wellmindAPI;

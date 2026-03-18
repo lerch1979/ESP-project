@@ -51,6 +51,7 @@ import CasesManagement from './pages/CarePath/CasesManagement';
 import BookingsOverview from './pages/CarePath/BookingsOverview';
 import ServiceCategories from './pages/CarePath/ServiceCategories';
 import SlackIntegration from './pages/SlackIntegration';
+import SentimentDashboard from './pages/WellMind/SentimentDashboard';
 import WellMindDashboard from './pages/WellMind/WellMindDashboard';
 import RiskEmployees from './pages/WellMind/RiskEmployees';
 import QuestionManagement from './pages/WellMind/QuestionManagement';
@@ -140,6 +141,7 @@ function App() {
             <Route path="wellmind/trends" element={<TrendsAnalytics />} />
             <Route path="wellmind/interventions" element={<InterventionsManagement />} />
             <Route path="wellmind/team-metrics" element={<TeamMetrics />} />
+            <Route path="wellmind/sentiment" element={<PermissionGuard permission="settings.edit"><SentimentDashboard /></PermissionGuard>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

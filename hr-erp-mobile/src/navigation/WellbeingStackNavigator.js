@@ -11,6 +11,7 @@ import AssessmentResultsScreen from '../screens/WellMind/AssessmentResultsScreen
 import InterventionsScreen from '../screens/WellMind/InterventionsScreen';
 import CoachingSessionsScreen from '../screens/WellMind/CoachingSessionsScreen';
 import OvertimeTrackerScreen from '../screens/WellMind/OvertimeTrackerScreen';
+import NLPConsentScreen from '../screens/WellMind/NLPConsentScreen';
 
 // Housing screens
 import HousingFeedbackScreen from '../screens/Housing/HousingFeedbackScreen';
@@ -54,6 +55,9 @@ export default function WellbeingStackNavigator() {
       <Stack.Screen name="Interventions" component={InterventionsScreen} options={{ title: 'Beavatkozások' }} />
       <Stack.Screen name="CoachingSessions" component={CoachingSessionsScreen} options={{ title: 'Coaching' }} />
       <Stack.Screen name="OvertimeTracker" component={OvertimeTrackerScreen} options={{ title: 'Túlóra' }} />
+
+      {/* NLP Consent */}
+      <Stack.Screen name="NLPConsent" component={NLPConsentScreen} options={{ title: 'AI Támogatás' }} />
 
       {/* Gamification */}
       <Stack.Screen name="BadgeCollection" component={BadgeCollectionScreen} options={{ title: 'Jelvények' }} />

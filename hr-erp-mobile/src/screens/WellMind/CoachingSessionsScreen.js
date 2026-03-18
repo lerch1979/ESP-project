@@ -47,7 +47,7 @@ export default function CoachingSessionsScreen() {
       await wellmindAPI.coaching.submitFeedback(modal, rating, feedback.trim() || null);
       setModal(null); setRating(0); setFeedback('');
       fetchSessions();
-      Alert.alert('Köszönjük!', 'Visszajelzésed rögzítve.');
+      Alert.alert('Köszönjük! 🎉', 'Visszajelzésed rögzítve.\n+10 pont! 🎯');
     } catch { Alert.alert('Hiba', 'Nem sikerült elküldeni.'); }
     finally { setSubmitting(false); }
   };

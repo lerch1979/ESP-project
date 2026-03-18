@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Piaci Elemzés és Stratégia</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Piaci Elemzés és Stratégia</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#piaci-elemzés-és-üzleti-stratégia"
+id="toc-piaci-elemzés-és-üzleti-stratégia">Piaci Elemzés és Üzleti
+Stratégia</a>
+<ul>
+<li><a href="#hr-erp-jólléti-platform-housing-solutions-kft."
+id="toc-hr-erp-jólléti-platform-housing-solutions-kft.">HR-ERP Jólléti
+Platform — Housing Solutions Kft.</a></li>
+</ul></li>
+<li><a href="#i.-vezetői-összefoglaló"
+id="toc-i.-vezetői-összefoglaló">I. VEZETŐI ÖSSZEFOGLALÓ</a>
+<ul>
+<li><a href="#piac-és-lehetőség" id="toc-piac-és-lehetőség">Piac és
+Lehetőség</a></li>
+<li><a href="#egyedi-értékajánlat" id="toc-egyedi-értékajánlat">Egyedi
+Értékajánlat</a></li>
+</ul></li>
+<li><a href="#ii.-versenytárs-elemzés"
+id="toc-ii.-versenytárs-elemzés">II. VERSENYTÁRS ELEMZÉS</a>
+<ul>
+<li><a href="#főbb-versenytársak-swot-elemzése"
+id="toc-főbb-versenytársak-swot-elemzése">2.1 Főbb Versenytársak SWOT
+Elemzése</a>
+<ul>
+<li><a href="#headspace-for-work" id="toc-headspace-for-work">Headspace
+for Work</a></li>
+<li><a href="#lyra-health" id="toc-lyra-health">Lyra Health</a></li>
+<li><a href="#modern-health" id="toc-modern-health">Modern
+Health</a></li>
+<li><a href="#virgin-pulse-personify-health"
+id="toc-virgin-pulse-personify-health">Virgin Pulse (Personify
+Health)</a></li>
+<li><a href="#spring-health" id="toc-spring-health">Spring
+Health</a></li>
+</ul></li>
+<li><a href="#összehasonlító-mátrix" id="toc-összehasonlító-mátrix">2.2
+Összehasonlító Mátrix</a></li>
+<li><a href="#árazási-összehasonlítás"
+id="toc-árazási-összehasonlítás">2.3 Árazási Összehasonlítás</a></li>
+</ul></li>
+<li><a href="#iii.-egyedi-értékajánlat"
+id="toc-iii.-egyedi-értékajánlat">III. EGYEDI ÉRTÉKAJÁNLAT</a>
+<ul>
+<li><a href="#amit-senki-más-nem-tud"
+id="toc-amit-senki-más-nem-tud">3.1 Amit Senki Más Nem Tud</a></li>
+<li><a href="#pozicionálási-nyilatkozat"
+id="toc-pozicionálási-nyilatkozat">3.2 Pozicionálási
+Nyilatkozat</a></li>
+<li><a href="#stratégiai-megkülönböztetés"
+id="toc-stratégiai-megkülönböztetés">3.3 Stratégiai
+Megkülönböztetés</a></li>
+</ul></li>
+<li><a href="#iv.-árazási-stratégia" id="toc-iv.-árazási-stratégia">IV.
+ÁRAZÁSI STRATÉGIA</a>
+<ul>
+<li><a href="#roi-kalkuláció-az-ügyfélnek"
+id="toc-roi-kalkuláció-az-ügyfélnek">4.1 ROI Kalkuláció az Ügyfélnek</a>
+<ul>
+<li><a href="#megtakarítások-számítása-100-fős-vállalat"
+id="toc-megtakarítások-számítása-100-fős-vállalat">Megtakarítások
+Számítása (100 fős vállalat)</a></li>
+</ul></li>
+<li><a href="#csomagok" id="toc-csomagok">4.2 Csomagok</a>
+<ul>
+<li><a href="#minden-csomagban" id="toc-minden-csomagban">Minden
+Csomagban</a></li>
+<li><a href="#enterprise-plusz" id="toc-enterprise-plusz">Enterprise
+Plusz</a></li>
+</ul></li>
+<li><a href="#árazási-példák" id="toc-árazási-példák">4.3 Árazási
+Példák</a></li>
+</ul></li>
+<li><a href="#v.-célpiac" id="toc-v.-célpiac">V. CÉLPIAC</a>
+<ul>
+<li><a href="#ideális-ügyfélprofil-icp"
+id="toc-ideális-ügyfélprofil-icp">5.1 Ideális Ügyfélprofil
+(ICP)</a></li>
+<li><a href="#magyar-piaci-szegmentálás"
+id="toc-magyar-piaci-szegmentálás">5.2 Magyar Piaci
+Szegmentálás</a></li>
+</ul></li>
+<li><a href="#vi.-go-to-market-stratégia"
+id="toc-vi.-go-to-market-stratégia">VI. GO-TO-MARKET STRATÉGIA</a>
+<ul>
+<li><a href="#fázis-1-pilot-1-3.-hónap"
+id="toc-fázis-1-pilot-1-3.-hónap">6.1 Fázis 1: Pilot (1-3. Hónap)</a>
+<ul>
+<li><a href="#housing-solutions-kft.-első-ügyfél"
+id="toc-housing-solutions-kft.-első-ügyfél">Housing Solutions Kft. —
+Első Ügyfél</a></li>
+<li><a href="#siker-metrikák" id="toc-siker-metrikák">Siker
+Metrikák</a></li>
+<li><a href="#deliverables" id="toc-deliverables">Deliverables</a></li>
+</ul></li>
+<li><a href="#fázis-2-kezdeti-skálázás-4-6.-hónap"
+id="toc-fázis-2-kezdeti-skálázás-4-6.-hónap">6.2 Fázis 2: Kezdeti
+Skálázás (4-6. Hónap)</a>
+<ul>
+<li><a href="#siker-metrikák-1" id="toc-siker-metrikák-1">Siker
+Metrikák</a></li>
+</ul></li>
+<li><a href="#fázis-3-növekedés-7-12.-hónap"
+id="toc-fázis-3-növekedés-7-12.-hónap">6.3 Fázis 3: Növekedés (7-12.
+Hónap)</a>
+<ul>
+<li><a href="#siker-metrikák-2" id="toc-siker-metrikák-2">Siker
+Metrikák</a></li>
+</ul></li>
+<li><a href="#integrált-ütemterv" id="toc-integrált-ütemterv">6.4
+Integrált Ütemterv</a></li>
+</ul></li>
+<li><a href="#vii.-kockázatok-és-mitigáció"
+id="toc-vii.-kockázatok-és-mitigáció">VII. KOCKÁZATOK ÉS
+MITIGÁCIÓ</a></li>
+<li><a href="#viii.-pénzügyi-terv-12-hónapos-előrejelzés"
+id="toc-viii.-pénzügyi-terv-12-hónapos-előrejelzés">VIII. PÉNZÜGYI TERV
+— 12 HÓNAPOS ELŐREJELZÉS</a>
+<ul>
+<li><a href="#bevételi-előrejelzés"
+id="toc-bevételi-előrejelzés">Bevételi Előrejelzés</a></li>
+<li><a href="#költségstruktúra-havi"
+id="toc-költségstruktúra-havi">Költségstruktúra (Havi)</a></li>
+<li><a href="#break-even-pont" id="toc-break-even-pont">Break-even
+Pont</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="piaci-elemzés-és-üzleti-stratégia">Piaci Elemzés és Üzleti
+Stratégia</h1>
+<h2 id="hr-erp-jólléti-platform-housing-solutions-kft.">HR-ERP Jólléti
+Platform — Housing Solutions Kft.</h2>
+<p><strong>Verzió:</strong> 1.0 | <strong>Dátum:</strong> 2026-03-18 |
+<strong>Besorolás:</strong> Bizalmas</p>
+<hr />
+<h1 id="i.-vezetői-összefoglaló">I. VEZETŐI ÖSSZEFOGLALÓ</h1>
+<h2 id="piac-és-lehetőség">Piac és Lehetőség</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Mutató</th>
+<th>Érték</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Globális wellbeing piac</strong></td>
+<td>93 Mrd USD 2028-ra (CAGR ~7%)</td>
+</tr>
+<tr>
+<td><strong>Európai piac</strong></td>
+<td>18-22 Mrd EUR</td>
+</tr>
+<tr>
+<td><strong>Magyar piac (becsült)</strong></td>
+<td>150-250 M EUR</td>
+</tr>
+<tr>
+<td><strong>Target szegmens</strong></td>
+<td>Magyar KKV-k, 50-500 fő, építőipar/vendéglátás/gyártás</td>
+</tr>
+<tr>
+<td><strong>Positioning</strong></td>
+<td>Proaktív, adatvezérelt jólléti platform korai felismeréssel</td>
+</tr>
+<tr>
+<td><strong>Árazás</strong></td>
+<td>5-8 EUR/fő/hó (mid-market)</td>
+</tr>
+<tr>
+<td><strong>12 hónapos cél</strong></td>
+<td>10-20 ügyfél, 1.000-3.000 felhasználó, 60-180k EUR ARR</td>
+</tr>
+</tbody>
+</table>
+<h2 id="egyedi-értékajánlat">Egyedi Értékajánlat</h2>
+<blockquote>
+<p><strong>„Az egyetlen jólléti platform, amely tudja, mikor van
+szüksége segítségre a munkavállalónak — mielőtt kérné.”</strong></p>
+</blockquote>
+<p>A platform 6 egyedi funkcióval rendelkezik, amelyeket egyetlen
+versenytárs sem kínál: szállás-jóllét korreláció, túlóra-kiégés
+összekapcsolás, betegszabadság automatikus érzékelés, konfliktus-jóllét
+nyomon követés, kérdésrotáció, és modulok közötti automatikus
+ajánlás.</p>
+<hr />
+<h1 id="ii.-versenytárs-elemzés">II. VERSENYTÁRS ELEMZÉS</h1>
+<h2 id="főbb-versenytársak-swot-elemzése">2.1 Főbb Versenytársak SWOT
+Elemzése</h2>
+<h3 id="headspace-for-work">Headspace for Work</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Erősségek</th>
+<th>Gyengeségek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4000+ meditációs tartalom, erős márka</td>
+<td>Nincs kiégés felmérés (MBI), nincs EAP ügykezelés</td>
+</tr>
+<tr>
+<td>15+ nyelv, klinikai bizonyítékok</td>
+<td>Nincs prediktív analitika, nincs szállás tracking</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Lehetőségek</th>
+<th>Fenyegetések</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ginger terapeuta integráció kiterjesztése</td>
+<td>Tartalomközpontú megközelítés nem elég proaktív</td>
+</tr>
+<tr>
+<td>Enterprise market penetráció</td>
+<td>AI-alapú platformok (Spring Health) megelőzhetik</td>
+</tr>
+</tbody>
+</table>
+<h3 id="lyra-health">Lyra Health</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Erősségek</th>
+<th>Gyengeségek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Terapeuta hálózat, klinikai eredmény garanciák</td>
+<td>Drága (7-15 USD/fő), nagyvállalati fókusz</td>
+</tr>
+<tr>
+<td>Bizonyítékokon alapuló megközelítés</td>
+<td>Nincs napi pulzus tracking, nincs szállás korreláció</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Lehetőségek</th>
+<th>Fenyegetések</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Klinikai partner lehetőségek</td>
+<td>KKV szegmensben nem versenyképes árazás</td>
+</tr>
+<tr>
+<td>Terapeuta hálózat bővítése Európában</td>
+<td>Lokális platformok (mint a miénk) jobban értik a piacot</td>
+</tr>
+</tbody>
+</table>
+<h3 id="modern-health">Modern Health</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Erősségek</th>
+<th>Gyengeségek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Klinikai + prevenciós kombináció</td>
+<td>Nincs szállás/túlóra/betegszabadság integráció</td>
+</tr>
+<tr>
+<td>Digitális programok + terápia</td>
+<td>KKV szegmensre nem optimalizált</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Lehetőségek</th>
+<th>Fenyegetések</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prevenciós funkciók bővítése</td>
+<td>Proaktív platformok megelőzhetik</td>
+</tr>
+<tr>
+<td>Európai terjeszkedés</td>
+<td>GDPR compliance nehézségek US cégnek</td>
+</tr>
+</tbody>
+</table>
+<h3 id="virgin-pulse-personify-health">Virgin Pulse (Personify
+Health)</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Erősségek</th>
+<th>Gyengeségek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Holisztikus (fizikai + mentális + pénzügyi)</td>
+<td>Komplex bevezetés, nagy cégekre tervezve</td>
+</tr>
+<tr>
+<td>Gamifikáció, viselhető eszköz integráció</td>
+<td>Nincs specifikus kiégés felmérés (MBI)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Lehetőségek</th>
+<th>Fenyegetések</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gamifikáció mintaként használható</td>
+<td>KKV piacon nem versenyképes komplexitás</td>
+</tr>
+<tr>
+<td>Wearable adatok trendek</td>
+<td>Egyszerűbb, célzottabb megoldások átvétele</td>
+</tr>
+</tbody>
+</table>
+<h3 id="spring-health">Spring Health</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Erősségek</th>
+<th>Gyengeségek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI-alapú ellátás navigáció (Precision Mental Health™)</td>
+<td>Nagyon drága, Fortune 500 fókusz</td>
+</tr>
+<tr>
+<td>Erős klinikai eredmények</td>
+<td>Nincs szállás/fizikai munkás specifikus funkció</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Lehetőségek</th>
+<th>Fenyegetések</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI technológia benchmark</td>
+<td>AI megoldásuk nem használható KKV szinten</td>
+</tr>
+<tr>
+<td>Precíziós megközelítés adaptálható</td>
+<td>Árazás versenyképtelen a mi szegmensünkben</td>
+</tr>
+</tbody>
+</table>
+<h2 id="összehasonlító-mátrix">2.2 Összehasonlító Mátrix</h2>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr>
+<th>Funkció</th>
+<th><strong>Platformunk</strong></th>
+<th>Headspace</th>
+<th>Lyra</th>
+<th>Modern Health</th>
+<th>Virgin Pulse</th>
+<th>Spring Health</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Napi hangulat követés</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Kiégés felmérés (MBI)</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Elkötelezettség (UWES)</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>EAP ügykezelés</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+<td>Részleges</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Szolgáltató foglalás</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Szállásminőség (egyedi)</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Túlóra-kiégés (egyedi)</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Betegszabadság trigger (egyedi)</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Konfliktus tracking (egyedi)</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Prediktív analitika</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>Részleges</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Meditációs tartalom</td>
+<td>❌</td>
+<td><strong>✅</strong> (4000+)</td>
+<td>❌</td>
+<td>✅</td>
+<td>Részleges</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Slack/Teams integráció</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Gamifikáció</td>
+<td>❌</td>
+<td>Részleges</td>
+<td>❌</td>
+<td>❌</td>
+<td><strong>✅</strong></td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<h2 id="árazási-összehasonlítás">2.3 Árazási Összehasonlítás</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Ár/fő/hó</th>
+<th>Target</th>
+<th>Fókusz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Headspace for Work</td>
+<td>12-15 USD</td>
+<td>Nagyvállalat</td>
+<td>Tartalom, meditáció</td>
+</tr>
+<tr>
+<td>Calm Business</td>
+<td>10-15 USD</td>
+<td>Nagyvállalat</td>
+<td>Alvás, meditáció</td>
+</tr>
+<tr>
+<td>Virgin Pulse</td>
+<td>3-8 USD</td>
+<td>Enterprise</td>
+<td>Holisztikus</td>
+</tr>
+<tr>
+<td>Modern Health</td>
+<td>10-20 USD</td>
+<td>Tech/startup</td>
+<td>Klinikai + prevenciós</td>
+</tr>
+<tr>
+<td>Lyra Health</td>
+<td>7-15 USD</td>
+<td>Fortune 500</td>
+<td>Terapeuta hálózat</td>
+</tr>
+<tr>
+<td>Spring Health</td>
+<td>8-15 USD</td>
+<td>Enterprise</td>
+<td>AI navigáció</td>
+</tr>
+<tr>
+<td><strong>Platformunk</strong></td>
+<td><strong>5-8 EUR</strong></td>
+<td><strong>KKV 50-500 fő</strong></td>
+<td><strong>Proaktív, adatvezérelt</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="iii.-egyedi-értékajánlat">III. EGYEDI ÉRTÉKAJÁNLAT</h1>
+<h2 id="amit-senki-más-nem-tud">3.1 Amit Senki Más Nem Tud</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Egyedi Funkció</th>
+<th>Leírás</th>
+<th>Versenyelőny</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Szállás-jóllét korreláció</strong></td>
+<td>Szálláshely tisztaság → hangulat/stressz/alvás hatás</td>
+<td>Fizikai munkavállalók szálláshelyének hatása — egyedülálló
+insight</td>
+</tr>
+<tr>
+<td><strong>Túlóra-kiégés kapcsolat</strong></td>
+<td>Auto-riasztás &gt;40 óra/hó</td>
+<td>Proaktív kiégés megelőzés</td>
+</tr>
+<tr>
+<td><strong>Betegszabadság trigger</strong></td>
+<td>3+ alkalom 30 napon belül → WellMind ajánlás + HR értesítés</td>
+<td>Korai egészségügyi probléma felismerés</td>
+</tr>
+<tr>
+<td><strong>Konfliktus-jóllét</strong></td>
+<td>Kritikus jegyek → azonnali CarePath ajánlás</td>
+<td>Krízis protokoll, munkavállalói biztonság</td>
+</tr>
+<tr>
+<td><strong>Kérdésrotáció</strong></td>
+<td>Heti rotáció 8 kiegészítő kérdésből</td>
+<td>Felmérési fáradtság megelőzése</td>
+</tr>
+<tr>
+<td><strong>Modulok közötti ajánlás</strong></td>
+<td>WellMind ↔︎ CarePath ↔︎ HR rendszer</td>
+<td>Integrált, seamless támogatás</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pozicionálási-nyilatkozat">3.2 Pozicionálási Nyilatkozat</h2>
+<blockquote>
+<p><strong>Azon magyar KKV-k számára, akik fizikai munkavállalókkal
+rendelkeznek és szeretnék proaktívan kezelni dolgozóik
+jóllétét</strong>, az HR-ERP Jólléti Platform egy <strong>adatvezérelt,
+korai felismerő rendszer</strong>, amely — ellentétben a reaktív,
+önkiszolgáló platformokkal — <strong>automatikusan felismeri, mikor van
+szüksége segítségre a munkavállalónak</strong>, mielőtt válság alakulna
+ki, a szállás, túlóra, betegszabadság és konfliktus adatok
+integrálásával.</p>
+</blockquote>
+<h2 id="stratégiai-megkülönböztetés">3.3 Stratégiai
+Megkülönböztetés</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Szempont</th>
+<th>Versenytársak</th>
+<th>Mi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Megközelítés</strong></td>
+<td>Reaktív (önkiszolgáló)</td>
+<td><strong>Proaktív (automatikus triggerek)</strong></td>
+</tr>
+<tr>
+<td><strong>Adatforrások</strong></td>
+<td>Csak jólléti felmérések</td>
+<td><strong>HR + jólléti + szállás + munkaóra +
+betegszabadság</strong></td>
+</tr>
+<tr>
+<td><strong>Beavatkozás</strong></td>
+<td>Felhasználó kezdeményezi</td>
+<td><strong>Rendszer automatikusan felismeri és ajánl</strong></td>
+</tr>
+<tr>
+<td><strong>Célközönség</strong></td>
+<td>Nagyvállalat, szellemi dolgozók</td>
+<td><strong>KKV, fizikai munkavállalók, építőipar</strong></td>
+</tr>
+<tr>
+<td><strong>Integráció</strong></td>
+<td>Különálló platform</td>
+<td><strong>Beépített HR-ERP modul</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="iv.-árazási-stratégia">IV. ÁRAZÁSI STRATÉGIA</h1>
+<h2 id="roi-kalkuláció-az-ügyfélnek">4.1 ROI Kalkuláció az
+Ügyfélnek</h2>
+<h3 id="megtakarítások-számítása-100-fős-vállalat">Megtakarítások
+Számítása (100 fős vállalat)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Tényező</th>
+<th>Jelenlegi</th>
+<th>Platformmal</th>
+<th>Megtakarítás</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Betegszabadság</strong> (átlag 5 nap/fő/év, 150 EUR/nap
+költség)</td>
+<td>75.000 EUR/év</td>
+<td>60.000 EUR/év (-20%)</td>
+<td><strong>15.000 EUR/év</strong></td>
+</tr>
+<tr>
+<td><strong>Fluktuáció</strong> (30% → 25%, toborzási költség 5.000
+EUR/fő)</td>
+<td>150.000 EUR/év</td>
+<td>125.000 EUR/év</td>
+<td><strong>25.000 EUR/év</strong></td>
+</tr>
+<tr>
+<td><strong>Termelékenység</strong> (+10% engaged employees, átlag bér
+2.000 EUR/hó)</td>
+<td>—</td>
+<td>—</td>
+<td><strong>240.000 EUR/év</strong></td>
+</tr>
+<tr>
+<td><strong>Összesen</strong></td>
+<td></td>
+<td></td>
+<td><strong>280.000 EUR/év</strong></td>
+</tr>
+<tr>
+<td><strong>Platform költség</strong> (100 fő × 6 EUR/hó × 12 hó)</td>
+<td></td>
+<td></td>
+<td><strong>7.200 EUR/év</strong></td>
+</tr>
+<tr>
+<td><strong>ROI</strong></td>
+<td></td>
+<td></td>
+<td><strong>38,9x</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="csomagok">4.2 Csomagok</h2>
+<table>
+<thead>
+<tr>
+<th>Csomag</th>
+<th>Létszám</th>
+<th>Ár/fő/hó</th>
+<th>Éves Díj (100 fő)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Starter</strong></td>
+<td>50-99 fő</td>
+<td>6 EUR</td>
+<td>7.200 EUR</td>
+</tr>
+<tr>
+<td><strong>Growth</strong></td>
+<td>100-249 fő</td>
+<td>5,50 EUR</td>
+<td>6.600 EUR</td>
+</tr>
+<tr>
+<td><strong>Enterprise</strong></td>
+<td>250+ fő</td>
+<td>5 EUR</td>
+<td>6.000 EUR</td>
+</tr>
+</tbody>
+</table>
+<h3 id="minden-csomagban">Minden Csomagban</h3>
+<ul>
+<li>WellMind (pulzus, felmérések, beavatkozások, coaching)</li>
+<li>CarePath (EAP ügykezelés, szolgáltató keresés, foglalás)</li>
+<li>Admin felület + Mobil alkalmazás</li>
+<li>Automatikus triggerek + prediktív analitika</li>
+<li>Szállás, túlóra, betegszabadság, konfliktus nyomon követés</li>
+</ul>
+<h3 id="enterprise-plusz">Enterprise Plusz</h3>
+<ul>
+<li>Dedikált onboarding és képzés</li>
+<li>Egyedi integrációk (SAP, Workday)</li>
+<li>SLA garanciák (99,9% uptime)</li>
+<li>Dedikált account manager</li>
+</ul>
+<h2 id="árazási-példák">4.3 Árazási Példák</h2>
+<table>
+<thead>
+<tr>
+<th>Cég Méret</th>
+<th>Csomag</th>
+<th>Havi Díj</th>
+<th>Éves Díj</th>
+<th>Becsült ROI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>80 fő</td>
+<td>Starter</td>
+<td>480 EUR</td>
+<td>5.760 EUR</td>
+<td>224.000 EUR (39x)</td>
+</tr>
+<tr>
+<td>150 fő</td>
+<td>Growth</td>
+<td>825 EUR</td>
+<td>9.900 EUR</td>
+<td>420.000 EUR (42x)</td>
+</tr>
+<tr>
+<td>300 fő</td>
+<td>Enterprise</td>
+<td>1.500 EUR</td>
+<td>18.000 EUR</td>
+<td>840.000 EUR (47x)</td>
+</tr>
+<tr>
+<td>500 fő</td>
+<td>Enterprise</td>
+<td>2.500 EUR</td>
+<td>30.000 EUR</td>
+<td>1.400.000 EUR (47x)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="v.-célpiac">V. CÉLPIAC</h1>
+<h2 id="ideális-ügyfélprofil-icp">5.1 Ideális Ügyfélprofil (ICP)</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Kritérium</th>
+<th>Érték</th>
+<th>Indoklás</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Iparág</strong></td>
+<td>Építőipar, vendéglátás, gyártás, logisztika</td>
+<td>Fizikai munkavállalók, szállás releváns</td>
+</tr>
+<tr>
+<td><strong>Cégméret</strong></td>
+<td>50-500 fő</td>
+<td>Elég nagy ROI-hoz, elég kicsi gyors döntéshez</td>
+</tr>
+<tr>
+<td><strong>Földrajz</strong></td>
+<td>Magyarország, majd Lengyelország, Csehország</td>
+<td>Migráns munkavállalók, szállás kihívások</td>
+</tr>
+<tr>
+<td><strong>Fájdalompont</strong></td>
+<td>Magas fluktuáció (&gt;30%/év)</td>
+<td>Költséges toborzás, retention kihívás</td>
+</tr>
+<tr>
+<td><strong>Jelenlegi megoldás</strong></td>
+<td>Nincs vagy reaktív EAP</td>
+<td>Proaktív megközelítés hiánya</td>
+</tr>
+<tr>
+<td><strong>Budget</strong></td>
+<td>50-200 EUR/fő/év HR/wellbeing</td>
+<td>Fizetőképesség és hajlandóság</td>
+</tr>
+<tr>
+<td><strong>Döntéshozó</strong></td>
+<td>HR vezető, CEO, COO</td>
+<td>Rövid sales cycle: 1-3 hónap</td>
+</tr>
+</tbody>
+</table>
+<h2 id="magyar-piaci-szegmentálás">5.2 Magyar Piaci Szegmentálás</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Szegmens</th>
+<th>Cégek Száma (becsült)</th>
+<th>Átlag Méret</th>
+<th>Piaci Potenciál</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Építőipar</strong></td>
+<td>500+ (50+ fő)</td>
+<td>80 fő</td>
+<td>2.880.000 EUR/év</td>
+</tr>
+<tr>
+<td><strong>Vendéglátás/szálloda</strong></td>
+<td>300+ (lánc/franchise)</td>
+<td>120 fő</td>
+<td>2.376.000 EUR/év</td>
+</tr>
+<tr>
+<td><strong>Gyártás</strong></td>
+<td>1.000+ (Észak-MO, Nyugat-Dunántúl)</td>
+<td>150 fő</td>
+<td>9.900.000 EUR/év</td>
+</tr>
+<tr>
+<td><strong>Logisztika</strong></td>
+<td>200+ (fuvarozás)</td>
+<td>100 fő</td>
+<td>1.320.000 EUR/év</td>
+</tr>
+<tr>
+<td><strong>Összesen</strong></td>
+<td>2.000+ cég</td>
+<td>—</td>
+<td><strong>~16,5 M EUR/év</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="vi.-go-to-market-stratégia">VI. GO-TO-MARKET STRATÉGIA</h1>
+<h2 id="fázis-1-pilot-1-3.-hónap">6.1 Fázis 1: Pilot (1-3. Hónap)</h2>
+<h3 id="housing-solutions-kft.-első-ügyfél">Housing Solutions Kft. —
+Első Ügyfél</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Szempont</th>
+<th>Részletek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cél</strong></td>
+<td>Termék validáció, user feedback, iteráció</td>
+</tr>
+<tr>
+<td><strong>Scope</strong></td>
+<td>3 helyszín, 150 dolgozó</td>
+</tr>
+<tr>
+<td><strong>Aktivitások</strong></td>
+<td>Heti check-in leadership-pel, kétheti sprint release-ek, havi usage
+report</td>
+</tr>
+</tbody>
+</table>
+<h3 id="siker-metrikák">Siker Metrikák</h3>
+<table>
+<thead>
+<tr>
+<th>Metrika</th>
+<th>Célérték</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Napi pulzus részvétel</td>
+<td>≥60%</td>
+</tr>
+<tr>
+<td>Negyedéves felmérés kitöltés</td>
+<td>≥80%</td>
+</tr>
+<tr>
+<td>Automatikus triggerek (korai felismerés)</td>
+<td>≥5 eset</td>
+</tr>
+<tr>
+<td>NPS (felhasználói elégedettség)</td>
+<td>≥40</td>
+</tr>
+</tbody>
+</table>
+<h3 id="deliverables">Deliverables</h3>
+<ul>
+<li>Case study + video testimonial</li>
+<li>ROI jelentés (számszerűsített megtakarítás)</li>
+<li>Product roadmap (feedback-alapú priorizálás)</li>
+</ul>
+<h2 id="fázis-2-kezdeti-skálázás-4-6.-hónap">6.2 Fázis 2: Kezdeti
+Skálázás (4-6. Hónap)</h2>
+<table>
+<thead>
+<tr>
+<th>Szempont</th>
+<th>Részletek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cél</strong></td>
+<td>Bizonyított ROI, ismétlődő siker, social proof</td>
+</tr>
+<tr>
+<td><strong>Outbound</strong></td>
+<td>LinkedIn, cold email, iparági konferenciák</td>
+</tr>
+<tr>
+<td><strong>Inbound</strong></td>
+<td>Case study publikálás, HR blogok, SEO</td>
+</tr>
+<tr>
+<td><strong>Partnership</strong></td>
+<td>Építőipari szövetségek (ÉVOSZ), HR tanácsadók</td>
+</tr>
+</tbody>
+</table>
+<h3 id="siker-metrikák-1">Siker Metrikák</h3>
+<table>
+<thead>
+<tr>
+<th>Metrika</th>
+<th>Célérték</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Új ügyfelek</td>
+<td>3-5 signed</td>
+</tr>
+<tr>
+<td>Összes felhasználó</td>
+<td>500-1.000</td>
+</tr>
+<tr>
+<td>MRR</td>
+<td>15-30k EUR</td>
+</tr>
+</tbody>
+</table>
+<h2 id="fázis-3-növekedés-7-12.-hónap">6.3 Fázis 3: Növekedés (7-12.
+Hónap)</h2>
+<table>
+<thead>
+<tr>
+<th>Szempont</th>
+<th>Részletek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cél</strong></td>
+<td>Fenntartható növekedés, ismételhető sales process</td>
+</tr>
+<tr>
+<td><strong>Sales</strong></td>
+<td>1-2 BDR felvétele</td>
+</tr>
+<tr>
+<td><strong>Marketing</strong></td>
+<td>HubSpot/Pipedrive automation, havi webinar</td>
+</tr>
+<tr>
+<td><strong>Events</strong></td>
+<td>HR Fest, Conteam, iparági kiállítások</td>
+</tr>
+</tbody>
+</table>
+<h3 id="siker-metrikák-2">Siker Metrikák</h3>
+<table>
+<thead>
+<tr>
+<th>Metrika</th>
+<th>Célérték</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Összes ügyfél</td>
+<td>10-20</td>
+</tr>
+<tr>
+<td>Összes felhasználó</td>
+<td>1.000-3.000</td>
+</tr>
+<tr>
+<td>ARR</td>
+<td>60-180k EUR</td>
+</tr>
+<tr>
+<td>Churn rate</td>
+<td>&lt;10%</td>
+</tr>
+</tbody>
+</table>
+<h2 id="integrált-ütemterv">6.4 Integrált Ütemterv</h2>
+<pre><code>Q2 2026 (Ápr-Jún)
+├── Product: Sessions 23-26 (Gamifikáció, Slack, NLP, WHO-5, Consent)
+├── GTM: Housing Solutions pilot, onboarding, training
+└── Milestone: GDPR Tier 1 kész, Case study draft
+
+Q3 2026 (Júl-Szept)
+├── Product: Sessions 27-31 (Tartalom, i18n, Naptár, Teams, HealthKit)
+├── GTM: 3-5 építőipari ügyfél, Inbound marketing indítás
+└── Milestone: 500-1000 user, 15-30k EUR MRR
+
+Q4 2026 (Okt-Dec)
+├── Product: Sessions 32-35 (ML, Kihívások, CBT, Matching)
+├── GTM: Webinar sorozat, HR események, Sales hire
+└── Milestone: 10-15 ügyfél, 1000-2000 user, 60-120k EUR ARR
+
+Q1 2027 (Jan-Már)
+├── Product: Sessions 36-40 (AI Act, WCAG, Offline, SSO, Launch)
+├── GTM: Iparági bővítés, 15-20 ügyfél
+└── Milestone: Production ready, 3000 user, 150-180k EUR ARR</code></pre>
+<hr />
+<h1 id="vii.-kockázatok-és-mitigáció">VII. KOCKÁZATOK ÉS MITIGÁCIÓ</h1>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Kockázat</th>
+<th>Valószínűség</th>
+<th>Hatás</th>
+<th>Mitigáció</th>
+<th>Állapot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>GDPR compliance hiány</strong></td>
+<td>Közepes</td>
+<td>Kritikus</td>
+<td>Tier 1 feladatok: DPIA, Consent UI, DPA-k (4 hét)</td>
+<td>70% kész</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Alacsony user adoption</strong></td>
+<td>Közepes</td>
+<td>Magas</td>
+<td>Gamifikáció (Session 23), Slack bot (24), onboarding training</td>
+<td>Tervezett</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Versenytárs agresszív pricing</strong></td>
+<td>Alacsony</td>
+<td>Közepes</td>
+<td>Egyedi funkciók (szállás, túlóra, conflict) differenciálnak</td>
+<td>Folyamatos</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Skálázhatóság</strong></td>
+<td>Közepes</td>
+<td>Közepes</td>
+<td>DB indexing, load testing (Session 38), CDN cache</td>
+<td>Tervezett</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Hosszú sales cycle</strong></td>
+<td>Magas</td>
+<td>Közepes</td>
+<td>Pilot: gyors win 1-3 hónap, flexible pricing, founder-led sales</td>
+<td>Q2 2026</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Adatbiztonsági incidens</strong></td>
+<td>Alacsony</td>
+<td>Kritikus</td>
+<td>Penetration testing, OWASP top 10, security audit</td>
+<td>Tervezett</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Kulcs személyzet távozás</strong></td>
+<td>Közepes</td>
+<td>Magas</td>
+<td>Dokumentáció kész (Sessions 1-22), GitHub, backup dev hire</td>
+<td>Q3 2026</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>Jogi változások</strong></td>
+<td>Közepes</td>
+<td>Közepes</td>
+<td>Negyedéves legal monitoring, compliance roadmap</td>
+<td>Folyamatos</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>Alacsony piaci kereslet</strong></td>
+<td>Alacsony</td>
+<td>Magas</td>
+<td>Housing pilot ROI proof, case study, trial períódusok</td>
+<td>Q2 2026</td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>Technológiai avulás</strong></td>
+<td>Közepes</td>
+<td>Közepes</td>
+<td>Continuous innovation roadmap (Sessions 23-40), AI integráció</td>
+<td>Folyamatos</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="viii.-pénzügyi-terv-12-hónapos-előrejelzés">VIII. PÉNZÜGYI TERV
+— 12 HÓNAPOS ELŐREJELZÉS</h1>
+<h2 id="bevételi-előrejelzés">Bevételi Előrejelzés</h2>
+<table>
+<thead>
+<tr>
+<th>Hónap</th>
+<th>Ügyfelek</th>
+<th>Felhasználók</th>
+<th>MRR (EUR)</th>
+<th>ARR (EUR)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1-3</td>
+<td>1 (pilot)</td>
+<td>150</td>
+<td>900</td>
+<td>10.800</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2</td>
+<td>280</td>
+<td>1.680</td>
+<td>20.160</td>
+</tr>
+<tr>
+<td>5</td>
+<td>3</td>
+<td>430</td>
+<td>2.580</td>
+<td>30.960</td>
+</tr>
+<tr>
+<td>6</td>
+<td>5</td>
+<td>650</td>
+<td>3.900</td>
+<td>46.800</td>
+</tr>
+<tr>
+<td>7</td>
+<td>7</td>
+<td>900</td>
+<td>5.400</td>
+<td>64.800</td>
+</tr>
+<tr>
+<td>8</td>
+<td>9</td>
+<td>1.150</td>
+<td>6.325</td>
+<td>75.900</td>
+</tr>
+<tr>
+<td>9</td>
+<td>11</td>
+<td>1.400</td>
+<td>7.700</td>
+<td>92.400</td>
+</tr>
+<tr>
+<td>10</td>
+<td>14</td>
+<td>1.700</td>
+<td>9.350</td>
+<td>112.200</td>
+</tr>
+<tr>
+<td>11</td>
+<td>17</td>
+<td>2.100</td>
+<td>11.550</td>
+<td>138.600</td>
+</tr>
+<tr>
+<td>12</td>
+<td>20</td>
+<td>2.500</td>
+<td>13.750</td>
+<td><strong>165.000</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="költségstruktúra-havi">Költségstruktúra (Havi)</h2>
+<table>
+<thead>
+<tr>
+<th>Költség Kategória</th>
+<th>Hó 1-3</th>
+<th>Hó 4-6</th>
+<th>Hó 7-12</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Infrastruktúra (hosting)</td>
+<td>300 EUR</td>
+<td>500 EUR</td>
+<td>800 EUR</td>
+</tr>
+<tr>
+<td>AI API (Anthropic)</td>
+<td>100 EUR</td>
+<td>150 EUR</td>
+<td>250 EUR</td>
+</tr>
+<tr>
+<td>Fejlesztés (2 FTE)</td>
+<td>8.000 EUR</td>
+<td>10.000 EUR</td>
+<td>12.000 EUR</td>
+</tr>
+<tr>
+<td>Sales/Marketing</td>
+<td>500 EUR</td>
+<td>2.000 EUR</td>
+<td>5.000 EUR</td>
+</tr>
+<tr>
+<td>Support</td>
+<td>0 EUR</td>
+<td>1.000 EUR</td>
+<td>3.000 EUR</td>
+</tr>
+<tr>
+<td>Jogi/compliance</td>
+<td>1.000 EUR</td>
+<td>500 EUR</td>
+<td>300 EUR</td>
+</tr>
+<tr>
+<td><strong>Összesen</strong></td>
+<td><strong>9.900 EUR</strong></td>
+<td><strong>14.150 EUR</strong></td>
+<td><strong>21.350 EUR</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="break-even-pont">Break-even Pont</h2>
+<p>Az előrejelzés alapján a <strong>break-even a 8-9. hónapban</strong>
+várható, amikor az MRR eléri a ~6.500 EUR/hó szintet, fedezve a havi
+működési költségeket.</p>
+<hr />
+<p><em>Dokumentum vége — Piaci Elemzés és Üzleti Stratégia v1.0</em>
+<em>Housing Solutions Kft. — 2026</em></p>
+</body>
+</html>

@@ -138,6 +138,7 @@ const allMenuItems = [
       { text: 'Kérdések', icon: <QuizIcon />, path: '/wellmind/questions', permission: 'dashboard.view' },
       { text: 'Intervenciók', icon: <CampaignIcon />, path: '/wellmind/interventions', permission: 'dashboard.view' },
       { text: 'Csapat metrikák', icon: <GroupsIcon />, path: '/wellmind/team-metrics', permission: 'dashboard.view' },
+      { text: 'NLP Hangulat', icon: <PsychologyIcon />, path: '/wellmind/sentiment', permission: 'settings.edit' },
     ],
   },
   {
