@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { getItem, setItem, deleteItem } from './storage';
 
 // Your computer's LAN IP (for physical devices on the same WiFi)
-const LOCAL_IP = '192.168.1.37';
+const LOCAL_IP = 'localhost';
 
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {

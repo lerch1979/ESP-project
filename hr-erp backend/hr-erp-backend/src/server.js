@@ -82,7 +82,7 @@ app.use(additionalHeaders);
 const corsOptions = {
   origin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-    : ['http://localhost:3001', 'http://localhost:3000'],
+    : ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:8081'],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -106,7 +106,7 @@ app.use('/api/', speedLimiter);
 
 // 6. CSRF protection (skips JWT Bearer requests automatically)
 app.use(csrfProtection({
-  exemptPaths: ['/auth/google/callback', '/api/health', '/health'],
+  exemptPaths: ['/auth/google/callback', '/api/health', '/health', '/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/reset-password'],
 }));
 
 // 7. Request logging
