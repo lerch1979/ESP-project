@@ -19,4 +19,16 @@ router.put('/notifications/read-all', ctrl.markAllNotificationsRead);
 // Feedback
 router.post('/feedback', ctrl.submitFeedback);
 
+// Admin: Conflict Analytics
+router.get('/admin/conflicts/stats', ctrl.getConflictStats);
+router.get('/admin/conflicts/trends', ctrl.getConflictTrends);
+router.get('/admin/conflicts/critical', ctrl.getCriticalIncidents);
+
+// Admin: Question Rotation
+router.get('/admin/question-rotation', ctrl.getQuestionRotation);
+router.put('/admin/question-rotation', ctrl.updateQuestionRotation);
+
+// Admin: Predictive Analytics
+router.get('/admin/predictive', ctrl.getPredictiveAnalytics);
+
 module.exports = router;
