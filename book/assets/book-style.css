@@ -1,0 +1,287 @@
+/* ═══════════════════════════════════════════════════════════════════
+   THE WORKFORCE STABILITY BIBLE — Book Stylesheet
+   Housing Solutions Kft. — Professional A4 Layout
+   Colors: Primary #1E40AF | Secondary #059669 | Accent #F59E0B
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Inter:wght@300;400;500;600&display=swap');
+
+@page {
+  size: A4;
+  margin: 2.8cm 2.2cm 3cm 2.5cm;
+}
+
+/* ─── Base ────────────────────────────────────────────────────── */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 11pt;
+  line-height: 1.7;
+  color: #1e293b;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ─── Cover Page ─────────────────────────────────────────────── */
+.cover-page {
+  page-break-after: always;
+  text-align: center;
+  padding-top: 120px;
+  min-height: 90vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #e0e7ff 100%);
+  margin: -2.8cm -2.5cm 0 -2.5cm;
+  padding-left: 2.5cm;
+  padding-right: 2.5cm;
+}
+.cover-logo {
+  display: inline-block;
+  border: 3px solid #1E40AF;
+  padding: 8px 18px;
+  margin-bottom: 60px;
+}
+.cover-logo-ws {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 28pt;
+  color: #1E40AF;
+  letter-spacing: 2px;
+}
+.cover-logo-text {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 10pt;
+  color: #64748b;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  display: block;
+  margin-top: 4px;
+}
+.cover-title {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 36pt;
+  color: #1E40AF;
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+.cover-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 16pt;
+  color: #059669;
+  margin-bottom: 40px;
+}
+.cover-tagline {
+  font-family: 'Inter', sans-serif;
+  font-size: 12pt;
+  color: #64748b;
+  max-width: 450px;
+  margin: 0 auto 60px;
+  line-height: 1.6;
+}
+.cover-bar {
+  width: 80px;
+  height: 4px;
+  background: #F59E0B;
+  margin: 0 auto 40px;
+}
+.cover-author {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 13pt;
+  color: #1e293b;
+}
+.cover-year {
+  font-size: 11pt;
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+/* ─── Headings ───────────────────────────────────────────────── */
+h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 26pt;
+  color: #1E40AF;
+  border-bottom: 4px solid #1E40AF;
+  padding-bottom: 12px;
+  margin-top: 50px;
+  margin-bottom: 24px;
+  page-break-before: always;
+}
+h1:first-of-type { page-break-before: avoid; }
+
+h2 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 18pt;
+  color: #1E40AF;
+  border-left: 5px solid #059669;
+  padding-left: 16px;
+  margin-top: 32px;
+  margin-bottom: 14px;
+}
+
+h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 14pt;
+  color: #059669;
+  margin-top: 24px;
+  margin-bottom: 10px;
+}
+
+h4 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 12pt;
+  color: #475569;
+  margin-top: 18px;
+}
+
+/* ─── Tables ─────────────────────────────────────────────────── */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 9.5pt;
+}
+th {
+  background: #1E40AF;
+  color: white;
+  padding: 8px 10px;
+  text-align: left;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+tr:nth-child(even) { background: #f1f5f9; }
+
+/* ─── Special Blocks ─────────────────────────────────────────── */
+blockquote {
+  border-left: 5px solid #F59E0B;
+  padding: 16px 20px;
+  margin: 20px 0;
+  background: #fffbeb;
+  font-style: italic;
+  color: #92400e;
+  border-radius: 0 8px 8px 0;
+}
+
+.key-insight {
+  background: #ecfdf5;
+  border-left: 5px solid #059669;
+  padding: 16px 20px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.stat-box {
+  background: #eff6ff;
+  border: 2px solid #1E40AF;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+  text-align: center;
+}
+.stat-box .stat-number {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 36pt;
+  color: #1E40AF;
+}
+.stat-box .stat-label {
+  font-size: 11pt;
+  color: #64748b;
+}
+
+/* ─── Code ───────────────────────────────────────────────────── */
+code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9pt;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 16px 20px;
+  border-radius: 8px;
+  font-size: 8.5pt;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border-left: 4px solid #F59E0B;
+}
+pre code { background: none; color: inherit; padding: 0; }
+
+/* ─── Lists ──────────────────────────────────────────────────── */
+ul, ol { padding-left: 24px; }
+li { margin-bottom: 4px; }
+
+/* ─── Links & References ─────────────────────────────────────── */
+a { color: #1E40AF; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+sup { font-size: 8pt; color: #1E40AF; }
+
+/* ─── Horizontal Rule ────────────────────────────────────────── */
+hr {
+  border: none;
+  height: 3px;
+  background: linear-gradient(90deg, #1E40AF, #059669, #F59E0B);
+  margin: 32px 0;
+}
+
+/* ─── Part Divider ───────────────────────────────────────────── */
+.part-divider {
+  page-break-before: always;
+  text-align: center;
+  padding-top: 200px;
+  page-break-after: always;
+}
+.part-number {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: 60pt;
+  color: #e2e8f0;
+}
+.part-title {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 28pt;
+  color: #1E40AF;
+  margin-top: -20px;
+}
+.part-subtitle {
+  font-size: 14pt;
+  color: #64748b;
+  margin-top: 12px;
+}
+
+/* ─── Footer / Chapter indicator ─────────────────────────────── */
+.chapter-footer {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 8px;
+  margin-top: 40px;
+  font-size: 9pt;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ─── Print adjustments ──────────────────────────────────────── */
+@media print {
+  body { padding: 0; max-width: none; }
+  .cover-page { background: #f8fafc !important; -webkit-print-color-adjust: exact; }
+  th { background: #1E40AF !important; color: white !important; -webkit-print-color-adjust: exact; }
+  tr:nth-child(even) { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+  blockquote { background: #fffbeb !important; -webkit-print-color-adjust: exact; }
+  pre { background: #0f172a !important; color: #e2e8f0 !important; -webkit-print-color-adjust: exact; }
+}
