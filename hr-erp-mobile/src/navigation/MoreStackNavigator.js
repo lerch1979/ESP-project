@@ -20,6 +20,13 @@ import TaskListScreen from '../screens/projects/TaskListScreen';
 import TaskDetailScreen from '../screens/projects/TaskDetailScreen';
 import InvoiceListScreen from '../screens/invoices/InvoiceListScreen';
 import InvoiceDetailScreen from '../screens/invoices/InvoiceDetailScreen';
+import WellMindDashboard from '../screens/WellMind/WellMindDashboard';
+import DailyPulseScreen from '../screens/WellMind/DailyPulseScreen';
+import PulseHistoryScreen from '../screens/WellMind/PulseHistoryScreen';
+import AssessmentScreen from '../screens/WellMind/AssessmentScreen';
+import AssessmentResultsScreen from '../screens/WellMind/AssessmentResultsScreen';
+import InterventionsScreen from '../screens/WellMind/InterventionsScreen';
+import CoachingSessionsScreen from '../screens/WellMind/CoachingSessionsScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -54,6 +61,13 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} options={{ title: 'Feladat' }} />
       <Stack.Screen name="InvoiceList" component={InvoiceListScreen} options={{ title: 'Számlák' }} />
       <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} options={{ title: 'Számla' }} />
+      <Stack.Screen name="WellMindDashboard" component={WellMindDashboard} options={{ title: 'WellMind' }} />
+      <Stack.Screen name="DailyPulse" component={DailyPulseScreen} options={{ title: 'Napi hangulat' }} />
+      <Stack.Screen name="PulseHistory" component={PulseHistoryScreen} options={{ title: 'Hangulat előzmények' }} />
+      <Stack.Screen name="Assessment" component={AssessmentScreen} options={{ title: 'Felmérés' }} />
+      <Stack.Screen name="AssessmentResults" component={AssessmentResultsScreen} options={{ title: 'Felmérés eredmények' }} />
+      <Stack.Screen name="Interventions" component={InterventionsScreen} options={{ title: 'Beavatkozások' }} />
+      <Stack.Screen name="CoachingSessions" component={CoachingSessionsScreen} options={{ title: 'Coaching' }} />
     </Stack.Navigator>
   );
 }

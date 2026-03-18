@@ -395,4 +395,8 @@ export const chatbotAPI = {
   },
 };
 
+// WellMind API — extracted to src/services/wellmind/api.js
+// Re-export for backward compatibility
+export { default as wellmindAPI } from './wellmind/api';
+
 export default api;

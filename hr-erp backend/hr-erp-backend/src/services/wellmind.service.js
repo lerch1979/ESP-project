@@ -66,7 +66,7 @@ async function getPulseHistory(userId, days = 30) {
   const result = await query(
     `SELECT survey_date, mood_score, stress_level, sleep_quality, workload_level, notes, submitted_at
      FROM wellmind_pulse_surveys
-     WHERE user_id = $1 AND survey_date >= CURRENT_DATE - $2
+     WHERE user_id = $1 AND survey_date >= CURRENT_DATE - CAST($2 AS INTEGER)
      ORDER BY survey_date DESC`,
     [userId, days]
   );

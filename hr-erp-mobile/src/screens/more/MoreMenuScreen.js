@@ -6,6 +6,17 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const menuSections = [
   {
+    title: 'Jóllét',
+    items: [
+      { key: 'wellmind', icon: 'heart-outline', label: 'WellMind Dashboard', screen: 'WellMindDashboard' },
+      { key: 'dailyPulse', icon: 'happy-outline', label: 'Napi hangulat', screen: 'DailyPulse' },
+      { key: 'pulseHistory', icon: 'stats-chart-outline', label: 'Hangulat előzmények', screen: 'PulseHistory' },
+      { key: 'assessment', icon: 'clipboard-outline', label: 'Negyedéves felmérés', screen: 'Assessment' },
+      { key: 'interventions', icon: 'bulb-outline', label: 'Beavatkozások', screen: 'Interventions' },
+      { key: 'coaching', icon: 'people-outline', label: 'Coaching', screen: 'CoachingSessions' },
+    ],
+  },
+  {
     title: 'Projektek & Feladatok',
     items: [
       { key: 'projects', icon: 'folder-outline', label: 'Projektek', screen: 'Projects' },
