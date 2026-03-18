@@ -312,6 +312,11 @@ echo "  Running comprehensive seed..."
 (cd "$BACKEND_DIR" && npm run db:seed 2>&1 | tail -3) || warn "Comprehensive seed had warnings (non-critical)"
 ok "Comprehensive seed complete"
 
+# Run sample data seed (accommodations, rooms, employees, FAQ, calendar, reports)
+echo "  Seeding sample data..."
+psql -d "$DB_NAME" -f "$BACKEND_DIR/migrations/seed_comprehensive_data.sql" 2>&1 | grep -E "(NOTICE|ERROR)" | sed 's/.*NOTICE:  /  /'
+ok "Sample data seeded"
+
 # ─── 8. Final verification ─────────────────────────────────────────
 step "8/8  Verification"
 
