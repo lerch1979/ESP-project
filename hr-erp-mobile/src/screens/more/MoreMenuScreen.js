@@ -17,6 +17,16 @@ const menuSections = [
     ],
   },
   {
+    title: 'Gondoskodás (CarePath)',
+    items: [
+      { key: 'carepath', icon: 'shield-outline', label: 'CarePath Dashboard', screen: 'CarePathDashboard' },
+      { key: 'createCase', icon: 'add-circle-outline', label: 'Új ügy indítása', screen: 'CreateCase' },
+      { key: 'myCases', icon: 'folder-open-outline', label: 'Ügyeim', screen: 'MyCases' },
+      { key: 'providerSearch', icon: 'search-outline', label: 'Szolgáltató keresés', screen: 'ProviderSearch' },
+      { key: 'categories', icon: 'grid-outline', label: 'Kategóriák', screen: 'ServiceCategories' },
+    ],
+  },
+  {
     title: 'Projektek & Feladatok',
     items: [
       { key: 'projects', icon: 'folder-outline', label: 'Projektek', screen: 'Projects' },

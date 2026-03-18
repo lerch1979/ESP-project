@@ -27,6 +27,14 @@ import AssessmentScreen from '../screens/WellMind/AssessmentScreen';
 import AssessmentResultsScreen from '../screens/WellMind/AssessmentResultsScreen';
 import InterventionsScreen from '../screens/WellMind/InterventionsScreen';
 import CoachingSessionsScreen from '../screens/WellMind/CoachingSessionsScreen';
+import CarePathDashboard from '../screens/CarePath/CarePathDashboard';
+import ServiceCategoriesScreen from '../screens/CarePath/ServiceCategoriesScreen';
+import CreateCaseScreen from '../screens/CarePath/CreateCaseScreen';
+import MyCasesScreen from '../screens/CarePath/MyCasesScreen';
+import CaseDetailsScreen from '../screens/CarePath/CaseDetailsScreen';
+import ProviderSearchScreen from '../screens/CarePath/ProviderSearchScreen';
+import ProviderDetailsScreen from '../screens/CarePath/ProviderDetailsScreen';
+import BookingScreen from '../screens/CarePath/BookingScreen';
 import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
@@ -68,6 +76,14 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="AssessmentResults" component={AssessmentResultsScreen} options={{ title: 'Felmérés eredmények' }} />
       <Stack.Screen name="Interventions" component={InterventionsScreen} options={{ title: 'Beavatkozások' }} />
       <Stack.Screen name="CoachingSessions" component={CoachingSessionsScreen} options={{ title: 'Coaching' }} />
+      <Stack.Screen name="CarePathDashboard" component={CarePathDashboard} options={{ title: 'CarePath' }} />
+      <Stack.Screen name="ServiceCategories" component={ServiceCategoriesScreen} options={{ title: 'Szolgáltatások' }} />
+      <Stack.Screen name="CreateCase" component={CreateCaseScreen} options={{ title: 'Új ügy' }} />
+      <Stack.Screen name="MyCases" component={MyCasesScreen} options={{ title: 'Ügyeim' }} />
+      <Stack.Screen name="CaseDetails" component={CaseDetailsScreen} options={{ title: 'Ügy részletei' }} />
+      <Stack.Screen name="ProviderSearch" component={ProviderSearchScreen} options={{ title: 'Szolgáltató keresés' }} />
+      <Stack.Screen name="ProviderDetails" component={ProviderDetailsScreen} options={{ title: 'Szolgáltató' }} />
+      <Stack.Screen name="Booking" component={BookingScreen} options={{ title: 'Időpont foglalás' }} />
     </Stack.Navigator>
   );
 }
