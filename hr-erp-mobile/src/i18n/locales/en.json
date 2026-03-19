@@ -1,0 +1,14 @@
+{
+  "nav":{"home":"Home","tickets":"Tickets","wellbeing":"Wellbeing","employees":"Employees","more":"More"},
+  "login":{"title":"HR-ERP Mobile","subtitle":"Login","email":"Email address","password":"Password","button":"Login","loading":"Logging in...","error":"Invalid email or password"},
+  "dashboard":{"title":"Dashboard","greeting":"Hi, {{name}}!","wellbeing":"Wellbeing","checkIn":"Check-in","help":"Help"},
+  "pulse":{"title":"Daily Pulse","subtitle":"How are you feeling today?","mood":"Mood","stress":"Stress level","sleep":"Sleep quality","workload":"Workload","notes":"Notes","submit":"Submit","submitting":"Submitting...","submitted":"Today's pulse completed!","points":"+10 points","history":"History","trend":"Trend"},
+  "wellmind":{"title":"WellMind","dashboard":"Dashboard","dailyPulse":"Daily Pulse","pulseHistory":"Pulse History","assessment":"Assessment","results":"Results","interventions":"Interventions","coaching":"Coaching","overtime":"Overtime"},
+  "carepath":{"title":"CarePath","dashboard":"Dashboard","newCase":"New Case","myCases":"My Cases","providers":"Providers","booking":"Booking","categories":"Categories"},
+  "gamification":{"points":"points","badges":"Badges","leaderboard":"Leaderboard","streak":"Streak: {{days}} days","level":"Level"},
+  "tickets":{"title":"Tickets","create":"New Ticket","myTickets":"My Tickets","detail":"Details"},
+  "housing":{"title":"Housing Feedback","room":"Room cleanliness","common":"Common areas","bathroom":"Bathroom","kitchen":"Kitchen","submit":"Submit"},
+  "notifications":{"title":"Notifications","empty":"No notifications","markAllRead":"Mark all read"},
+  "settings":{"title":"Settings","profile":"Profile","language":"Language","languageDesc":"This language will be used throughout the app.","logout":"Logout","logoutConfirm":"Are you sure you want to logout?","languageUpdated":"Language updated","languages":{"hu":"Magyar","en":"English","tl":"Tagalog","uk":"Українська","de":"Deutsch"}},
+  "common":{"save":"Save","cancel":"Cancel","delete":"Delete","edit":"Edit","create":"Create","search":"Search","loading":"Loading...","noData":"No data","error":"Error","success":"Success","back":"Back","next":"Next","submit":"Submit","retry":"Retry","close":"Close","yes":"Yes","no":"No","ok":"OK"}
+}

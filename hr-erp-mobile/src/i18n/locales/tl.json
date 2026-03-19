@@ -1,0 +1,14 @@
+{
+  "nav":{"home":"Home","tickets":"Mga Ticket","wellbeing":"Kalusugan","employees":"Mga Empleyado","more":"Iba pa"},
+  "login":{"title":"HR-ERP Mobile","subtitle":"Mag-login","email":"Email address","password":"Password","button":"Mag-login","loading":"Naglo-login...","error":"Mali ang email o password"},
+  "dashboard":{"title":"Dashboard","greeting":"Kumusta, {{name}}!","wellbeing":"Kalusugan","checkIn":"Check-in","help":"Tulong"},
+  "pulse":{"title":"Araw-araw na Pulse","subtitle":"Kumusta ang pakiramdam mo ngayon?","mood":"Mood","stress":"Stress level","sleep":"Kalidad ng tulog","workload":"Workload","notes":"Mga tala","submit":"Isumite","submitting":"Isinusumite...","submitted":"Natapos na ang pulse ngayon!","points":"+10 puntos","history":"Kasaysayan","trend":"Trend"},
+  "wellmind":{"title":"WellMind","dashboard":"Dashboard","dailyPulse":"Araw-araw na Pulse","pulseHistory":"Kasaysayan ng Pulse","assessment":"Pagtatasa","results":"Mga Resulta","interventions":"Mga Interbensyon","coaching":"Coaching","overtime":"Overtime"},
+  "carepath":{"title":"CarePath","dashboard":"Dashboard","newCase":"Bagong Kaso","myCases":"Mga Kaso Ko","providers":"Mga Provider","booking":"Booking","categories":"Mga Kategorya"},
+  "gamification":{"points":"puntos","badges":"Mga Badge","leaderboard":"Leaderboard","streak":"Streak: {{days}} araw","level":"Level"},
+  "tickets":{"title":"Mga Ticket","create":"Bagong Ticket","myTickets":"Mga Ticket Ko","detail":"Mga Detalye"},
+  "housing":{"title":"Feedback sa Tirahan","room":"Kalinisan ng kwarto","common":"Mga common area","bathroom":"Banyo","kitchen":"Kusina","submit":"Isumite"},
+  "notifications":{"title":"Mga Notipikasyon","empty":"Walang notipikasyon","markAllRead":"Markahan lahat na nabasa"},
+  "settings":{"title":"Mga Setting","profile":"Profile","language":"Wika","languageDesc":"Ang wikang ito ay gagamitin sa buong app.","logout":"Mag-logout","logoutConfirm":"Sigurado ka bang gusto mong mag-logout?","languageUpdated":"Na-update ang wika","languages":{"hu":"Magyar","en":"English","tl":"Tagalog","uk":"Українська","de":"Deutsch"}},
+  "common":{"save":"I-save","cancel":"Kanselahin","delete":"Tanggalin","edit":"I-edit","create":"Lumikha","search":"Maghanap","loading":"Naglo-load...","noData":"Walang data","error":"Error","success":"Tagumpay","back":"Bumalik","next":"Susunod","submit":"Isumite","retry":"Ulitin","close":"Isara","yes":"Oo","no":"Hindi","ok":"OK"}
+}

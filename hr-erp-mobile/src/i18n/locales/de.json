@@ -1,0 +1,14 @@
+{
+  "nav":{"home":"Startseite","tickets":"Tickets","wellbeing":"Wohlbefinden","employees":"Mitarbeiter","more":"Mehr"},
+  "login":{"title":"HR-ERP Mobile","subtitle":"Anmelden","email":"E-Mail-Adresse","password":"Passwort","button":"Anmelden","loading":"Anmeldung...","error":"Ungültige E-Mail oder Passwort"},
+  "dashboard":{"title":"Dashboard","greeting":"Hallo, {{name}}!","wellbeing":"Wohlbefinden","checkIn":"Check-in","help":"Hilfe"},
+  "pulse":{"title":"Täglicher Puls","subtitle":"Wie fühlen Sie sich heute?","mood":"Stimmung","stress":"Stresslevel","sleep":"Schlafqualität","workload":"Arbeitsbelastung","notes":"Notizen","submit":"Absenden","submitting":"Wird gesendet...","submitted":"Heutiger Puls abgeschlossen!","points":"+10 Punkte","history":"Verlauf","trend":"Trend"},
+  "wellmind":{"title":"WellMind","dashboard":"Dashboard","dailyPulse":"Täglicher Puls","pulseHistory":"Pulsverlauf","assessment":"Bewertung","results":"Ergebnisse","interventions":"Interventionen","coaching":"Coaching","overtime":"Überstunden"},
+  "carepath":{"title":"CarePath","dashboard":"Dashboard","newCase":"Neuer Fall","myCases":"Meine Fälle","providers":"Anbieter","booking":"Buchung","categories":"Kategorien"},
+  "gamification":{"points":"Punkte","badges":"Abzeichen","leaderboard":"Rangliste","streak":"Serie: {{days}} Tage","level":"Level"},
+  "tickets":{"title":"Tickets","create":"Neues Ticket","myTickets":"Meine Tickets","detail":"Details"},
+  "housing":{"title":"Unterkunft Feedback","room":"Zimmersauberkeit","common":"Gemeinschaftsbereiche","bathroom":"Badezimmer","kitchen":"Küche","submit":"Absenden"},
+  "notifications":{"title":"Benachrichtigungen","empty":"Keine Benachrichtigungen","markAllRead":"Alle als gelesen markieren"},
+  "settings":{"title":"Einstellungen","profile":"Profil","language":"Sprache","languageDesc":"Diese Sprache wird in der gesamten App verwendet.","logout":"Abmelden","logoutConfirm":"Möchten Sie sich wirklich abmelden?","languageUpdated":"Sprache aktualisiert","languages":{"hu":"Magyar","en":"English","tl":"Tagalog","uk":"Українська","de":"Deutsch"}},
+  "common":{"save":"Speichern","cancel":"Abbrechen","delete":"Löschen","edit":"Bearbeiten","create":"Erstellen","search":"Suchen","loading":"Laden...","noData":"Keine Daten","error":"Fehler","success":"Erfolg","back":"Zurück","next":"Weiter","submit":"Absenden","retry":"Wiederholen","close":"Schließen","yes":"Ja","no":"Nein","ok":"OK"}
+}
