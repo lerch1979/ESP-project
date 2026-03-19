@@ -27,21 +27,67 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - hibakezelés
+// Response interceptor - automatic token refresh on 401
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Ne kezeljük a login/refresh endpoint 401-es válaszait - azokat a komponens kezeli
-      const url = error.config?.url || '';
-      if (!url.includes('/auth/login') && !url.includes('/auth/refresh')) {
-        // Token lejárt vagy érvénytelen - csak nem-auth kéréseknél
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Skip refresh logic for auth endpoints
+    const url = originalRequest?.url || '';
+    if (url.includes('/auth/login') || url.includes('/auth/refresh')) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const { token } = response.data.data;
+
+        localStorage.setItem('token', token);
+        api.defaults.headers.common.Authorization = `Bearer ${token}`;
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+
+        processQueue(null, token);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
         window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   }
 );

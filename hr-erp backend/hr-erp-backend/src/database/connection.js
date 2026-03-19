@@ -9,26 +9,44 @@ const sslConfig = process.env.DB_SSL === 'true'
     }
   : false;
 
-// PostgreSQL connection pool
+// PostgreSQL connection pool — production-tuned
+const isProduction = process.env.NODE_ENV === 'production';
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 5432,
   database: process.env.DB_NAME || 'hr_erp_db',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
-  max: 20, // Maximum pool connections
+  max: parseInt(process.env.DB_POOL_MAX) || (isProduction ? 100 : 20),
+  min: parseInt(process.env.DB_POOL_MIN) || (isProduction ? 10 : 2),
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 30000, // kill queries running >30s
   ssl: sslConfig,
 });
 
-// Pool event handlers
+// Pool monitoring
+let poolStats = { totalConnections: 0, errors: 0 };
+
 pool.on('connect', () => {
+  poolStats.totalConnections++;
   logger.debug('Új adatbázis kapcsolat létrejött');
 });
 
 pool.on('error', (err) => {
+  poolStats.errors++;
   logger.error('Váratlan adatbázis hiba:', err);
+});
+
+pool.on('remove', () => {
+  logger.debug('Adatbázis kapcsolat lezárva');
+});
+
+const getPoolStats = () => ({
+  total: pool.totalCount,
+  idle: pool.idleCount,
+  waiting: pool.waitingCount,
+  lifetime: poolStats,
 });
 
 // Query helper function
@@ -85,9 +103,18 @@ const testConnection = async () => {
   }
 };
 
+// Graceful pool shutdown
+const closePool = async () => {
+  logger.info('Adatbázis kapcsolatok lezárása...');
+  await pool.end();
+  logger.info('Adatbázis pool lezárva');
+};
+
 module.exports = {
   pool,
   query,
   transaction,
-  testConnection
+  testConnection,
+  getPoolStats,
+  closePool,
 };

@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "start:prod": "NODE_ENV=production node src/cluster.js",
     "dev": "nodemon src/server.js",
     "test": "jest --coverage",
     "db:migrate": "node src/database/migrate.js run",
@@ -46,6 +47,7 @@
     "@slack/bolt": "^3.17.0",
     "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",

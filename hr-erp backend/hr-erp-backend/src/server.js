@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const { logger } = require('./utils/logger');
 const db = require('./database/connection');
@@ -98,7 +99,10 @@ if (!process.env.CORS_ORIGIN) {
 }
 app.use(cors(corsOptions));
 
-// 3. Cookie parser (required for CSRF double-submit cookie)
+// 3. Response compression (gzip/brotli)
+app.use(compression());
+
+// 4. Cookie parser (required for CSRF double-submit cookie)
 app.use(cookieParser());
 
 // 4. Body parsing — reduced from 10mb to 2mb (per-route overrides for file uploads)
@@ -134,18 +138,26 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 // ROUTES
 // ============================================
 
-// Health check
-app.get('/health', async (req, res) => {
+// Health check — basic (k8s liveness)
+app.get('/health', (req, res) => res.json({ status: 'OK' }));
+
+// Health check — readiness (deep: checks DB + pool stats)
+app.get('/health/ready', async (req, res) => {
   const health = {
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    pid: process.pid,
+    memory: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB',
     database: 'unknown',
+    pool: db.getPoolStats(),
   };
 
   try {
+    const start = Date.now();
     await db.query('SELECT 1');
     health.database = 'connected';
+    health.dbLatency = Date.now() - start + 'ms';
   } catch {
     health.status = 'DEGRADED';
     health.database = 'disconnected';
@@ -153,6 +165,11 @@ app.get('/health', async (req, res) => {
 
   const code = health.status === 'OK' ? 200 : 503;
   res.status(code).json(health);
+});
+
+// Health check — liveness (k8s)
+app.get('/health/live', (req, res) => {
+  res.json({ status: 'OK', pid: process.pid, uptime: process.uptime() });
 });
 
 // API health (under prefix)
@@ -280,29 +297,49 @@ async function startServer() {
     }
 
     // Szerver indítása
-    app.listen(PORT, () => {
-      logger.info(`🚀 Szerver fut: http://localhost:${PORT}`);
+    const server = app.listen(PORT, () => {
+      logger.info(`🚀 Szerver fut: http://localhost:${PORT} (PID: ${process.pid})`);
       logger.info(`📡 API endpoint: http://localhost:${PORT}${API_PREFIX}`);
       logger.info(`🌍 Környezet: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`🔗 DB pool: max=${db.pool.options.max}, min=${db.pool.options.min || 0}`);
     });
+
+    // Graceful shutdown handler
+    const shutdown = async (signal) => {
+      logger.info(`${signal} fogadva — graceful shutdown indítása...`);
+
+      // 1. Stop accepting new connections
+      server.close(() => {
+        logger.info('HTTP szerver lezárva (új kapcsolatok elutasítva)');
+      });
+
+      // 2. Wait for existing requests (max 30s)
+      const forceTimeout = setTimeout(() => {
+        logger.warn('Graceful shutdown timeout (30s) — kényszerített kilépés');
+        process.exit(1);
+      }, 30000);
+
+      try {
+        // 3. Close DB pool
+        await db.closePool();
+        clearTimeout(forceTimeout);
+        logger.info('Graceful shutdown kész');
+        process.exit(0);
+      } catch (err) {
+        logger.error('Shutdown hiba:', err);
+        clearTimeout(forceTimeout);
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+
   } catch (error) {
     logger.error('❌ Szerver indítási hiba:', error);
     process.exit(1);
   }
 }
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM signal fogadva, szerver leállítás...');
-  await db.pool.end();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  logger.info('SIGINT signal fogadva, szerver leállítás...');
-  await db.pool.end();
-  process.exit(0);
-});
 
 startServer();
 

@@ -96,14 +96,14 @@ const login = async (req, res) => {
         roles: roles
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
 
     // Refresh token
     const refreshToken = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
     );
 
     // Utolsó bejelentkezés frissítése
@@ -196,7 +196,7 @@ const refreshToken = async (req, res) => {
         roles: rolesResult.rows.map(r => r.slug)
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
 
     res.json({
