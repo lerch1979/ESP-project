@@ -51,90 +51,109 @@ function buildHTML(report) {
 <head>
 <meta charset="UTF-8">
 <style>
-@page { size: A4; margin: 20mm 18mm 15mm 18mm; }
+@page { size: A4; margin: 18mm 16mm 14mm 16mm; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt; line-height: 1.35; color: #1a1a1a; }
-.header { text-align: center; margin-bottom: 5px; }
-.header h1 { font-size: 14pt; font-weight: 800; color: #1E40AF; margin-bottom: 2px; letter-spacing: 1px; }
-.header .meta { font-size: 7.5pt; color: #555; }
-.divider { border-top: 2px solid #1E40AF; margin: 4px 0; }
-.thin-div { border-top: 0.5px solid #ccc; margin: 3px 0; }
-.two-col { display: flex; gap: 14px; }
-.two-col .col { flex: 1; }
-.stitle { font-size: 9pt; font-weight: 700; color: #1E40AF; margin: 5px 0 2px 0; text-transform: uppercase; letter-spacing: 0.3px; }
+body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt; line-height: 1.3; color: #1a1a1a; }
+.hdr { text-align: center; margin-bottom: 4px; }
+.hdr h1 { font-size: 14pt; font-weight: 800; color: #1E40AF; margin-bottom: 1px; letter-spacing: 1px; }
+.hdr .m { font-size: 7.5pt; color: #555; }
+.dv { border-top: 2px solid #1E40AF; margin: 3px 0; }
+.td { border-top: 0.5px solid #ccc; margin: 3px 0; }
+.row { display: flex; gap: 12px; }
+.row .c { flex: 1; }
+.st { font-size: 9pt; font-weight: 700; color: #1E40AF; margin: 5px 0 2px 0; text-transform: uppercase; letter-spacing: 0.3px; }
 .f { margin-bottom: 1px; font-size: 7.5pt; }
-.f .l { font-weight: 600; color: #555; }
-.dbox { border: 0.5px solid #ddd; padding: 3px 5px; min-height: 22px; font-size: 7.5pt; margin: 2px 0; }
-.cb { display: inline-block; width: 9px; height: 9px; border: 1px solid #333; margin-right: 3px; vertical-align: middle; text-align: center; font-size: 6pt; line-height: 9px; }
-.cb.on { background: #1E40AF; color: white; }
-.cost { font-size: 7.5pt; margin: 1px 0; }
-.cost-total { font-weight: 700; font-size: 8.5pt; border-top: 1px solid #333; padding-top: 2px; margin-top: 2px; }
-.stmt { font-size: 6.5pt; color: #333; line-height: 1.25; margin: 3px 0; padding: 3px 5px; background: #f8f9fa; border-left: 2px solid #1E40AF; }
-.sigs { display: flex; gap: 14px; margin-top: 6px; }
-.sig { flex: 1; text-align: center; }
-.sig-line { border-bottom: 1px solid #333; height: 24px; margin-bottom: 1px; }
-.sig-lbl { font-size: 6.5pt; color: #555; }
-.sig-dt { font-size: 6.5pt; color: #555; }
-.legal { font-size: 6pt; color: #777; margin-top: 5px; }
-.footer { font-size: 5.5pt; color: #aaa; text-align: center; margin-top: 4px; border-top: 0.5px solid #ddd; padding-top: 2px; }
+.f b { font-weight: 600; color: #555; }
+.db { border: 0.5px solid #ddd; padding: 3px 5px; min-height: 20px; font-size: 7.5pt; margin: 2px 0; }
+.ck { display: inline-block; width: 9px; height: 9px; border: 1px solid #333; margin-right: 3px; vertical-align: middle; text-align: center; font-size: 6pt; line-height: 9px; }
+.ck.on { background: #1E40AF; color: white; }
+.bl { font-size: 7.5pt; margin: 1px 0; }
+.bt { font-weight: 700; font-size: 8.5pt; border-top: 1px solid #333; padding-top: 2px; margin-top: 2px; }
+.ny { font-size: 6.5pt; color: #333; line-height: 1.25; margin: 3px 0; padding: 3px 5px; background: #f8f9fa; border-left: 2px solid #1E40AF; }
+.sg { display: flex; gap: 12px; margin-top: 5px; }
+.sb { flex: 1; text-align: center; }
+.sl { border-bottom: 1px solid #333; height: 22px; margin-bottom: 1px; }
+.sn { font-size: 6.5pt; color: #555; }
+.jog { font-size: 6pt; color: #777; margin-top: 4px; }
+.ft { font-size: 5.5pt; color: #aaa; text-align: center; margin-top: 3px; border-top: 0.5px solid #ddd; padding-top: 2px; }
 </style>
 </head>
 <body>
 
-<div class="header">
+<div class="hdr">
   <h1>KÁRIGÉNY JEGYZŐKÖNYV</h1>
-  <div class="meta">Szám: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; Kelt: <strong>${formatDate(report.created_at)}</strong></div>
+  <div class="m">Szám: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; Kelt: <strong>${formatDate(report.created_at)}</strong></div>
 </div>
-<div class="divider"></div>
+<div class="dv"></div>
 
-<div class="two-col">
-  <div class="col">
-    <div class="stitle">1. Azonosító adatok</div>
-    <div class="f"><span class="l">Munkavállaló:</span> ${empName}</div>
-    <div class="f"><span class="l">E-mail:</span> ${esc(report.employee_email || 'N/A')}</div>
-    <div class="f"><span class="l">Munkáltató:</span> ${esc(report.contractor_name || 'N/A')}</div>
-    <div class="f"><span class="l">Esemény dátuma:</span> ${formatDate(report.incident_date)}</div>
-    <div class="f"><span class="l">Felfedezés:</span> ${formatDate(report.discovery_date)}</div>
+<!-- 1+2: AZONOSÍTÓ ADATOK + KÁR HELYSZÍNE -->
+<div class="row">
+  <div class="c">
+    <div class="st">1. Azonosító adatok</div>
+    <div class="f"><b>Munkavállaló:</b> ${empName}</div>
+    <div class="f"><b>E-mail:</b> ${esc(report.employee_email || 'N/A')}</div>
+    <div class="f"><b>Munkáltató:</b> ${esc(report.contractor_name || 'N/A')}</div>
+    <div class="f"><b>Esemény dátuma:</b> ${formatDate(report.incident_date)}</div>
+    <div class="f"><b>Felfedezés dátuma:</b> ${formatDate(report.discovery_date)}</div>
   </div>
-  <div class="col">
-    <div class="stitle">2. Kár helyszíne</div>
-    <div class="f"><span class="l">Szálláshely:</span> ${esc(report.accommodation_id || 'N/A')}</div>
-    <div class="f"><span class="l">Szoba/Egység:</span> ${esc(report.room_id || 'N/A')}</div>
-    ${report.ticket_id ? `<div class="f"><span class="l">Hibajegy:</span> #${esc(String(report.ticket_id).substring(0, 8))}</div>` : ''}
-    <div class="f"><span class="l">Fotók:</span> ${photoCount} db melléklet</div>
+  <div class="c">
+    <div class="st">2. Kár helyszíne</div>
+    <div class="f"><b>Szálláshely:</b> ${esc(report.accommodation_id || 'N/A')}</div>
+    <div class="f"><b>Szoba/Egység:</b> ${esc(report.room_id || 'N/A')}</div>
+    ${report.ticket_id ? `<div class="f"><b>Hibajegy:</b> #${esc(String(report.ticket_id).substring(0, 8))}</div>` : ''}
   </div>
 </div>
-<div class="thin-div"></div>
+<div class="td"></div>
 
-<div class="stitle">3. Kár leírása</div>
-<div class="dbox">${esc(report.description || 'Nincs leírás megadva.')}</div>
-<div class="thin-div"></div>
+<!-- 3: KÁR LEÍRÁSA -->
+<div class="st">3. Kár leírása</div>
+<div class="db">${esc(report.description || 'Nincs leírás megadva.')}</div>
+<div class="td"></div>
 
-<div class="stitle">5. Felróhatóság megállapítása</div>
+<!-- 4: FOTÓDOKUMENTÁCIÓ -->
+<div class="st">4. Fotódokumentáció</div>
+<div class="f">${photoCount > 0 ? `<b>${photoCount} db</b> fotó melléklet csatolva a jegyzőkönyvhöz.` : 'Fotó melléklet nem készült / nincs csatolva.'}</div>
+<div class="td"></div>
+
+<!-- 5: FELRÓHATÓSÁG MEGÁLLAPÍTÁSA -->
+<div class="st">5. Felróhatóság megállapítása</div>
 <div style="font-size:7.5pt;margin:2px 0;">A fent leírt kár a lakó felróható magatartásából ered.</div>
-<div style="font-size:7.5pt;margin:2px 0;">
-  <span class="cb${report.employee_acknowledged ? ' on' : ''}">${report.employee_acknowledged ? '✓' : ''}</span> A lakó elismeri a felróhatóságot
+<div style="font-size:7.5pt;margin:3px 0;">
+  <span class="ck${report.employee_acknowledged ? ' on' : ''}">${report.employee_acknowledged ? '✓' : ''}</span> A lakó elismeri a felróhatóságot
 </div>
-<div class="f"><span class="l">Lakó nyilatkozata:</span> _______________________________________________________________</div>
-<div class="thin-div"></div>
+<div class="f"><b>Lakó nyilatkozata:</b> _______________________________________________________________</div>
+<div class="td"></div>
 
-<div class="stitle">6. Kárfelmérés</div>
-<div style="font-size:7.5pt;margin:2px 0;">A kár elhárítása folyamatban van / megtörtént. A kárelhárítással járó költségeket számla alapján igazoljuk le.</div>
-${items.length > 0 ? items.map(i => `<div class="cost">${esc(i.name)}: <strong>${formatCurrency(i.cost)}</strong>${i.description ? ` <span style="color:#777">(${esc(i.description)})</span>` : ''}</div>`).join('') + `<div class="cost-total">Becsült kárösszeg: ${formatCurrency(report.total_cost)}</div>` : `<div class="cost">Várható kárösszeg (becsült): _________________ Ft</div><div class="cost">Végleges kárösszeg (számlával igazolva): _________________ Ft</div>`}
-<div class="thin-div"></div>
+<!-- 6: KÁRRENDEZÉS -->
+<div class="st">6. Kárrendezés</div>
+<div style="font-size:7.5pt;margin:2px 0 6px 0;">
+  A kár pontos összegének megállapítása a kár elhárítását követően számlával kerül igazolásra.
+</div>
+${items.length > 0 ? `<div style="margin-bottom:4px;">${items.map(i => `<div class="bl">${esc(i.name)}: <strong>${formatCurrency(i.cost)}</strong>${i.description ? ` <span style="color:#777">(${esc(i.description)})</span>` : ''}</div>`).join('')}<div class="bt">Becsült kárösszeg: ${formatCurrency(report.total_cost)}</div></div>` : ''}
+<div class="f" style="margin-top:4px"><b>Becsült kárösszeg:</b> ${report.total_cost > 0 ? formatCurrency(report.total_cost) : '_________________ Ft'}</div>
+<div style="margin-top:6px;font-size:7.5pt;"><b>Végleges összeg (számlával igazolva):</b></div>
+<div class="f"><b>Számlaszám:</b> ________________________</div>
+<div class="f"><b>Dátum:</b> _____________________________</div>
+<div class="f"><b>Összeg:</b> ____________________________ Ft</div>
+<div class="td"></div>
 
-<div class="stitle">7. Munkavállalói nyilatkozat</div>
-<div class="stmt">Alulírott munkavállaló kijelentem, hogy a fenti kárigény jegyzőkönyvet megismertem, annak tartalmát tudomásul vettem. A Munka törvénykönyve 166. § és 177. § rendelkezései alapján a munkáltató jogosult a kártérítés összegét a munkabéremből levonni (havi bruttó bér max. 50%-áig).${plan.length > 0 ? ` Törlesztés: ${plan.length} hónap.` : ''}</div>
+<!-- 7: NYILATKOZAT -->
+<div class="st">7. Nyilatkozat</div>
+<div class="ny">Alulírott tudomásul veszem, hogy a fenti károk az én felróható magatartásomból eredtek. Elfogadom, hogy a kárösszeg legfeljebb a fizetésem 50%-áig havonta levonható (Mt. 177. §). A Munka törvénykönyve 166. § rendelkezései alapján a munkáltató jogosult a kártérítés érvényesítésére.${plan.length > 0 ? ` Törlesztés: ${plan.length} hónap.` : ''}</div>
 
-<div class="stitle">8. Aláírások</div>
-<div class="sigs">
-  <div class="sig"><div class="sig-line"></div><div class="sig-lbl">Munkavállaló (lakó)</div><div class="sig-dt">Dátum: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '____________________'}</div></div>
-  <div class="sig"><div class="sig-line"></div><div class="sig-lbl">Munkáltatói képviselő</div><div class="sig-dt">Dátum: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '____________________'}</div></div>
-  <div class="sig"><div class="sig-line"></div><div class="sig-lbl">Tanú</div><div class="sig-dt">Név: ${esc(report.witness_name) || '____________________'}</div></div>
+<!-- 8: ALÁÍRÁSOK -->
+<div class="st">8. Aláírások</div>
+<div class="sg">
+  <div class="sb"><div class="sl"></div><div class="sn">Munkavállaló (lakó)</div><div class="sn">Dátum: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '____________________'}</div></div>
+  <div class="sb"><div class="sl"></div><div class="sn">Facility Manager</div><div class="sn">Dátum: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '____________________'}</div></div>
+  <div class="sb"><div class="sl"></div><div class="sn">Tanú</div><div class="sn">Név: ${esc(report.witness_name) || '____________________'}</div></div>
 </div>
 
-<div class="legal">Jogi hivatkozások: Mt. 166. § (kártérítési kötelezettség) · Mt. 177. § (munkabérből levonás max. 50%) · Ptk. 6:142. § (teljes kártérítés) · Ptk. 6:143. § (kártérítés módja)</div>
-<div class="footer">Housing Solutions Kft. — Munkaerő Stabilitási Platform · ${new Date().toISOString().replace('T', ' ').substring(0, 19)}</div>
+<!-- 9: JOGI HIVATKOZÁSOK -->
+<div class="jog">
+  <b>9. Jogi hivatkozások:</b> Mt. 166. § (kártérítési kötelezettség) · Mt. 177. § (munkabérből levonás max. 50%) · Ptk. 6:142. § (teljes kártérítés) · Ptk. 6:143. § (kártérítés módja)
+</div>
+<div class="ft">Housing Solutions Kft. — Munkaerő Stabilitási Platform · ${new Date().toISOString().replace('T', ' ').substring(0, 19)}</div>
 
 </body></html>`;
 }
