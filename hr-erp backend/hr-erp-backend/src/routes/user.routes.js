@@ -1,13 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
+const langCtrl = require('../controllers/language.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
-// All user routes require authentication
 router.use(authenticateToken);
 
-// Felhasználók listája (role szűrővel)
+// Language management (MUST be before /:id routes)
+router.get('/languages', langCtrl.getSupportedLanguages);
+router.get('/language-stats', langCtrl.getLanguageStats);
+router.get('/me/language', langCtrl.getMyLanguage);
+router.patch('/me/language', langCtrl.updateMyLanguage);
+router.post('/bulk-language-assignment', langCtrl.bulkLanguageAssignment);
+router.patch('/:id/language', langCtrl.updateUserLanguage);
+
+// Felhasználók listája
 router.get('/', checkPermission('users.view'), userController.getUsers);
 
 // Felhasználó részletei
