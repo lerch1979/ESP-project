@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
+import { setLanguageFromProfile } from '../i18n';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,10 @@ export function AuthProvider({ children }) {
         const parsed = JSON.parse(userData);
         setUser(parsed);
         setPermissions(parsed.permissions || []);
+        // AUTOMATIC: Set UI language from user profile
+        if (parsed.preferred_language) {
+          setLanguageFromProfile(parsed.preferred_language);
+        }
       } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -34,6 +39,10 @@ export function AuthProvider({ children }) {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     setPermissions(userData.permissions || []);
+    // AUTOMATIC: Set UI language from user profile on login
+    if (userData.preferred_language) {
+      setLanguageFromProfile(userData.preferred_language);
+    }
   }, []);
 
   const logout = useCallback(async () => {
@@ -47,6 +56,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
     setUser(null);
     setPermissions([]);
+    setLanguageFromProfile('hu'); // Reset to default on logout
   }, []);
 
   const updateUser = useCallback((userData) => {

@@ -136,7 +136,8 @@ const login = async (req, res) => {
           },
           roles: roleNames,
           roleSlugs: roles,
-          permissions: roles.includes('superadmin') ? ['*'] : permissions
+          permissions: roles.includes('superadmin') ? ['*'] : permissions,
+          preferred_language: user.preferred_language || 'hu'
         }
       }
     });

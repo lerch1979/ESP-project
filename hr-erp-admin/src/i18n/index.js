@@ -1,18 +1,18 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
 
-// Import translations directly (no backend needed for bundled translations)
+// Bundled translations — no HTTP backend needed
 import huCommon from '../../public/locales/hu/common.json';
 import enCommon from '../../public/locales/en/common.json';
 import tlCommon from '../../public/locales/tl/common.json';
 import ukCommon from '../../public/locales/uk/common.json';
 import deCommon from '../../public/locales/de/common.json';
 
+// NO LanguageDetector — language comes from user.preferred_language on login
 i18n
-  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
+    lng: localStorage.getItem('i18nextLng') || 'hu', // Persist between refreshes
     fallbackLng: 'hu',
     supportedLngs: ['hu', 'en', 'tl', 'uk', 'de'],
     defaultNS: 'common',
@@ -23,13 +23,18 @@ i18n
       uk: { common: ukCommon },
       de: { common: deCommon },
     },
-    detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-    },
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
   });
+
+/**
+ * Set language from user profile (called on login/auth check).
+ * Also persists to localStorage for page refreshes.
+ */
+export function setLanguageFromProfile(preferredLanguage) {
+  const lang = ['hu', 'en', 'tl', 'uk', 'de'].includes(preferredLanguage) ? preferredLanguage : 'hu';
+  i18n.changeLanguage(lang);
+  localStorage.setItem('i18nextLng', lang);
+}
 
 export default i18n;
