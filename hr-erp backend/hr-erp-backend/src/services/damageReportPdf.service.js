@@ -1,9 +1,12 @@
 /**
- * Damage Report PDF/DOCX Generation
- * Generates professional Hungarian-language damage reports (Kárigény Jegyzőkönyv)
- * Compliant with Mt. 166.§, 177.§, Ptk. 6:142.§
+ * Damage Report PDF Generation — Kárigény Jegyzőkönyv
+ * HTML → Chrome Headless PDF for full Hungarian character support.
+ * Mt. 166.§, 177.§, Ptk. 6:142.§ compliant — fits on 1 page.
  */
-const PDFDocument = require('pdfkit');
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const { logger } = require('../utils/logger');
 
 const LIABILITY_LABELS = {
@@ -14,14 +17,10 @@ const LIABILITY_LABELS = {
 };
 
 const STATUS_LABELS = {
-  draft: 'Tervezet',
-  pending_review: 'Felülvizsgálat alatt',
-  pending_acknowledgment: 'Aláírásra vár',
-  acknowledged: 'Tudomásul véve',
-  in_payment: 'Fizetés alatt',
-  paid: 'Kifizetve',
-  disputed: 'Vitatott',
-  cancelled: 'Visszavonva',
+  draft: 'Tervezet', pending_review: 'Felülvizsgálat alatt',
+  pending_acknowledgment: 'Aláírásra vár', acknowledged: 'Tudomásul véve',
+  in_payment: 'Fizetés alatt', paid: 'Kifizetve',
+  disputed: 'Vitatott', cancelled: 'Visszavonva',
 };
 
 function formatDate(date) {
@@ -34,220 +33,142 @@ function formatCurrency(amount) {
   return `${Math.round(amount || 0).toLocaleString('hu-HU')} Ft`;
 }
 
+function esc(text) {
+  if (!text) return '';
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── HTML Template (1-page, condensed) ──────────────────────────────
+
+function buildHTML(report) {
+  const empName = `${esc(report.employee_first_name || '')} ${esc(report.employee_last_name || '')}`.trim() || 'N/A';
+  const items = report.damage_items || [];
+  const photoCount = (report.photo_urls || []).length;
+  const plan = report.payment_plan || [];
+
+  return `<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 20mm 18mm 15mm 18mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt; line-height: 1.35; color: #1a1a1a; }
+.header { text-align: center; margin-bottom: 5px; }
+.header h1 { font-size: 14pt; font-weight: 800; color: #1E40AF; margin-bottom: 2px; letter-spacing: 1px; }
+.header .meta { font-size: 7.5pt; color: #555; }
+.divider { border-top: 2px solid #1E40AF; margin: 4px 0; }
+.thin-div { border-top: 0.5px solid #ccc; margin: 3px 0; }
+.two-col { display: flex; gap: 14px; }
+.two-col .col { flex: 1; }
+.stitle { font-size: 9pt; font-weight: 700; color: #1E40AF; margin: 5px 0 2px 0; text-transform: uppercase; letter-spacing: 0.3px; }
+.f { margin-bottom: 1px; font-size: 7.5pt; }
+.f .l { font-weight: 600; color: #555; }
+.dbox { border: 0.5px solid #ddd; padding: 3px 5px; min-height: 22px; font-size: 7.5pt; margin: 2px 0; }
+.cb { display: inline-block; width: 9px; height: 9px; border: 1px solid #333; margin-right: 3px; vertical-align: middle; text-align: center; font-size: 6pt; line-height: 9px; }
+.cb.on { background: #1E40AF; color: white; }
+.cost { font-size: 7.5pt; margin: 1px 0; }
+.cost-total { font-weight: 700; font-size: 8.5pt; border-top: 1px solid #333; padding-top: 2px; margin-top: 2px; }
+.stmt { font-size: 6.5pt; color: #333; line-height: 1.25; margin: 3px 0; padding: 3px 5px; background: #f8f9fa; border-left: 2px solid #1E40AF; }
+.sigs { display: flex; gap: 14px; margin-top: 6px; }
+.sig { flex: 1; text-align: center; }
+.sig-line { border-bottom: 1px solid #333; height: 24px; margin-bottom: 1px; }
+.sig-lbl { font-size: 6.5pt; color: #555; }
+.sig-dt { font-size: 6.5pt; color: #555; }
+.legal { font-size: 6pt; color: #777; margin-top: 5px; }
+.footer { font-size: 5.5pt; color: #aaa; text-align: center; margin-top: 4px; border-top: 0.5px solid #ddd; padding-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>KÁRIGÉNY JEGYZŐKÖNYV</h1>
+  <div class="meta">Szám: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; Kelt: <strong>${formatDate(report.created_at)}</strong></div>
+</div>
+<div class="divider"></div>
+
+<div class="two-col">
+  <div class="col">
+    <div class="stitle">1. Azonosító adatok</div>
+    <div class="f"><span class="l">Munkavállaló:</span> ${empName}</div>
+    <div class="f"><span class="l">E-mail:</span> ${esc(report.employee_email || 'N/A')}</div>
+    <div class="f"><span class="l">Munkáltató:</span> ${esc(report.contractor_name || 'N/A')}</div>
+    <div class="f"><span class="l">Esemény dátuma:</span> ${formatDate(report.incident_date)}</div>
+    <div class="f"><span class="l">Felfedezés:</span> ${formatDate(report.discovery_date)}</div>
+  </div>
+  <div class="col">
+    <div class="stitle">2. Kár helyszíne</div>
+    <div class="f"><span class="l">Szálláshely:</span> ${esc(report.accommodation_id || 'N/A')}</div>
+    <div class="f"><span class="l">Szoba/Egység:</span> ${esc(report.room_id || 'N/A')}</div>
+    ${report.ticket_id ? `<div class="f"><span class="l">Hibajegy:</span> #${esc(String(report.ticket_id).substring(0, 8))}</div>` : ''}
+    <div class="f"><span class="l">Fotók:</span> ${photoCount} db melléklet</div>
+  </div>
+</div>
+<div class="thin-div"></div>
+
+<div class="stitle">3. Kár leírása</div>
+<div class="dbox">${esc(report.description || 'Nincs leírás megadva.')}</div>
+<div class="thin-div"></div>
+
+<div class="stitle">5. Felróhatóság megállapítása</div>
+<div style="font-size:7.5pt;margin:2px 0;">A fent leírt kár a lakó felróható magatartásából ered.</div>
+<div style="font-size:7.5pt;margin:2px 0;">
+  <span class="cb${report.employee_acknowledged ? ' on' : ''}">${report.employee_acknowledged ? '✓' : ''}</span> A lakó elismeri a felróhatóságot
+</div>
+<div class="f"><span class="l">Lakó nyilatkozata:</span> _______________________________________________________________</div>
+<div class="thin-div"></div>
+
+<div class="stitle">6. Kárfelmérés</div>
+<div style="font-size:7.5pt;margin:2px 0;">A kár elhárítása folyamatban van / megtörtént. A kárelhárítással járó költségeket számla alapján igazoljuk le.</div>
+${items.length > 0 ? items.map(i => `<div class="cost">${esc(i.name)}: <strong>${formatCurrency(i.cost)}</strong>${i.description ? ` <span style="color:#777">(${esc(i.description)})</span>` : ''}</div>`).join('') + `<div class="cost-total">Becsült kárösszeg: ${formatCurrency(report.total_cost)}</div>` : `<div class="cost">Várható kárösszeg (becsült): _________________ Ft</div><div class="cost">Végleges kárösszeg (számlával igazolva): _________________ Ft</div>`}
+<div class="thin-div"></div>
+
+<div class="stitle">7. Munkavállalói nyilatkozat</div>
+<div class="stmt">Alulírott munkavállaló kijelentem, hogy a fenti kárigény jegyzőkönyvet megismertem, annak tartalmát tudomásul vettem. A Munka törvénykönyve 166. § és 177. § rendelkezései alapján a munkáltató jogosult a kártérítés összegét a munkabéremből levonni (havi bruttó bér max. 50%-áig).${plan.length > 0 ? ` Törlesztés: ${plan.length} hónap.` : ''}</div>
+
+<div class="stitle">8. Aláírások</div>
+<div class="sigs">
+  <div class="sig"><div class="sig-line"></div><div class="sig-lbl">Munkavállaló (lakó)</div><div class="sig-dt">Dátum: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '____________________'}</div></div>
+  <div class="sig"><div class="sig-line"></div><div class="sig-lbl">Munkáltatói képviselő</div><div class="sig-dt">Dátum: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '____________________'}</div></div>
+  <div class="sig"><div class="sig-line"></div><div class="sig-lbl">Tanú</div><div class="sig-dt">Név: ${esc(report.witness_name) || '____________________'}</div></div>
+</div>
+
+<div class="legal">Jogi hivatkozások: Mt. 166. § (kártérítési kötelezettség) · Mt. 177. § (munkabérből levonás max. 50%) · Ptk. 6:142. § (teljes kártérítés) · Ptk. 6:143. § (kártérítés módja)</div>
+<div class="footer">Housing Solutions Kft. — Munkaerő Stabilitási Platform · ${new Date().toISOString().replace('T', ' ').substring(0, 19)}</div>
+
+</body></html>`;
+}
+
 // ─── PDF Generation ─────────────────────────────────────────────────
 
-function generatePDF(report) {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margins: { top: 60, bottom: 60, left: 60, right: 60 },
-        info: {
-          Title: `Kárigény Jegyzőkönyv - ${report.report_number}`,
-          Author: 'Housing Solutions Kft.',
-        },
-      });
+async function generatePDF(report) {
+  const html = buildHTML(report);
+  const tmpHtml = path.join(os.tmpdir(), `dr_${report.id || Date.now()}.html`);
+  const tmpPdf = path.join(os.tmpdir(), `dr_${report.id || Date.now()}.pdf`);
 
-      const buffers = [];
-      doc.on('data', (chunk) => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
+  try {
+    fs.writeFileSync(tmpHtml, html, 'utf8');
 
-      const pageWidth = doc.page.width - 120; // margins
-
-      // ── Header ──
-      doc.fontSize(10).fillColor('#666')
-        .text('Housing Solutions Kft.', 60, 30, { align: 'left' })
-        .text('Munkaerő Stabilitási Platform', { align: 'left' });
-
-      doc.fontSize(20).fillColor('#1E40AF').font('Helvetica-Bold')
-        .text('KÁRIGÉNY JEGYZŐKÖNYV', 60, 80, { align: 'center' });
-
-      doc.fontSize(12).fillColor('#333').font('Helvetica')
-        .text(`Jegyzőkönyv száma: ${report.report_number}`, { align: 'center' })
-        .text(`Kelt: ${formatDate(report.created_at)}`, { align: 'center' });
-
-      doc.moveDown(1.5);
-      drawLine(doc);
-
-      // ── Section 1: Azonosító adatok ──
-      sectionTitle(doc, '1. AZONOSÍTÓ ADATOK');
-
-      const empName = `${report.employee_first_name || ''} ${report.employee_last_name || ''}`.trim() || 'N/A';
-      tableRow(doc, 'Munkavállaló neve:', empName);
-      tableRow(doc, 'E-mail:', report.employee_email || 'N/A');
-      tableRow(doc, 'Munkáltató / Alvállalkozó:', report.contractor_name || 'N/A');
-      tableRow(doc, 'Esemény dátuma:', formatDate(report.incident_date));
-      tableRow(doc, 'Felfedezés dátuma:', formatDate(report.discovery_date));
-
-      // ── Section 2: Kár helyszíne ──
-      sectionTitle(doc, '2. KÁR HELYSZÍNE');
-      tableRow(doc, 'Szállás:', report.accommodation_id || 'N/A');
-      tableRow(doc, 'Szoba/Egység:', report.room_id || 'N/A');
-
-      if (report.ticket_id) {
-        tableRow(doc, 'Kapcsolódó jegy:', `Ticket #${report.ticket_id.substring(0, 8)}`);
-      }
-
-      // ── Section 3: Kár leírása ──
-      sectionTitle(doc, '3. KÁR LEÍRÁSA');
-      doc.fontSize(10).font('Helvetica')
-        .text(report.description || 'Nincs leírás megadva.', { width: pageWidth });
-      doc.moveDown(0.5);
-
-      // ── Section 4: Fotódokumentáció ──
-      sectionTitle(doc, '4. FOTÓDOKUMENTÁCIÓ');
-      const photoCount = (report.photo_urls || []).length;
-      doc.fontSize(10)
-        .text(`Csatolt fotók száma: ${photoCount} db`);
-      doc.moveDown(0.5);
-
-      // ── Section 5: Felróhatóság ──
-      sectionTitle(doc, '5. FELRÓHATÓSÁG');
-
-      const liabilityTypes = ['intentional', 'negligence', 'normal_wear', 'force_majeure'];
-      liabilityTypes.forEach((type) => {
-        const checked = report.liability_type === type ? '☑' : '☐';
-        doc.fontSize(10).text(`  ${checked}  ${LIABILITY_LABELS[type]}`);
-      });
-      doc.moveDown(0.3);
-      tableRow(doc, 'Vétkesség mértéke:', `${report.fault_percentage || 100}%`);
-
-      // ── Section 6: Költségkalkuláció ──
-      checkNewPage(doc);
-      sectionTitle(doc, '6. KÖLTSÉGKALKULÁCIÓ');
-
-      const items = report.damage_items || [];
-      if (items.length > 0) {
-        // Table header
-        doc.fontSize(9).font('Helvetica-Bold');
-        const colX = [60, 260, 380];
-        doc.text('Tétel megnevezése', colX[0], doc.y, { width: 195 });
-        doc.text('Leírás', colX[1], doc.y - 12, { width: 115 });
-        doc.text('Összeg (Ft)', colX[2], doc.y - 12, { width: 100, align: 'right' });
-        doc.moveDown(0.3);
-        drawLine(doc);
-
-        doc.font('Helvetica').fontSize(9);
-        items.forEach((item) => {
-          const y = doc.y;
-          doc.text(item.name || '-', colX[0], y, { width: 195 });
-          doc.text(item.description || '-', colX[1], y, { width: 115 });
-          doc.text(formatCurrency(item.cost), colX[2], y, { width: 100, align: 'right' });
-          doc.moveDown(0.2);
-        });
-
-        drawLine(doc);
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('ÖSSZESEN:', colX[0], doc.y);
-        doc.text(formatCurrency(report.total_cost), colX[2], doc.y - 12, { width: 100, align: 'right' });
-        doc.moveDown(0.3);
-
-        if (report.fault_percentage < 100) {
-          const adjusted = (parseFloat(report.total_cost) || 0) * (report.fault_percentage / 100);
-          doc.font('Helvetica').fontSize(9)
-            .text(`Vétkesség mértékével korrigált összeg (${report.fault_percentage}%): ${formatCurrency(adjusted)}`);
-        }
-      } else {
-        doc.fontSize(10).text('Nincs tételes kár megadva.');
-      }
-      doc.moveDown(0.5);
-
-      // ── Section 7: Payment Plan ──
-      const plan = report.payment_plan || [];
-      if (plan.length > 0) {
-        sectionTitle(doc, '7. TÖRLESZTÉSI TERV (Mt. 177. §)');
-        doc.fontSize(9)
-          .text('A munkaviszonyból származó kártérítés a munkavállaló havi bérének legfeljebb 50%-a erejéig vonható le.');
-        doc.moveDown(0.3);
-
-        if (report.employee_salary) {
-          tableRow(doc, 'Havi bruttó bér:', formatCurrency(report.employee_salary));
-          tableRow(doc, 'Max. havi levonás (50%):', formatCurrency(report.employee_salary * 0.5));
-          tableRow(doc, 'Törlesztés időtartama:', `${plan.length} hónap`);
-        }
-        doc.moveDown(0.5);
-      }
-
-      // ── Section 8: Nyilatkozat ──
-      checkNewPage(doc);
-      sectionTitle(doc, `${plan.length > 0 ? '8' : '7'}. MUNKAVÁLLALÓI NYILATKOZAT`);
-      doc.fontSize(9).font('Helvetica')
-        .text(
-          'Alulírott munkavállaló kijelentem, hogy a fenti kárigény jegyzőkönyvet megismertem, ' +
-          'annak tartalmát tudomásul vettem. Elfogadom a megállapított kár összegét és a törlesztési tervet. ' +
-          'Tudomásul veszem, hogy a Munka törvénykönyve 166. § és 177. § rendelkezései alapján ' +
-          'a munkáltató jogosult a kártérítés összegét a munkabéremből levonni.',
-          { width: pageWidth, lineGap: 2 }
-        );
-      doc.moveDown(1);
-
-      // ── Section 9: Aláírások ──
-      sectionTitle(doc, `${plan.length > 0 ? '9' : '8'}. ALÁÍRÁSOK`);
-      doc.moveDown(0.5);
-
-      const sigY = doc.y;
-      // Left column: Employee
-      doc.fontSize(9);
-      doc.text('_____________________________', 60, sigY);
-      doc.text('Munkavállaló aláírása', 60, sigY + 15);
-      doc.text(`Dátum: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '_______________'}`, 60, sigY + 30);
-
-      // Right column: Manager
-      doc.text('_____________________________', 320, sigY);
-      doc.text('Munkáltatói képviselő aláírása', 320, sigY + 15);
-      doc.text(`Dátum: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '_______________'}`, 320, sigY + 30);
-
-      doc.moveDown(3);
-      // Witness
-      doc.text('_____________________________', 60);
-      doc.text(`Tanú neve: ${report.witness_name || '_______________'}`, 60);
-      doc.text('Tanú aláírása', 60);
-
-      // ── Section 10: Jogi hivatkozások ──
-      checkNewPage(doc);
-      sectionTitle(doc, 'JOGI HIVATKOZÁSOK');
-      doc.fontSize(8).fillColor('#666').font('Helvetica')
-        .text('• Mt. 166. § — A munkáltató köteles biztosítani az egészséges és biztonságos munkafeltételeket.')
-        .text('• Mt. 177. § — A munkabérből való levonás szabályai (max. 50% a havi bérből).')
-        .text('• Ptk. 6:142. § — Teljes kártérítés elve.')
-        .text('• Ptk. 6:143. § — A kártérítés módja.')
-        .text('• GDPR — Az adatkezelés a munkaszerződés teljesítéséhez szükséges (6. cikk (1) b) pont).');
-
-      doc.moveDown(1);
-      drawLine(doc);
-      doc.fontSize(8).fillColor('#999')
-        .text('Ez a dokumentum a Housing Solutions Kft. Munkaerő Stabilitási Platform által automatikusan generált.', { align: 'center' })
-        .text(`Generálás időpontja: ${new Date().toISOString()}`, { align: 'center' });
-
-      doc.end();
-    } catch (err) {
-      logger.error('PDF generation error:', err);
-      reject(err);
+    const chromePaths = [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/usr/bin/google-chrome', '/usr/bin/chromium-browser', 'google-chrome',
+    ];
+    let chrome = null;
+    for (const p of chromePaths) {
+      try {
+        if (p.startsWith('/') ? fs.existsSync(p) : !execSync(`which ${p}`, { stdio: 'ignore' })) { chrome = p; break; }
+      } catch { /* next */ }
     }
-  });
+
+    if (!chrome) throw new Error('Chrome not found for PDF generation');
+
+    execSync(`"${chrome}" --headless --disable-gpu --no-sandbox --print-to-pdf="${tmpPdf}" --print-to-pdf-no-header "file://${tmpHtml}"`, { timeout: 15000, stdio: 'ignore' });
+
+    return fs.readFileSync(tmpPdf);
+  } finally {
+    try { fs.unlinkSync(tmpHtml); } catch {}
+    try { fs.unlinkSync(tmpPdf); } catch {}
+  }
 }
 
-// ─── Helper Functions ───────────────────────────────────────────────
-
-function sectionTitle(doc, text) {
-  doc.moveDown(0.5);
-  doc.fontSize(12).fillColor('#1E40AF').font('Helvetica-Bold').text(text);
-  doc.moveDown(0.3);
-  doc.fillColor('#333').font('Helvetica');
-}
-
-function tableRow(doc, label, value) {
-  doc.fontSize(10).font('Helvetica-Bold').text(label, { continued: true });
-  doc.font('Helvetica').text(`  ${value}`);
-}
-
-function drawLine(doc) {
-  doc.moveTo(60, doc.y).lineTo(535, doc.y).strokeColor('#ccc').lineWidth(0.5).stroke();
-  doc.moveDown(0.3);
-}
-
-function checkNewPage(doc) {
-  if (doc.y > 700) doc.addPage();
-}
-
-module.exports = { generatePDF, LIABILITY_LABELS, STATUS_LABELS };
+module.exports = { generatePDF, buildHTML, LIABILITY_LABELS, STATUS_LABELS };
