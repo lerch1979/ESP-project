@@ -1,0 +1,10 @@
+{
+  "appName": "HR-ERP Rendszer",
+  "welcome": {"subject": "Üdvözöljük az HR-ERP rendszerben!","title": "Üdvözöljük!","greeting": "Üdv, {{userName}}!","intro": "Fiókja sikeresen létrehozva.","button": "Bejelentkezés"},
+  "pulseReminder": {"subject": "Emlékeztető: Napi pulzus","title": "Ne felejtsd el!","greeting": "Szia {{userName}}!","message": "Még nem töltötted ki a mai pulzust.","button": "Kitöltöm"},
+  "badgeUnlocked": {"subject": "Új jelvény: {{badgeName}}! 🏆","title": "Gratulálunk!","message": "Feloldottad: {{badgeName}}"},
+  "ticketCreated": {"subject": "Hibajegy #{{ticketNumber}} létrehozva","title": "Jegy létrehozva","message": "Hamarosan feldolgozzuk."},
+  "ticketUpdated": {"subject": "Hibajegy #{{ticketNumber}} frissítve","title": "Jegy frissítve","message": "Új státusz: {{status}}"},
+  "carepathConfirmed": {"subject": "CarePath kérés fogadva","title": "Kérés fogadva","message": "Hamarosan felvesszük a kapcsolatot."},
+  "passwordReset": {"subject": "Jelszó visszaállítás","title": "Jelszó visszaállítás","message": "Kattints a gombra a folytatáshoz.","button": "Visszaállítás"}
+}

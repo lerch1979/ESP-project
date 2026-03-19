@@ -1,0 +1,10 @@
+{
+  "appName": "HR-ERP System",
+  "welcome": {"subject": "Welcome to HR-ERP!","title": "Welcome!","greeting": "Hi {{userName}}!","intro": "Your account has been created.","button": "Login"},
+  "pulseReminder": {"subject": "Reminder: Daily Pulse","title": "Don't forget!","greeting": "Hi {{userName}}!","message": "You haven't submitted today's pulse yet.","button": "Submit now"},
+  "badgeUnlocked": {"subject": "New badge: {{badgeName}}! 🏆","title": "Congratulations!","message": "You unlocked: {{badgeName}}"},
+  "ticketCreated": {"subject": "Ticket #{{ticketNumber}} created","title": "Ticket created","message": "We'll process it soon."},
+  "ticketUpdated": {"subject": "Ticket #{{ticketNumber}} updated","title": "Ticket updated","message": "New status: {{status}}"},
+  "carepathConfirmed": {"subject": "CarePath request received","title": "Request received","message": "We'll contact you soon."},
+  "passwordReset": {"subject": "Password reset","title": "Password reset","message": "Click the button to continue.","button": "Reset"}
+}

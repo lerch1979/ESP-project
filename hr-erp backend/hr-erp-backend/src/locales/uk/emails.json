@@ -1,0 +1,10 @@
+{
+  "appName": "HR-ERP Система",
+  "welcome": {"subject": "Ласкаво просимо до HR-ERP!","title": "Ласкаво просимо!","greeting": "Привіт {{userName}}!","intro": "Ваш обліковий запис створено.","button": "Увійти"},
+  "pulseReminder": {"subject": "Нагадування: Щоденний пульс","title": "Не забудьте!","greeting": "Привіт {{userName}}!","message": "Ви ще не заповнили сьогоднішній пульс.","button": "Заповнити"},
+  "badgeUnlocked": {"subject": "Новий значок: {{badgeName}}! 🏆","title": "Вітаємо!","message": "Ви розблокували: {{badgeName}}"},
+  "ticketCreated": {"subject": "Заявка #{{ticketNumber}} створена","title": "Заявку створено","message": "Ми обробимо її найближчим часом."},
+  "ticketUpdated": {"subject": "Заявка #{{ticketNumber}} оновлена","title": "Заявку оновлено","message": "Новий статус: {{status}}"},
+  "carepathConfirmed": {"subject": "Запит CarePath отримано","title": "Запит отримано","message": "Ми зв'яжемося з вами найближчим часом."},
+  "passwordReset": {"subject": "Скидання пароля","title": "Скидання пароля","message": "Натисніть кнопку для продовження.","button": "Скинути"}
+}

@@ -1,0 +1,10 @@
+{
+  "appName": "HR-ERP System",
+  "welcome": {"subject": "Maligayang pagdating sa HR-ERP!","title": "Maligayang pagdating!","greeting": "Kumusta {{userName}}!","intro": "Ang iyong account ay matagumpay na nalikha.","button": "Mag-login"},
+  "pulseReminder": {"subject": "Paalala: Araw-araw na Pulse","title": "Huwag kalimutan!","greeting": "Kumusta {{userName}}!","message": "Hindi ka pa nagsusumite ng pulse ngayon.","button": "Isumite ngayon"},
+  "badgeUnlocked": {"subject": "Bagong badge: {{badgeName}}! 🏆","title": "Binabati kita!","message": "Na-unlock mo: {{badgeName}}"},
+  "ticketCreated": {"subject": "Ticket #{{ticketNumber}} nalikha","title": "Nalikha ang ticket","message": "Ito ay ipoproseso sa lalong madaling panahon."},
+  "ticketUpdated": {"subject": "Ticket #{{ticketNumber}} na-update","title": "Na-update ang ticket","message": "Bagong katayuan: {{status}}"},
+  "carepathConfirmed": {"subject": "Natanggap ang CarePath request","title": "Natanggap ang request","message": "Makikipag-ugnayan kami sa iyo sa lalong madaling panahon."},
+  "passwordReset": {"subject": "I-reset ang password","title": "I-reset ang password","message": "I-click ang button para magpatuloy.","button": "I-reset"}
+}
