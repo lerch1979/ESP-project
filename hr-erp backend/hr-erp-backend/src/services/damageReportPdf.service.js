@@ -1,6 +1,6 @@
 /**
- * Damage Report PDF Generation — Kárigény Jegyzőkönyv
- * HTML → Chrome Headless PDF for full Hungarian character support.
+ * Damage Report PDF Generation — Multilingual (5 languages)
+ * HTML → Chrome Headless PDF for full Unicode support.
  * Mt. 166.§, 177.§, Ptk. 6:142.§ compliant — fits on 1 page.
  */
 const { execSync } = require('child_process');
@@ -9,19 +9,19 @@ const path = require('path');
 const os = require('os');
 const { logger } = require('../utils/logger');
 
-const LIABILITY_LABELS = {
-  intentional: 'Szándékos károkozás',
-  negligence: 'Gondatlanság',
-  normal_wear: 'Rendeltetésszerű használat / természetes elhasználódás',
-  force_majeure: 'Vis maior (elháríthatatlan külső ok)',
-};
+const SUPPORTED_LANGS = ['hu', 'en', 'tl', 'uk', 'de'];
 
-const STATUS_LABELS = {
-  draft: 'Tervezet', pending_review: 'Felülvizsgálat alatt',
-  pending_acknowledgment: 'Aláírásra vár', acknowledged: 'Tudomásul véve',
-  in_payment: 'Fizetés alatt', paid: 'Kifizetve',
-  disputed: 'Vitatott', cancelled: 'Visszavonva',
-};
+function loadTranslations(lang) {
+  const safeLang = SUPPORTED_LANGS.includes(lang) ? lang : 'hu';
+  const filePath = path.join(__dirname, '..', 'locales', safeLang, 'damageReport.json');
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    // Fallback to Hungarian
+    const fallback = path.join(__dirname, '..', 'locales', 'hu', 'damageReport.json');
+    return JSON.parse(fs.readFileSync(fallback, 'utf8'));
+  }
+}
 
 function formatDate(date) {
   if (!date) return '_______________';
@@ -29,25 +29,22 @@ function formatDate(date) {
   return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')}.`;
 }
 
-function formatCurrency(amount) {
-  return `${Math.round(amount || 0).toLocaleString('hu-HU')} Ft`;
-}
-
 function esc(text) {
   if (!text) return '';
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ─── HTML Template (1-page, condensed) ──────────────────────────────
+// ─── HTML Template ──────────────────────────────────────────────────
 
-function buildHTML(report) {
+function buildHTML(report, lang = 'hu') {
+  const t = loadTranslations(lang);
   const empName = `${esc(report.employee_first_name || '')} ${esc(report.employee_last_name || '')}`.trim() || 'N/A';
-  const items = report.damage_items || [];
   const photoCount = (report.photo_urls || []).length;
   const plan = report.payment_plan || [];
+  const photoText = (t.photoText || '').replace('{{count}}', photoCount || '___');
 
   return `<!DOCTYPE html>
-<html lang="hu">
+<html lang="${lang}">
 <head>
 <meta charset="UTF-8">
 <style>
@@ -67,8 +64,6 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 .db { border: 0.5px solid #ddd; padding: 3px 5px; min-height: 20px; font-size: 7.5pt; margin: 2px 0; }
 .ck { display: inline-block; width: 9px; height: 9px; border: 1px solid #333; margin-right: 3px; vertical-align: middle; text-align: center; font-size: 6pt; line-height: 9px; }
 .ck.on { background: #1E40AF; color: white; }
-.bl { font-size: 7.5pt; margin: 1px 0; }
-.bt { font-weight: 700; font-size: 8.5pt; border-top: 1px solid #333; padding-top: 2px; margin-top: 2px; }
 .ny { font-size: 6.5pt; color: #333; line-height: 1.25; margin: 3px 0; padding: 3px 5px; background: #f8f9fa; border-left: 2px solid #1E40AF; }
 .sg { display: flex; gap: 12px; margin-top: 5px; }
 .sb { flex: 1; text-align: center; }
@@ -81,100 +76,87 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 <body>
 
 <div class="hdr">
-  <h1>KÁRIGÉNY JEGYZŐKÖNYV</h1>
-  <div class="m">Szám: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; Kelt: <strong>${formatDate(report.created_at)}</strong></div>
+  <h1>${esc(t.title)}</h1>
+  <div class="m">${esc(t.docNumber)}: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; ${esc(t.date)}: <strong>${formatDate(report.created_at)}</strong></div>
 </div>
 <div class="dv"></div>
 
-<!-- 1+2: AZONOSÍTÓ ADATOK + KÁR HELYSZÍNE -->
 <div class="row">
   <div class="c">
-    <div class="st">1. Azonosító adatok</div>
-    <div class="f"><b>Munkavállaló:</b> ${empName}</div>
-    <div class="f"><b>E-mail:</b> ${esc(report.employee_email || 'N/A')}</div>
-    <div class="f"><b>Munkáltató:</b> ${esc(report.contractor_name || 'N/A')}</div>
-    <div class="f"><b>Esemény dátuma:</b> ${formatDate(report.incident_date)}</div>
-    <div class="f"><b>Felfedezés dátuma:</b> ${formatDate(report.discovery_date)}</div>
+    <div class="st">1. ${esc(t.s1)}</div>
+    <div class="f"><b>${esc(t.employee)}:</b> ${empName}</div>
+    <div class="f"><b>${esc(t.email)}:</b> ${esc(report.employee_email || 'N/A')}</div>
+    <div class="f"><b>${esc(t.employer)}:</b> ${esc(report.contractor_name || 'N/A')}</div>
+    <div class="f"><b>${esc(t.incidentDate)}:</b> ${formatDate(report.incident_date)}</div>
+    <div class="f"><b>${esc(t.discoveryDate)}:</b> ${formatDate(report.discovery_date)}</div>
   </div>
   <div class="c">
-    <div class="st">2. Kár helyszíne</div>
-    <div class="f"><b>Szálláshely:</b> ${esc(report.accommodation_id || 'N/A')}</div>
-    <div class="f"><b>Szoba/Egység:</b> ${esc(report.room_id || 'N/A')}</div>
-    ${report.ticket_id ? `<div class="f"><b>Hibajegy:</b> #${esc(String(report.ticket_id).substring(0, 8))}</div>` : ''}
+    <div class="st">2. ${esc(t.s2)}</div>
+    <div class="f"><b>${esc(t.accommodation)}:</b> ${esc(report.accommodation_id || 'N/A')}</div>
+    <div class="f"><b>${esc(t.room)}:</b> ${esc(report.room_id || 'N/A')}</div>
+    ${report.ticket_id ? `<div class="f"><b>${esc(t.ticket)}:</b> #${esc(String(report.ticket_id).substring(0, 8))}</div>` : ''}
   </div>
 </div>
 <div class="td"></div>
 
-<!-- 3: KÁR LEÍRÁSA -->
-<div class="st">3. Kár leírása</div>
-<div class="db">${esc(report.description || 'Nincs leírás megadva.')}</div>
+<div class="st">3. ${esc(t.s3)}</div>
+<div class="db">${esc(report.description || '')}</div>
 <div class="td"></div>
 
-<!-- 4: FOTÓDOKUMENTÁCIÓ -->
-<div class="st">4. Fotódokumentáció</div>
-<div class="f">Fotódokumentáció készült: <b>${photoCount || '___'} db</b> fénykép</div>
+<div class="st">4. ${esc(t.s4)}</div>
+<div class="f">${esc(photoText)}</div>
 <div class="td"></div>
 
-<!-- 5: FELRÓHATÓSÁG MEGÁLLAPÍTÁSA -->
-<div class="st">5. Felróhatóság megállapítása</div>
-<div style="font-size:7.5pt;margin:2px 0;">A fent leírt kár a lakó felróható magatartásából ered.</div>
+<div class="st">5. ${esc(t.s5)}</div>
+<div style="font-size:7.5pt;margin:2px 0;">${esc(t.liabilityText)}</div>
 <div style="font-size:7.5pt;margin:3px 0;">
-  <span class="ck${report.employee_acknowledged ? ' on' : ''}">${report.employee_acknowledged ? '✓' : ''}</span> A lakó elismeri a felróhatóságot
+  <span class="ck${report.employee_acknowledged ? ' on' : ''}">${report.employee_acknowledged ? '✓' : ''}</span> ${esc(t.liabilityCheckbox)}
 </div>
-<div class="f"><b>Lakó nyilatkozata:</b> _______________________________________________________________</div>
+<div class="f"><b>${esc(t.tenantStatement)}:</b> _______________________________________________________________</div>
 <div class="td"></div>
 
-<!-- 6: KÁRRENDEZÉS -->
-<div class="st">6. Kárrendezés</div>
-<div style="font-size:7.5pt;margin:4px 0 8px 0;">A kár pontos összege később kerül megállapításra.</div>
+<div class="st">6. ${esc(t.s6)}</div>
+<div style="font-size:7.5pt;margin:4px 0 8px 0;">${esc(t.settlementText)}</div>
 <div class="td"></div>
 
-<!-- 7: NYILATKOZAT -->
-<div class="st">7. Nyilatkozat</div>
-<div class="ny">Alulírott tudomásul veszem, hogy a fenti károk az én felróható magatartásomból eredtek. Elfogadom, hogy a kárösszeg legfeljebb a fizetésem 50%-áig havonta levonható (Mt. 177. §). A Munka törvénykönyve 166. § rendelkezései alapján a munkáltató jogosult a kártérítés érvényesítésére.${plan.length > 0 ? ` Törlesztés: ${plan.length} hónap.` : ''}</div>
+<div class="st">7. ${esc(t.s7)}</div>
+<div class="ny">${esc(t.declarationText)}${plan.length > 0 ? ` (${plan.length} months)` : ''}</div>
 
-<!-- 8: ALÁÍRÁSOK -->
-<div class="st">8. Aláírások</div>
+<div class="st">8. ${esc(t.s8)}</div>
 <div class="sg">
-  <div class="sb"><div class="sl"></div><div class="sn">Munkavállaló (lakó)</div><div class="sn">Dátum: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '____________________'}</div></div>
-  <div class="sb"><div class="sl"></div><div class="sn">Facility Manager</div><div class="sn">Dátum: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '____________________'}</div></div>
-  <div class="sb"><div class="sl"></div><div class="sn">Tanú</div><div class="sn">Név: ${esc(report.witness_name) || '____________________'}</div></div>
+  <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigEmployee)}</div><div class="sn">${esc(t.sigDate)}: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '____________________'}</div></div>
+  <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigManager)}</div><div class="sn">${esc(t.sigDate)}: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '____________________'}</div></div>
+  <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigWitness)}</div><div class="sn">${esc(t.sigName)}: ${esc(report.witness_name) || '____________________'}</div></div>
 </div>
 
-<!-- 9: JOGI HIVATKOZÁSOK -->
-<div class="jog">
-  <b>9. Jogi hivatkozások:</b> Mt. 166. § (kártérítési kötelezettség) · Mt. 177. § (munkabérből levonás max. 50%) · Ptk. 6:142. § (teljes kártérítés) · Ptk. 6:143. § (kártérítés módja)
-</div>
-<div class="ft">Housing Solutions Kft. — Munkaerő Stabilitási Platform · ${new Date().toISOString().replace('T', ' ').substring(0, 19)}</div>
+<div class="jog"><b>9. ${esc(t.s9)}:</b> ${esc(t.legalText)}</div>
+<div class="ft">${esc(t.generatedBy)} · ${new Date().toISOString().replace('T', ' ').substring(0, 19)}</div>
 
 </body></html>`;
 }
 
 // ─── PDF Generation ─────────────────────────────────────────────────
 
-async function generatePDF(report) {
-  const html = buildHTML(report);
-  const tmpHtml = path.join(os.tmpdir(), `dr_${report.id || Date.now()}.html`);
-  const tmpPdf = path.join(os.tmpdir(), `dr_${report.id || Date.now()}.pdf`);
+async function generatePDF(report, lang = 'hu') {
+  const safeLang = SUPPORTED_LANGS.includes(lang) ? lang : 'hu';
+  const html = buildHTML(report, safeLang);
+  const tmpHtml = path.join(os.tmpdir(), `dr_${report.id || Date.now()}_${safeLang}.html`);
+  const tmpPdf = path.join(os.tmpdir(), `dr_${report.id || Date.now()}_${safeLang}.pdf`);
 
   try {
     fs.writeFileSync(tmpHtml, html, 'utf8');
 
     const chromePaths = [
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      '/usr/bin/google-chrome', '/usr/bin/chromium-browser', 'google-chrome',
+      '/usr/bin/google-chrome', '/usr/bin/chromium-browser',
     ];
     let chrome = null;
     for (const p of chromePaths) {
-      try {
-        if (p.startsWith('/') ? fs.existsSync(p) : !execSync(`which ${p}`, { stdio: 'ignore' })) { chrome = p; break; }
-      } catch { /* next */ }
+      if (fs.existsSync(p)) { chrome = p; break; }
     }
-
-    if (!chrome) throw new Error('Chrome not found for PDF generation');
+    if (!chrome) throw new Error('Chrome not found');
 
     execSync(`"${chrome}" --headless --disable-gpu --no-sandbox --print-to-pdf="${tmpPdf}" --print-to-pdf-no-header "file://${tmpHtml}"`, { timeout: 15000, stdio: 'ignore' });
-
     return fs.readFileSync(tmpPdf);
   } finally {
     try { fs.unlinkSync(tmpHtml); } catch {}
@@ -182,4 +164,4 @@ async function generatePDF(report) {
   }
 }
 
-module.exports = { generatePDF, buildHTML, LIABILITY_LABELS, STATUS_LABELS };
+module.exports = { generatePDF, buildHTML, SUPPORTED_LANGS };

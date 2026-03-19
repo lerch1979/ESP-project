@@ -121,7 +121,8 @@ const downloadPDF = async (req, res) => {
     const report = await damageService.getById(req.params.id);
     if (!report) return res.status(404).json({ success: false, message: 'Nem található' });
 
-    const pdfBuffer = await pdfService.generatePDF(report);
+    const language = req.query.language || req.query.lang || 'hu';
+    const pdfBuffer = await pdfService.generatePDF(report, language);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${report.report_number}.pdf"`);
