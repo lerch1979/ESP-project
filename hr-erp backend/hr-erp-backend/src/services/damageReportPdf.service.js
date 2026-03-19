@@ -112,7 +112,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 
 <!-- 4: FOTÓDOKUMENTÁCIÓ -->
 <div class="st">4. Fotódokumentáció</div>
-<div class="f">${photoCount > 0 ? `<b>${photoCount} db</b> fotó melléklet csatolva a jegyzőkönyvhöz.` : 'Fotó melléklet nem készült / nincs csatolva.'}</div>
+<div class="f">Fotódokumentáció készült: <b>${photoCount || '___'} db</b> fénykép</div>
 <div class="td"></div>
 
 <!-- 5: FELRÓHATÓSÁG MEGÁLLAPÍTÁSA -->
@@ -126,15 +126,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 
 <!-- 6: KÁRRENDEZÉS -->
 <div class="st">6. Kárrendezés</div>
-<div style="font-size:7.5pt;margin:2px 0 6px 0;">
-  A kár pontos összegének megállapítása a kár elhárítását követően számlával kerül igazolásra.
-</div>
-${items.length > 0 ? `<div style="margin-bottom:4px;">${items.map(i => `<div class="bl">${esc(i.name)}: <strong>${formatCurrency(i.cost)}</strong>${i.description ? ` <span style="color:#777">(${esc(i.description)})</span>` : ''}</div>`).join('')}<div class="bt">Becsült kárösszeg: ${formatCurrency(report.total_cost)}</div></div>` : ''}
-<div class="f" style="margin-top:4px"><b>Becsült kárösszeg:</b> ${report.total_cost > 0 ? formatCurrency(report.total_cost) : '_________________ Ft'}</div>
-<div style="margin-top:6px;font-size:7.5pt;"><b>Végleges összeg (számlával igazolva):</b></div>
-<div class="f"><b>Számlaszám:</b> ________________________</div>
-<div class="f"><b>Dátum:</b> _____________________________</div>
-<div class="f"><b>Összeg:</b> ____________________________ Ft</div>
+<div style="font-size:7.5pt;margin:4px 0 8px 0;">A kár pontos összege később kerül megállapításra.</div>
 <div class="td"></div>
 
 <!-- 7: NYILATKOZAT -->
