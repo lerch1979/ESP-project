@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1F2937; }
+.slide { width: 297mm; height: 210mm; padding: 18mm 22mm; position: relative; page-break-after: always; overflow: hidden; }
+.slide:last-child { page-break-after: avoid; }
+.footer { position: absolute; bottom: 8mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between; font-size: 8pt; color: #9CA3AF; }
+h1 { font-size: 28pt; color: #1E4D7B; font-weight: 800; margin-bottom: 8px; }
+h2 { font-size: 20pt; color: #1E4D7B; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 14pt; color: #1E4D7B; font-weight: 700; margin-bottom: 6px; }
+.subtitle { font-size: 14pt; color: #6B7280; margin-bottom: 16px; }
+.big-num { font-size: 36pt; font-weight: 900; color: #1E4D7B; }
+.green { color: #22C55E; }
+.orange { color: #F97316; }
+.blue { color: #1E4D7B; }
+.red { color: #DC2626; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.card { background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; }
+.card-blue { background: #EFF6FF; border: 2px solid #1E4D7B; }
+.card-green { background: #F0FDF4; border: 2px solid #22C55E; }
+.card-orange { background: #FFF7ED; border: 2px solid #F97316; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 700; }
+.badge-blue { background: #1E4D7B; color: white; }
+.badge-green { background: #22C55E; color: white; }
+.badge-orange { background: #F97316; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 8px; }
+th { background: #1E4D7B; color: white; padding: 6px 10px; text-align: left; font-weight: 600; }
+td { padding: 5px 10px; border-bottom: 1px solid #E5E7EB; }
+tr:nth-child(even) { background: #F8FAFC; }
+.bar { height: 22px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+ul { padding-left: 18px; font-size: 11pt; line-height: 1.7; }
+li { margin-bottom: 3px; }
+.check { color: #22C55E; font-weight: 700; }
+.x { color: #DC2626; font-weight: 700; }
+p { font-size: 11pt; line-height: 1.6; }
+.small { font-size: 9pt; color: #6B7280; }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: COVER -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <div style="font-size: 16pt; letter-spacing: 4px; font-weight: 300; margin-bottom: 20px;">HOUSING SOLUTIONS KFT.</div>
+  <h1 style="color: white; font-size: 38pt; margin-bottom: 12px;">Workforce Stability<br>Platform</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 16px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 8px;">Predict. Prevent. Protect.</div>
+  <div style="font-size: 12pt; color: #93C5FD; margin-top: 30px;">Seed Investment Opportunity | 2026</div>
+  <div style="font-size: 11pt; color: #60A5FA; margin-top: 8px;">Lerch Balázs, Founder & CEO</div>
+  <div class="footer" style="color: #60A5FA;"><span>Confidential</span><span>Housing Solutions Kft. — Fertőd, Hungary</span></div>
+</div>
+
+<!-- SLIDE 2: THE PROBLEM -->
+<div class="slide">
+  <h1>The Problem: €500K+ Lost Annually</h1>
+  <p class="subtitle">Blue-collar workforce instability is a silent hemorrhage</p>
+  <div class="grid3" style="margin-top: 16px;">
+    <div class="card" style="text-align: center;">
+      <div class="big-num red">30-45%</div>
+      <h3>Annual Turnover</h3>
+      <p>€5,000-€15,000 per exit in recruitment, training, and lost productivity</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num orange">40-60%</div>
+      <h3>Burnout Rate</h3>
+      <p>Shift workers experience 3.4x higher sick leave risk</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num blue">3-8%</div>
+      <h3>EAP Utilization</h3>
+      <p>Traditional phone-based EAP fails blue-collar workers</p>
+    </div>
+  </div>
+  <div class="card-orange" style="margin-top: 16px; padding: 12px 16px; border-radius: 8px;">
+    <strong>The gap:</strong> $93B wellbeing market targets desk workers. Construction crews, factory workers, and hospitality staff have been <strong>forgotten</strong>.
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>2</span></div>
+</div>
+
+<!-- SLIDE 3: THE SOLUTION -->
+<div class="slide">
+  <h1>Our Solution: 4 Pillars</h1>
+  <p class="subtitle">Proactive, data-driven early warning system</p>
+  <div class="grid4" style="margin-top: 12px;">
+    <div class="card-blue" style="border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28pt;">🧠</div>
+      <h3>WellMind</h3>
+      <p style="font-size: 10pt;">Daily pulse surveys, MBI/UWES assessments, NLP sentiment, gamification</p>
+      <div class="badge badge-blue" style="margin-top: 8px;">Preventive</div>
+    </div>
+    <div class="card-green" style="border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28pt;">🛡️</div>
+      <h3>CarePath</h3>
+      <p style="font-size: 10pt;">EAP case management, provider network, crisis protocol, anonymous option</p>
+      <div class="badge badge-green" style="margin-top: 8px;">Reactive</div>
+    </div>
+    <div class="card-orange" style="border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28pt;">🏠</div>
+      <h3>Housing Index</h3>
+      <p style="font-size: 10pt;">Accommodation quality → wellbeing correlation. <strong>NO COMPETITOR HAS THIS</strong></p>
+      <div class="badge badge-orange" style="margin-top: 8px;">UNIQUE</div>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 14px; text-align: center; border: 2px solid #6366F1;">
+      <div style="font-size: 28pt;">📊</div>
+      <h3>Predictive</h3>
+      <p style="font-size: 10pt;">Overtime→burnout, sick leave triggers, conflict tracking, turnover risk</p>
+      <div class="badge" style="background: #6366F1; color: white; margin-top: 8px;">AI-Powered</div>
+    </div>
+  </div>
+  <div style="margin-top: 14px; text-align: center; font-size: 11pt; color: #6B7280;">
+    <strong>6 automated triggers</strong> detect problems and initiate support — <strong>no employee falls through the cracks</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>3</span></div>
+</div>
+
+<!-- SLIDE 4: MARKET OPPORTUNITY -->
+<div class="slide">
+  <h1>Market: €93 Billion by 2028</h1>
+  <div class="grid2">
+    <div>
+      <div style="text-align: center; margin-top: 12px;">
+        <div style="width: 100%; background: #EFF6FF; border-radius: 8px; padding: 14px; margin-bottom: 8px;">
+          <div class="big-num">$93B</div>
+          <div style="font-size: 11pt; color: #6B7280;">Total Addressable Market (Global, 2028)</div>
+        </div>
+        <div style="width: 80%; margin: 0 auto; background: #F0FDF4; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+          <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">€18-22B</div>
+          <div style="font-size: 10pt; color: #6B7280;">Serviceable Available Market (Europe)</div>
+        </div>
+        <div style="width: 60%; margin: 0 auto; background: #FFF7ED; border-radius: 8px; padding: 10px;">
+          <div style="font-size: 20pt; font-weight: 800; color: #F97316;">€500M+</div>
+          <div style="font-size: 10pt; color: #6B7280;">Serviceable Obtainable Market (CEE Blue-Collar)</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>Growth Drivers</h3>
+      <ul>
+        <li>CAGR ~7% (Grand View Research)</li>
+        <li>Post-COVID wellbeing awareness surge</li>
+        <li>EU regulations (AI Act, ISO 45003)</li>
+        <li>Blue-collar segment <strong>dramatically underserved</strong></li>
+        <li>2.1B blue-collar workers, <5% have digital wellbeing tools</li>
+      </ul>
+      <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px;">
+        <strong>Our niche:</strong> Blue-collar workers with employer-provided housing — an uncontested market segment
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>4</span></div>
+</div>
+
+<!-- SLIDE 5: HOUSING MODULE -->
+<div class="slide">
+  <h1>🏠 Housing Stability Index — Our Moat</h1>
+  <p class="subtitle">The only platform connecting accommodation quality to workforce wellbeing</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Predictive Cascade (Evidence-Based)</h3>
+      <div style="font-size: 10pt; margin-top: 8px;">
+        <div class="bar" style="width: 100%; background: #DC2626;">Housing score drops (Week 0)</div>
+        <div class="bar" style="width: 88%; background: #F97316;">Sleep quality declines (Week 1)</div>
+        <div class="bar" style="width: 76%; background: #F59E0B;">Mood drops (Week 2-3)</div>
+        <div class="bar" style="width: 64%; background: #6366F1;">Stress spikes (Week 4)</div>
+        <div class="bar" style="width: 52%; background: #1E4D7B;">Burnout increases (Week 6-8)</div>
+        <div class="bar" style="width: 40%; background: #1F2937;">Resignation (Week 8-12)</div>
+      </div>
+      <p class="small" style="margin-top: 6px;">Sources: Evans et al. 2003, WHO 2018, ILO 2020</p>
+    </div>
+    <div>
+      <h3>Academic Evidence</h3>
+      <ul style="font-size: 10pt;">
+        <li>Housing dissatisfaction → <strong>1.8x job dissatisfaction</strong></li>
+        <li>Poor housing → <strong>2x turnover risk</strong></li>
+        <li>Adequate accommodation → <strong>25-30% fewer accidents</strong></li>
+        <li>1 SD improvement → <strong>0.3 SD job satisfaction gain</strong></li>
+      </ul>
+      <div class="card-orange" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12pt; font-weight: 700;">NO COMPETITOR TRACKS THIS</div>
+        <div style="font-size: 10pt;">8 housing questions in 5 languages</div>
+      </div>
+      <h3 style="margin-top: 12px;">Trigger System</h3>
+      <p style="font-size: 10pt;">HSI drops below 5/10 → automatic facility alert + resident wellbeing check</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>5</span></div>
+</div>
+
+<!-- SLIDE 6: PULSE SYSTEM -->
+<div class="slide">
+  <h1>📊 86-Question Pulse System</h1>
+  <p class="subtitle">12 categories, 5 languages, smart rotation — prevents survey fatigue</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Category</th><th>Questions</th><th>Unique?</th></tr>
+        <tr><td>Physical Wellbeing</td><td>11</td><td></td></tr>
+        <tr><td>Mental Wellbeing</td><td>13</td><td></td></tr>
+        <tr><td>Social Wellbeing</td><td>8</td><td></td></tr>
+        <tr><td>Work-Life Balance</td><td>8</td><td></td></tr>
+        <tr><td><strong>Housing/Accommodation</strong></td><td><strong>8</strong></td><td><span class="badge badge-orange">UNIQUE</span></td></tr>
+        <tr><td>Job Satisfaction</td><td>8</td><td></td></tr>
+        <tr><td>Financial Wellbeing</td><td>6</td><td></td></tr>
+        <tr><td>Manager Relationship</td><td>6</td><td></td></tr>
+        <tr><td>Safety & Compliance</td><td>4</td><td></td></tr>
+        <tr><td>Cultural Integration</td><td>4</td><td></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Daily Experience</h3>
+      <div class="card" style="margin-bottom: 8px;">
+        <strong>2 core questions</strong> (mood + energy) — always shown<br>
+        <strong>2 rotating questions</strong> — selected by algorithm
+      </div>
+      <h3>Smart Rotation</h3>
+      <ul style="font-size: 10pt;">
+        <li>7-day no-repeat rule</li>
+        <li>Category diversity (max 1/category/day)</li>
+        <li>Priority-weighted random selection</li>
+        <li>Gamification: +10 points/day, streaks, badges</li>
+      </ul>
+      <div class="card-green" style="margin-top: 8px; padding: 10px; border-radius: 8px;">
+        <strong>Result:</strong> 3-5x higher completion vs traditional surveys
+      </div>
+      <div style="margin-top: 8px;">
+        <span class="badge badge-blue">🇭🇺 HU</span>
+        <span class="badge badge-blue">🇬🇧 EN</span>
+        <span class="badge badge-blue">🇵🇭 TL</span>
+        <span class="badge badge-blue">🇺🇦 UK</span>
+        <span class="badge badge-blue">🇩🇪 DE</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>6</span></div>
+</div>
+
+<!-- SLIDE 7: TECHNOLOGY -->
+<div class="slide">
+  <h1>Technology: Enterprise-Grade</h1>
+  <p class="subtitle">Platform Health Score: 89/100</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Category</th><th>Score</th><th>Details</th></tr>
+        <tr><td>Security</td><td><strong class="green">95/100</strong></td><td>GDPR, RLS, PGP encryption</td></tr>
+        <tr><td>Code Quality</td><td><strong class="green">90/100</strong></td><td>Winston logging, ESLint</td></tr>
+        <tr><td>Features</td><td><strong class="green">88/100</strong></td><td>86 questions, 12 categories</td></tr>
+        <tr><td>Database</td><td><strong class="green">85/100</strong></td><td>103 tables, 406 indexes</td></tr>
+        <tr><td>Performance</td><td><strong>82/100</strong></td><td>Redis cache, Bull queue</td></tr>
+        <tr><td>UI/UX</td><td><strong>78/100</strong></td><td>5 languages, i18n infra</td></tr>
+        <tr><td>Tests</td><td><strong>77/100</strong></td><td>41 test files, 10K+ lines</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Technical Scale</h3>
+      <div class="grid2" style="gap: 8px;">
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">399</div><div class="small">API Endpoints</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">59</div><div class="small">Admin Pages</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">53</div><div class="small">Mobile Screens</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">103</div><div class="small">DB Tables</div></div>
+      </div>
+      <h3 style="margin-top: 10px;">Stack</h3>
+      <p style="font-size: 10pt;">Node.js, PostgreSQL, React, React Native, Redis, Docker, Claude AI</p>
+      <h3 style="margin-top: 8px;">Compliance</h3>
+      <p style="font-size: 10pt;">GDPR Article 9 ✅ | EU AI Act ✅ | ISO 45003 ✅ | DPIA ✅</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>7</span></div>
+</div>
+
+<!-- SLIDE 8: COMPETITIVE ADVANTAGE -->
+<div class="slide">
+  <h1>Competitive Advantage</h1>
+  <p class="subtitle">"We own the blue-collar housing-to-wellbeing category"</p>
+  <div style="margin-top: 10px;">
+    <table>
+      <tr><th>Feature</th><th>Us</th><th>Headspace</th><th>Lyra</th><th>Modern Health</th><th>Virgin Pulse</th><th>Spring Health</th></tr>
+      <tr><td>Housing-wellbeing correlation</td><td><span class="check">✅ UNIQUE</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>Overtime-burnout linkage</td><td><span class="check">✅ UNIQUE</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>Sick leave auto-detection</td><td><span class="check">✅ UNIQUE</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>6 automated triggers</td><td><span class="check">✅ UNIQUE</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>Burnout assessment (MBI)</td><td><span class="check">✅</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>EAP case management</td><td><span class="check">✅</span></td><td class="x">❌</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td>~</td><td><span class="check">✅</span></td></tr>
+      <tr><td>5-language support</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td></tr>
+      <tr><td>Blue-collar optimized</td><td><span class="check">✅</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+    </table>
+  </div>
+  <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px; text-align: center;">
+    <strong>Competitors are reactive content platforms. We are a proactive early-warning system.</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>8</span></div>
+</div>
+
+<!-- SLIDE 9: BUSINESS MODEL -->
+<div class="slide">
+  <h1>Business Model: SaaS</h1>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Pricing</h3>
+      <table>
+        <tr><th>Plan</th><th>Employees</th><th>Price</th><th>Annual (100)</th></tr>
+        <tr><td><strong>Starter</strong></td><td>50-99</td><td>€6/mo</td><td>€7,200</td></tr>
+        <tr><td><strong>Growth</strong></td><td>100-249</td><td>€5.50/mo</td><td>€6,600</td></tr>
+        <tr><td><strong>Enterprise</strong></td><td>250+</td><td>€5/mo</td><td>€6,000</td></tr>
+      </table>
+      <h3 style="margin-top: 12px;">Unit Economics</h3>
+      <table>
+        <tr><td>Customer LTV (3 years)</td><td><strong>€21,600</strong></td></tr>
+        <tr><td>CAC (estimated)</td><td><strong>€2,000</strong></td></tr>
+        <tr><td>LTV/CAC Ratio</td><td><strong class="green">10.8x</strong></td></tr>
+        <tr><td>Gross Margin</td><td><strong class="green">85%</strong></td></tr>
+        <tr><td>Payback Period</td><td><strong>< 2 months</strong></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>ROI for Customers: 38.5x</h3>
+      <table>
+        <tr><th>Benefit (200 employees)</th><th>Annual</th></tr>
+        <tr><td>Sick leave reduction (20%)</td><td><strong>€30,000</strong></td></tr>
+        <tr><td>Turnover reduction (15%)</td><td><strong>€45,000</strong></td></tr>
+        <tr><td>Productivity gain (10%)</td><td><strong>€480,000</strong></td></tr>
+        <tr><td><strong>Total benefit</strong></td><td><strong class="green">€555,000</strong></td></tr>
+        <tr><td>Platform cost</td><td>€14,400</td></tr>
+        <tr><td><strong>ROI</strong></td><td><strong class="green">38.5x</strong></td></tr>
+      </table>
+      <p class="small" style="margin-top: 6px;">Sources: WHO 2019, Deloitte 2020, Housing Solutions pilot</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>9</span></div>
+</div>
+
+<!-- SLIDE 10: GO-TO-MARKET -->
+<div class="slide">
+  <h1>Go-to-Market: Land & Expand</h1>
+  <div class="grid4" style="margin-top: 16px;">
+    <div class="card" style="border-top: 4px solid #1E4D7B;">
+      <h3>Phase 1: Pilot</h3>
+      <div class="small">Q2 2026</div>
+      <ul style="font-size: 9pt;">
+        <li>Housing Solutions (150 employees)</li>
+        <li>3 locations</li>
+        <li>Prove ≥60% adoption</li>
+        <li>Generate case study</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #22C55E;">
+      <h3>Phase 2: Scale</h3>
+      <div class="small">Q3 2026</div>
+      <ul style="font-size: 9pt;">
+        <li>3-5 construction companies</li>
+        <li>500-1,000 users</li>
+        <li>€15-30K MRR</li>
+        <li>Pricing validation</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #F97316;">
+      <h3>Phase 3: Growth</h3>
+      <div class="small">Q4 2026</div>
+      <ul style="font-size: 9pt;">
+        <li>10-15 customers</li>
+        <li>1,000-2,000 users</li>
+        <li>€60-120K ARR</li>
+        <li>Hire 1-2 sales</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #6366F1;">
+      <h3>Phase 4: Expand</h3>
+      <div class="small">Q1 2027</div>
+      <ul style="font-size: 9pt;">
+        <li>15-20 customers</li>
+        <li>2,000-3,000 users</li>
+        <li>€165K ARR</li>
+        <li>CEE expansion</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card">
+      <h3>ICP (Ideal Customer Profile)</h3>
+      <p style="font-size: 10pt;">Construction, hospitality, manufacturing, logistics | 50-500 employees | Hungary → CEE | High turnover (>30%) | Employer-provided housing</p>
+    </div>
+    <div class="card">
+      <h3>Sales Channels</h3>
+      <p style="font-size: 10pt;">Founder-led sales → Construction associations (ÉVOSZ) → HR consultants → Inbound marketing (case studies, webinars)</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>10</span></div>
+</div>
+
+<!-- SLIDE 11: TRACTION -->
+<div class="slide">
+  <h1>Traction & Proof Points</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Current Status</h3>
+      <table>
+        <tr><td>Pilot company turnover</td><td><strong class="green"><1%</strong> (vs 30-45% industry)</td></tr>
+        <tr><td>Employees managed</td><td><strong>300+</strong></td></tr>
+        <tr><td>Platform modules</td><td><strong>4</strong> (WellMind, CarePath, Housing, Predictive)</td></tr>
+        <tr><td>Mobile screens</td><td><strong>53</strong> (iOS + Android + Web)</td></tr>
+        <tr><td>Admin pages</td><td><strong>59</strong></td></tr>
+        <tr><td>API endpoints</td><td><strong>399</strong></td></tr>
+        <tr><td>Automated triggers</td><td><strong>6</strong></td></tr>
+        <tr><td>Languages</td><td><strong>5</strong> (HU, EN, TL, UK, DE)</td></tr>
+        <tr><td>Backend tests</td><td><strong>41 files</strong> (10K+ lines)</td></tr>
+        <tr><td>Pulse questions</td><td><strong>86</strong> across 12 categories</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>12-Month Milestones</h3>
+      <div style="font-size: 10pt;">
+        <div style="padding: 8px; border-left: 3px solid #1E4D7B; margin-bottom: 6px;"><strong>Q2 2026</strong> — Pilot launch, GDPR Tier 1, case study</div>
+        <div style="padding: 8px; border-left: 3px solid #22C55E; margin-bottom: 6px;"><strong>Q3 2026</strong> — 5 customers, 1K users, €30K MRR</div>
+        <div style="padding: 8px; border-left: 3px solid #F97316; margin-bottom: 6px;"><strong>Q4 2026</strong> — 12 customers, 1.5K users, €99K ARR</div>
+        <div style="padding: 8px; border-left: 3px solid #6366F1;"><strong>Q1 2027</strong> — 20 customers, 2.5K users, <strong>€165K ARR</strong></div>
+      </div>
+      <div class="card-green" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <strong>Product is built. Pilot is running. Results are proven.</strong>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>11</span></div>
+</div>
+
+<!-- SLIDE 12: FINANCIALS -->
+<div class="slide">
+  <h1>Financial Projections</h1>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Revenue Growth</h3>
+      <table>
+        <tr><th>Metric</th><th>Year 1</th><th>Year 2</th><th>Year 3</th></tr>
+        <tr><td>Customers</td><td>20</td><td>60</td><td>150</td></tr>
+        <tr><td>Users</td><td>2,500</td><td>8,000</td><td>22,000</td></tr>
+        <tr><td>ARR</td><td><strong>€165K</strong></td><td><strong>€528K</strong></td><td><strong>€1.45M</strong></td></tr>
+        <tr><td>MRR</td><td>€13.7K</td><td>€44K</td><td>€121K</td></tr>
+        <tr><td>Gross Margin</td><td>80%</td><td>85%</td><td>88%</td></tr>
+      </table>
+      <h3 style="margin-top: 10px;">Key Assumptions</h3>
+      <ul style="font-size: 9pt;">
+        <li>Average deal size: 100 employees</li>
+        <li>Annual churn: <10%</li>
+        <li>Net Revenue Retention: >120%</li>
+        <li>Break-even: Month 8-9</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Monthly Expenses</h3>
+      <table>
+        <tr><th>Category</th><th>M1-3</th><th>M4-6</th><th>M7-12</th></tr>
+        <tr><td>Infrastructure</td><td>€300</td><td>€500</td><td>€800</td></tr>
+        <tr><td>AI/API</td><td>€100</td><td>€150</td><td>€250</td></tr>
+        <tr><td>Development</td><td>€8K</td><td>€10K</td><td>€12K</td></tr>
+        <tr><td>Sales/Marketing</td><td>€500</td><td>€2K</td><td>€5K</td></tr>
+        <tr><td>Support</td><td>€0</td><td>€1K</td><td>€3K</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>€9.9K</strong></td><td><strong>€14.2K</strong></td><td><strong>€21.4K</strong></td></tr>
+      </table>
+      <div class="card" style="margin-top: 10px; text-align: center;">
+        <div style="font-size: 11pt; color: #6B7280;">Break-even MRR</div>
+        <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">~€6,500/mo</div>
+        <div class="small">Expected: Month 8-9</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>12</span></div>
+</div>
+
+<!-- SLIDE 13: TEAM -->
+<div class="slide">
+  <h1>Team & Investment</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Leadership</h3>
+      <div class="card" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 60px; height: 60px; background: #1E4D7B; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24pt; font-weight: 700;">LB</div>
+          <div>
+            <div style="font-size: 14pt; font-weight: 700;">Lerch Balázs</div>
+            <div style="font-size: 10pt; color: #6B7280;">Founder & CEO</div>
+            <div style="font-size: 9pt; color: #6B7280;">Construction industry veteran, Housing Solutions founder</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size: 11pt;"><strong>Team:</strong> 5 internal + 6 subcontractors</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Domain:</strong> Housing management, blue-collar workforce</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Advantage:</strong> Built from real operational experience</div>
+      </div>
+    </div>
+    <div>
+      <h3>Investment Ask</h3>
+      <div class="card-blue" style="padding: 16px; border-radius: 10px; text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 12pt; color: #93C5FD;">Seed Round</div>
+        <div style="font-size: 32pt; font-weight: 900; color: white;">€500,000</div>
+      </div>
+      <h3>Use of Funds</h3>
+      <div class="bar" style="width: 100%; background: #1E4D7B;">Sales & Marketing — 40% (€200K)</div>
+      <div class="bar" style="width: 75%; background: #22C55E;">Product Development — 30% (€150K)</div>
+      <div class="bar" style="width: 50%; background: #F97316;">Operations — 15% (€75K)</div>
+      <div class="bar" style="width: 37%; background: #6366F1;">Legal & Compliance — 10% (€50K)</div>
+      <div class="bar" style="width: 12%; background: #9CA3AF;">Reserve — 5% (€25K)</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>13</span></div>
+</div>
+
+<!-- SLIDE 14: VISION -->
+<div class="slide">
+  <h1>Vision: Category Creator</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>3-Year Vision (2026-2029)</h3>
+      <ul>
+        <li><strong>Year 1:</strong> Dominant player in Hungarian blue-collar wellbeing</li>
+        <li><strong>Year 2:</strong> Expand to Poland, Czech Republic, Slovakia</li>
+        <li><strong>Year 3:</strong> CEE market leader, 150+ customers, €1.45M ARR</li>
+      </ul>
+      <h3 style="margin-top: 14px;">5-Year Vision</h3>
+      <ul>
+        <li>DACH expansion (Austria, Germany, Switzerland)</li>
+        <li>500+ customers, 50K+ users</li>
+        <li>€5M+ ARR</li>
+        <li>Industry standard for blue-collar wellbeing</li>
+      </ul>
+      <h3 style="margin-top: 14px;">Exit Options</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>Strategic acquisition</strong> by HR tech (Workday, SAP, ADP)</li>
+        <li><strong>PE buyout</strong> at 8-12x ARR</li>
+        <li><strong>Growth equity</strong> → Series A/B → IPO path</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Why Now?</h3>
+      <div class="card-green" style="padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+        <ul style="font-size: 10pt;">
+          <li>Post-COVID wellbeing awareness at all-time high</li>
+          <li>EU regulations creating compliance demand (AI Act, ISO 45003)</li>
+          <li>Blue-collar segment dramatically underserved ($15B opportunity)</li>
+          <li>AI/NLP technology now affordable for this market</li>
+          <li>First-mover advantage in housing-wellbeing correlation</li>
+          <li>CEE labor market crisis creates urgent need</li>
+        </ul>
+      </div>
+      <div class="card-orange" style="padding: 14px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 14pt; font-weight: 700; margin-bottom: 4px;">The Window Is Open</div>
+        <div style="font-size: 10pt;">No competitor has entered the blue-collar housing-to-wellbeing space. First mover wins.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>14</span></div>
+</div>
+
+<!-- SLIDE 15: CONTACT -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <h1 style="color: white; font-size: 32pt;">Join the Workforce<br>Stability Revolution</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 20px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 24px;">Predict. Prevent. Protect.</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 600px;">
+    <div><div style="font-size: 10pt; color: #60A5FA;">Founder</div><div style="font-size: 14pt;">Lerch Balázs</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Email</div><div style="font-size: 14pt;">info@housingsolutions.hu</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Location</div><div style="font-size: 14pt;">Fertőd, Hungary</div></div>
+  </div>
+  <div style="margin-top: 30px; font-size: 11pt; color: #60A5FA;">
+    <1% turnover · 300+ employees · 86 questions · 5 languages · 399 API endpoints
+  </div>
+  <div class="footer" style="color: #60A5FA;"><span>Confidential — Housing Solutions Kft.</span><span>15</span></div>
+</div>
+
+</body>
+</html>
