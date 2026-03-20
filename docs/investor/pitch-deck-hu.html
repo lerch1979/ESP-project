@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1F2937; }
+.slide { width: 297mm; height: 210mm; padding: 18mm 22mm; position: relative; page-break-after: always; overflow: hidden; }
+.slide:last-child { page-break-after: avoid; }
+.footer { position: absolute; bottom: 8mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between; font-size: 8pt; color: #9CA3AF; }
+h1 { font-size: 28pt; color: #1E4D7B; font-weight: 800; margin-bottom: 8px; }
+h2 { font-size: 20pt; color: #1E4D7B; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 14pt; color: #1E4D7B; font-weight: 700; margin-bottom: 6px; }
+.subtitle { font-size: 14pt; color: #6B7280; margin-bottom: 16px; }
+.big-num { font-size: 36pt; font-weight: 900; color: #1E4D7B; }
+.green { color: #22C55E; } .orange { color: #F97316; } .blue { color: #1E4D7B; } .red { color: #DC2626; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.card { background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; }
+.card-blue { background: #EFF6FF; border: 2px solid #1E4D7B; }
+.card-green { background: #F0FDF4; border: 2px solid #22C55E; }
+.card-orange { background: #FFF7ED; border: 2px solid #F97316; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 700; }
+.badge-blue { background: #1E4D7B; color: white; }
+.badge-green { background: #22C55E; color: white; }
+.badge-orange { background: #F97316; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 8px; }
+th { background: #1E4D7B; color: white; padding: 6px 10px; text-align: left; font-weight: 600; }
+td { padding: 5px 10px; border-bottom: 1px solid #E5E7EB; }
+tr:nth-child(even) { background: #F8FAFC; }
+.bar { height: 22px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+ul { padding-left: 18px; font-size: 11pt; line-height: 1.7; }
+li { margin-bottom: 3px; }
+.check { color: #22C55E; font-weight: 700; } .x { color: #DC2626; font-weight: 700; }
+p { font-size: 11pt; line-height: 1.6; }
+.small { font-size: 9pt; color: #6B7280; }
+</style>
+</head>
+<body>
+
+<!-- 1: FEDŐLAP -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <div style="font-size: 16pt; letter-spacing: 4px; font-weight: 300; margin-bottom: 20px;">HOUSING SOLUTIONS KFT.</div>
+  <h1 style="color: white; font-size: 38pt; margin-bottom: 12px;">Munkaerő Stabilitási<br>Platform</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 16px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 8px;">Felismerjük. Megelőzzük. Megvédjük.</div>
+  <div style="font-size: 12pt; color: #93C5FD; margin-top: 30px;">Magvető Befektetési Lehetőség | 2026</div>
+  <div style="font-size: 11pt; color: #60A5FA; margin-top: 8px;">Lerch Balázs, Alapító és Ügyvezető</div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas</span><span>Housing Solutions Kft. — Fertőd, Magyarország</span></div>
+</div>
+
+<!-- 2: A PROBLÉMA -->
+<div class="slide">
+  <h1>A Probléma: Évi 500.000+ EUR Veszteség</h1>
+  <p class="subtitle">A fizikai munkavállalók instabilitása csendes vérzés</p>
+  <div class="grid3" style="margin-top: 16px;">
+    <div class="card" style="text-align: center;">
+      <div class="big-num red">30-45%</div>
+      <h3>Éves Fluktuáció</h3>
+      <p>5.000-15.000 EUR kilépésenként toborzás, betanítás és kiesett termelékenység</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num orange">40-60%</div>
+      <h3>Kiégési Arány</h3>
+      <p>Műszakos munkavállalók 3,4× magasabb betegszabadság kockázata</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num blue">3-8%</div>
+      <h3>EAP Kihasználtság</h3>
+      <p>A hagyományos telefonos EAP nem működik fizikai munkásoknál</p>
+    </div>
+  </div>
+  <div class="card-orange" style="margin-top: 16px; padding: 12px 16px; border-radius: 8px;">
+    <strong>A rés:</strong> 93 Mrd dolláros jólléti piac az irodai dolgozókra fókuszál. Az építőipari, gyári és vendéglátó dolgozók <strong>elfelejtődtek</strong>.
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>2</span></div>
+</div>
+
+<!-- 3: MEGOLDÁS -->
+<div class="slide">
+  <h1>Megoldásunk: 4 Pillér</h1>
+  <p class="subtitle">Proaktív, adatvezérelt korai jelzőrendszer</p>
+  <div class="grid4" style="margin-top: 12px;">
+    <div class="card-blue" style="border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28pt;">🧠</div>
+      <h3>WellMind</h3>
+      <p style="font-size: 10pt;">Napi pulzus, MBI/UWES felmérések, NLP hangulatelemzés, gamifikáció</p>
+      <div class="badge badge-blue" style="margin-top: 8px;">Megelőző</div>
+    </div>
+    <div class="card-green" style="border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28pt;">🛡️</div>
+      <h3>CarePath</h3>
+      <p style="font-size: 10pt;">EAP ügykezelés, szolgáltató hálózat, krízis protokoll, anonim opció</p>
+      <div class="badge badge-green" style="margin-top: 8px;">Reaktív</div>
+    </div>
+    <div class="card-orange" style="border-radius: 10px; padding: 14px; text-align: center;">
+      <div style="font-size: 28pt;">🏠</div>
+      <h3>Szállás Index</h3>
+      <p style="font-size: 10pt;">Szállásminőség → jóllét korreláció. <strong>SENKI MÁS NEM CSINÁLJA</strong></p>
+      <div class="badge badge-orange" style="margin-top: 8px;">EGYEDI</div>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 14px; text-align: center; border: 2px solid #6366F1;">
+      <div style="font-size: 28pt;">📊</div>
+      <h3>Prediktív</h3>
+      <p style="font-size: 10pt;">Túlóra→kiégés, betegszabadság trigger, konfliktus, fluktuáció kockázat</p>
+      <div class="badge" style="background: #6366F1; color: white; margin-top: 8px;">AI-alapú</div>
+    </div>
+  </div>
+  <div style="margin-top: 14px; text-align: center; font-size: 11pt; color: #6B7280;">
+    <strong>6 automatikus trigger</strong> felismeri a problémákat — <strong>senki sem marad láthatatlan</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>3</span></div>
+</div>
+
+<!-- 4: PIAC -->
+<div class="slide">
+  <h1>Piac: 93 Milliárd Dollár 2028-ra</h1>
+  <div class="grid2">
+    <div style="text-align: center; margin-top: 12px;">
+      <div style="width: 100%; background: #EFF6FF; border-radius: 8px; padding: 14px; margin-bottom: 8px;">
+        <div class="big-num">$93 Mrd</div><div class="small">Teljes Piac (Globális, 2028)</div>
+      </div>
+      <div style="width: 80%; margin: 0 auto; background: #F0FDF4; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+        <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">€18-22 Mrd</div><div class="small">Elérhető Piac (Európa)</div>
+      </div>
+      <div style="width: 60%; margin: 0 auto; background: #FFF7ED; border-radius: 8px; padding: 10px;">
+        <div style="font-size: 20pt; font-weight: 800; color: #F97316;">€500 M+</div><div class="small">Megszerezhető Piac (KKE Fizikai Munkás)</div>
+      </div>
+    </div>
+    <div>
+      <h3>Növekedési Hajtóerők</h3>
+      <ul>
+        <li>CAGR ~7% (Grand View Research)</li>
+        <li>COVID utáni jólléti tudatosság növekedés</li>
+        <li>EU szabályozás (AI rendelet, ISO 45003)</li>
+        <li>Fizikai munkás szegmens <strong>drámaian alulszolgált</strong></li>
+        <li>2,1 Mrd fizikai munkás, <5%-nak van digitális jólléti eszköze</li>
+      </ul>
+      <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px;">
+        <strong>Résünk:</strong> Munkáltatói szálláson élő fizikai munkavállalók — versenytárs nélküli szegmens
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>4</span></div>
+</div>
+
+<!-- 5: SZÁLLÁS MODUL -->
+<div class="slide">
+  <h1>🏠 Szállás Stabilitási Index — Versenyelőnyünk</h1>
+  <p class="subtitle">Az egyetlen platform, amely összekapcsolja a szállásminőséget a munkaerő jólléttel</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Prediktív Lánc (Bizonyítékokon Alapuló)</h3>
+      <div style="font-size: 10pt; margin-top: 8px;">
+        <div class="bar" style="width: 100%; background: #DC2626;">Szállás pontszám csökken (0. hét)</div>
+        <div class="bar" style="width: 88%; background: #F97316;">Alvásminőség romlik (1. hét)</div>
+        <div class="bar" style="width: 76%; background: #F59E0B;">Hangulat csökken (2-3. hét)</div>
+        <div class="bar" style="width: 64%; background: #6366F1;">Stressz emelkedik (4. hét)</div>
+        <div class="bar" style="width: 52%; background: #1E4D7B;">Kiégés növekedik (6-8. hét)</div>
+        <div class="bar" style="width: 40%; background: #1F2937;">Felmondás (8-12. hét)</div>
+      </div>
+    </div>
+    <div>
+      <h3>Akadémiai Bizonyítékok</h3>
+      <ul style="font-size: 10pt;">
+        <li>Szálláselégedetlenség → <strong>1,8× munkaelégedetlenség</strong></li>
+        <li>Rossz szállás → <strong>2× fluktuációs kockázat</strong></li>
+        <li>Megfelelő szállás → <strong>25-30%-kal kevesebb baleset</strong></li>
+      </ul>
+      <div class="card-orange" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12pt; font-weight: 700;">EGYETLEN VERSENYTÁRS SEM KÖVETI EZT</div>
+        <div style="font-size: 10pt;">8 szállás kérdés 5 nyelven</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>5</span></div>
+</div>
+
+<!-- 6: PULZUS RENDSZER -->
+<div class="slide">
+  <h1>📊 86 Kérdéses Pulzus Rendszer</h1>
+  <p class="subtitle">12 kategória, 5 nyelv, intelligens rotáció — megelőzi a kérdőív-fáradtságot</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Kategória</th><th>Kérdések</th><th>Egyedi?</th></tr>
+        <tr><td>Fizikai Jóllét</td><td>11</td><td></td></tr>
+        <tr><td>Mentális Jóllét</td><td>13</td><td></td></tr>
+        <tr><td>Szociális Jóllét</td><td>8</td><td></td></tr>
+        <tr><td>Munka-Magánélet Egyensúly</td><td>8</td><td></td></tr>
+        <tr><td><strong>Szállás/Lakhatás</strong></td><td><strong>8</strong></td><td><span class="badge badge-orange">EGYEDI</span></td></tr>
+        <tr><td>Munkával Való Elégedettség</td><td>8</td><td></td></tr>
+        <tr><td>Pénzügyi Jóllét</td><td>6</td><td></td></tr>
+        <tr><td>Vezetői Kapcsolat</td><td>6</td><td></td></tr>
+        <tr><td>Biztonság & Megfelelőség</td><td>4</td><td></td></tr>
+        <tr><td>Kulturális Integráció</td><td>4</td><td></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Napi Élmény</h3>
+      <div class="card" style="margin-bottom: 8px;">
+        <strong>2 alap kérdés</strong> (hangulat + energia) — mindig megjelenik<br>
+        <strong>2 rotációs kérdés</strong> — algoritmus választja ki
+      </div>
+      <h3>Intelligens Rotáció</h3>
+      <ul style="font-size: 10pt;">
+        <li>7 napos ismétlésmentesség</li>
+        <li>Kategória diverzitás (max 1/kategória/nap)</li>
+        <li>Prioritás-súlyozott véletlenszerű kiválasztás</li>
+        <li>Gamifikáció: +10 pont/nap, sorozatok, jelvények</li>
+      </ul>
+      <div class="card-green" style="margin-top: 8px; padding: 10px; border-radius: 8px;">
+        <strong>Eredmény:</strong> 3-5× magasabb kitöltés a hagyományos felmérésekhez képest
+      </div>
+      <div style="margin-top: 8px;">
+        <span class="badge badge-blue">🇭🇺 HU</span>
+        <span class="badge badge-blue">🇬🇧 EN</span>
+        <span class="badge badge-blue">🇵🇭 TL</span>
+        <span class="badge badge-blue">🇺🇦 UK</span>
+        <span class="badge badge-blue">🇩🇪 DE</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>6</span></div>
+</div>
+
+<!-- 7: TECHNOLÓGIA -->
+<div class="slide">
+  <h1>Technológia: Vállalati Szintű</h1>
+  <p class="subtitle">Platform Egészségi Pontszám: 89/100</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Kategória</th><th>Pontszám</th><th>Részletek</th></tr>
+        <tr><td>Biztonság</td><td><strong class="green">95/100</strong></td><td>GDPR, RLS, PGP titkosítás</td></tr>
+        <tr><td>Kódminőség</td><td><strong class="green">90/100</strong></td><td>Winston napló, ESLint</td></tr>
+        <tr><td>Funkciók</td><td><strong class="green">88/100</strong></td><td>86 kérdés, 12 kategória</td></tr>
+        <tr><td>Adatbázis</td><td><strong class="green">85/100</strong></td><td>103 tábla, 406 index</td></tr>
+        <tr><td>Teljesítmény</td><td><strong>82/100</strong></td><td>Redis cache, Bull sorkezelő</td></tr>
+        <tr><td>UI/UX</td><td><strong>78/100</strong></td><td>5 nyelv, i18n infra</td></tr>
+        <tr><td>Tesztek</td><td><strong>77/100</strong></td><td>41 tesztfájl, 10K+ sor</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Technikai Méret</h3>
+      <div class="grid2" style="gap: 8px;">
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">399</div><div class="small">API Végpont</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">59</div><div class="small">Admin Oldal</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">53</div><div class="small">Mobil Képernyő</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">103</div><div class="small">DB Tábla</div></div>
+      </div>
+      <h3 style="margin-top: 10px;">Technológiai Stack</h3>
+      <p style="font-size: 10pt;">Node.js, PostgreSQL, React, React Native, Redis, Docker, Claude AI</p>
+      <h3 style="margin-top: 8px;">Megfelelőség</h3>
+      <p style="font-size: 10pt;">GDPR 9. cikk ✅ | EU AI rendelet ✅ | ISO 45003 ✅ | DPIA ✅</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>7</span></div>
+</div>
+
+<!-- 8: VERSENYELŐNY -->
+<div class="slide">
+  <h1>Versenyelőny</h1>
+  <p class="subtitle">„Mi birtokoljuk a fizikai munkás szállás-jóllét kategóriát"</p>
+  <div style="margin-top: 10px;">
+    <table>
+      <tr><th>Funkció</th><th>Mi</th><th>Headspace</th><th>Lyra</th><th>Modern Health</th><th>Virgin Pulse</th><th>Spring Health</th></tr>
+      <tr><td>Szállás-jóllét korreláció</td><td><span class="check">✅ EGYEDI</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>Túlóra-kiégés összekapcsolás</td><td><span class="check">✅ EGYEDI</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>Betegszabadság auto-detekció</td><td><span class="check">✅ EGYEDI</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>6 automatikus trigger</td><td><span class="check">✅ EGYEDI</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>Kiégés felmérés (MBI)</td><td><span class="check">✅</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+      <tr><td>EAP ügykezelés</td><td><span class="check">✅</span></td><td class="x">❌</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td>~</td><td><span class="check">✅</span></td></tr>
+      <tr><td>5 nyelv támogatás</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td></tr>
+      <tr><td>Fizikai munkásra optimalizált</td><td><span class="check">✅</span></td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td><td class="x">❌</td></tr>
+    </table>
+  </div>
+  <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px; text-align: center;">
+    <strong>A versenytársak reaktív tartalom platformok. Mi proaktív korai jelzőrendszer vagyunk.</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>8</span></div>
+</div>
+
+<!-- 9: ÜZLETI MODELL -->
+<div class="slide">
+  <h1>Üzleti Modell: SaaS</h1>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Árazás</h3>
+      <table>
+        <tr><th>Csomag</th><th>Létszám</th><th>Ár/fő/hó</th><th>Éves (100 fő)</th></tr>
+        <tr><td><strong>Starter</strong></td><td>50-99</td><td>6 EUR</td><td>7.200 EUR</td></tr>
+        <tr><td><strong>Growth</strong></td><td>100-249</td><td>5,50 EUR</td><td>6.600 EUR</td></tr>
+        <tr><td><strong>Enterprise</strong></td><td>250+</td><td>5 EUR</td><td>6.000 EUR</td></tr>
+      </table>
+      <h3 style="margin-top: 12px;">Unit Economics</h3>
+      <table>
+        <tr><td>Ügyfél LTV (3 év)</td><td><strong>29.700 EUR</strong></td></tr>
+        <tr><td>CAC (becsült)</td><td><strong>2.000 EUR</strong></td></tr>
+        <tr><td>LTV/CAC arány</td><td><strong class="green">14,9×</strong></td></tr>
+        <tr><td>Bruttó árrés</td><td><strong class="green">85%</strong></td></tr>
+        <tr><td>Megtérülési idő</td><td><strong>< 2 hónap</strong></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Megtérülés az ügyfeleknek: 38,5×</h3>
+      <table>
+        <tr><th>Megtakarítás (200 fő)</th><th>Éves</th></tr>
+        <tr><td>Betegszabadság csökkenés (20%)</td><td><strong>30.000 EUR</strong></td></tr>
+        <tr><td>Fluktuáció csökkenés (15%)</td><td><strong>45.000 EUR</strong></td></tr>
+        <tr><td>Termelékenység növekedés (10%)</td><td><strong>480.000 EUR</strong></td></tr>
+        <tr><td><strong>Összesen</strong></td><td><strong class="green">555.000 EUR</strong></td></tr>
+        <tr><td>Platform költség</td><td>14.400 EUR</td></tr>
+        <tr><td><strong>ROI</strong></td><td><strong class="green">38,5×</strong></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>9</span></div>
+</div>
+
+<!-- 10: PIACRA LÉPÉS -->
+<div class="slide">
+  <h1>Piacra Lépés: Land & Expand</h1>
+  <div class="grid4" style="margin-top: 16px;">
+    <div class="card" style="border-top: 4px solid #1E4D7B;">
+      <h3>1. Fázis: Pilot</h3>
+      <div class="small">2026 Q2</div>
+      <ul style="font-size: 9pt;">
+        <li>Housing Solutions (150 fő)</li>
+        <li>3 helyszín</li>
+        <li>≥60% adoptáció igazolása</li>
+        <li>Esettanulmány készítése</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #22C55E;">
+      <h3>2. Fázis: Skálázás</h3>
+      <div class="small">2026 Q3</div>
+      <ul style="font-size: 9pt;">
+        <li>3-5 építőipari cég</li>
+        <li>500-1.000 felhasználó</li>
+        <li>15-30K EUR MRR</li>
+        <li>Árazás validálása</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #F97316;">
+      <h3>3. Fázis: Növekedés</h3>
+      <div class="small">2026 Q4</div>
+      <ul style="font-size: 9pt;">
+        <li>10-15 ügyfél</li>
+        <li>1.000-2.000 felhasználó</li>
+        <li>60-120K EUR ARR</li>
+        <li>1-2 értékesítő felvétele</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #6366F1;">
+      <h3>4. Fázis: Terjeszkedés</h3>
+      <div class="small">2027 Q1</div>
+      <ul style="font-size: 9pt;">
+        <li>15-20 ügyfél</li>
+        <li>2.000-3.000 felhasználó</li>
+        <li>165K EUR ARR</li>
+        <li>KKE terjeszkedés</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card">
+      <h3>ICP (Ideális Ügyfélprofil)</h3>
+      <p style="font-size: 10pt;">Építőipar, vendéglátás, gyártás, logisztika | 50-500 munkavállaló | Magyarország → KKE | Magas fluktuáció (>30%) | Munkáltatói szállás</p>
+    </div>
+    <div class="card">
+      <h3>Értékesítési Csatornák</h3>
+      <p style="font-size: 10pt;">Alapító-vezérelt értékesítés → Építőipari szövetségek (ÉVOSZ) → HR tanácsadók → Inbound marketing (esettanulmányok, webináriumok)</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>10</span></div>
+</div>
+
+<!-- 11: TRAKCIÓ -->
+<div class="slide">
+  <h1>Trakció és Eredmények</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Jelenlegi Állapot</h3>
+      <table>
+        <tr><td>Pilot cég fluktuációja</td><td><strong class="green"><1%</strong> (vs 30-45% iparági)</td></tr>
+        <tr><td>Kezelt munkavállalók</td><td><strong>300+</strong></td></tr>
+        <tr><td>Platform modulok</td><td><strong>4</strong> (WellMind, CarePath, Szállás, Prediktív)</td></tr>
+        <tr><td>Mobil képernyők</td><td><strong>53</strong> (iOS + Android + Web)</td></tr>
+        <tr><td>Admin oldalak</td><td><strong>59</strong></td></tr>
+        <tr><td>API végpontok</td><td><strong>399</strong></td></tr>
+        <tr><td>Automatikus triggerek</td><td><strong>6</strong></td></tr>
+        <tr><td>Nyelvek</td><td><strong>5</strong> (HU, EN, TL, UK, DE)</td></tr>
+        <tr><td>Backend tesztek</td><td><strong>41 fájl</strong> (10K+ sor)</td></tr>
+        <tr><td>Pulzus kérdések</td><td><strong>86</strong> 12 kategóriában</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>12 Hónapos Mérföldkövek</h3>
+      <div style="font-size: 10pt;">
+        <div style="padding: 8px; border-left: 3px solid #1E4D7B; margin-bottom: 6px;"><strong>2026 Q2</strong> — Pilot indítás, GDPR 1. szint, esettanulmány</div>
+        <div style="padding: 8px; border-left: 3px solid #22C55E; margin-bottom: 6px;"><strong>2026 Q3</strong> — 5 ügyfél, 1K felhasználó, 30K EUR MRR</div>
+        <div style="padding: 8px; border-left: 3px solid #F97316; margin-bottom: 6px;"><strong>2026 Q4</strong> — 12 ügyfél, 1,5K felhasználó, 99K EUR ARR</div>
+        <div style="padding: 8px; border-left: 3px solid #6366F1;"><strong>2027 Q1</strong> — 20 ügyfél, 2,5K felhasználó, <strong>165K EUR ARR</strong></div>
+      </div>
+      <div class="card-green" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <strong>A termék kész. A pilot fut. Az eredmények bizonyítottak.</strong>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>11</span></div>
+</div>
+
+<!-- 12: PÉNZÜGY -->
+<div class="slide">
+  <h1>Pénzügyi Előrejelzések</h1>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Bevételi Növekedés</h3>
+      <table>
+        <tr><th>Mutató</th><th>1. Év</th><th>2. Év</th><th>3. Év</th></tr>
+        <tr><td>Ügyfelek</td><td>20</td><td>60</td><td>150</td></tr>
+        <tr><td>Felhasználók</td><td>2.500</td><td>8.000</td><td>22.000</td></tr>
+        <tr><td>ARR</td><td><strong>165K EUR</strong></td><td><strong>528K EUR</strong></td><td><strong>1,45M EUR</strong></td></tr>
+        <tr><td>Bruttó árrés</td><td>80%</td><td>85%</td><td>88%</td></tr>
+      </table>
+      <h3 style="margin-top: 10px;">Feltételezések</h3>
+      <ul style="font-size: 9pt;">
+        <li>Átlag ügyfélméret: 100 fő</li>
+        <li>Éves churn: <10%</li>
+        <li>Break-even: 8-9. hónap</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Havi Költségek</h3>
+      <table>
+        <tr><th>Kategória</th><th>1-3. hó</th><th>4-6. hó</th><th>7-12. hó</th></tr>
+        <tr><td>Infrastruktúra</td><td>300 EUR</td><td>500 EUR</td><td>800 EUR</td></tr>
+        <tr><td>Fejlesztés</td><td>8K EUR</td><td>10K EUR</td><td>12K EUR</td></tr>
+        <tr><td>Értékesítés</td><td>500 EUR</td><td>2K EUR</td><td>5K EUR</td></tr>
+        <tr><td><strong>Összesen</strong></td><td><strong>9,9K EUR</strong></td><td><strong>14,2K EUR</strong></td><td><strong>21,4K EUR</strong></td></tr>
+      </table>
+      <div class="card" style="margin-top: 10px; text-align: center;">
+        <div class="small">Break-even MRR</div>
+        <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">~6.500 EUR/hó</div>
+        <div class="small">Várhatóan: 8-9. hónap</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>12</span></div>
+</div>
+
+<!-- 13: CSAPAT & KÉRÉS -->
+<div class="slide">
+  <h1>Csapat és Befektetés</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Vezetőség</h3>
+      <div class="card" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 60px; height: 60px; background: #1E4D7B; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24pt; font-weight: 700;">LB</div>
+          <div>
+            <div style="font-size: 14pt; font-weight: 700;">Lerch Balázs</div>
+            <div style="font-size: 10pt; color: #6B7280;">Alapító és Ügyvezető</div>
+            <div style="font-size: 9pt; color: #6B7280;">Építőipari szakértő, Housing Solutions alapítója</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size: 11pt;"><strong>Csapat:</strong> 5 belső + 6 alvállalkozó</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Szakterület:</strong> Szálláskezelés, fizikai munkavállalók</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Előny:</strong> Valós üzemeltetési tapasztalatból építve</div>
+      </div>
+    </div>
+    <div>
+      <h3>Befektetési Kérés</h3>
+      <div class="card-blue" style="padding: 16px; border-radius: 10px; text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 12pt; color: #93C5FD;">Magvető Kör</div>
+        <div style="font-size: 32pt; font-weight: 900; color: white;">500.000 EUR</div>
+      </div>
+      <h3>Felhasználás</h3>
+      <div class="bar" style="width: 100%; background: #1E4D7B;">Értékesítés & Marketing — 40% (200K EUR)</div>
+      <div class="bar" style="width: 75%; background: #22C55E;">Termékfejlesztés — 30% (150K EUR)</div>
+      <div class="bar" style="width: 50%; background: #F97316;">Műveletek — 15% (75K EUR)</div>
+      <div class="bar" style="width: 37%; background: #6366F1;">Jogi & Megfelelőség — 10% (50K EUR)</div>
+      <div class="bar" style="width: 12%; background: #9CA3AF;">Tartalék — 5% (25K EUR)</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>13</span></div>
+</div>
+
+<!-- 14: VÍZIÓ -->
+<div class="slide">
+  <h1>Vízió: Kategória Teremtő</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>3 Éves Vízió (2026-2029)</h3>
+      <ul>
+        <li><strong>1. Év:</strong> Domináns szereplő a magyar fizikai munkás jóllétben</li>
+        <li><strong>2. Év:</strong> Terjeszkedés Lengyelországba, Csehországba, Szlovákiába</li>
+        <li><strong>3. Év:</strong> KKE piacvezető, 150+ ügyfél, 1,45M EUR ARR</li>
+      </ul>
+      <h3 style="margin-top: 14px;">5 Éves Vízió</h3>
+      <ul>
+        <li>DACH terjeszkedés (Ausztria, Németország, Svájc)</li>
+        <li>500+ ügyfél, 50K+ felhasználó</li>
+        <li>5M+ EUR ARR</li>
+        <li>Iparági standard a fizikai munkás jóllétben</li>
+      </ul>
+      <h3 style="margin-top: 14px;">Exit Lehetőségek</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>Stratégiai felvásárlás</strong> HR tech által (Workday, SAP, ADP)</li>
+        <li><strong>PE kivásárlás</strong> 8-12× ARR-en</li>
+        <li><strong>Növekedési tőke</strong> → Series A/B → IPO irány</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Miért Most?</h3>
+      <div class="card-green" style="padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+        <ul style="font-size: 10pt;">
+          <li>COVID utáni jólléti tudatosság történelmi csúcson</li>
+          <li>EU szabályozás megfelelőségi keresletet teremt (AI rendelet, ISO 45003)</li>
+          <li>Fizikai munkás szegmens drámaian alulszolgált (15 Mrd USD lehetőség)</li>
+          <li>AI/NLP technológia most vált megfizethetővé erre a piacra</li>
+          <li>Első lépés előnye a szállás-jóllét korrelációban</li>
+          <li>KKE munkaerőpiaci válság sürgős igényt teremt</li>
+        </ul>
+      </div>
+      <div class="card-orange" style="padding: 14px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 14pt; font-weight: 700; margin-bottom: 4px;">Az Ablak Nyitva Van</div>
+        <div style="font-size: 10pt;">Egyetlen versenytárs sem lépett be a fizikai munkás szállás-jóllét térbe. Az első lépő nyer.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaerő Stabilitási Platform</span><span>14</span></div>
+</div>
+
+<!-- 15: ZÁRÓ -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <h1 style="color: white; font-size: 32pt;">Csatlakozz a Munkaerő<br>Stabilitási Forradalomhoz</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 20px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 24px;">Felismerjük. Megelőzzük. Megvédjük.</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 600px;">
+    <div><div style="font-size: 10pt; color: #60A5FA;">Alapító</div><div style="font-size: 14pt;">Lerch Balázs</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Email</div><div style="font-size: 14pt;">info@housingsolutions.hu</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Helyszín</div><div style="font-size: 14pt;">Fertőd, Magyarország</div></div>
+  </div>
+  <div style="margin-top: 30px; font-size: 11pt; color: #60A5FA;">
+    <1% fluktuáció · 300+ munkavállaló · 86 kérdés · 5 nyelv · 399 API végpont
+  </div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas — Housing Solutions Kft.</span><span>15</span></div>
+</div>
+
+</body>
+</html>
