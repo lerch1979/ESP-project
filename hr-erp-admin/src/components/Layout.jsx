@@ -69,6 +69,7 @@ import {
   EventNote as EventNoteIcon,
   LocalHospital as LocalHospitalIcon,
   Forum as SlackIcon,
+  Gavel as GavelIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -94,6 +95,7 @@ const buildMenuItems = (t) => [
   { text: t('nav.residents'), icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
   { text: t('nav.contractors'), icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
   { text: t('nav.accommodations'), icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
+  { text: t('nav.damageReports'), icon: <GavelIcon />, path: '/damage-reports', permission: 'tickets.view' },
 
   // ─── Finance ─
   {

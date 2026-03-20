@@ -1802,4 +1802,58 @@ export const nlpAPI = {
   },
 };
 
+// Damage Reports API
+export const damageReportsAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/damage-reports', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/damage-reports/${id}`);
+    return response.data;
+  },
+  createManual: async (data) => {
+    const response = await api.post('/damage-reports/create-manual', data);
+    return response.data;
+  },
+  createFromTicket: async (data) => {
+    const response = await api.post('/damage-reports/create-from-ticket', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/damage-reports/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/damage-reports/${id}`);
+    return response.data;
+  },
+  acknowledge: async (id, data) => {
+    const response = await api.post(`/damage-reports/${id}/acknowledge`, data);
+    return response.data;
+  },
+  getPaymentStatus: async (id) => {
+    const response = await api.get(`/damage-reports/${id}/payment-status`);
+    return response.data;
+  },
+  calculatePaymentPlan: async (data) => {
+    const response = await api.post('/damage-reports/calculate-payment-plan', data);
+    return response.data;
+  },
+  downloadPDF: async (id, language = 'hu') => {
+    const response = await api.get(`/damage-reports/${id}/pdf?language=${language}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+  addDamageItem: async (id, item) => {
+    const response = await api.post(`/damage-reports/${id}/damage-items`, item);
+    return response.data;
+  },
+  removeDamageItem: async (id, itemId) => {
+    const response = await api.delete(`/damage-reports/${id}/damage-items/${itemId}`);
+    return response.data;
+  },
+};
+
 export default api;

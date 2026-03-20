@@ -195,6 +195,8 @@
     "adminUsers": "Felhasználók",
     "adminRoles": "Szerepkörök",
     "portalSubtitle": "Munkavállalói Támogató Portál",
-    "companySubtitle": "Assisted Living Specialist"
+    "companySubtitle": "Assisted Living Specialist",
+    "damageReports": "Kárigény jegyzőkönyvek",
+    "damageReportsSubtitle": "Kárigény jegyzőkönyvek kezelése"
   }
 }

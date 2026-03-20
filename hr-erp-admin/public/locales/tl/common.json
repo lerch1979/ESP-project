@@ -65,7 +65,13 @@
   "notes": "Mga Tala",
   "language": "Wika",
   "selectLanguage": "Pumili ng wika",
-  "languages": { "hu": "Magyar", "en": "English", "tl": "Tagalog", "uk": "Українська", "de": "Deutsch" },
+  "languages": {
+    "hu": "Magyar",
+    "en": "English",
+    "tl": "Tagalog",
+    "uk": "Українська",
+    "de": "Deutsch"
+  },
   "total": "Kabuuan",
   "required": "Kinakailangan",
   "saveSuccess": "Matagumpay na na-save",
@@ -189,6 +195,8 @@
     "adminUsers": "Mga User",
     "adminRoles": "Mga Tungkulin",
     "portalSubtitle": "Portal ng Suporta sa Empleyado",
-    "companySubtitle": "Assisted Living Specialist"
+    "companySubtitle": "Assisted Living Specialist",
+    "damageReports": "Mga Ulat ng Pinsala",
+    "damageReportsSubtitle": "Pamahalaan ang mga ulat ng pinsala"
   }
 }

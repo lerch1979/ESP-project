@@ -65,7 +65,13 @@
   "notes": "Notizen",
   "language": "Sprache",
   "selectLanguage": "Sprache auswählen",
-  "languages": { "hu": "Magyar", "en": "English", "tl": "Tagalog", "uk": "Українська", "de": "Deutsch" },
+  "languages": {
+    "hu": "Magyar",
+    "en": "English",
+    "tl": "Tagalog",
+    "uk": "Українська",
+    "de": "Deutsch"
+  },
   "total": "Gesamt",
   "required": "Pflichtfeld",
   "saveSuccess": "Erfolgreich gespeichert",
@@ -189,6 +195,8 @@
     "adminUsers": "Benutzer",
     "adminRoles": "Rollen",
     "portalSubtitle": "Mitarbeiter-Supportportal",
-    "companySubtitle": "Assisted Living Specialist"
+    "companySubtitle": "Assisted Living Specialist",
+    "damageReports": "Schadensberichte",
+    "damageReportsSubtitle": "Schadensberichte verwalten"
   }
 }

@@ -58,6 +58,8 @@ import QuestionManagement from './pages/WellMind/QuestionManagement';
 import TrendsAnalytics from './pages/WellMind/TrendsAnalytics';
 import InterventionsManagement from './pages/WellMind/InterventionsManagement';
 import TeamMetrics from './pages/WellMind/TeamMetrics';
+import DamageReports from './pages/DamageReports';
+import DamageReportDetail from './pages/DamageReportDetail';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import InstallPrompt from './components/InstallPrompt';
@@ -123,6 +125,10 @@ function App() {
             <Route path="chatbot/conversations/:id" element={<PermissionGuard permission="faq.edit"><ChatbotConversationDetail /></PermissionGuard>} />
             <Route path="chatbot/analytics" element={<PermissionGuard permission="faq.edit"><ChatbotAnalytics /></PermissionGuard>} />
             <Route path="chatbot/config" element={<PermissionGuard permission="faq.edit"><ChatbotConfig /></PermissionGuard>} />
+
+            {/* Damage Reports */}
+            <Route path="damage-reports" element={<PermissionGuard permission="tickets.view"><DamageReports /></PermissionGuard>} />
+            <Route path="damage-reports/:id" element={<PermissionGuard permission="tickets.view"><DamageReportDetail /></PermissionGuard>} />
 
             {/* CarePath */}
             <Route path="carepath" element={<CarePathDashboard />} />

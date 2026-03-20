@@ -65,7 +65,13 @@
   "notes": "Нотатки",
   "language": "Мова",
   "selectLanguage": "Оберіть мову",
-  "languages": { "hu": "Magyar", "en": "English", "tl": "Tagalog", "uk": "Українська", "de": "Deutsch" },
+  "languages": {
+    "hu": "Magyar",
+    "en": "English",
+    "tl": "Tagalog",
+    "uk": "Українська",
+    "de": "Deutsch"
+  },
   "total": "Всього",
   "required": "Обов'язково",
   "saveSuccess": "Успішно збережено",
@@ -189,6 +195,8 @@
     "adminUsers": "Користувачі",
     "adminRoles": "Ролі",
     "portalSubtitle": "Портал підтримки працівників",
-    "companySubtitle": "Assisted Living Specialist"
+    "companySubtitle": "Assisted Living Specialist",
+    "damageReports": "Звіти про пошкодження",
+    "damageReportsSubtitle": "Управління звітами про пошкодження"
   }
 }
