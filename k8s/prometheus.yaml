@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: hr-erp-production
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - /etc/prometheus/alerts.yml
+
+    scrape_configs:
+    - job_name: 'backend'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - hr-erp-production
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: backend
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
+    - job_name: 'postgres'
+      static_configs:
+      - targets: ['postgres-service:5432']
+
+    - job_name: 'redis'
+      static_configs:
+      - targets: ['redis-service:6379']
+
+  alerts.yml: |
+    groups:
+    - name: hr-erp-alerts
+      rules:
+      - alert: HighCPU
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.pod }}"
+
+      - alert: HighMemory
+        expr: process_resident_memory_bytes / 1024 / 1024 > 800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.pod }}"
+
+      - alert: PodRestart
+        expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} restarting frequently"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: hr-erp-production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.48.0
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=30d'
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: hr-erp-production
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090

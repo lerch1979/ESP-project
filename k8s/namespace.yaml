@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hr-erp-production
+  labels:
+    app: hr-erp
+    environment: production

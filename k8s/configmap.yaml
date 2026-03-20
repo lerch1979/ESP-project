@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hr-erp-config
+  namespace: hr-erp-production
+data:
+  NODE_ENV: "production"
+  PORT: "3001"
+  LOG_LEVEL: "info"
+  REDIS_URL: "redis://redis-service:6379"
