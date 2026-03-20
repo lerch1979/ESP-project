@@ -10,12 +10,14 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { authAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
 function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,14 +36,14 @@ function Login() {
         // Store in AuthContext (which also persists to localStorage)
         login(response.data.user, response.data.token, response.data.refreshToken);
 
-        toast.success('Sikeres bejelentkezés!');
+        toast.success(t('loginSuccess'));
         navigate('/dashboard');
       } else {
-        setError(response.message || 'Bejelentkezési hiba');
+        setError(response.message || t('loginError'));
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Hibás email vagy jelszó');
+      setError(err.response?.data?.message || t('invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -64,10 +66,10 @@ function Login() {
               HOUSING SOLUTIONS
             </Typography>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-              Assisted Living Specialist
+              {t('nav.companySubtitle')}
             </Typography>
             <Typography variant="h6" color="text.secondary">
-              Employee Support Portal
+              {t('nav.portalSubtitle')}
             </Typography>
           </Box>
 
@@ -80,7 +82,7 @@ function Login() {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Email cím"
+              label={t('email')}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -92,7 +94,7 @@ function Login() {
 
             <TextField
               fullWidth
-              label="Jelszó"
+              label={t('password')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -116,13 +118,13 @@ function Login() {
                 },
               }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Bejelentkezés'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : t('login')}
             </Button>
           </form>
 
           <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
             <Typography variant="caption" display="block" gutterBottom sx={{ fontWeight: 600 }}>
-              Teszt fiók:
+              {t('testAccount')}:
             </Typography>
             <Typography variant="caption" display="block">
               Email: kiss.janos@abc-kft.hu

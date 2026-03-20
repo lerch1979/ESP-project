@@ -71,6 +71,7 @@ import {
   Forum as SlackIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { tasksAPI } from '../services/api';
 import GlobalSearchBar from './GlobalSearchBar';
@@ -81,118 +82,118 @@ const DRAWER_OPEN_WIDTH = 260;
 const DRAWER_COLLAPSED_WIDTH = 68;
 const TRANSITION = 'width 0.3s ease, margin-left 0.3s ease';
 
-// Menu items with required permissions
-const allMenuItems = [
-  // ─── Fő navigáció ─────────────────────────────────
-  { text: 'Kezdőlap', icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
-  { text: 'Feladataim', icon: <AssignmentIcon />, path: '/my-tasks', permission: 'dashboard.view' },
-  { text: 'Hibajegyek', icon: <TicketIcon />, path: '/tickets', permission: 'tickets.view' },
-  { text: 'Naptár', icon: <CalendarIcon />, path: '/calendar', permission: 'calendar.view' },
+// Menu items with required permissions — using i18n keys
+const buildMenuItems = (t) => [
+  // ─── Main navigation ─────────────────────────────────
+  { text: t('nav.dashboard'), icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
+  { text: t('nav.myTasks'), icon: <AssignmentIcon />, path: '/my-tasks', permission: 'dashboard.view' },
+  { text: t('nav.tickets'), icon: <TicketIcon />, path: '/tickets', permission: 'tickets.view' },
+  { text: t('nav.calendar'), icon: <CalendarIcon />, path: '/calendar', permission: 'calendar.view' },
 
-  // ─── Munkavállalók & Szállás (külön menüpontok!) ────
-  { text: 'Szállásoltatottak', icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
-  { text: 'Alvállalkozók', icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
-  { text: 'Szálláshelyek', icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
+  // ─── Employees & Accommodation ────
+  { text: t('nav.residents'), icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
+  { text: t('nav.contractors'), icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
+  { text: t('nav.accommodations'), icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
 
-  // ─── Pénzügy (Számlák, Költségközpontok, Email számlák) ─
+  // ─── Finance ─
   {
-    text: 'Pénzügy', icon: <ReceiptIcon />, permission: 'settings.edit', children: [
-      { text: 'Számlák', icon: <ReceiptIcon />, path: '/invoices', permission: 'settings.edit' },
-      { text: 'Költségközpontok', icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
-      { text: 'Email számlák', icon: <EmailIcon />, path: '/email-inbox', permission: 'settings.edit' },
-      { text: 'Számlariportok', icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
-      { text: 'Bértranszparencia', icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
+    text: t('nav.finance'), icon: <ReceiptIcon />, permission: 'settings.edit', children: [
+      { text: t('nav.invoices'), icon: <ReceiptIcon />, path: '/invoices', permission: 'settings.edit' },
+      { text: t('nav.costCenters'), icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
+      { text: t('nav.emailInvoices'), icon: <EmailIcon />, path: '/email-inbox', permission: 'settings.edit' },
+      { text: t('nav.invoiceReports'), icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
+      { text: t('nav.salaryTransparency'), icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
     ],
   },
 
-  // ─── Riportok ──────────────────────────────────────
+  // ─── Reports ──────────────────────────────────────
   {
-    text: 'Riportok', icon: <AssessmentIcon />, permission: 'reports.view', children: [
-      { text: 'Összesítő', icon: <AssessmentIcon />, path: '/reports', permission: 'reports.view' },
-      { text: 'Kihasználtság', icon: <HotelIcon />, path: '/reports/occupancy', permission: 'reports.view' },
-      { text: 'Ütemezett riportok', icon: <ScheduleIcon />, path: '/reports/scheduled', permission: 'reports.schedule' },
+    text: t('nav.reports'), icon: <AssessmentIcon />, permission: 'reports.view', children: [
+      { text: t('nav.reportsSummary'), icon: <AssessmentIcon />, path: '/reports', permission: 'reports.view' },
+      { text: t('nav.occupancy'), icon: <HotelIcon />, path: '/reports/occupancy', permission: 'reports.view' },
+      { text: t('nav.scheduledReports'), icon: <ScheduleIcon />, path: '/reports/scheduled', permission: 'reports.schedule' },
     ],
   },
 
-  // ─── Dokumentumok & FAQ ────────────────────────────
-  { text: 'Dokumentumok', icon: <DescriptionIcon />, path: '/documents', permission: 'documents.view' },
-  { text: 'FAQ', icon: <HelpOutlineIcon />, path: '/faq', permission: 'faq.view' },
-  { text: 'Videók', icon: <VideoLibraryIcon />, path: '/videos', permission: 'videos.view' },
+  // ─── Documents & FAQ ────────────────────────────
+  { text: t('nav.documents'), icon: <DescriptionIcon />, path: '/documents', permission: 'documents.view' },
+  { text: t('nav.faq'), icon: <HelpOutlineIcon />, path: '/faq', permission: 'faq.view' },
+  { text: t('nav.videos'), icon: <VideoLibraryIcon />, path: '/videos', permission: 'videos.view' },
 
-  // ─── Projektek ─────────────────────────────────────
+  // ─── Projects ─────────────────────────────────────
   {
-    text: 'Projektkezelés', icon: <AssignmentIcon />, permission: 'projects.view', children: [
-      { text: 'Projektek', icon: <ListAltIcon />, path: '/projects', permission: 'projects.view' },
+    text: t('nav.projectManagement'), icon: <AssignmentIcon />, permission: 'projects.view', children: [
+      { text: t('nav.projects'), icon: <ListAltIcon />, path: '/projects', permission: 'projects.view' },
     ],
   },
 
   // ─── WellMind & CarePath ───────────────────────────
   {
     text: 'WellMind', icon: <PsychologyIcon />, permission: 'dashboard.view', children: [
-      { text: 'Dashboard', icon: <PsychologyIcon />, path: '/wellmind', permission: 'dashboard.view' },
-      { text: 'Kockázatos munkavállalók', icon: <WarningIcon />, path: '/wellmind/risk-employees', permission: 'dashboard.view' },
-      { text: 'Trend elemzés', icon: <TimelineIcon />, path: '/wellmind/trends', permission: 'dashboard.view' },
-      { text: 'Kérdések', icon: <QuizIcon />, path: '/wellmind/questions', permission: 'dashboard.view' },
-      { text: 'Intervenciók', icon: <CampaignIcon />, path: '/wellmind/interventions', permission: 'dashboard.view' },
-      { text: 'Csapat metrikák', icon: <GroupsIcon />, path: '/wellmind/team-metrics', permission: 'dashboard.view' },
-      { text: 'NLP Hangulat', icon: <PsychologyIcon />, path: '/wellmind/sentiment', permission: 'settings.edit' },
+      { text: t('nav.wmDashboard'), icon: <PsychologyIcon />, path: '/wellmind', permission: 'dashboard.view' },
+      { text: t('nav.wmRiskEmployees'), icon: <WarningIcon />, path: '/wellmind/risk-employees', permission: 'dashboard.view' },
+      { text: t('nav.wmTrends'), icon: <TimelineIcon />, path: '/wellmind/trends', permission: 'dashboard.view' },
+      { text: t('nav.wmQuestions'), icon: <QuizIcon />, path: '/wellmind/questions', permission: 'dashboard.view' },
+      { text: t('nav.wmInterventions'), icon: <CampaignIcon />, path: '/wellmind/interventions', permission: 'dashboard.view' },
+      { text: t('nav.wmTeamMetrics'), icon: <GroupsIcon />, path: '/wellmind/team-metrics', permission: 'dashboard.view' },
+      { text: t('nav.wmSentiment'), icon: <PsychologyIcon />, path: '/wellmind/sentiment', permission: 'settings.edit' },
     ],
   },
   {
     text: 'CarePath', icon: <HealingIcon />, permission: 'dashboard.view', children: [
-      { text: 'Dashboard', icon: <HealingIcon />, path: '/carepath', permission: 'dashboard.view' },
-      { text: 'Szolgáltatók', icon: <LocalHospitalIcon />, path: '/carepath/providers', permission: 'dashboard.view' },
-      { text: 'Esetek', icon: <FolderIcon />, path: '/carepath/cases', permission: 'dashboard.view' },
-      { text: 'Foglalások', icon: <EventNoteIcon />, path: '/carepath/bookings', permission: 'dashboard.view' },
-      { text: 'Kategóriák', icon: <CategoryIcon />, path: '/carepath/categories', permission: 'dashboard.view' },
+      { text: t('nav.cpDashboard'), icon: <HealingIcon />, path: '/carepath', permission: 'dashboard.view' },
+      { text: t('nav.cpProviders'), icon: <LocalHospitalIcon />, path: '/carepath/providers', permission: 'dashboard.view' },
+      { text: t('nav.cpCases'), icon: <FolderIcon />, path: '/carepath/cases', permission: 'dashboard.view' },
+      { text: t('nav.cpBookings'), icon: <EventNoteIcon />, path: '/carepath/bookings', permission: 'dashboard.view' },
+      { text: t('nav.cpCategories'), icon: <CategoryIcon />, path: '/carepath/categories', permission: 'dashboard.view' },
     ],
   },
 
-  // ─── Integráció & Chatbot ──────────────────────────
+  // ─── Integration & Chatbot ──────────────────────────
   {
     text: 'Slack', icon: <SlackIcon />, path: '/slack', permission: 'settings.edit',
   },
-  { text: 'Segítség', icon: <ChatIcon />, path: '/chatbot', permission: 'dashboard.view' },
+  { text: t('nav.help'), icon: <ChatIcon />, path: '/chatbot', permission: 'dashboard.view' },
   {
-    text: 'Chatbot kezelés', icon: <SmartToyIcon />, permission: 'faq.edit', children: [
-      { text: 'Tudásbázis', icon: <QuestionAnswerIcon />, path: '/chatbot/knowledge-base', permission: 'faq.edit' },
-      { text: 'Döntési fák', icon: <AccountTreeIcon />, path: '/chatbot/decision-trees', permission: 'faq.edit' },
-      { text: 'GYIK Kategóriák', icon: <CategoryIcon />, path: '/chatbot/faq-categories', permission: 'faq.edit' },
-      { text: 'Beszélgetések', icon: <ChatIcon />, path: '/chatbot/conversations', permission: 'faq.edit' },
-      { text: 'Analitika', icon: <BarChartIcon />, path: '/chatbot/analytics', permission: 'faq.edit' },
-      { text: 'Konfiguráció', icon: <SmartToyIcon />, path: '/chatbot/config', permission: 'faq.edit' },
+    text: t('nav.chatbotManagement'), icon: <SmartToyIcon />, permission: 'faq.edit', children: [
+      { text: t('nav.cbKnowledgeBase'), icon: <QuestionAnswerIcon />, path: '/chatbot/knowledge-base', permission: 'faq.edit' },
+      { text: t('nav.cbDecisionTrees'), icon: <AccountTreeIcon />, path: '/chatbot/decision-trees', permission: 'faq.edit' },
+      { text: t('nav.cbFaqCategories'), icon: <CategoryIcon />, path: '/chatbot/faq-categories', permission: 'faq.edit' },
+      { text: t('nav.cbConversations'), icon: <ChatIcon />, path: '/chatbot/conversations', permission: 'faq.edit' },
+      { text: t('nav.cbAnalytics'), icon: <BarChartIcon />, path: '/chatbot/analytics', permission: 'faq.edit' },
+      { text: t('nav.cbConfig'), icon: <SmartToyIcon />, path: '/chatbot/config', permission: 'faq.edit' },
     ],
   },
 
-  // ─── Adminisztráció ────────────────────────────────
-  { text: 'Tevékenységnapló', icon: <HistoryIcon />, path: '/activity-log', permission: 'settings.view' },
-  { text: 'Email sablonok', icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },
-  { text: 'Felhasználók', icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
-  { text: 'Beállítások', icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
-  { text: 'Automatikus kiosztás', icon: <AutoAssignIcon />, path: '/admin/auto-assign', permission: 'settings.view' },
+  // ─── Administration ────────────────────────────────
+  { text: t('nav.activityLog'), icon: <HistoryIcon />, path: '/activity-log', permission: 'settings.view' },
+  { text: t('nav.emailTemplates'), icon: <EmailIcon />, path: '/email-templates', permission: 'settings.edit' },
+  { text: t('nav.users'), icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
+  { text: t('nav.settings'), icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
+  { text: t('nav.autoAssign'), icon: <AutoAssignIcon />, path: '/admin/auto-assign', permission: 'settings.view' },
   {
-    text: 'FAQ Kezelés', icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [
-      { text: 'FAQ Kategóriák', icon: <CategoryIcon />, path: '/admin/faq-categories', permission: 'faq.edit' },
-      { text: 'Tudásanyag', icon: <QuestionAnswerIcon />, path: '/admin/faq-knowledge-base', permission: 'faq.edit' },
+    text: t('nav.faqManagement'), icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [
+      { text: t('nav.faqCategories'), icon: <CategoryIcon />, path: '/admin/faq-categories', permission: 'faq.edit' },
+      { text: t('nav.faqKnowledgeBase'), icon: <QuestionAnswerIcon />, path: '/admin/faq-knowledge-base', permission: 'faq.edit' },
     ],
   },
   {
-    text: 'Adminisztráció', icon: <AdminPanelSettingsIcon />, permission: 'users.manage_permissions', children: [
-      { text: 'Felhasználók', icon: <ManageAccountsIcon />, path: '/admin/users', permission: 'users.manage_permissions' },
-      { text: 'Szerepkörök', icon: <ShieldIcon />, path: '/admin/roles', permission: 'users.manage_permissions' },
+    text: t('nav.administration'), icon: <AdminPanelSettingsIcon />, permission: 'users.manage_permissions', children: [
+      { text: t('nav.adminUsers'), icon: <ManageAccountsIcon />, path: '/admin/users', permission: 'users.manage_permissions' },
+      { text: t('nav.adminRoles'), icon: <ShieldIcon />, path: '/admin/roles', permission: 'users.manage_permissions' },
     ],
   },
 ];
 
-// Helper: collect all paths (including children) for AppBar title lookup
-const allMenuPaths = allMenuItems.flatMap(item =>
-  item.children ? item.children : [item]
-);
+// Helper: collect all paths (including children) for AppBar title lookup — built inside component
 
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const { t } = useTranslation();
+  const allMenuItems = useMemo(() => buildMenuItems(t), [t]);
+  const allMenuPaths = useMemo(() => allMenuItems.flatMap(item => item.children ? item.children : [item]), [allMenuItems]);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -300,7 +301,7 @@ function Layout({ children }) {
 
   const handleLogout = async () => {
     await logout();
-    toast.success('Sikeres kijelentkezés');
+    toast.success(t('logoutSuccess'));
     navigate('/login');
   };
 
@@ -330,7 +331,7 @@ function Layout({ children }) {
               HOUSING SOLUTIONS
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
-              Employee Support Portal
+              {t('nav.portalSubtitle')}
             </Typography>
           </>
         ) : (
@@ -658,7 +659,7 @@ function Layout({ children }) {
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              Kijelentkezés
+              {t('logout')}
             </MenuItem>
           </Menu>
         </Toolbar>
