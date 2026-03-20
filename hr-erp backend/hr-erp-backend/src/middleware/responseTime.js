@@ -7,11 +7,16 @@ const { logger } = require('../utils/logger');
 function responseTime(req, res, next) {
   const start = process.hrtime.bigint();
 
-  res.on('finish', () => {
+  // Intercept res.end to set header BEFORE response is finalized
+  const originalEnd = res.end.bind(res);
+  res.end = function (...args) {
     const durationNs = Number(process.hrtime.bigint() - start);
     const durationMs = (durationNs / 1e6).toFixed(1);
 
-    res.setHeader('X-Response-Time', `${durationMs}ms`);
+    // Set header before end (only if headers haven't been sent yet)
+    if (!res.headersSent) {
+      res.setHeader('X-Response-Time', `${durationMs}ms`);
+    }
 
     if (durationMs > 1000) {
       logger.warn('Slow request', {
@@ -21,7 +26,9 @@ function responseTime(req, res, next) {
         duration: `${durationMs}ms`,
       });
     }
-  });
+
+    return originalEnd(...args);
+  };
 
   next();
 }

@@ -15,7 +15,9 @@ function etagMiddleware(req, res, next) {
     const hash = crypto.createHash('md5').update(body).digest('hex');
     const etag = `W/"${hash}"`;
 
-    res.setHeader('ETag', etag);
+    if (!res.headersSent) {
+      res.setHeader('ETag', etag);
+    }
 
     if (req.headers['if-none-match'] === etag) {
       return res.status(304).end();
