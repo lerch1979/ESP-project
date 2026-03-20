@@ -78,6 +78,7 @@ import { tasksAPI } from '../services/api';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
 import UserAvatar from './common/UserAvatar';
+import OfflineDetector from './common/OfflineDetector';
 
 const DRAWER_OPEN_WIDTH = 260;
 const DRAWER_COLLAPSED_WIDTH = 68;
@@ -723,6 +724,8 @@ function Layout({ children }) {
       >
         {children}
       </Box>
+
+      <OfflineDetector />
     </Box>
   );
 }

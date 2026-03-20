@@ -105,6 +105,12 @@ app.use(cors(corsOptions));
 // 3. Response compression (gzip/brotli)
 app.use(compression());
 
+// 3b. Response time tracking + ETag HTTP caching
+const responseTime = require('./middleware/responseTime');
+const etagMiddleware = require('./middleware/etag');
+app.use(responseTime);
+app.use(etagMiddleware);
+
 // 4. Cookie parser (required for CSRF double-submit cookie)
 app.use(cookieParser());
 
