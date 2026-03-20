@@ -1,0 +1,16 @@
+{
+  "admin": {
+    "email": "admin@hr-erp.com",
+    "password": "password123"
+  },
+  "employee": {
+    "email": "employee@hr-erp.com",
+    "password": "password123"
+  },
+  "newUser": {
+    "full_name": "Cypress Test User",
+    "email": "cypress-test@example.com",
+    "role": "employee",
+    "preferred_language": "hu"
+  }
+}
