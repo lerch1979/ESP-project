@@ -26,8 +26,9 @@ import {
   Comment as CommentIcon,
   AccessTime as ClockIcon,
   CheckCircle as CheckIcon,
+  Gavel as GavelIcon,
 } from '@mui/icons-material';
-import { ticketsAPI } from '../services/api';
+import { ticketsAPI, damageReportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import UserAvatar from '../components/common/UserAvatar';
 
@@ -129,6 +130,23 @@ function TicketDetail() {
       toast.error('Hiba a státusz frissítésekor');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleConvertToDamageReport = async () => {
+    if (!window.confirm('Kárigény jegyzőkönyv készítése ebből a jegyből?')) return;
+    try {
+      const res = await damageReportsAPI.createFromTicket({
+        ticket_id: id,
+        damage_description: ticket.description || ticket.title,
+      });
+      if (res.success) {
+        toast.success('Kárigény jegyzőkönyv létrehozva');
+        navigate(`/damage-reports/${res.data.id}`);
+      }
+    } catch (error) {
+      console.error('Conversion error:', error);
+      toast.error('Hiba a kárigény létrehozásakor');
     }
   };
 
@@ -576,6 +594,18 @@ function TicketDetail() {
               </Box>
             </Stack>
           </Paper>
+
+          {/* Convert to Damage Report */}
+          <Button
+            fullWidth
+            variant="outlined"
+            color="warning"
+            startIcon={<GavelIcon />}
+            onClick={handleConvertToDamageReport}
+            sx={{ mt: 2 }}
+          >
+            Kárigény jegyzőkönyv készítése
+          </Button>
         </Grid>
       </Grid>
     </Box>
