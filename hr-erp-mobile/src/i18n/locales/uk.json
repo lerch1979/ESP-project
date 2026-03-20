@@ -1,14 +1,136 @@
 {
-  "nav":{"home":"Головна","tickets":"Заявки","wellbeing":"Добробут","employees":"Працівники","more":"Ще"},
-  "login":{"title":"HR-ERP Mobile","subtitle":"Увійти","email":"Електронна пошта","password":"Пароль","button":"Увійти","loading":"Вхід...","error":"Невірна пошта або пароль"},
-  "dashboard":{"title":"Головна","greeting":"Привіт, {{name}}!","wellbeing":"Добробут","checkIn":"Чек-ін","help":"Допомога"},
-  "pulse":{"title":"Щоденний пульс","subtitle":"Як ви себе почуваєте сьогодні?","mood":"Настрій","stress":"Рівень стресу","sleep":"Якість сну","workload":"Навантаження","notes":"Примітки","submit":"Надіслати","submitting":"Надсилання...","submitted":"Пульс на сьогодні завершено!","points":"+10 балів","history":"Історія","trend":"Тренд"},
-  "wellmind":{"title":"WellMind","dashboard":"Панель","dailyPulse":"Щоденний пульс","pulseHistory":"Історія пульсу","assessment":"Оцінка","results":"Результати","interventions":"Втручання","coaching":"Коучинг","overtime":"Понаднормові"},
-  "carepath":{"title":"CarePath","dashboard":"Панель","newCase":"Нова справа","myCases":"Мої справи","providers":"Провайдери","booking":"Бронювання","categories":"Категорії"},
-  "gamification":{"points":"балів","badges":"Значки","leaderboard":"Рейтинг","streak":"Серія: {{days}} днів","level":"Рівень"},
-  "tickets":{"title":"Заявки","create":"Нова заявка","myTickets":"Мої заявки","detail":"Деталі"},
-  "housing":{"title":"Відгук про житло","room":"Чистота кімнати","common":"Спільні зони","bathroom":"Ванна","kitchen":"Кухня","submit":"Надіслати"},
-  "notifications":{"title":"Сповіщення","empty":"Немає сповіщень","markAllRead":"Позначити все прочитаним"},
-  "settings":{"title":"Налаштування","profile":"Профіль","language":"Мова","languageDesc":"Ця мова використовуватиметься у всьому додатку.","logout":"Вийти","logoutConfirm":"Ви впевнені, що хочете вийти?","languageUpdated":"Мову оновлено","languages":{"hu":"Magyar","en":"English","tl":"Tagalog","uk":"Українська","de":"Deutsch"}},
-  "common":{"save":"Зберегти","cancel":"Скасувати","delete":"Видалити","edit":"Редагувати","create":"Створити","search":"Пошук","loading":"Завантаження...","noData":"Немає даних","error":"Помилка","success":"Успішно","back":"Назад","next":"Далі","submit":"Надіслати","retry":"Повторити","close":"Закрити","yes":"Так","no":"Ні","ok":"OK"}
+  "nav": {
+    "home": "Головна",
+    "tickets": "Заявки",
+    "wellbeing": "Добробут",
+    "employees": "Працівники",
+    "more": "Ще"
+  },
+  "login": {
+    "title": "HR-ERP Mobile",
+    "subtitle": "Увійти",
+    "email": "Електронна пошта",
+    "password": "Пароль",
+    "button": "Увійти",
+    "loading": "Вхід...",
+    "error": "Невірна пошта або пароль"
+  },
+  "dashboard": {
+    "title": "Головна",
+    "greeting": "Привіт, {{name}}!",
+    "wellbeing": "Добробут",
+    "checkIn": "Чек-ін",
+    "help": "Допомога"
+  },
+  "pulse": {
+    "title": "Щоденний пульс",
+    "subtitle": "Як ви себе почуваєте сьогодні?",
+    "mood": "Настрій",
+    "stress": "Рівень стресу",
+    "sleep": "Якість сну",
+    "workload": "Навантаження",
+    "notes": "Примітки",
+    "submit": "Надіслати",
+    "submitting": "Надсилання...",
+    "submitted": "Пульс на сьогодні завершено!",
+    "points": "+10 балів",
+    "history": "Історія",
+    "trend": "Тренд"
+  },
+  "wellmind": {
+    "title": "WellMind",
+    "dashboard": "Панель",
+    "dailyPulse": "Щоденний пульс",
+    "pulseHistory": "Історія пульсу",
+    "assessment": "Оцінка",
+    "results": "Результати",
+    "interventions": "Втручання",
+    "coaching": "Коучинг",
+    "overtime": "Понаднормові"
+  },
+  "carepath": {
+    "title": "CarePath",
+    "dashboard": "Панель",
+    "newCase": "Нова справа",
+    "myCases": "Мої справи",
+    "providers": "Провайдери",
+    "booking": "Бронювання",
+    "categories": "Категорії"
+  },
+  "gamification": {
+    "points": "балів",
+    "badges": "Значки",
+    "leaderboard": "Рейтинг",
+    "streak": "Серія: {{days}} днів",
+    "level": "Рівень"
+  },
+  "tickets": {
+    "title": "Заявки",
+    "create": "Нова заявка",
+    "myTickets": "Мої заявки",
+    "detail": "Деталі"
+  },
+  "housing": {
+    "title": "Відгук про житло",
+    "room": "Чистота кімнати",
+    "common": "Спільні зони",
+    "bathroom": "Ванна",
+    "kitchen": "Кухня",
+    "submit": "Надіслати"
+  },
+  "notifications": {
+    "title": "Сповіщення",
+    "empty": "Немає сповіщень",
+    "markAllRead": "Позначити все прочитаним"
+  },
+  "settings": {
+    "title": "Налаштування",
+    "profile": "Профіль",
+    "language": "Мова",
+    "languageDesc": "Ця мова використовуватиметься у всьому додатку.",
+    "logout": "Вийти",
+    "logoutConfirm": "Ви впевнені, що хочете вийти?",
+    "languageUpdated": "Мову оновлено",
+    "languages": {
+      "hu": "Magyar",
+      "en": "English",
+      "tl": "Tagalog",
+      "uk": "Українська",
+      "de": "Deutsch"
+    }
+  },
+  "common": {
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "delete": "Видалити",
+    "edit": "Редагувати",
+    "create": "Створити",
+    "search": "Пошук",
+    "loading": "Завантаження...",
+    "noData": "Немає даних",
+    "error": "Помилка",
+    "success": "Успішно",
+    "back": "Назад",
+    "next": "Далі",
+    "submit": "Надіслати",
+    "retry": "Повторити",
+    "close": "Закрити",
+    "yes": "Так",
+    "no": "Ні",
+    "ok": "OK",
+    "errorOccurred": "Помилка",
+    "all": "Всі",
+    "type": "Тип",
+    "priority": "Пріоритет",
+    "category": "Категорія",
+    "inProgress": "В процесі",
+    "open": "Відкритий",
+    "closed": "Закритий",
+    "resolved": "Вирішено",
+    "confirmAction": "Ви впевнені?",
+    "low": "Низький",
+    "medium": "Середній",
+    "high": "Високий",
+    "critical": "Критичний"
+  }
 }

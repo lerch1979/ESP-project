@@ -1,14 +1,136 @@
 {
-  "nav":{"home":"Kezdőlap","tickets":"Hibajegyek","wellbeing":"Jóllét","employees":"Munkavállalók","more":"Továbbiak"},
-  "login":{"title":"HR-ERP Mobile","subtitle":"Bejelentkezés","email":"Email cím","password":"Jelszó","button":"Bejelentkezés","loading":"Bejelentkezés...","error":"Hibás email vagy jelszó"},
-  "dashboard":{"title":"Kezdőlap","greeting":"Üdv, {{name}}!","wellbeing":"Jóllét","checkIn":"Check-in","help":"Segítség"},
-  "pulse":{"title":"Napi hangulat","subtitle":"Hogy érzed magad ma?","mood":"Hangulat","stress":"Stressz szint","sleep":"Alvás minőség","workload":"Munkaterhelés","notes":"Megjegyzés","submit":"Beküldés","submitting":"Küldés...","submitted":"Mai felmérés kitöltve!","points":"+10 pont","history":"Előzmények","trend":"Trend"},
-  "wellmind":{"title":"WellMind","dashboard":"Dashboard","dailyPulse":"Napi hangulat","pulseHistory":"Hangulat előzmények","assessment":"Felmérés","results":"Eredmények","interventions":"Beavatkozások","coaching":"Coaching","overtime":"Túlóra"},
-  "carepath":{"title":"CarePath","dashboard":"Dashboard","newCase":"Új ügy","myCases":"Ügyeim","providers":"Szolgáltatók","booking":"Foglalás","categories":"Kategóriák"},
-  "gamification":{"points":"pont","badges":"Jelvények","leaderboard":"Ranglista","streak":"Sorozat: {{days}} nap","level":"Szint"},
-  "tickets":{"title":"Hibajegyek","create":"Új hibajegy","myTickets":"Jegyeim","detail":"Részletek"},
-  "housing":{"title":"Szállás visszajelzés","room":"Szoba tisztaság","common":"Közös terek","bathroom":"Fürdőszoba","kitchen":"Konyha","submit":"Beküldés"},
-  "notifications":{"title":"Értesítések","empty":"Nincs értesítés","markAllRead":"Mind olvasott"},
-  "settings":{"title":"Beállítások","profile":"Profil","language":"Nyelv","languageDesc":"Ez a nyelv kerül használatra az egész alkalmazásban.","logout":"Kijelentkezés","logoutConfirm":"Biztosan kijelentkezik?","languageUpdated":"Nyelv frissítve","languages":{"hu":"Magyar","en":"English","tl":"Tagalog","uk":"Українська","de":"Deutsch"}},
-  "common":{"save":"Mentés","cancel":"Mégse","delete":"Törlés","edit":"Szerkesztés","create":"Létrehozás","search":"Keresés","loading":"Betöltés...","noData":"Nincs adat","error":"Hiba","success":"Sikeres","back":"Vissza","next":"Következő","submit":"Beküldés","retry":"Újra","close":"Bezárás","yes":"Igen","no":"Nem","ok":"OK"}
+  "nav": {
+    "home": "Kezdőlap",
+    "tickets": "Hibajegyek",
+    "wellbeing": "Jóllét",
+    "employees": "Munkavállalók",
+    "more": "Továbbiak"
+  },
+  "login": {
+    "title": "HR-ERP Mobile",
+    "subtitle": "Bejelentkezés",
+    "email": "Email cím",
+    "password": "Jelszó",
+    "button": "Bejelentkezés",
+    "loading": "Bejelentkezés...",
+    "error": "Hibás email vagy jelszó"
+  },
+  "dashboard": {
+    "title": "Kezdőlap",
+    "greeting": "Üdv, {{name}}!",
+    "wellbeing": "Jóllét",
+    "checkIn": "Check-in",
+    "help": "Segítség"
+  },
+  "pulse": {
+    "title": "Napi hangulat",
+    "subtitle": "Hogy érzed magad ma?",
+    "mood": "Hangulat",
+    "stress": "Stressz szint",
+    "sleep": "Alvás minőség",
+    "workload": "Munkaterhelés",
+    "notes": "Megjegyzés",
+    "submit": "Beküldés",
+    "submitting": "Küldés...",
+    "submitted": "Mai felmérés kitöltve!",
+    "points": "+10 pont",
+    "history": "Előzmények",
+    "trend": "Trend"
+  },
+  "wellmind": {
+    "title": "WellMind",
+    "dashboard": "Dashboard",
+    "dailyPulse": "Napi hangulat",
+    "pulseHistory": "Hangulat előzmények",
+    "assessment": "Felmérés",
+    "results": "Eredmények",
+    "interventions": "Beavatkozások",
+    "coaching": "Coaching",
+    "overtime": "Túlóra"
+  },
+  "carepath": {
+    "title": "CarePath",
+    "dashboard": "Dashboard",
+    "newCase": "Új ügy",
+    "myCases": "Ügyeim",
+    "providers": "Szolgáltatók",
+    "booking": "Foglalás",
+    "categories": "Kategóriák"
+  },
+  "gamification": {
+    "points": "pont",
+    "badges": "Jelvények",
+    "leaderboard": "Ranglista",
+    "streak": "Sorozat: {{days}} nap",
+    "level": "Szint"
+  },
+  "tickets": {
+    "title": "Hibajegyek",
+    "create": "Új hibajegy",
+    "myTickets": "Jegyeim",
+    "detail": "Részletek"
+  },
+  "housing": {
+    "title": "Szállás visszajelzés",
+    "room": "Szoba tisztaság",
+    "common": "Közös terek",
+    "bathroom": "Fürdőszoba",
+    "kitchen": "Konyha",
+    "submit": "Beküldés"
+  },
+  "notifications": {
+    "title": "Értesítések",
+    "empty": "Nincs értesítés",
+    "markAllRead": "Mind olvasott"
+  },
+  "settings": {
+    "title": "Beállítások",
+    "profile": "Profil",
+    "language": "Nyelv",
+    "languageDesc": "Ez a nyelv kerül használatra az egész alkalmazásban.",
+    "logout": "Kijelentkezés",
+    "logoutConfirm": "Biztosan kijelentkezik?",
+    "languageUpdated": "Nyelv frissítve",
+    "languages": {
+      "hu": "Magyar",
+      "en": "English",
+      "tl": "Tagalog",
+      "uk": "Українська",
+      "de": "Deutsch"
+    }
+  },
+  "common": {
+    "save": "Mentés",
+    "cancel": "Mégse",
+    "delete": "Törlés",
+    "edit": "Szerkesztés",
+    "create": "Létrehozás",
+    "search": "Keresés",
+    "loading": "Betöltés...",
+    "noData": "Nincs adat",
+    "error": "Hiba",
+    "success": "Sikeres",
+    "back": "Vissza",
+    "next": "Következő",
+    "submit": "Beküldés",
+    "retry": "Újra",
+    "close": "Bezárás",
+    "yes": "Igen",
+    "no": "Nem",
+    "ok": "OK",
+    "errorOccurred": "Hiba történt",
+    "all": "Összes",
+    "type": "Típus",
+    "priority": "Prioritás",
+    "category": "Kategória",
+    "inProgress": "Folyamatban",
+    "open": "Nyitott",
+    "closed": "Lezárt",
+    "resolved": "Megoldva",
+    "confirmAction": "Biztosan folytatja?",
+    "low": "Alacsony",
+    "medium": "Közepes",
+    "high": "Magas",
+    "critical": "Kritikus"
+  }
 }
