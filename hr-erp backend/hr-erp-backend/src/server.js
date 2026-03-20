@@ -152,6 +152,7 @@ app.get('/health/ready', async (req, res) => {
     pid: process.pid,
     memory: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB',
     database: 'unknown',
+    redis: require('./config/redis').isConnected() ? 'connected' : 'unavailable',
     pool: db.getPoolStats(),
   };
 
