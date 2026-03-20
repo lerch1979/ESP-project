@@ -70,4 +70,25 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Vendor chunk splitting for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material', '@mui/icons-material'],
+          'vendor-charts': ['recharts'],
+          'vendor-i18n': ['react-i18next', 'i18next'],
+        },
+      },
+    },
+    // Production minification
+    minify: 'esbuild',
+    // Target modern browsers
+    target: 'es2020',
+    // Chunk size warning
+    chunkSizeWarningLimit: 600,
+    // Source maps off in prod for smaller bundle
+    sourcemap: false,
+  },
 })

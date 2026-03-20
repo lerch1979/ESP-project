@@ -304,11 +304,20 @@ async function startServer() {
     }
 
     // Szerver indítása
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, async () => {
       logger.info(`🚀 Szerver fut: http://localhost:${PORT} (PID: ${process.pid})`);
       logger.info(`📡 API endpoint: http://localhost:${PORT}${API_PREFIX}`);
       logger.info(`🌍 Környezet: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`🔗 DB pool: max=${db.pool.options.max}, min=${db.pool.options.min || 0}`);
+
+      // Cache warming — pre-load frequently accessed data
+      try {
+        const cacheWarming = require('./services/cacheWarming.service');
+        await cacheWarming.warmCriticalData();
+        cacheWarming.startPeriodicRefresh();
+      } catch (err) {
+        logger.warn('Cache warming initialization skipped', { error: err.message });
+      }
     });
 
     // Graceful shutdown handler
