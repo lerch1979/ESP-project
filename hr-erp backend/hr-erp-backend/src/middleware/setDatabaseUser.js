@@ -11,9 +11,25 @@
 const { pool } = require('../database/connection');
 const { logger } = require('../utils/logger');
 
+// UUID v4 regex — only allow valid UUIDs (prevents SQL injection)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Allowed role slugs (whitelist)
+const ALLOWED_ROLES = ['superadmin', 'data_controller', 'admin', 'manager', 'task_owner', 'user'];
+
+function sanitizeUUID(value) {
+  if (!value || !UUID_RE.test(String(value))) return null;
+  return String(value);
+}
+
+function sanitizeRole(role) {
+  if (!role || !ALLOWED_ROLES.includes(String(role))) return null;
+  return String(role);
+}
+
 /**
  * Middleware that sets PostgreSQL session variables for the authenticated user.
  * These are used by RLS policies and audit triggers.
+ * SECURITY: All inputs validated against whitelist/regex before use in SET LOCAL.
  */
 async function setDatabaseUser(req, res, next) {
   if (!req.user) {
@@ -24,20 +40,27 @@ async function setDatabaseUser(req, res, next) {
   try {
     client = await pool.connect();
 
-    // Set session variables for RLS and audit
-    await client.query(`SET LOCAL app.current_user_id = '${req.user.id}'`);
+    // SECURITY: Validate UUID before using in SET LOCAL (prevents SQL injection)
+    const userId = sanitizeUUID(req.user.id);
+    if (userId) {
+      await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
+    }
 
-    if (req.user.contractorId) {
-      await client.query(`SET LOCAL app.current_contractor_id = '${req.user.contractorId}'`);
+    const contractorId = sanitizeUUID(req.user.contractorId);
+    if (contractorId) {
+      await client.query(`SET LOCAL app.current_contractor_id = '${contractorId}'`);
     }
 
     if (req.user.roles && req.user.roles.length > 0) {
-      // Use highest-privilege role
       const role = req.user.roles.includes('superadmin') ? 'superadmin'
         : req.user.roles.includes('data_controller') ? 'data_controller'
         : req.user.roles.includes('admin') ? 'admin'
         : req.user.roles[0];
-      await client.query(`SET LOCAL app.current_role = '${role}'`);
+      // SECURITY: Whitelist validation (only known role slugs allowed)
+      const safeRole = sanitizeRole(role);
+      if (safeRole) {
+        await client.query(`SET LOCAL app.current_role = '${safeRole}'`);
+      }
     }
 
     // Store client on request for downstream queries to use
@@ -73,11 +96,13 @@ async function setAuditUser(req, res, next) {
   }
 
   try {
-    // Set session variable that audit_trigger_func() reads
     const { pool } = require('../database/connection');
     const client = await pool.connect();
     try {
-      await client.query(`SET LOCAL app.current_user_id = '${req.user.id}'`);
+      const userId = sanitizeUUID(req.user.id);
+      if (userId) {
+        await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
+      }
     } finally {
       client.release();
     }
