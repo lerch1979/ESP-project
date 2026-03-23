@@ -21,9 +21,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Timeline,
-  Card,
-  CardContent,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -85,18 +82,16 @@ export default function DamageReportDetail() {
   };
 
   const handleDownloadPDF = async () => {
+    // Open window immediately in user gesture context to avoid popup blocker
+    const newTab = window.open('', '_blank');
     try {
       const blob = await damageReportsAPI.downloadPDF(id);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${report?.report_number || 'damage-report'}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      newTab.location.href = url;
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
       toast.success('PDF letöltve');
     } catch {
+      if (newTab) newTab.close();
       toast.error(t('errorOccurred'));
     }
   };
