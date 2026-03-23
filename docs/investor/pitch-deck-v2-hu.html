@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1F2937; }
+.slide { width: 297mm; height: 210mm; padding: 18mm 22mm; position: relative; page-break-after: always; overflow: hidden; }
+.slide:last-child { page-break-after: avoid; }
+.footer { position: absolute; bottom: 8mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between; font-size: 8pt; color: #9CA3AF; }
+h1 { font-size: 28pt; color: #1E4D7B; font-weight: 800; margin-bottom: 8px; }
+h2 { font-size: 20pt; color: #1E4D7B; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 14pt; color: #1E4D7B; font-weight: 700; margin-bottom: 6px; }
+.subtitle { font-size: 14pt; color: #6B7280; margin-bottom: 16px; }
+.big-num { font-size: 36pt; font-weight: 900; color: #1E4D7B; }
+.green { color: #22C55E; } .orange { color: #F97316; } .blue { color: #1E4D7B; } .red { color: #DC2626; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.grid5 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 10px; }
+.card { background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; }
+.card-blue { background: #EFF6FF; border: 2px solid #1E4D7B; }
+.card-green { background: #F0FDF4; border: 2px solid #22C55E; }
+.card-orange { background: #FFF7ED; border: 2px solid #F97316; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 700; }
+.badge-blue { background: #1E4D7B; color: white; }
+.badge-green { background: #22C55E; color: white; }
+.badge-orange { background: #F97316; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 8px; }
+th { background: #1E4D7B; color: white; padding: 6px 10px; text-align: left; font-weight: 600; }
+td { padding: 5px 10px; border-bottom: 1px solid #E5E7EB; }
+tr:nth-child(even) { background: #F8FAFC; }
+.bar { height: 22px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+ul { padding-left: 18px; font-size: 11pt; line-height: 1.7; }
+li { margin-bottom: 3px; }
+.check { color: #22C55E; font-weight: 700; } .x { color: #DC2626; font-weight: 700; }
+p { font-size: 11pt; line-height: 1.6; }
+.small { font-size: 9pt; color: #6B7280; }
+</style>
+</head>
+<body>
+
+<!-- 1: FEDOLAP -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <div style="font-size: 16pt; letter-spacing: 4px; font-weight: 300; margin-bottom: 20px;">HOUSING SOLUTIONS KFT.</div>
+  <h1 style="color: white; font-size: 38pt; margin-bottom: 12px;">Munkaero Stabilitasi<br>Platform</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 16px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 8px;">AI-alapu HR-ERP Fizikai Munkavallalok Szallaskezelesehez</div>
+  <div style="font-size: 14pt; color: #93C5FD;">Felismerjuk. Megelozzuk. Megvedjuk.</div>
+  <div style="font-size: 12pt; color: #93C5FD; margin-top: 30px;">Magveto Befektetesi Lehetoseg | 2026 | v2</div>
+  <div style="font-size: 11pt; color: #60A5FA; margin-top: 8px;">Lerch Balazs, Alapito es Ugyvezeto</div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas</span><span>Housing Solutions Kft. — Fertod, Magyarorszag</span></div>
+</div>
+
+<!-- 2: A PROBLEMA -->
+<div class="slide">
+  <h1>A Problema: Evi 500.000+ EUR Veszteseg</h1>
+  <p class="subtitle">A fizikai munkavallalok instabilitasa csendes verzes</p>
+  <div class="grid3" style="margin-top: 16px;">
+    <div class="card" style="text-align: center;">
+      <div class="big-num red">30-45%</div>
+      <h3>Eves Fluktuacio</h3>
+      <p>5.000-15.000 EUR kilepesenket toborzas, betanitas es kiesett termelekenyseg</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num orange">40-60%</div>
+      <h3>Kiegesi Arany</h3>
+      <p>Muszakos munkavallalok 3,4x magasabb betegszabadsag kockazata</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num blue">3-8%</div>
+      <h3>EAP Kihasznaltsag</h3>
+      <p>A hagyomanyos telefonos EAP nem mukodik fizikai munkasoaknal</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 12px;">
+    <div class="card-orange" style="padding: 12px 16px; border-radius: 8px;">
+      <strong>A res:</strong> 93 Mrd dollaros jolleti piac az irodai dolgozokra fokuszal. Az epitoipari, gyari es vendeglato dolgozok <strong>elfelejtodtek</strong>.
+    </div>
+    <div class="card" style="padding: 12px 16px; border-radius: 8px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: 700; color: #DC2626;">500.000+ EUR</div>
+      <div class="small">eves veszteseg 100 fos letesitmenyenkent</div>
+      <div class="small">Nincs integralt termelekenysegi eszkoz fizikai csapatoknak</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>2</span></div>
+</div>
+
+<!-- 3: MEGOLDAS — 5 PILLER -->
+<div class="slide">
+  <h1>Megoldasunk: 5 Piller</h1>
+  <p class="subtitle">Proaktiv, adatvezeret korai jelzorendszer — Az EGYETLEN platform mind az 5 pillerrel</p>
+  <div class="grid5" style="margin-top: 12px;">
+    <div class="card-blue" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 24pt;">&#129504;</div>
+      <h3 style="font-size: 12pt;">WellMind</h3>
+      <p style="font-size: 9pt;">Napi pulzus, 86 rotalos kerdes, 12 kategoria, NLP hangulatelemzes</p>
+      <div class="badge badge-blue" style="margin-top: 6px;">Megelozo</div>
+    </div>
+    <div class="card-green" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 24pt;">&#128737;&#65039;</div>
+      <h3 style="font-size: 12pt;">CarePath</h3>
+      <p style="font-size: 9pt;">EAP ugykezeles, szolgaltato halozat, krizis protokoll, 24/7 anonim</p>
+      <div class="badge badge-green" style="margin-top: 6px;">Reaktiv</div>
+    </div>
+    <div class="card-orange" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 24pt;">&#127968;</div>
+      <h3 style="font-size: 12pt;">Szallas Index</h3>
+      <p style="font-size: 9pt;">Szallasminoseg → jollet korrelacio. <strong>SENKI MAS NEM CSINALJA</strong></p>
+      <div class="badge badge-orange" style="margin-top: 6px;">EGYEDI</div>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 12px; text-align: center; border: 2px solid #8B5CF6;">
+      <div style="font-size: 24pt;">&#9989;</div>
+      <h3 style="font-size: 12pt;">GTD Feladatkezeles</h3>
+      <p style="font-size: 9pt;">Feladatkezeles kontextussal, energiaval, idokovetssel. Az EGYETLEN platform GTD-vel</p>
+      <div class="badge" style="background: #8B5CF6; color: white; margin-top: 6px;">UJ</div>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 12px; text-align: center; border: 2px solid #6366F1;">
+      <div style="font-size: 24pt;">&#128202;</div>
+      <h3 style="font-size: 12pt;">Prediktiv Motor</h3>
+      <p style="font-size: 9pt;">AI-alapu korai figyelmeztetes, 6 automatikus trigger</p>
+      <div class="badge" style="background: #6366F1; color: white; margin-top: 6px;">AI-alapu</div>
+    </div>
+  </div>
+  <div style="margin-top: 14px; text-align: center; font-size: 11pt; color: #6B7280;">
+    <strong>6 automatikus trigger</strong> felismeri a problemakat — <strong>senki sem marad lathatatlan</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>3</span></div>
+</div>
+
+<!-- 4: EGYEDI ERTEKAJANLAT -->
+<div class="slide">
+  <h1>Egyedi Ertekajanlat</h1>
+  <p class="subtitle">5 piller, amit egyetlen versenytars sem kinal egyutt</p>
+  <div style="margin-top: 10px;">
+    <table>
+      <tr><th>Piller</th><th>Funkcio</th><th>Megkulonbozteto</th></tr>
+      <tr><td><strong>WellMind</strong></td><td>Napi pulzus felmeresek, 86 rotalos kerdes, 12 kategoria</td><td>Szallasspecifikus elemzesek (EGYEDI)</td></tr>
+      <tr><td><strong>CarePath</strong></td><td>EAP ugykezeles, szolgaltato halozat, krizis protokoll</td><td>24/7 anonim tamogatas</td></tr>
+      <tr><td><strong>Szallas Index</strong></td><td>Szallasminoseg → jollet korrelacio</td><td>EGYETLEN VERSENYTARSNAK SINCS</td></tr>
+      <tr><td><strong>GTD Feladatkezeles</strong></td><td>Feladatkezeles kontextussal, energiaval, idokovetssel</td><td>Az EGYETLEN platform GTD-vel</td></tr>
+      <tr><td><strong>Prediktiv Motor</strong></td><td>AI-alapu korai figyelmeztetes, 6 automatikus trigger</td><td>Megeloz, nem reagal</td></tr>
+    </table>
+  </div>
+  <div class="card-blue" style="margin-top: 16px; padding: 14px; border-radius: 8px; text-align: center;">
+    <strong style="font-size: 13pt;">A versenytarsak reaktiv tartalom platformok. Mi proaktiv korai jelzorendszer vagyunk — termelekenyseg-kovetssel.</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>4</span></div>
+</div>
+
+<!-- 5: PIAC -->
+<div class="slide">
+  <h1>Piac: 93 Milliard Dollar 2028-ra</h1>
+  <div class="grid2">
+    <div style="text-align: center; margin-top: 12px;">
+      <div style="width: 100%; background: #EFF6FF; border-radius: 8px; padding: 14px; margin-bottom: 8px;">
+        <div class="big-num">$93 Mrd</div><div class="small">Teljes Piac (Globalis, 2028)</div>
+      </div>
+      <div style="width: 80%; margin: 0 auto; background: #F0FDF4; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+        <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">&#8364;18-22 Mrd</div><div class="small">Elerheto Piac (Europa)</div>
+      </div>
+      <div style="width: 60%; margin: 0 auto; background: #FFF7ED; border-radius: 8px; padding: 10px;">
+        <div style="font-size: 20pt; font-weight: 800; color: #F97316;">&#8364;500 M+</div><div class="small">Megszerezheto Piac (KKE Fizikai Munkas)</div>
+      </div>
+    </div>
+    <div>
+      <h3>Novekedesi Hajtoero</h3>
+      <ul>
+        <li>CAGR ~7% (Grand View Research)</li>
+        <li>COVID utani jolleti tudatossag novekedes</li>
+        <li>EU szabalyozas (AI rendelet, ISO 45003)</li>
+        <li>Fizikai munkas szegmens <strong>dramaian alulszolgalt</strong></li>
+        <li>2,1 Mrd fizikai munkas, &lt;5%-nak van digitalis jolleti eszkoze</li>
+      </ul>
+      <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px;">
+        <strong>Celcsoport:</strong> 50-5.000 munkavallaloval rendelkezo cegek munkaltato szallason
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>5</span></div>
+</div>
+
+<!-- 6: SZALLAS MODUL -->
+<div class="slide">
+  <h1>&#127968; Szallas Stabilitasi Index — Versenyelonyunk</h1>
+  <p class="subtitle">Az egyetlen platform, amely osszekapcsolja a szallasminoseget a munkaero jollettel</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Prediktiv Lanc (Bizonyitekokon Alapulo)</h3>
+      <div style="font-size: 10pt; margin-top: 8px;">
+        <div class="bar" style="width: 100%; background: #DC2626;">Szallas pontszam csokken (0. het)</div>
+        <div class="bar" style="width: 88%; background: #F97316;">Alvasminoseg romlik (1. het)</div>
+        <div class="bar" style="width: 76%; background: #F59E0B;">Hangulat csokken (2-3. het)</div>
+        <div class="bar" style="width: 64%; background: #6366F1;">Stressz emelkedik (4. het)</div>
+        <div class="bar" style="width: 52%; background: #1E4D7B;">Kieges novekszik (6-8. het)</div>
+        <div class="bar" style="width: 40%; background: #1F2937;">Felmondas (8-12. het)</div>
+      </div>
+    </div>
+    <div>
+      <h3>Akademiai Bizonyitekok</h3>
+      <ul style="font-size: 10pt;">
+        <li>Szallaselegedetlenseg → <strong>1,8x munkaelegedetlenseg</strong></li>
+        <li>Rossz szallas → <strong>2x fluktuacios kockazat</strong></li>
+        <li>Megfelelo szallas → <strong>25-30%-kal kevesebb baleset</strong></li>
+      </ul>
+      <div class="card-orange" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12pt; font-weight: 700;">EGYETLEN VERSENYTARS SEM KOVETI EZT</div>
+        <div style="font-size: 10pt;">8 szallas kerdes 5 nyelven</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>6</span></div>
+</div>
+
+<!-- 7: PULZUS RENDSZER -->
+<div class="slide">
+  <h1>&#128202; 86 Kerdeses Pulzus Rendszer</h1>
+  <p class="subtitle">12 kategoria, 5 nyelv, intelligens rotacio — megelozi a kerdoiv-faradtsagot</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Kategoria</th><th>Kerdesek</th><th>Egyedi?</th></tr>
+        <tr><td>Fizikai Jollet</td><td>11</td><td></td></tr>
+        <tr><td>Mentalis Jollet</td><td>13</td><td></td></tr>
+        <tr><td>Szocialis Jollet</td><td>8</td><td></td></tr>
+        <tr><td>Munka-Maganelet Egyensuly</td><td>8</td><td></td></tr>
+        <tr><td><strong>Szallas/Lakhatás</strong></td><td><strong>8</strong></td><td><span class="badge badge-orange">EGYEDI</span></td></tr>
+        <tr><td>Munkaval Valo Elegedettseg</td><td>8</td><td></td></tr>
+        <tr><td>Penzugyi Jollet</td><td>6</td><td></td></tr>
+        <tr><td>Vezetoi Kapcsolat</td><td>6</td><td></td></tr>
+        <tr><td>Biztonsag &amp; Megfelelos</td><td>4</td><td></td></tr>
+        <tr><td>Kulturalis Integracio</td><td>4</td><td></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Napi Elmeny</h3>
+      <div class="card" style="margin-bottom: 8px;">
+        <strong>2 alap kerdes</strong> (hangulat + energia) — mindig megjelenik<br>
+        <strong>2 rotacios kerdes</strong> — algoritmus valasztja ki
+      </div>
+      <h3>Intelligens Rotacio</h3>
+      <ul style="font-size: 10pt;">
+        <li>7 napos ismetlesmentesseg</li>
+        <li>Kategoria diverzitas (max 1/kategoria/nap)</li>
+        <li>Prioritas-sulyozott veletlenszeru kivalasztas</li>
+        <li>Gamifikacio: +10 pont/nap, sorozatok, jelvenyel</li>
+      </ul>
+      <div class="card-green" style="margin-top: 8px; padding: 10px; border-radius: 8px;">
+        <strong>Eredmeny:</strong> 3-5x magasabb kitoltes a hagyomanyos felmeresekhez kepest
+      </div>
+      <div style="margin-top: 8px;">
+        <span class="badge badge-blue">&#127469;&#127482; HU</span>
+        <span class="badge badge-blue">&#127468;&#127463; EN</span>
+        <span class="badge badge-blue">&#127477;&#127469; TL</span>
+        <span class="badge badge-blue">&#127482;&#127462; UK</span>
+        <span class="badge badge-blue">&#127465;&#127466; DE</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>7</span></div>
+</div>
+
+<!-- 8: GTD FELADATKEZELES (UJ PILLER) -->
+<div class="slide">
+  <h1>&#9989; GTD Feladatkezeles — 5. Piller (UJ)</h1>
+  <p class="subtitle">Az EGYETLEN munkaero-stabilitasi platform integralt termelekenyseg-kovetssel</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>GTD Funkciok</h3>
+      <table>
+        <tr><th>Funkcio</th><th>Leiras</th></tr>
+        <tr><td>Feladat-bevitel</td><td>Gyors rogzites kontextussal, energiaval, idovel</td></tr>
+        <tr><td>Kontextus-cimkek</td><td>@munkahely, @szallas, @iroda, @telefon</td></tr>
+        <tr><td>Energia-szint</td><td>Magas / Kozepes / Alacsony energia feladatok</td></tr>
+        <tr><td>Idokovetes</td><td>Beepitett idomezo, orabecslel</td></tr>
+        <tr><td>Heti attekintes</td><td>Rendszeres felulvizsgalat, priorizalas</td></tr>
+        <tr><td>Projektek</td><td>Tobblepeses eredmenyek kovetes</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Miert Kulonleges?</h3>
+      <ul style="font-size: 10pt;">
+        <li>A Workday, ADP, UKG — <strong>egyiknek sincs GTD</strong></li>
+        <li>Osszekapcsolja a termelekenyseg-adatokat a jollet-adatokkal</li>
+        <li>Energia-alapu feladat-kiosztas csökkenti a kiegest</li>
+        <li>Kontextus-tudatos: muszak-fugg feladatozas</li>
+      </ul>
+      <div class="card" style="margin-top: 12px; border: 2px solid #8B5CF6; text-align: center; padding: 14px;">
+        <div style="font-size: 12pt; font-weight: 700; color: #8B5CF6;">VERSENYELONY</div>
+        <div style="font-size: 10pt; margin-top: 4px;">Jollet + Termelekenyseg egyetlen platformon = alacsonyabb churn, magasabb ROI az ugyfeleknek</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>8</span></div>
+</div>
+
+<!-- 9: PREDIKTIV MOTOR -->
+<div class="slide">
+  <h1>&#128202; Prediktiv Motor — AI-alapu Korai Jelzorendszer</h1>
+  <p class="subtitle">6 automatikus trigger — felismeri a problemakat, mielott krizisze valnanak</p>
+  <div class="grid3" style="margin-top: 12px;">
+    <div class="card" style="border-top: 4px solid #DC2626;">
+      <h3 style="font-size: 11pt;">1. Tulorua → Kieges</h3>
+      <p style="font-size: 9pt;">Tulora elek kovetese, automatikus riasztas kuszoberteknel</p>
+    </div>
+    <div class="card" style="border-top: 4px solid #F97316;">
+      <h3 style="font-size: 11pt;">2. Betegszabadsag Minta</h3>
+      <p style="font-size: 9pt;">Auto-detekció — emelkedo betegszabadsag mint korai jel</p>
+    </div>
+    <div class="card" style="border-top: 4px solid #F59E0B;">
+      <h3 style="font-size: 11pt;">3. Hangulat Csokkenés</h3>
+      <p style="font-size: 9pt;">NLP hangulatelemzes a pulzus-valaszokbol</p>
+    </div>
+    <div class="card" style="border-top: 4px solid #6366F1;">
+      <h3 style="font-size: 11pt;">4. Szallas Minosegromlás</h3>
+      <p style="font-size: 9pt;">Szallas pontszam csokkenese → beavatkozas</p>
+    </div>
+    <div class="card" style="border-top: 4px solid #1E4D7B;">
+      <h3 style="font-size: 11pt;">5. Konfliktus Eszkaláció</h3>
+      <p style="font-size: 9pt;">Csapaton beluli feszultseg korai felismerese</p>
+    </div>
+    <div class="card" style="border-top: 4px solid #22C55E;">
+      <h3 style="font-size: 11pt;">6. Fluktuaciós Kockázat</h3>
+      <p style="font-size: 9pt;">Osszesitett kockazati pontszam — mielott meglepne a felmondas</p>
+    </div>
+  </div>
+  <div class="card-green" style="margin-top: 14px; padding: 12px; border-radius: 8px; text-align: center;">
+    <strong>Megeloz, nem reagal.</strong> A triggerek automatikusan ertesitik a HR-t es a vezetoket.
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>9</span></div>
+</div>
+
+<!-- 10: FO MUTATOSZAMOK (v0.47) -->
+<div class="slide">
+  <h1>Fo Mutatoszamok (v0.47)</h1>
+  <p class="subtitle">Befektetoi szintu platform — 99/100 osszpontszam</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Mutato</th><th>Ertek</th><th>Szint</th></tr>
+        <tr><td><strong>Platform Pontszam</strong></td><td><strong class="green">99/100</strong></td><td>Befektetoi szintu</td></tr>
+        <tr><td>Funkcio Lefedettslg</td><td><strong class="green">92/100</strong></td><td>Atfogo</td></tr>
+        <tr><td>Biztonsag</td><td><strong class="green">95/100</strong></td><td>GDPR, RLS, PGP</td></tr>
+        <tr><td>Kodminoseg</td><td><strong class="green">90/100</strong></td><td>Winston, ESLint</td></tr>
+        <tr><td>Adatbazis</td><td><strong class="green">88/100</strong></td><td>120+ tabla</td></tr>
+        <tr><td>Teljesitmeny</td><td><strong>85/100</strong></td><td>Redis, Bull sorkezelo</td></tr>
+        <tr><td>UI/UX</td><td><strong>82/100</strong></td><td>5 nyelv, i18n infra</td></tr>
+        <tr><td>Tesztek</td><td><strong>80/100</strong></td><td>41+ tesztfajl</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Technikai Meret</h3>
+      <div class="grid2" style="gap: 8px;">
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">120+</div><div class="small">DB Tabla</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">50</div><div class="small">Mobil Kepernyo</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">5</div><div class="small">Nyelv (HU, EN, TL, UK, DE)</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">PWA</div><div class="small">Kesz mobilalkalmaz</div></div>
+      </div>
+      <h3 style="margin-top: 10px;">Infrastruktura</h3>
+      <p style="font-size: 10pt;">Kubernetes, CI/CD, Redis, Node.js, PostgreSQL, React, React Native, Docker, Claude AI</p>
+      <h3 style="margin-top: 8px;">Megfelelőség</h3>
+      <p style="font-size: 10pt;">GDPR 9. cikk &#10004; | EU AI rendelet &#10004; | ISO 45003 &#10004; | DPIA &#10004;</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>10</span></div>
+</div>
+
+<!-- 11: VERSENYELONY -->
+<div class="slide">
+  <h1>Versenyelony</h1>
+  <p class="subtitle">&bdquo;Mi birtokoljuk a fizikai munkas szallas-jollet kategoriat&rdquo;</p>
+  <div style="margin-top: 10px;">
+    <table>
+      <tr><th>Funkcio</th><th>Housing Solutions</th><th>Workday</th><th>ADP</th><th>UKG</th></tr>
+      <tr><td>Fizikai munkasra fokuszalt</td><td><span class="check">&#10004; EGYEDI</span></td><td class="x">&#10008;</td><td class="x">&#10008;</td><td class="x">&#10008;</td></tr>
+      <tr><td>Szallas korrelacio</td><td><span class="check">&#10004; EGYEDI</span></td><td class="x">&#10008;</td><td class="x">&#10008;</td><td class="x">&#10008;</td></tr>
+      <tr><td>GTD Feladatkezeles</td><td><span class="check">&#10004; EGYEDI</span></td><td class="x">&#10008;</td><td class="x">&#10008;</td><td class="x">&#10008;</td></tr>
+      <tr><td>Tobbnyelu (5)</td><td><span class="check">&#10004;</span></td><td><span class="check">&#10004;</span></td><td><span class="check">&#10004;</span></td><td class="x">&#10008;</td></tr>
+      <tr><td>Prevnetiv jollet</td><td><span class="check">&#10004;</span></td><td class="x">&#10008;</td><td class="x">&#10008;</td><td>Reszleges</td></tr>
+      <tr><td>Mobil-elso</td><td><span class="check">&#10004;</span></td><td>Reszleges</td><td>Reszleges</td><td>Reszleges</td></tr>
+      <tr><td>Tulora-kieges osszekap.</td><td><span class="check">&#10004; EGYEDI</span></td><td class="x">&#10008;</td><td class="x">&#10008;</td><td class="x">&#10008;</td></tr>
+      <tr><td>6 automatikus trigger</td><td><span class="check">&#10004; EGYEDI</span></td><td class="x">&#10008;</td><td class="x">&#10008;</td><td class="x">&#10008;</td></tr>
+    </table>
+  </div>
+  <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px; text-align: center;">
+    <strong>A versenytarsak reaktiv tartalom platformok. Mi proaktiv korai jelzorendszer vagyunk termelekenyseg-kovetssel.</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>11</span></div>
+</div>
+
+<!-- 12: UZLETI MODELL -->
+<div class="slide">
+  <h1>Uzleti Modell: SaaS — Modularis</h1>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Árazás</h3>
+      <table>
+        <tr><th>Szegmens</th><th>Letszam</th><th>Ar/ho</th></tr>
+        <tr><td><strong>SMB</strong></td><td>50-500</td><td>250-3.000 EUR</td></tr>
+        <tr><td><strong>Mid-market</strong></td><td>500-5.000</td><td>2.500-30.000 EUR</td></tr>
+      </table>
+      <div class="card" style="margin-top: 10px;">
+        <strong>Ar/fo/ho:</strong> 5-6 EUR<br>
+        <strong>Modularis:</strong> Alap + WellMind + CarePath + GTD
+      </div>
+      <h3 style="margin-top: 12px;">Unit Economics</h3>
+      <table>
+        <tr><td>Cel LTV:CAC arany</td><td><strong class="green">9-15:1</strong></td></tr>
+        <tr><td>Bruttő arres</td><td><strong class="green">85%</strong></td></tr>
+        <tr><td>Megterulesi ido</td><td><strong>&lt; 2 honap</strong></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Megterules az ugyfeleknek: 38,5x</h3>
+      <table>
+        <tr><th>Megtakaritas (200 fo)</th><th>Eves</th></tr>
+        <tr><td>Betegszabadsag csökkenes (20%)</td><td><strong>30.000 EUR</strong></td></tr>
+        <tr><td>Fluktuacio csökkenes (15%)</td><td><strong>45.000 EUR</strong></td></tr>
+        <tr><td>Termelekenyseg novekedes (10%)</td><td><strong>480.000 EUR</strong></td></tr>
+        <tr><td><strong>Osszesen</strong></td><td><strong class="green">555.000 EUR</strong></td></tr>
+        <tr><td>Platform költseg</td><td>14.400 EUR</td></tr>
+        <tr><td><strong>ROI</strong></td><td><strong class="green">38,5x</strong></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>12</span></div>
+</div>
+
+<!-- 13: PIACRA LEPES -->
+<div class="slide">
+  <h1>Piacra Lepes: Land &amp; Expand</h1>
+  <div class="grid4" style="margin-top: 16px;">
+    <div class="card" style="border-top: 4px solid #1E4D7B;">
+      <h3>1. Fazis: Pilot</h3>
+      <div class="small">2026 Q2</div>
+      <ul style="font-size: 9pt;">
+        <li>Beta inditas</li>
+        <li>2-3 pilot ugyfel</li>
+        <li>&#8805;60% adoptacio igazolasa</li>
+        <li>Esettanulmany keszitese</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #22C55E;">
+      <h3>2. Fazis: PMF</h3>
+      <div class="small">2026 Q3</div>
+      <ul style="font-size: 9pt;">
+        <li>Termek-piac illeszked</li>
+        <li>10 ugyfel</li>
+        <li>Arazas validálása</li>
+        <li>15-30K EUR MRR</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #F97316;">
+      <h3>3. Fazis: Skalazas</h3>
+      <div class="small">2026 Q4</div>
+      <ul style="font-size: 9pt;">
+        <li>50 ugyfel</li>
+        <li>KKE terjeszked megkezdese</li>
+        <li>60-120K EUR ARR</li>
+        <li>1-2 ertekesito felvetele</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #6366F1;">
+      <h3>4. Fazis: KKE</h3>
+      <div class="small">2027</div>
+      <ul style="font-size: 9pt;">
+        <li>Teljes KKE bevezetés</li>
+        <li>Lengyelorszag, Csehorszag, Szlovakia</li>
+        <li>165K+ EUR ARR</li>
+        <li>Kategoriavedeto pozicio</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card">
+      <h3>ICP (Idealis Ugyfelprofi)</h3>
+      <p style="font-size: 10pt;">Epitoipar, vendeglatas, gyartas, logisztika | 50-5.000 munkavalalo | Magyarorszag → KKE | Magas fluktuacio (&gt;30%) | Munkaltato szallas</p>
+    </div>
+    <div class="card">
+      <h3>Ertekesites Csatornak</h3>
+      <p style="font-size: 10pt;">Alapito-vezerelt ertekesites → Epitoipari szovetsegek (EVOSZ) → HR tanacsadok → Inbound marketing (esettanulmanyok, webinariumok)</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>13</span></div>
+</div>
+
+<!-- 14: TRAKCIO -->
+<div class="slide">
+  <h1>Trakcio es Eredmenyek</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Jelenlegi Allapot</h3>
+      <table>
+        <tr><td>Platform pontszam</td><td><strong class="green">99/100</strong> (befekteto szintu)</td></tr>
+        <tr><td>Funkcio lefedettsg</td><td><strong class="green">92/100</strong> (atfogo)</td></tr>
+        <tr><td>Platform modulok</td><td><strong>5</strong> (WellMind, CarePath, Szallas, GTD, Prediktiv)</td></tr>
+        <tr><td>Mobil kepernyok</td><td><strong>50</strong> (PWA-kesz)</td></tr>
+        <tr><td>DB tablak</td><td><strong>120+</strong> (vallalati szintu)</td></tr>
+        <tr><td>Automatikus triggerek</td><td><strong>6</strong></td></tr>
+        <tr><td>Nyelvek</td><td><strong>5</strong> (HU, EN, TL, UK, DE)</td></tr>
+        <tr><td>Pulzus kerdesek</td><td><strong>86</strong> 12 kategoriaban</td></tr>
+        <tr><td>Infrastruktura</td><td>Kubernetes, CI/CD, Redis</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>12 Honapos Merfoldkovek</h3>
+      <div style="font-size: 10pt;">
+        <div style="padding: 8px; border-left: 3px solid #1E4D7B; margin-bottom: 6px;"><strong>2026 Q2</strong> — Beta inditas, 2-3 pilot ugyfel, esettanulmany</div>
+        <div style="padding: 8px; border-left: 3px solid #22C55E; margin-bottom: 6px;"><strong>2026 Q3</strong> — Termek-piac illeszked, 10 ugyfel</div>
+        <div style="padding: 8px; border-left: 3px solid #F97316; margin-bottom: 6px;"><strong>2026 Q4</strong> — 50 ugyfel, KKE terjeszked megkezdese</div>
+        <div style="padding: 8px; border-left: 3px solid #6366F1;"><strong>2027</strong> — Teljes KKE bevezetés, 165K+ EUR ARR</div>
+      </div>
+      <div class="card-green" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <strong>A termek kesz. Az eredmenyek bizonyitottak. A piac var.</strong>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>14</span></div>
+</div>
+
+<!-- 15: PENZUGY -->
+<div class="slide">
+  <h1>Penzugyi Elorejelzesek</h1>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Beveteli Novekedes</h3>
+      <table>
+        <tr><th>Mutato</th><th>1. Ev</th><th>2. Ev</th><th>3. Ev</th></tr>
+        <tr><td>Ugyfelek</td><td>20</td><td>60</td><td>150</td></tr>
+        <tr><td>Felhasználók</td><td>2.500</td><td>8.000</td><td>22.000</td></tr>
+        <tr><td>ARR</td><td><strong>165K EUR</strong></td><td><strong>528K EUR</strong></td><td><strong>1,45M EUR</strong></td></tr>
+        <tr><td>Brutto arres</td><td>80%</td><td>85%</td><td>88%</td></tr>
+      </table>
+      <h3 style="margin-top: 10px;">Feltetelezesek</h3>
+      <ul style="font-size: 9pt;">
+        <li>Atlag ugyfelreret: 100 fo</li>
+        <li>Eves churn: &lt;10%</li>
+        <li>Break-even: 8-9. honap</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Havi Koltsegek</h3>
+      <table>
+        <tr><th>Kategoria</th><th>1-3. ho</th><th>4-6. ho</th><th>7-12. ho</th></tr>
+        <tr><td>Infrastruktura</td><td>300 EUR</td><td>500 EUR</td><td>800 EUR</td></tr>
+        <tr><td>Fejlesztes</td><td>8K EUR</td><td>10K EUR</td><td>12K EUR</td></tr>
+        <tr><td>Ertekesites</td><td>500 EUR</td><td>2K EUR</td><td>5K EUR</td></tr>
+        <tr><td><strong>Osszesen</strong></td><td><strong>9,9K EUR</strong></td><td><strong>14,2K EUR</strong></td><td><strong>21,4K EUR</strong></td></tr>
+      </table>
+      <div class="card" style="margin-top: 10px; text-align: center;">
+        <div class="small">Break-even MRR</div>
+        <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">~6.500 EUR/ho</div>
+        <div class="small">Varhatoan: 8-9. honap</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>15</span></div>
+</div>
+
+<!-- 16: KARTERITESI JEGYZOKONYVEK -->
+<div class="slide">
+  <h1>&#127968; Karteritesi Jegyzokonyvek — Integralt Modul</h1>
+  <p class="subtitle">Szallaskarok rogzitese, kovetese es elszamolasa egyetlen rendszerben</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Folyamat</h3>
+      <div style="font-size: 10pt; margin-top: 8px;">
+        <div class="bar" style="width: 100%; background: #1E4D7B;">1. Kar bejelentese (mobil/admin)</div>
+        <div class="bar" style="width: 88%; background: #6366F1;">2. Fotodokumentacio csatolasa</div>
+        <div class="bar" style="width: 76%; background: #F97316;">3. Felelős megjeloles</div>
+        <div class="bar" style="width: 64%; background: #F59E0B;">4. Osszeg meghataroza</div>
+        <div class="bar" style="width: 52%; background: #22C55E;">5. Jovahagyas es elszamolas</div>
+        <div class="bar" style="width: 40%; background: #1F2937;">6. Berbol levanas / lezaras</div>
+      </div>
+    </div>
+    <div>
+      <h3>Elonyk</h3>
+      <ul style="font-size: 10pt;">
+        <li>Teljes audit trail minden karhoz</li>
+        <li>Fotodokumentacio es idopecsetel</li>
+        <li>Automatikus berintegracid</li>
+        <li>Szallasobjektumokhoz kotve</li>
+        <li>Tobbnyelu felhasznaloi felulet</li>
+      </ul>
+      <div class="card-orange" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 11pt; font-weight: 700;">A szallas-jollet rendszer szerves resze</div>
+        <div style="font-size: 9pt;">Karkezeles + Szallas Index = teljes szallasmenedzsment</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>16</span></div>
+</div>
+
+<!-- 17: CSAPAT ES BEFEKTETESI AJANLAT -->
+<div class="slide">
+  <h1>Csapat es Befektetesi Ajanlat</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Vezetőség</h3>
+      <div class="card" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 60px; height: 60px; background: #1E4D7B; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24pt; font-weight: 700;">LB</div>
+          <div>
+            <div style="font-size: 14pt; font-weight: 700;">Lerch Balazs</div>
+            <div style="font-size: 10pt; color: #6B7280;">Alapito es Ugyvezeto</div>
+            <div style="font-size: 9pt; color: #6B7280;">Epitoipari szakerto, Housing Solutions alapitoja</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size: 11pt;"><strong>Elony:</strong> Valos uzemeltetesi tapasztalatbol epitv</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Szakterulet:</strong> Szallaskezeles, fizikai munkavallalok</div>
+      </div>
+      <h3 style="margin-top: 12px;">Vizoo: Kategoria Teremto</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>1. Ev:</strong> Dominans szereplot a magyar fizikai munkas jolletben</li>
+        <li><strong>2. Ev:</strong> Terjeszked Lengyelorszagba, Csehorszagba, Szlovakiaba</li>
+        <li><strong>3. Ev:</strong> KKE piacvezeto, 150+ ugyfel, 1,45M EUR ARR</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Befektetesi Ajanlat</h3>
+      <div class="card-blue" style="padding: 16px; border-radius: 10px; text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 12pt; color: #93C5FD;">Magveto Kor</div>
+        <div style="font-size: 32pt; font-weight: 900; color: white;">500.000 EUR</div>
+        <div style="font-size: 11pt; color: #93C5FD; margin-top: 4px;">Pre-money ertekeles: 2,5M EUR</div>
+      </div>
+      <h3>Felhasznalás</h3>
+      <div class="bar" style="width: 100%; background: #1E4D7B;">Ertekesites &amp; Marketing — 40% (200K EUR)</div>
+      <div class="bar" style="width: 75%; background: #22C55E;">Termekfejlesztes — 30% (150K EUR)</div>
+      <div class="bar" style="width: 75%; background: #F97316;">Muveletek — 30% (150K EUR)</div>
+      <h3 style="margin-top: 10px;">Kulcs szamok</h3>
+      <table>
+        <tr><td>Futamido</td><td><strong>12 honap a termek-piac illeszkdsig</strong></td></tr>
+        <tr><td>Exit lehetőségek</td><td>Strategiai felvasarlas (Workday, SAP, ADP) vagy PE 8-12x ARR</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Munkaero Stabilitasi Platform</span><span>17</span></div>
+</div>
+
+<!-- 18: ZARO -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <h1 style="color: white; font-size: 32pt;">Csatlakozz a Munkaero<br>Stabilitasi Forradalomhoz</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 20px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 24px;">Felismerjuk. Megelozzuk. Megvedjuk.</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 600px; margin-bottom: 20px;">
+    <div><div style="font-size: 10pt; color: #60A5FA;">Alapito</div><div style="font-size: 14pt;">Lerch Balazs</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Email</div><div style="font-size: 14pt;">info@housingsolutions.hu</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Helyszin</div><div style="font-size: 14pt;">Fertod, Magyarorszag</div></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(5, auto); gap: 16px; margin-bottom: 20px;">
+    <div style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">99/100</div><div style="font-size: 9pt; color: #93C5FD;">Platform Pont</div></div>
+    <div style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">5</div><div style="font-size: 9pt; color: #93C5FD;">Piller</div></div>
+    <div style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">120+</div><div style="font-size: 9pt; color: #93C5FD;">DB Tabla</div></div>
+    <div style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">86</div><div style="font-size: 9pt; color: #93C5FD;">Kerdes</div></div>
+    <div style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">5</div><div style="font-size: 9pt; color: #93C5FD;">Nyelv</div></div>
+  </div>
+  <div style="margin-top: 10px; font-size: 11pt; color: #60A5FA;">
+    5 Piller &middot; 50 Mobil Kepernyo &middot; GTD + Jollet &middot; Kubernetes &middot; PWA-kesz
+  </div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas — Housing Solutions Kft.</span><span>18</span></div>
+</div>
+
+</body>
+</html>

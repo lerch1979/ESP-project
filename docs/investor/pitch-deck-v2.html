@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1F2937; }
+.slide { width: 297mm; height: 210mm; padding: 18mm 22mm; position: relative; page-break-after: always; overflow: hidden; }
+.slide:last-child { page-break-after: avoid; }
+.footer { position: absolute; bottom: 8mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between; font-size: 8pt; color: #9CA3AF; }
+h1 { font-size: 28pt; color: #1E4D7B; font-weight: 800; margin-bottom: 8px; }
+h2 { font-size: 20pt; color: #1E4D7B; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 14pt; color: #1E4D7B; font-weight: 700; margin-bottom: 6px; }
+.subtitle { font-size: 14pt; color: #6B7280; margin-bottom: 16px; }
+.big-num { font-size: 36pt; font-weight: 900; color: #1E4D7B; }
+.green { color: #22C55E; }
+.orange { color: #F97316; }
+.blue { color: #1E4D7B; }
+.red { color: #DC2626; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.card { background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; }
+.card-blue { background: #EFF6FF; border: 2px solid #1E4D7B; }
+.card-green { background: #F0FDF4; border: 2px solid #22C55E; }
+.card-orange { background: #FFF7ED; border: 2px solid #F97316; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 700; }
+.badge-blue { background: #1E4D7B; color: white; }
+.badge-green { background: #22C55E; color: white; }
+.badge-orange { background: #F97316; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 8px; }
+th { background: #1E4D7B; color: white; padding: 6px 10px; text-align: left; font-weight: 600; }
+td { padding: 5px 10px; border-bottom: 1px solid #E5E7EB; }
+tr:nth-child(even) { background: #F8FAFC; }
+.bar { height: 22px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+ul { padding-left: 18px; font-size: 11pt; line-height: 1.7; }
+li { margin-bottom: 3px; }
+.check { color: #22C55E; font-weight: 700; }
+.x { color: #DC2626; font-weight: 700; }
+p { font-size: 11pt; line-height: 1.6; }
+.small { font-size: 9pt; color: #6B7280; }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: COVER (UPDATED — added GTD-Enhanced) -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <div style="font-size: 16pt; letter-spacing: 4px; font-weight: 300; margin-bottom: 20px;">HOUSING SOLUTIONS KFT.</div>
+  <h1 style="color: white; font-size: 38pt; margin-bottom: 12px;">GTD-Enhanced Workforce<br>Stability Platform</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 16px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 8px;">Predict. Prevent. Protect. Produce.</div>
+  <div style="font-size: 12pt; color: #93C5FD; margin-top: 30px;">Seed Investment Opportunity | 2026</div>
+  <div style="font-size: 11pt; color: #60A5FA; margin-top: 8px;">Lerch Balazs, Founder & CEO</div>
+  <div class="footer" style="color: #60A5FA;"><span>Confidential</span><span>Housing Solutions Kft. — Fertod, Hungary</span></div>
+</div>
+
+<!-- SLIDE 2: THE PROBLEM -->
+<div class="slide">
+  <h1>The Problem: &euro;500K+ Lost Annually</h1>
+  <p class="subtitle">Blue-collar workforce instability is a silent hemorrhage</p>
+  <div class="grid3" style="margin-top: 16px;">
+    <div class="card" style="text-align: center;">
+      <div class="big-num red">30-45%</div>
+      <h3>Annual Turnover</h3>
+      <p>&euro;5,000-&euro;15,000 per exit in recruitment, training, and lost productivity</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num orange">40-60%</div>
+      <h3>Burnout Rate</h3>
+      <p>Shift workers experience 3.4x higher sick leave risk</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num blue">3-8%</div>
+      <h3>EAP Utilization</h3>
+      <p>Traditional phone-based EAP fails blue-collar workers</p>
+    </div>
+  </div>
+  <div class="card-orange" style="margin-top: 16px; padding: 12px 16px; border-radius: 8px;">
+    <strong>The gap:</strong> $93B wellbeing market targets desk workers. Construction crews, factory workers, and hospitality staff have been <strong>forgotten</strong>.
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>2</span></div>
+</div>
+
+<!-- SLIDE 3: THE SOLUTION (UPDATED — 5 Pillars, GTD added) -->
+<div class="slide">
+  <h1>Our Solution: 5 Pillars</h1>
+  <p class="subtitle">Proactive, data-driven early warning system + productivity management</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 12px;">
+    <div class="card-blue" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 24pt;">&#129504;</div>
+      <h3 style="font-size: 12pt;">WellMind</h3>
+      <p style="font-size: 9pt;">Daily pulse surveys, MBI/UWES assessments, NLP sentiment, gamification</p>
+      <div class="badge badge-blue" style="margin-top: 8px;">Preventive</div>
+    </div>
+    <div class="card-green" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 24pt;">&#128737;&#65039;</div>
+      <h3 style="font-size: 12pt;">CarePath</h3>
+      <p style="font-size: 9pt;">EAP case management, provider network, crisis protocol, anonymous option</p>
+      <div class="badge badge-green" style="margin-top: 8px;">Reactive</div>
+    </div>
+    <div class="card-orange" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 24pt;">&#127968;</div>
+      <h3 style="font-size: 12pt;">Housing Index</h3>
+      <p style="font-size: 9pt;">Accommodation quality to wellbeing correlation. <strong>NO COMPETITOR HAS THIS</strong></p>
+      <div class="badge badge-orange" style="margin-top: 8px;">UNIQUE</div>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 12px; text-align: center; border: 2px solid #6366F1;">
+      <div style="font-size: 24pt;">&#128202;</div>
+      <h3 style="font-size: 12pt;">Predictive</h3>
+      <p style="font-size: 9pt;">Overtime to burnout, sick leave triggers, conflict tracking, turnover risk</p>
+      <div class="badge" style="background: #6366F1; color: white; margin-top: 8px;">AI-Powered</div>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 12px; text-align: center; border: 2px solid #7C3AED; background: #F5F3FF;">
+      <div style="font-size: 24pt;">&#9989;</div>
+      <h3 style="font-size: 12pt; color: #7C3AED;">GTD Tasks</h3>
+      <p style="font-size: 9pt;">Built-in Getting Things Done methodology with housing-specific contexts</p>
+      <div class="badge" style="background: #7C3AED; color: white; margin-top: 8px;">UNIQUE</div>
+    </div>
+  </div>
+  <div style="margin-top: 14px; text-align: center; font-size: 11pt; color: #6B7280;">
+    <strong>6 automated triggers</strong> detect problems and initiate support — <strong>no employee falls through the cracks</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>3</span></div>
+</div>
+
+<!-- SLIDE 4: UNIQUE VALUE PROPOSITION (NEW) -->
+<div class="slide">
+  <h1>Unique Value Proposition</h1>
+  <p class="subtitle">GTD Task Management as our competitive edge</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>The ONLY Workforce Platform with Built-in Productivity Management</h3>
+      <p style="margin-top: 8px;">While competitors focus solely on wellbeing surveys or EAP, we integrate <strong>Getting Things Done (GTD)</strong> methodology directly into the workforce platform — enabling managers and employees to track, prioritize, and complete work effectively.</p>
+      <div class="card" style="margin-top: 12px; border: 2px solid #7C3AED; background: #F5F3FF;">
+        <h3 style="color: #7C3AED;">Housing-Specific Contexts</h3>
+        <ul style="font-size: 10pt;">
+          <li><strong>@accommodation</strong> — tasks for on-site housing maintenance</li>
+          <li><strong>@contractor</strong> — items requiring subcontractor coordination</li>
+          <li><strong>@computer</strong> — admin/office-based tasks</li>
+          <li><strong>@office</strong> — in-person tasks at company office</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <h3>Competitor Gap Analysis</h3>
+      <table>
+        <tr><th>Platform</th><th>GTD / Task Mgmt</th></tr>
+        <tr><td><strong>Workday</strong></td><td class="x">&#10060; No GTD</td></tr>
+        <tr><td><strong>ADP</strong></td><td class="x">&#10060; No GTD</td></tr>
+        <tr><td><strong>UKG (Kronos)</strong></td><td class="x">&#10060; No GTD</td></tr>
+        <tr><td><strong>SAP SuccessFactors</strong></td><td class="x">&#10060; No GTD</td></tr>
+        <tr><td><strong>Headspace</strong></td><td class="x">&#10060; No GTD</td></tr>
+        <tr><td><strong>Modern Health</strong></td><td class="x">&#10060; No GTD</td></tr>
+        <tr><td style="background: #F5F3FF; font-weight: 700; color: #7C3AED;">Housing Solutions</td><td style="background: #F5F3FF;"><span class="check">&#9989; Full GTD</span></td></tr>
+      </table>
+      <div class="card" style="margin-top: 10px; border: 2px solid #7C3AED; background: #7C3AED; color: white; text-align: center; padding: 12px; border-radius: 8px;">
+        <div style="font-size: 12pt; font-weight: 700;">Wellbeing + Productivity = Retention</div>
+        <div style="font-size: 10pt; margin-top: 4px;">Happy AND productive workers stay longer</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>4</span></div>
+</div>
+
+<!-- SLIDE 5: MARKET OPPORTUNITY (was slide 4) -->
+<div class="slide">
+  <h1>Market: &euro;93 Billion by 2028</h1>
+  <div class="grid2">
+    <div>
+      <div style="text-align: center; margin-top: 12px;">
+        <div style="width: 100%; background: #EFF6FF; border-radius: 8px; padding: 14px; margin-bottom: 8px;">
+          <div class="big-num">$93B</div>
+          <div style="font-size: 11pt; color: #6B7280;">Total Addressable Market (Global, 2028)</div>
+        </div>
+        <div style="width: 80%; margin: 0 auto; background: #F0FDF4; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+          <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">&euro;18-22B</div>
+          <div style="font-size: 10pt; color: #6B7280;">Serviceable Available Market (Europe)</div>
+        </div>
+        <div style="width: 60%; margin: 0 auto; background: #FFF7ED; border-radius: 8px; padding: 10px;">
+          <div style="font-size: 20pt; font-weight: 800; color: #F97316;">&euro;500M+</div>
+          <div style="font-size: 10pt; color: #6B7280;">Serviceable Obtainable Market (CEE Blue-Collar)</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>Growth Drivers</h3>
+      <ul>
+        <li>CAGR ~7% (Grand View Research)</li>
+        <li>Post-COVID wellbeing awareness surge</li>
+        <li>EU regulations (AI Act, ISO 45003)</li>
+        <li>Blue-collar segment <strong>dramatically underserved</strong></li>
+        <li>2.1B blue-collar workers, &lt;5% have digital wellbeing tools</li>
+      </ul>
+      <div class="card-blue" style="margin-top: 12px; padding: 12px; border-radius: 8px;">
+        <strong>Our niche:</strong> Blue-collar workers with employer-provided housing — an uncontested market segment
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>5</span></div>
+</div>
+
+<!-- SLIDE 6: HOUSING MODULE (was slide 5) -->
+<div class="slide">
+  <h1>&#127968; Housing Stability Index — Our Moat</h1>
+  <p class="subtitle">The only platform connecting accommodation quality to workforce wellbeing</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Predictive Cascade (Evidence-Based)</h3>
+      <div style="font-size: 10pt; margin-top: 8px;">
+        <div class="bar" style="width: 100%; background: #DC2626;">Housing score drops (Week 0)</div>
+        <div class="bar" style="width: 88%; background: #F97316;">Sleep quality declines (Week 1)</div>
+        <div class="bar" style="width: 76%; background: #F59E0B;">Mood drops (Week 2-3)</div>
+        <div class="bar" style="width: 64%; background: #6366F1;">Stress spikes (Week 4)</div>
+        <div class="bar" style="width: 52%; background: #1E4D7B;">Burnout increases (Week 6-8)</div>
+        <div class="bar" style="width: 40%; background: #1F2937;">Resignation (Week 8-12)</div>
+      </div>
+      <p class="small" style="margin-top: 6px;">Sources: Evans et al. 2003, WHO 2018, ILO 2020</p>
+    </div>
+    <div>
+      <h3>Academic Evidence</h3>
+      <ul style="font-size: 10pt;">
+        <li>Housing dissatisfaction &rarr; <strong>1.8x job dissatisfaction</strong></li>
+        <li>Poor housing &rarr; <strong>2x turnover risk</strong></li>
+        <li>Adequate accommodation &rarr; <strong>25-30% fewer accidents</strong></li>
+        <li>1 SD improvement &rarr; <strong>0.3 SD job satisfaction gain</strong></li>
+      </ul>
+      <div class="card-orange" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <div style="font-size: 12pt; font-weight: 700;">NO COMPETITOR TRACKS THIS</div>
+        <div style="font-size: 10pt;">8 housing questions in 5 languages</div>
+      </div>
+      <h3 style="margin-top: 12px;">Trigger System</h3>
+      <p style="font-size: 10pt;">HSI drops below 5/10 &rarr; automatic facility alert + resident wellbeing check</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>6</span></div>
+</div>
+
+<!-- SLIDE 7: GTD PRODUCTIVITY LAYER (NEW) -->
+<div class="slide">
+  <h1>&#9989; GTD Productivity Layer</h1>
+  <p class="subtitle">Built-in Getting Things Done methodology — no competitor has this</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Core GTD Features</h3>
+      <div class="card" style="margin-bottom: 8px; border: 2px solid #7C3AED; background: #F5F3FF;">
+        <ul style="font-size: 10pt;">
+          <li><strong>Inbox capture</strong> — quick-add tasks from mobile or admin</li>
+          <li><strong>Next actions</strong> — clarified, actionable items</li>
+          <li><strong>Projects with clear outcomes</strong> — multi-step goals</li>
+          <li><strong>Weekly review</strong> — structured reflection workflow</li>
+          <li><strong>Waiting-for tracking</strong> — delegate and follow up</li>
+          <li><strong>Someday/Maybe</strong> — park non-urgent ideas</li>
+        </ul>
+      </div>
+      <h3>Context-Aware Task Routing</h3>
+      <div class="grid2" style="gap: 6px;">
+        <div class="card" style="padding: 8px; text-align: center; border: 1px solid #7C3AED;">
+          <div style="font-size: 10pt; font-weight: 700; color: #7C3AED;">@computer</div>
+          <div class="small">Admin & digital tasks</div>
+        </div>
+        <div class="card" style="padding: 8px; text-align: center; border: 1px solid #7C3AED;">
+          <div style="font-size: 10pt; font-weight: 700; color: #7C3AED;">@office</div>
+          <div class="small">In-person office tasks</div>
+        </div>
+        <div class="card" style="padding: 8px; text-align: center; border: 1px solid #F97316;">
+          <div style="font-size: 10pt; font-weight: 700; color: #F97316;">@accommodation</div>
+          <div class="small">Housing maintenance</div>
+        </div>
+        <div class="card" style="padding: 8px; text-align: center; border: 1px solid #F97316;">
+          <div style="font-size: 10pt; font-weight: 700; color: #F97316;">@contractor</div>
+          <div class="small">Subcontractor coordination</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>Energy Level Tracking</h3>
+      <div style="margin-top: 8px;">
+        <div class="bar" style="width: 100%; background: #22C55E;">&#9889; High Energy — complex decisions, planning</div>
+        <div class="bar" style="width: 75%; background: #F59E0B;">&#9889; Medium Energy — routine tasks, reviews</div>
+        <div class="bar" style="width: 50%; background: #F97316;">&#9889; Low Energy — simple admin, filing</div>
+      </div>
+      <h3 style="margin-top: 10px;">Time Estimates</h3>
+      <div class="card" style="margin-bottom: 8px;">
+        <p style="font-size: 10pt;">Every task gets a time estimate (5min-4hrs). Managers see workload distribution across teams. Prevents burnout through balanced allocation.</p>
+      </div>
+      <h3>Weekly Review Workflow</h3>
+      <div class="card" style="margin-bottom: 8px;">
+        <p style="font-size: 10pt;">Guided weekly review: clear inbox, review next actions, update projects, check waiting-for items, process someday/maybe. Integrates with wellbeing pulse data.</p>
+      </div>
+      <div class="badge" style="background: #7C3AED; color: white; font-size: 11pt; padding: 8px 16px; display: block; text-align: center; margin-top: 8px;">UNIQUE — No competitor has this</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>7</span></div>
+</div>
+
+<!-- SLIDE 8: DAMAGE REPORTS (NEW) -->
+<div class="slide">
+  <h1>&#128203; Damage Reports Module</h1>
+  <p class="subtitle">Mt. 177.&sect; compliance — automated damage documentation and recovery</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Legal Compliance (Hungarian Labour Code)</h3>
+      <div class="card" style="margin-bottom: 10px; border: 2px solid #DC2626; background: #FEF2F2;">
+        <p style="font-size: 10pt;"><strong>Mt. 177.&sect;</strong> — Employers must document employee-caused damages, provide written notification, and allow structured payment recovery. Non-compliance risks legal disputes.</p>
+      </div>
+      <h3>Workflow</h3>
+      <div style="font-size: 10pt; margin-top: 8px;">
+        <div style="padding: 8px; border-left: 3px solid #DC2626; margin-bottom: 6px;"><strong>Step 1:</strong> Damage reported with photos &amp; description</div>
+        <div style="padding: 8px; border-left: 3px solid #F97316; margin-bottom: 6px;"><strong>Step 2:</strong> Cost assessment &amp; employee notification</div>
+        <div style="padding: 8px; border-left: 3px solid #F59E0B; margin-bottom: 6px;"><strong>Step 3:</strong> Payment plan creation (installments)</div>
+        <div style="padding: 8px; border-left: 3px solid #22C55E; margin-bottom: 6px;"><strong>Step 4:</strong> Employee signature (digital or paper)</div>
+        <div style="padding: 8px; border-left: 3px solid #1E4D7B;"><strong>Step 5:</strong> PDF generation &amp; payroll integration</div>
+      </div>
+    </div>
+    <div>
+      <h3>5-Language PDF Generation</h3>
+      <div class="grid3" style="gap: 6px; margin-bottom: 10px;">
+        <div class="card" style="text-align: center; padding: 8px;">
+          <span class="badge badge-blue">&#127469;&#127482; HU</span>
+        </div>
+        <div class="card" style="text-align: center; padding: 8px;">
+          <span class="badge badge-blue">&#127468;&#127463; EN</span>
+        </div>
+        <div class="card" style="text-align: center; padding: 8px;">
+          <span class="badge badge-blue">&#127477;&#127469; TL</span>
+        </div>
+        <div class="card" style="text-align: center; padding: 8px;">
+          <span class="badge badge-blue">&#127482;&#127462; UK</span>
+        </div>
+        <div class="card" style="text-align: center; padding: 8px;">
+          <span class="badge badge-blue">&#127465;&#127466; DE</span>
+        </div>
+      </div>
+      <h3>Key Features</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>Photo evidence</strong> — attach images to damage reports</li>
+        <li><strong>Payment plans</strong> — configurable installment schedules</li>
+        <li><strong>Signature workflow</strong> — digital acknowledgment by employee</li>
+        <li><strong>Audit trail</strong> — complete history for legal compliance</li>
+        <li><strong>Payroll integration</strong> — automatic deduction scheduling</li>
+      </ul>
+      <div class="card-green" style="margin-top: 10px; padding: 10px; border-radius: 8px; text-align: center;">
+        <strong>Eliminates manual paperwork. Ensures legal compliance.</strong>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>8</span></div>
+</div>
+
+<!-- SLIDE 9: MOBILE (UPDATED — 50 screens) -->
+<div class="slide">
+  <h1>&#128241; Mobile-First Experience</h1>
+  <p class="subtitle">50 screens across iOS, Android, and Web — designed for blue-collar workers</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>50 Mobile Screens</h3>
+      <table>
+        <tr><th>Module</th><th>Screens</th></tr>
+        <tr><td>Dashboard &amp; Navigation</td><td>6</td></tr>
+        <tr><td>Pulse Surveys &amp; Wellbeing</td><td>8</td></tr>
+        <tr><td>GTD Task Management</td><td>10</td></tr>
+        <tr><td>Damage Reports</td><td>6</td></tr>
+        <tr><td>Housing Index</td><td>5</td></tr>
+        <tr><td>CarePath / EAP</td><td>5</td></tr>
+        <tr><td>Profile &amp; Settings</td><td>4</td></tr>
+        <tr><td>Gamification &amp; Badges</td><td>3</td></tr>
+        <tr><td>Notifications &amp; Alerts</td><td>3</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Blue-Collar Optimized</h3>
+      <ul style="font-size: 10pt;">
+        <li>Large touch targets (min 48px)</li>
+        <li>Minimal text, icon-driven navigation</li>
+        <li>Works offline (Service Worker + PWA)</li>
+        <li>5-language support out of the box</li>
+        <li>30-second daily check-in</li>
+        <li>Gloves-friendly interface</li>
+      </ul>
+      <div class="card" style="margin-top: 10px; border: 2px solid #6366F1;">
+        <h3 style="color: #6366F1;">PWA + Service Worker</h3>
+        <p style="font-size: 10pt;">Installable on any device. Works in areas with poor connectivity. Background sync when back online.</p>
+      </div>
+      <div class="card-green" style="margin-top: 8px; padding: 10px; border-radius: 8px; text-align: center;">
+        <strong>Designed for the construction site, not the corner office</strong>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>9</span></div>
+</div>
+
+<!-- SLIDE 10: TECHNOLOGY (UPDATED — PWA, Service Worker, Redis, Materialized Views, 99/100) -->
+<div class="slide">
+  <h1>Technology: Enterprise-Grade</h1>
+  <p class="subtitle">Platform Health Score: 99/100</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Category</th><th>Score</th><th>Details</th></tr>
+        <tr><td>Security</td><td><strong class="green">95/100</strong></td><td>GDPR, RLS, PGP encryption</td></tr>
+        <tr><td>Performance</td><td><strong class="green">99/100</strong></td><td>Redis cache, Bull queue, Materialized views</td></tr>
+        <tr><td>Features</td><td><strong class="green">92/100</strong></td><td>86 questions, 12 categories, GTD, Damage Reports</td></tr>
+        <tr><td>Code Quality</td><td><strong class="green">90/100</strong></td><td>Winston logging, ESLint</td></tr>
+        <tr><td>Database</td><td><strong class="green">85/100</strong></td><td>103 tables, 406 indexes, Materialized views</td></tr>
+        <tr><td>Tests</td><td><strong class="green">85/100</strong></td><td>41 test files, 10K+ lines</td></tr>
+        <tr><td>UI/UX</td><td><strong>78/100</strong></td><td>5 languages, PWA, Service Worker</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Technical Scale</h3>
+      <div class="grid2" style="gap: 8px;">
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">399</div><div class="small">API Endpoints</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">59</div><div class="small">Admin Pages</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">50</div><div class="small">Mobile Screens</div></div>
+        <div class="card" style="text-align: center;"><div style="font-size: 20pt; font-weight: 800;">103</div><div class="small">DB Tables</div></div>
+      </div>
+      <h3 style="margin-top: 10px;">Stack</h3>
+      <p style="font-size: 10pt;">Node.js, PostgreSQL, React, React Native, Redis, Docker, Claude AI, PWA, Service Worker</p>
+      <h3 style="margin-top: 8px;">Performance</h3>
+      <p style="font-size: 10pt;">Redis caching &bull; Materialized views for analytics &bull; Bull queue for async jobs &bull; CDN-ready static assets</p>
+      <h3 style="margin-top: 8px;">Compliance</h3>
+      <p style="font-size: 10pt;">GDPR Article 9 &#9989; | EU AI Act &#9989; | ISO 45003 &#9989; | DPIA &#9989;</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>10</span></div>
+</div>
+
+<!-- SLIDE 11: PULSE SYSTEM (was slide 6) -->
+<div class="slide">
+  <h1>&#128202; 86-Question Pulse System</h1>
+  <p class="subtitle">12 categories, 5 languages, smart rotation — prevents survey fatigue</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <table>
+        <tr><th>Category</th><th>Questions</th><th>Unique?</th></tr>
+        <tr><td>Physical Wellbeing</td><td>11</td><td></td></tr>
+        <tr><td>Mental Wellbeing</td><td>13</td><td></td></tr>
+        <tr><td>Social Wellbeing</td><td>8</td><td></td></tr>
+        <tr><td>Work-Life Balance</td><td>8</td><td></td></tr>
+        <tr><td><strong>Housing/Accommodation</strong></td><td><strong>8</strong></td><td><span class="badge badge-orange">UNIQUE</span></td></tr>
+        <tr><td>Job Satisfaction</td><td>8</td><td></td></tr>
+        <tr><td>Financial Wellbeing</td><td>6</td><td></td></tr>
+        <tr><td>Manager Relationship</td><td>6</td><td></td></tr>
+        <tr><td>Safety &amp; Compliance</td><td>4</td><td></td></tr>
+        <tr><td>Cultural Integration</td><td>4</td><td></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Daily Experience</h3>
+      <div class="card" style="margin-bottom: 8px;">
+        <strong>2 core questions</strong> (mood + energy) — always shown<br>
+        <strong>2 rotating questions</strong> — selected by algorithm
+      </div>
+      <h3>Smart Rotation</h3>
+      <ul style="font-size: 10pt;">
+        <li>7-day no-repeat rule</li>
+        <li>Category diversity (max 1/category/day)</li>
+        <li>Priority-weighted random selection</li>
+        <li>Gamification: +10 points/day, streaks, badges</li>
+      </ul>
+      <div class="card-green" style="margin-top: 8px; padding: 10px; border-radius: 8px;">
+        <strong>Result:</strong> 3-5x higher completion vs traditional surveys
+      </div>
+      <div style="margin-top: 8px;">
+        <span class="badge badge-blue">&#127469;&#127482; HU</span>
+        <span class="badge badge-blue">&#127468;&#127463; EN</span>
+        <span class="badge badge-blue">&#127477;&#127469; TL</span>
+        <span class="badge badge-blue">&#127482;&#127462; UK</span>
+        <span class="badge badge-blue">&#127465;&#127466; DE</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>11</span></div>
+</div>
+
+<!-- SLIDE 12: COMPETITIVE ADVANTAGE (UPDATED — added GTD column) -->
+<div class="slide">
+  <h1>Competitive Advantage</h1>
+  <p class="subtitle">"We own the blue-collar housing-to-wellbeing category"</p>
+  <div style="margin-top: 10px;">
+    <table>
+      <tr><th>Feature</th><th>Us</th><th>Headspace</th><th>Lyra</th><th>Modern Health</th><th>Virgin Pulse</th><th>Spring Health</th></tr>
+      <tr><td>Housing-wellbeing correlation</td><td><span class="check">&#9989; UNIQUE</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td><strong style="color: #7C3AED;">GTD Task Management</strong></td><td><span class="check">&#9989; UNIQUE</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td>Overtime-burnout linkage</td><td><span class="check">&#9989; UNIQUE</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td>Sick leave auto-detection</td><td><span class="check">&#9989; UNIQUE</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td>Damage Reports (Mt. 177.&sect;)</td><td><span class="check">&#9989; UNIQUE</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td>6 automated triggers</td><td><span class="check">&#9989; UNIQUE</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td>Burnout assessment (MBI)</td><td><span class="check">&#9989;</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+      <tr><td>EAP case management</td><td><span class="check">&#9989;</span></td><td class="x">&#10060;</td><td><span class="check">&#9989;</span></td><td><span class="check">&#9989;</span></td><td>~</td><td><span class="check">&#9989;</span></td></tr>
+      <tr><td>Blue-collar optimized</td><td><span class="check">&#9989;</span></td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td><td class="x">&#10060;</td></tr>
+    </table>
+  </div>
+  <div class="card-blue" style="margin-top: 10px; padding: 10px; border-radius: 8px; text-align: center;">
+    <strong>Competitors are reactive content platforms. We are a proactive early-warning system with built-in productivity.</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>12</span></div>
+</div>
+
+<!-- SLIDE 13: BUSINESS MODEL (was slide 9) -->
+<div class="slide">
+  <h1>Business Model: SaaS</h1>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Pricing</h3>
+      <table>
+        <tr><th>Plan</th><th>Employees</th><th>Price</th><th>Annual (100)</th></tr>
+        <tr><td><strong>Starter</strong></td><td>50-99</td><td>&euro;6/mo</td><td>&euro;7,200</td></tr>
+        <tr><td><strong>Growth</strong></td><td>100-249</td><td>&euro;5.50/mo</td><td>&euro;6,600</td></tr>
+        <tr><td><strong>Enterprise</strong></td><td>250+</td><td>&euro;5/mo</td><td>&euro;6,000</td></tr>
+      </table>
+      <h3 style="margin-top: 12px;">Unit Economics</h3>
+      <table>
+        <tr><td>Customer LTV (3 years)</td><td><strong>&euro;21,600</strong></td></tr>
+        <tr><td>CAC (estimated)</td><td><strong>&euro;2,000</strong></td></tr>
+        <tr><td>LTV/CAC Ratio</td><td><strong class="green">10.8x</strong></td></tr>
+        <tr><td>Gross Margin</td><td><strong class="green">85%</strong></td></tr>
+        <tr><td>Payback Period</td><td><strong>&lt; 2 months</strong></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>ROI for Customers: 38.5x</h3>
+      <table>
+        <tr><th>Benefit (200 employees)</th><th>Annual</th></tr>
+        <tr><td>Sick leave reduction (20%)</td><td><strong>&euro;30,000</strong></td></tr>
+        <tr><td>Turnover reduction (15%)</td><td><strong>&euro;45,000</strong></td></tr>
+        <tr><td>Productivity gain (10%)</td><td><strong>&euro;480,000</strong></td></tr>
+        <tr><td><strong>Total benefit</strong></td><td><strong class="green">&euro;555,000</strong></td></tr>
+        <tr><td>Platform cost</td><td>&euro;14,400</td></tr>
+        <tr><td><strong>ROI</strong></td><td><strong class="green">38.5x</strong></td></tr>
+      </table>
+      <p class="small" style="margin-top: 6px;">Sources: WHO 2019, Deloitte 2020, Housing Solutions pilot</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>13</span></div>
+</div>
+
+<!-- SLIDE 14: GO-TO-MARKET (was slide 10) -->
+<div class="slide">
+  <h1>Go-to-Market: Land &amp; Expand</h1>
+  <div class="grid4" style="margin-top: 16px;">
+    <div class="card" style="border-top: 4px solid #1E4D7B;">
+      <h3>Phase 1: Pilot</h3>
+      <div class="small">Q2 2026</div>
+      <ul style="font-size: 9pt;">
+        <li>Housing Solutions (150 employees)</li>
+        <li>3 locations</li>
+        <li>Prove &ge;60% adoption</li>
+        <li>Generate case study</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #22C55E;">
+      <h3>Phase 2: Scale</h3>
+      <div class="small">Q3 2026</div>
+      <ul style="font-size: 9pt;">
+        <li>3-5 construction companies</li>
+        <li>500-1,000 users</li>
+        <li>&euro;15-30K MRR</li>
+        <li>Pricing validation</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #F97316;">
+      <h3>Phase 3: Growth</h3>
+      <div class="small">Q4 2026</div>
+      <ul style="font-size: 9pt;">
+        <li>10-15 customers</li>
+        <li>1,000-2,000 users</li>
+        <li>&euro;60-120K ARR</li>
+        <li>Hire 1-2 sales</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #6366F1;">
+      <h3>Phase 4: Expand</h3>
+      <div class="small">Q1 2027</div>
+      <ul style="font-size: 9pt;">
+        <li>15-20 customers</li>
+        <li>2,000-3,000 users</li>
+        <li>&euro;165K ARR</li>
+        <li>CEE expansion</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card">
+      <h3>ICP (Ideal Customer Profile)</h3>
+      <p style="font-size: 10pt;">Construction, hospitality, manufacturing, logistics | 50-500 employees | Hungary &rarr; CEE | High turnover (&gt;30%) | Employer-provided housing</p>
+    </div>
+    <div class="card">
+      <h3>Sales Channels</h3>
+      <p style="font-size: 10pt;">Founder-led sales &rarr; Construction associations (EVOSZ) &rarr; HR consultants &rarr; Inbound marketing (case studies, webinars)</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>14</span></div>
+</div>
+
+<!-- SLIDE 15: TRACTION (UPDATED — new scores) -->
+<div class="slide">
+  <h1>Traction &amp; Proof Points</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Current Status</h3>
+      <table>
+        <tr><td>Platform Health Score</td><td><strong class="green">99/100</strong></td></tr>
+        <tr><td>Feature Score</td><td><strong class="green">92/100</strong></td></tr>
+        <tr><td>Test Score</td><td><strong class="green">85/100</strong></td></tr>
+        <tr><td>Performance Score</td><td><strong class="green">99/100</strong></td></tr>
+        <tr><td>Mobile Screens</td><td><strong>50</strong> (iOS + Android + Web)</td></tr>
+        <tr><td>Pilot company turnover</td><td><strong class="green">&lt;1%</strong> (vs 30-45% industry)</td></tr>
+        <tr><td>Employees managed</td><td><strong>300+</strong></td></tr>
+        <tr><td>Platform modules</td><td><strong>5</strong> (WellMind, CarePath, Housing, Predictive, GTD)</td></tr>
+        <tr><td>Admin pages</td><td><strong>59</strong></td></tr>
+        <tr><td>API endpoints</td><td><strong>399</strong></td></tr>
+        <tr><td>Automated triggers</td><td><strong>6</strong></td></tr>
+        <tr><td>Languages</td><td><strong>5</strong> (HU, EN, TL, UK, DE)</td></tr>
+        <tr><td>Pulse questions</td><td><strong>86</strong> across 12 categories</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>12-Month Milestones</h3>
+      <div style="font-size: 10pt;">
+        <div style="padding: 8px; border-left: 3px solid #1E4D7B; margin-bottom: 6px;"><strong>Q2 2026</strong> — Pilot launch, GDPR Tier 1, case study</div>
+        <div style="padding: 8px; border-left: 3px solid #22C55E; margin-bottom: 6px;"><strong>Q3 2026</strong> — 5 customers, 1K users, &euro;30K MRR</div>
+        <div style="padding: 8px; border-left: 3px solid #F97316; margin-bottom: 6px;"><strong>Q4 2026</strong> — 12 customers, 1.5K users, &euro;99K ARR</div>
+        <div style="padding: 8px; border-left: 3px solid #6366F1;"><strong>Q1 2027</strong> — 20 customers, 2.5K users, <strong>&euro;165K ARR</strong></div>
+      </div>
+      <div class="card-green" style="margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center;">
+        <strong>Product is built. Pilot is running. Results are proven.</strong>
+      </div>
+      <div class="grid2" style="margin-top: 10px; gap: 8px;">
+        <div class="card" style="text-align: center; border: 2px solid #22C55E;">
+          <div style="font-size: 20pt; font-weight: 800; color: #22C55E;">99/100</div>
+          <div class="small">Platform Score</div>
+        </div>
+        <div class="card" style="text-align: center; border: 2px solid #7C3AED;">
+          <div style="font-size: 20pt; font-weight: 800; color: #7C3AED;">50</div>
+          <div class="small">Mobile Screens</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>15</span></div>
+</div>
+
+<!-- SLIDE 16: FINANCIALS (was slide 12) -->
+<div class="slide">
+  <h1>Financial Projections</h1>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Revenue Growth</h3>
+      <table>
+        <tr><th>Metric</th><th>Year 1</th><th>Year 2</th><th>Year 3</th></tr>
+        <tr><td>Customers</td><td>20</td><td>60</td><td>150</td></tr>
+        <tr><td>Users</td><td>2,500</td><td>8,000</td><td>22,000</td></tr>
+        <tr><td>ARR</td><td><strong>&euro;165K</strong></td><td><strong>&euro;528K</strong></td><td><strong>&euro;1.45M</strong></td></tr>
+        <tr><td>MRR</td><td>&euro;13.7K</td><td>&euro;44K</td><td>&euro;121K</td></tr>
+        <tr><td>Gross Margin</td><td>80%</td><td>85%</td><td>88%</td></tr>
+      </table>
+      <h3 style="margin-top: 10px;">Key Assumptions</h3>
+      <ul style="font-size: 9pt;">
+        <li>Average deal size: 100 employees</li>
+        <li>Annual churn: &lt;10%</li>
+        <li>Net Revenue Retention: &gt;120%</li>
+        <li>Break-even: Month 8-9</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Monthly Expenses</h3>
+      <table>
+        <tr><th>Category</th><th>M1-3</th><th>M4-6</th><th>M7-12</th></tr>
+        <tr><td>Infrastructure</td><td>&euro;300</td><td>&euro;500</td><td>&euro;800</td></tr>
+        <tr><td>AI/API</td><td>&euro;100</td><td>&euro;150</td><td>&euro;250</td></tr>
+        <tr><td>Development</td><td>&euro;8K</td><td>&euro;10K</td><td>&euro;12K</td></tr>
+        <tr><td>Sales/Marketing</td><td>&euro;500</td><td>&euro;2K</td><td>&euro;5K</td></tr>
+        <tr><td>Support</td><td>&euro;0</td><td>&euro;1K</td><td>&euro;3K</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>&euro;9.9K</strong></td><td><strong>&euro;14.2K</strong></td><td><strong>&euro;21.4K</strong></td></tr>
+      </table>
+      <div class="card" style="margin-top: 10px; text-align: center;">
+        <div style="font-size: 11pt; color: #6B7280;">Break-even MRR</div>
+        <div style="font-size: 24pt; font-weight: 800; color: #22C55E;">~&euro;6,500/mo</div>
+        <div class="small">Expected: Month 8-9</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>16</span></div>
+</div>
+
+<!-- SLIDE 17: TEAM & INVESTMENT (was slide 13) -->
+<div class="slide">
+  <h1>Team &amp; Investment</h1>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Leadership</h3>
+      <div class="card" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 60px; height: 60px; background: #1E4D7B; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24pt; font-weight: 700;">LB</div>
+          <div>
+            <div style="font-size: 14pt; font-weight: 700;">Lerch Balazs</div>
+            <div style="font-size: 10pt; color: #6B7280;">Founder &amp; CEO</div>
+            <div style="font-size: 9pt; color: #6B7280;">Construction industry veteran, Housing Solutions founder</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size: 11pt;"><strong>Team:</strong> 5 internal + 6 subcontractors</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Domain:</strong> Housing management, blue-collar workforce</div>
+        <div style="font-size: 11pt; margin-top: 4px;"><strong>Advantage:</strong> Built from real operational experience</div>
+      </div>
+    </div>
+    <div>
+      <h3>Investment Ask</h3>
+      <div class="card-blue" style="padding: 16px; border-radius: 10px; text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 12pt; color: #93C5FD;">Seed Round</div>
+        <div style="font-size: 32pt; font-weight: 900; color: white;">&euro;500,000</div>
+      </div>
+      <h3>Use of Funds</h3>
+      <div class="bar" style="width: 100%; background: #1E4D7B;">Sales &amp; Marketing — 40% (&euro;200K)</div>
+      <div class="bar" style="width: 75%; background: #22C55E;">Product Development — 30% (&euro;150K)</div>
+      <div class="bar" style="width: 50%; background: #F97316;">Operations — 15% (&euro;75K)</div>
+      <div class="bar" style="width: 37%; background: #6366F1;">Legal &amp; Compliance — 10% (&euro;50K)</div>
+      <div class="bar" style="width: 12%; background: #9CA3AF;">Reserve — 5% (&euro;25K)</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Workforce Stability Platform</span><span>17</span></div>
+</div>
+
+<!-- SLIDE 18: CONTACT (was slide 15) -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <h1 style="color: white; font-size: 32pt;">Join the Workforce<br>Stability Revolution</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 20px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 24px;">Predict. Prevent. Protect. Produce.</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 600px;">
+    <div><div style="font-size: 10pt; color: #60A5FA;">Founder</div><div style="font-size: 14pt;">Lerch Balazs</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Email</div><div style="font-size: 14pt;">info@housingsolutions.hu</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Location</div><div style="font-size: 14pt;">Fertod, Hungary</div></div>
+  </div>
+  <div style="margin-top: 30px; font-size: 11pt; color: #60A5FA;">
+    &lt;1% turnover &middot; 300+ employees &middot; 50 mobile screens &middot; 5 pillars &middot; 99/100 platform score &middot; GTD-Enhanced
+  </div>
+  <div class="footer" style="color: #60A5FA;"><span>Confidential — Housing Solutions Kft.</span><span>18</span></div>
+</div>
+
+</body>
+</html>
