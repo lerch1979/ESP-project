@@ -1856,4 +1856,97 @@ export const damageReportsAPI = {
   },
 };
 
+// GTD Task Manager API
+export const gtdAPI = {
+  // Inbox
+  getInbox: async () => {
+    const response = await api.get('/gtd/inbox');
+    return response.data;
+  },
+  captureInbox: async (content) => {
+    const response = await api.post('/gtd/inbox', { content });
+    return response.data;
+  },
+  processInbox: async (id) => {
+    const response = await api.patch(`/gtd/inbox/${id}`);
+    return response.data;
+  },
+  deleteInbox: async (id) => {
+    const response = await api.delete(`/gtd/inbox/${id}`);
+    return response.data;
+  },
+
+  // Inbox convert
+  convertInbox: async (id, type) => {
+    const response = await api.post(`/gtd/inbox/${id}/convert`, { type });
+    return response.data;
+  },
+
+  // Projects (uses existing projects table with GTD fields)
+  getProjects: async (params = {}) => {
+    const response = await api.get('/gtd/projects', { params });
+    return response.data;
+  },
+  updateProjectGTD: async (id, data) => {
+    const response = await api.patch(`/gtd/projects/${id}/gtd`, data);
+    return response.data;
+  },
+
+  // Ticket GTD fields
+  updateTicketGTD: async (id, data) => {
+    const response = await api.patch(`/gtd/tickets/${id}/gtd`, data);
+    return response.data;
+  },
+
+  // Unified next actions (tickets + tasks)
+  getNextActions: async (params = {}) => {
+    const response = await api.get('/gtd/next-actions', { params });
+    return response.data;
+  },
+
+  // Tasks
+  getTasks: async (params = {}) => {
+    const response = await api.get('/gtd/tasks', { params });
+    return response.data;
+  },
+  createTask: async (data) => {
+    const response = await api.post('/gtd/tasks', data);
+    return response.data;
+  },
+  updateTask: async (id, data) => {
+    const response = await api.patch(`/gtd/tasks/${id}`, data);
+    return response.data;
+  },
+  deleteTask: async (id) => {
+    const response = await api.delete(`/gtd/tasks/${id}`);
+    return response.data;
+  },
+
+  // Contexts
+  getContexts: async () => {
+    const response = await api.get('/gtd/contexts');
+    return response.data;
+  },
+  createContext: async (data) => {
+    const response = await api.post('/gtd/contexts', data);
+    return response.data;
+  },
+
+  // Weekly Review
+  getCurrentReview: async () => {
+    const response = await api.get('/gtd/review/current');
+    return response.data;
+  },
+  updateReview: async (id, data) => {
+    const response = await api.patch(`/gtd/review/${id}`, data);
+    return response.data;
+  },
+
+  // Dashboard Stats
+  getStats: async () => {
+    const response = await api.get('/gtd/stats');
+    return response.data;
+  },
+};
+
 export default api;

@@ -62,6 +62,9 @@ const ChatbotConfig = lazy(() => import('./pages/ChatbotConfig'));
 const DamageReports = lazy(() => import('./pages/DamageReports'));
 const DamageReportDetail = lazy(() => import('./pages/DamageReportDetail'));
 
+// GTD Task Manager
+const GTDDashboard = lazy(() => import('./pages/GTDDashboard'));
+
 // CarePath
 const CarePathDashboard = lazy(() => import('./pages/CarePath/CarePathDashboard'));
 const ProviderDirectory = lazy(() => import('./pages/CarePath/ProviderDirectory'));
@@ -156,6 +159,9 @@ function App() {
               {/* Damage Reports */}
               <Route path="damage-reports" element={<PermissionGuard permission="tickets.view"><DamageReports /></PermissionGuard>} />
               <Route path="damage-reports/:id" element={<PermissionGuard permission="tickets.view"><DamageReportDetail /></PermissionGuard>} />
+
+              {/* GTD Task Manager */}
+              <Route path="gtd" element={<PermissionGuard permission="dashboard.view"><GTDDashboard /></PermissionGuard>} />
 
               {/* CarePath */}
               <Route path="carepath" element={<CarePathDashboard />} />

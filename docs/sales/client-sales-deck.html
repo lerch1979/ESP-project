@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Housing Solutions Platform - B2B Sales Deck</title>
+<style>
+  @page { size: 16in 9in; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #fff; }
+
+  .slide {
+    width: 100vw; height: 100vh; min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 60px 80px; position: relative; overflow: hidden;
+    page-break-after: always;
+  }
+
+  /* Backgrounds */
+  .bg-dark { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+  .bg-blue { background: linear-gradient(135deg, #1e3a5f 0%, #1e4d7b 50%, #2563eb 100%); }
+  .bg-white { background: #f8fafc; color: #1e293b; }
+  .bg-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%); }
+  .bg-green { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); }
+  .bg-red { background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #b91c1c 100%); }
+
+  h1 { font-size: 52px; font-weight: 800; line-height: 1.1; margin-bottom: 16px; }
+  h2 { font-size: 42px; font-weight: 700; line-height: 1.2; margin-bottom: 24px; }
+  h3 { font-size: 28px; font-weight: 600; margin-bottom: 16px; }
+  .subtitle { font-size: 24px; color: #94a3b8; line-height: 1.4; }
+  .bg-white .subtitle { color: #64748b; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; width: 100%; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; width: 100%; }
+
+  .card {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px; padding: 32px; backdrop-filter: blur(10px);
+  }
+  .bg-white .card {
+    background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+
+  .pain-item { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+  .pain-icon { font-size: 32px; flex-shrink: 0; }
+  .pain-text h4 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .pain-text p { font-size: 16px; color: #94a3b8; }
+  .bg-white .pain-text p { color: #64748b; }
+
+  .feature-check { display: flex; align-items: center; gap: 12px; font-size: 18px; margin-bottom: 12px; }
+  .check { color: #10b981; font-weight: 700; font-size: 20px; }
+
+  .big-number { font-size: 72px; font-weight: 800; line-height: 1; }
+  .big-number.red { color: #ef4444; }
+  .big-number.green { color: #10b981; }
+  .big-number.blue { color: #3b82f6; }
+
+  .quote {
+    font-style: italic; font-size: 20px; color: #cbd5e1; border-left: 4px solid #3b82f6;
+    padding: 16px 24px; margin-top: 24px; background: rgba(59,130,246,0.08); border-radius: 0 8px 8px 0;
+  }
+  .bg-white .quote { color: #475569; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
+    border-radius: 100px; font-size: 14px; font-weight: 600;
+  }
+  .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-green { background: rgba(16,185,129,0.15); color: #34d399; }
+  .badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
+
+  .timeline-item {
+    display: flex; gap: 20px; margin-bottom: 24px; align-items: flex-start;
+  }
+  .timeline-dot {
+    width: 40px; height: 40px; border-radius: 50%; background: #2563eb;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+    flex-shrink: 0; font-size: 16px;
+  }
+
+  .pricing-card {
+    background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 36px; text-align: center;
+  }
+  .pricing-card.featured {
+    border-color: #3b82f6; background: rgba(59,130,246,0.1);
+    transform: scale(1.05); box-shadow: 0 0 40px rgba(59,130,246,0.2);
+  }
+
+  .cta-button {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: #2563eb; color: #fff; border: none; padding: 20px 48px;
+    border-radius: 12px; font-size: 22px; font-weight: 700; cursor: pointer;
+    text-decoration: none; transition: all 0.2s; margin-top: 24px;
+  }
+  .cta-button:hover { background: #1d4ed8; transform: translateY(-2px); }
+
+  .slide-number {
+    position: absolute; bottom: 20px; right: 40px; font-size: 14px; color: rgba(255,255,255,0.3);
+  }
+  .bg-white .slide-number { color: rgba(0,0,0,0.2); }
+
+  .step-flow { display: flex; align-items: center; gap: 12px; width: 100%; margin: 24px 0; }
+  .step-box {
+    flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 20px; text-align: center;
+  }
+  .step-arrow { font-size: 28px; color: #3b82f6; }
+
+  .compliance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+  .compliance-item {
+    display: flex; align-items: center; gap: 12px; padding: 16px;
+    background: rgba(16,185,129,0.08); border-radius: 10px; border: 1px solid rgba(16,185,129,0.2);
+  }
+  .bg-white .compliance-item { background: #f0fdf4; border-color: #bbf7d0; }
+
+  @media print {
+    .slide { page-break-after: always; height: 100vh; }
+    body { background: #0f172a; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ SLIDE 1: COVER ═══ -->
+<div class="slide bg-blue">
+  <div style="text-align:center; max-width:900px;">
+    <div style="font-size:60px; margin-bottom:24px;">&#127968;</div>
+    <h1 style="font-size:56px; margin-bottom:16px;">Housing Solutions Platform</h1>
+    <p class="subtitle" style="font-size:28px; color:#e2e8f0; margin-bottom:32px;">
+      Reduce Turnover by 40% with AI-Powered Workforce Stability
+    </p>
+    <div style="height:2px; width:120px; background:#3b82f6; margin:0 auto 32px;"></div>
+    <p style="font-size:20px; color:#94a3b8;">One Platform. Complete Workforce Management.</p>
+    <div style="margin-top:48px; display:flex; gap:24px; justify-content:center;">
+      <span class="badge badge-blue">&#127760; 5 Languages</span>
+      <span class="badge badge-green">&#128241; Mobile-First</span>
+      <span class="badge badge-blue">&#128274; GDPR Compliant</span>
+    </div>
+  </div>
+  <div class="slide-number">1 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 2: YOUR CHALLENGES ═══ -->
+<div class="slide bg-dark">
+  <div style="width:100%; max-width:1100px;">
+    <h2>The Hidden Cost of Workforce Instability</h2>
+    <p class="subtitle" style="margin-bottom:40px;">Every HR director managing housed workers faces the same challenges</p>
+    <div class="grid-2">
+      <div>
+        <div class="pain-item">
+          <span class="pain-icon">&#128200;</span>
+          <div class="pain-text">
+            <h4>30-50% Annual Turnover</h4>
+            <p>Constant recruitment cycle drains resources and institutional knowledge</p>
+          </div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">&#128176;</span>
+          <div class="pain-text">
+            <h4>&euro;30K+ Replacement Cost per Employee</h4>
+            <p>Recruitment, training, onboarding, lost productivity during ramp-up</p>
+          </div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">&#127968;</span>
+          <div class="pain-text">
+            <h4>Housing Complaints = Productivity Loss</h4>
+            <p>Unresolved issues cascade into absenteeism and resignations</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="pain-item">
+          <span class="pain-icon">&#128293;</span>
+          <div class="pain-text">
+            <h4>Reactive HR = Daily Firefighting</h4>
+            <p>60% of HR time spent on housing complaints, not strategy</p>
+          </div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">&#128203;</span>
+          <div class="pain-text">
+            <h4>Compliance Headaches</h4>
+            <p>GDPR, AI Act, Mt. 177.&sect; damage reports &mdash; all require documentation</p>
+          </div>
+        </div>
+        <div class="quote">
+          &ldquo;We spend 60% of our time on housing issues instead of strategic HR.&rdquo;<br>
+          <span style="font-size:14px; color:#64748b;">&mdash; HR Director, 500-person manufacturing company</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-number">2 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 3: COST OF TURNOVER ═══ -->
+<div class="slide bg-red">
+  <div style="text-align:center; max-width:900px;">
+    <h2>Calculate Your Hidden Costs</h2>
+    <p class="subtitle" style="color:#fecaca; margin-bottom:48px;">Example: 200 employees with 40% turnover</p>
+    <div class="grid-3" style="margin-bottom:48px;">
+      <div class="card" style="text-align:center;">
+        <p style="font-size:16px; color:#fca5a5; margin-bottom:8px;">Employees Replaced/Year</p>
+        <div class="big-number" style="color:#fff;">80</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <p style="font-size:16px; color:#fca5a5; margin-bottom:8px;">Cost per Replacement</p>
+        <div class="big-number" style="color:#fff;">&euro;30K</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <p style="font-size:16px; color:#fca5a5; margin-bottom:8px;">Total Annual Loss</p>
+        <div class="big-number" style="color:#fbbf24;">&euro;3.2M</div>
+      </div>
+    </div>
+    <div style="background:rgba(0,0,0,0.3); border-radius:16px; padding:32px; max-width:600px; margin:0 auto;">
+      <p style="font-size:28px; font-weight:700; color:#fbbf24;">What if you could cut this in half?</p>
+      <p style="font-size:18px; color:#fecaca; margin-top:8px;">
+        Save &euro;1.6M/year &mdash; with a platform that costs &euro;12K/year
+      </p>
+    </div>
+  </div>
+  <div class="slide-number">3 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 4: OUR SOLUTION ═══ -->
+<div class="slide bg-white">
+  <div style="width:100%; max-width:1100px;">
+    <h2 style="text-align:center;">One Platform. Three Integrated Modules.</h2>
+    <p class="subtitle" style="text-align:center; margin-bottom:48px;">No more juggling multiple tools. Everything in one place.</p>
+    <div class="grid-3">
+      <div class="card" style="text-align:center; padding:40px 24px;">
+        <div style="font-size:48px; margin-bottom:16px;">&#127968;</div>
+        <h3 style="color:#1e4d7b;">Housing Stability</h3>
+        <p style="color:#64748b; font-size:16px;">
+          Accommodation management, inspections, damage reports, maintenance &mdash; all digital and compliant
+        </p>
+      </div>
+      <div class="card" style="text-align:center; padding:40px 24px; border-color:#10b981;">
+        <div style="font-size:48px; margin-bottom:16px;">&#128154;</div>
+        <h3 style="color:#065f46;">WellMind</h3>
+        <p style="color:#64748b; font-size:16px;">
+          Preventive wellbeing with daily check-ins, AI analysis, and early warning alerts
+        </p>
+        <span class="badge badge-green" style="margin-top:12px;">Preventive</span>
+      </div>
+      <div class="card" style="text-align:center; padding:40px 24px; border-color:#ef4444;">
+        <div style="font-size:48px; margin-bottom:16px;">&#10084;&#65039;</div>
+        <h3 style="color:#991b1b;">CarePath</h3>
+        <p style="color:#64748b; font-size:16px;">
+          24/7 employee assistance: medical, mental health, legal, financial counseling
+        </p>
+        <span class="badge badge-red" style="background:#fef2f2; color:#dc2626; margin-top:12px;">Reactive</span>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:40px; padding:24px; background:#f1f5f9; border-radius:12px;">
+      <p style="font-size:18px; color:#475569;">
+        <strong>&#128241; Mobile App (50 screens)</strong> &nbsp;+&nbsp; <strong>&#128187; Admin Dashboard</strong> &nbsp;+&nbsp; <strong>&#127760; 5 Languages</strong>
+      </p>
+    </div>
+  </div>
+  <div class="slide-number">4 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 5: HOUSING STABILITY ═══ -->
+<div class="slide bg-gradient">
+  <div style="width:100%; max-width:1100px;">
+    <h2>&#127968; Housing Stability Module</h2>
+    <p class="subtitle" style="margin-bottom:40px;">Real-time accommodation management. No more paper forms.</p>
+    <div class="grid-2">
+      <div>
+        <div class="feature-check"><span class="check">&#10003;</span> Cleanliness inspection tracking with photos</div>
+        <div class="feature-check"><span class="check">&#10003;</span> Maintenance request management (ticket system)</div>
+        <div class="feature-check"><span class="check">&#10003;</span> Damage reports &mdash; Mt. 177.&sect; compliant, 5 languages</div>
+        <div class="feature-check"><span class="check">&#10003;</span> Room assignment optimization</div>
+        <div class="feature-check"><span class="check">&#10003;</span> Resident mobile app for reporting issues</div>
+        <div class="feature-check"><span class="check">&#10003;</span> Automated PDF generation for legal documents</div>
+        <div class="feature-check"><span class="check">&#10003;</span> Photo evidence with timestamps</div>
+        <div style="margin-top:32px; padding:20px; background:rgba(59,130,246,0.1); border-radius:12px; border:1px solid rgba(59,130,246,0.2);">
+          <p style="font-size:16px; color:#93c5fd;">
+            <strong>Result:</strong> 70% reduction in housing complaint resolution time
+          </p>
+        </div>
+      </div>
+      <div class="card" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:340px;">
+        <div style="font-size:120px; margin-bottom:16px;">&#128203;</div>
+        <p style="font-size:18px; text-align:center; color:#94a3b8;">
+          Damage Report PDF<br>
+          <span style="font-size:14px;">Auto-generated in 5 languages<br>Legally compliant (Mt. 177.&sect;)</span>
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-number">5 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 6: WELLMIND ═══ -->
+<div class="slide bg-green">
+  <div style="width:100%; max-width:1100px;">
+    <h2>&#128154; WellMind &mdash; Catch Issues Before They Escalate</h2>
+    <p class="subtitle" style="color:#a7f3d0; margin-bottom:40px;">The only wellbeing platform designed for housed workforces</p>
+    <div class="step-flow">
+      <div class="step-box">
+        <div style="font-size:36px; margin-bottom:8px;">&#128100;</div>
+        <p style="font-weight:600;">Employee</p>
+        <p style="font-size:14px; color:#a7f3d0;">30-second daily check-in<br>4 simple questions</p>
+      </div>
+      <span class="step-arrow">&#10132;</span>
+      <div class="step-box">
+        <div style="font-size:36px; margin-bottom:8px;">&#129302;</div>
+        <p style="font-weight:600;">AI Analysis</p>
+        <p style="font-size:14px; color:#a7f3d0;">12 wellbeing categories<br>Trend detection</p>
+      </div>
+      <span class="step-arrow">&#10132;</span>
+      <div class="step-box">
+        <div style="font-size:36px; margin-bottom:8px;">&#9888;&#65039;</div>
+        <p style="font-weight:600;">Early Warning</p>
+        <p style="font-size:14px; color:#a7f3d0;">Manager alerts<br>Risk scoring</p>
+      </div>
+      <span class="step-arrow">&#10132;</span>
+      <div class="step-box">
+        <div style="font-size:36px; margin-bottom:8px;">&#10004;&#65039;</div>
+        <p style="font-weight:600;">Intervention</p>
+        <p style="font-size:14px; color:#a7f3d0;">Proactive action<br>Before resignation</p>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:32px;">
+      <div class="card">
+        <h3 style="color:#6ee7b7;">Housing-Specific Insights</h3>
+        <p style="color:#a7f3d0; font-size:16px; line-height:1.6;">
+          Only platform that correlates accommodation quality with employee wellbeing.
+          Know which housing issues cause resignations &mdash; before they happen.
+        </p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div class="big-number green">60%</div>
+        <p style="color:#a7f3d0; font-size:18px; margin-top:8px;">of resignations prevented<br>with early intervention</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-number">6 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 7: CAREPATH ═══ -->
+<div class="slide bg-dark">
+  <div style="width:100%; max-width:1100px;">
+    <h2>&#10084;&#65039; CarePath &mdash; 24/7 Employee Assistance</h2>
+    <p class="subtitle" style="margin-bottom:40px;">When issues arise, employees get immediate help</p>
+    <div class="grid-3" style="margin-bottom:32px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">&#127973;</div>
+        <h3>Medical Support</h3>
+        <p style="color:#94a3b8; font-size:15px;">Insurance coordination, doctor appointments, emergency referrals</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">&#129504;</div>
+        <h3>Mental Health</h3>
+        <p style="color:#94a3b8; font-size:15px;">Counseling sessions, crisis support, stress management</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">&#9878;&#65039;</div>
+        <h3>Legal Aid</h3>
+        <p style="color:#94a3b8; font-size:15px;">Documentation assistance, work permit advice, tenant rights</p>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">&#128176;</div>
+        <h3>Financial Counseling</h3>
+        <p style="color:#94a3b8; font-size:15px;">Budget planning, remittance guidance, tax help</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:40px; margin-bottom:12px;">&#128218;</div>
+        <h3>Career Training</h3>
+        <p style="color:#94a3b8; font-size:15px;">Language courses, skill development, certification programs</p>
+      </div>
+    </div>
+    <div style="margin-top:32px; display:flex; justify-content:space-between; align-items:center; padding:20px 32px; background:rgba(59,130,246,0.08); border-radius:12px; border:1px solid rgba(59,130,246,0.2);">
+      <p style="font-size:18px;"><strong>24/7 hotline in 5 languages</strong> &mdash; Hungarian, English, Filipino, Ukrainian, German</p>
+      <p style="font-size:16px; color:#94a3b8;">Outsourced EAP: &euro;50/user/mo &bull; <strong style="color:#10b981;">Ours: included</strong></p>
+    </div>
+  </div>
+  <div class="slide-number">7 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 8: ROI CALCULATOR ═══ -->
+<div class="slide bg-white">
+  <div style="width:100%; max-width:1100px;">
+    <h2 style="text-align:center;">Your Savings with Housing Solutions</h2>
+    <p class="subtitle" style="text-align:center; margin-bottom:48px;">Real numbers. Real savings. Proven results.</p>
+    <div class="grid-2">
+      <div>
+        <h3 style="color:#64748b; margin-bottom:24px;">Scenario: 200 Employees</h3>
+        <div style="margin-bottom:20px; padding:20px; background:#fef2f2; border-radius:12px;">
+          <p style="font-size:14px; color:#991b1b; font-weight:600;">WITHOUT Platform</p>
+          <p style="font-size:16px; color:#475569; margin-top:4px;">Turnover: 40% &bull; 80 replacements/year</p>
+          <div class="big-number red" style="font-size:48px; margin-top:8px;">&euro;2.4M</div>
+          <p style="font-size:14px; color:#991b1b;">Annual replacement cost</p>
+        </div>
+        <div style="padding:20px; background:#f0fdf4; border-radius:12px;">
+          <p style="font-size:14px; color:#065f46; font-weight:600;">WITH Platform</p>
+          <p style="font-size:16px; color:#475569; margin-top:4px;">Turnover: 25% &bull; 50 replacements/year</p>
+          <div class="big-number green" style="font-size:48px; margin-top:8px;">&euro;1.5M</div>
+          <p style="font-size:14px; color:#065f46;">Annual replacement cost</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; justify-content:center;">
+        <div style="text-align:center; padding:40px; background:#1e293b; border-radius:20px; color:#fff;">
+          <p style="font-size:18px; color:#94a3b8; margin-bottom:8px;">Annual Savings</p>
+          <div class="big-number green" style="font-size:64px;">&euro;900K</div>
+          <div style="height:2px; width:80px; background:#3b82f6; margin:20px auto;"></div>
+          <p style="font-size:16px; color:#94a3b8; margin-bottom:4px;">Platform cost: &euro;12K/year</p>
+          <p style="font-size:14px; color:#94a3b8; margin-bottom:16px;">(&euro;5/user/month &times; 200 users)</p>
+          <div style="padding:16px; background:rgba(16,185,129,0.15); border-radius:10px;">
+            <p style="font-size:28px; font-weight:800; color:#10b981;">74:1 ROI</p>
+            <p style="font-size:14px; color:#6ee7b7;">Platform pays for itself in 2 weeks</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-number">8 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 9: IMPLEMENTATION ═══ -->
+<div class="slide bg-gradient">
+  <div style="width:100%; max-width:1000px;">
+    <h2 style="text-align:center;">Live in 4 Weeks</h2>
+    <p class="subtitle" style="text-align:center; margin-bottom:48px;">White-glove implementation included in every plan</p>
+    <div class="timeline-item">
+      <div class="timeline-dot">1</div>
+      <div>
+        <h3>Week 1-2: Setup &amp; Configuration</h3>
+        <p style="color:#94a3b8;">Data migration, system configuration, admin accounts created. We handle everything.</p>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:#10b981;">2</div>
+      <div>
+        <h3>Week 3: Admin Training</h3>
+        <p style="color:#94a3b8;">2-hour training session for your team. Documentation and video guides provided. Dedicated support channel.</p>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:#f59e0b;">3</div>
+      <div>
+        <h3>Week 4: Employee Onboarding</h3>
+        <p style="color:#94a3b8;">Mobile app distribution. Quick-start guides in 5 languages. Gamification launch to drive adoption.</p>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:#8b5cf6;">4</div>
+      <div>
+        <h3>Month 2: Full Analytics</h3>
+        <p style="color:#94a3b8;">All modules active. Wellbeing trends visible. First WellMind insights delivered. Ongoing dedicated support.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-number">9 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 10: COMPLIANCE & SECURITY ═══ -->
+<div class="slide bg-white">
+  <div style="width:100%; max-width:1100px;">
+    <h2 style="text-align:center;">Enterprise-Grade Security &amp; Compliance</h2>
+    <p class="subtitle" style="text-align:center; margin-bottom:48px;">Your data is safe. Your compliance is guaranteed.</p>
+    <div class="grid-2">
+      <div>
+        <h3 style="color:#1e293b; margin-bottom:20px;">Compliance</h3>
+        <div class="compliance-grid">
+          <div class="compliance-item"><span class="check">&#10003;</span> GDPR compliant (Art. 22/25/35)</div>
+          <div class="compliance-item"><span class="check">&#10003;</span> EU AI Act aligned</div>
+          <div class="compliance-item"><span class="check">&#10003;</span> Mt. 177.&sect; damage reports</div>
+          <div class="compliance-item"><span class="check">&#10003;</span> ISO 27001 ready</div>
+          <div class="compliance-item"><span class="check">&#10003;</span> Data hosted in EU</div>
+          <div class="compliance-item"><span class="check">&#10003;</span> SOC 2 Type II (in progress)</div>
+        </div>
+      </div>
+      <div>
+        <h3 style="color:#1e293b; margin-bottom:20px;">Security</h3>
+        <div class="compliance-grid">
+          <div class="compliance-item" style="background:#eff6ff; border-color:#bfdbfe;">&#128274; End-to-end encryption</div>
+          <div class="compliance-item" style="background:#eff6ff; border-color:#bfdbfe;">&#128101; Role-based access control</div>
+          <div class="compliance-item" style="background:#eff6ff; border-color:#bfdbfe;">&#128209; Complete audit logs</div>
+          <div class="compliance-item" style="background:#eff6ff; border-color:#bfdbfe;">&#128737; Penetration testing</div>
+          <div class="compliance-item" style="background:#eff6ff; border-color:#bfdbfe;">&#128272; PII encryption at rest</div>
+          <div class="compliance-item" style="background:#eff6ff; border-color:#bfdbfe;">&#9201; 99.9% uptime SLA</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:32px; text-align:center; padding:16px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+      <p style="color:#64748b; font-size:15px;">
+        <strong>No emotion inference. No biometric scoring. No automated decisions.</strong><br>
+        AI is used only for aggregate trend analysis &mdash; fully compliant with EU AI Act.
+      </p>
+    </div>
+  </div>
+  <div class="slide-number">10 / 11</div>
+</div>
+
+<!-- ═══ SLIDE 11: PRICING & CTA ═══ -->
+<div class="slide bg-blue">
+  <div style="width:100%; max-width:1100px; text-align:center;">
+    <h2>Start Reducing Turnover Today</h2>
+    <p class="subtitle" style="color:#bfdbfe; margin-bottom:48px;">Flexible pricing. No long-term contracts. Cancel anytime.</p>
+    <div class="grid-3" style="margin-bottom:40px;">
+      <div class="pricing-card">
+        <p style="font-size:14px; color:#93c5fd; font-weight:600; margin-bottom:8px;">BASE PLATFORM</p>
+        <div style="font-size:48px; font-weight:800;">&euro;3</div>
+        <p style="font-size:14px; color:#93c5fd;">/user/month</p>
+        <div style="height:1px; background:rgba(255,255,255,0.1); margin:20px 0;"></div>
+        <p style="font-size:14px; color:#94a3b8; text-align:left; line-height:1.8;">
+          &#10003; Housing management<br>
+          &#10003; Ticket system<br>
+          &#10003; Mobile app<br>
+          &#10003; Admin dashboard<br>
+          &#10003; 5 languages
+        </p>
+      </div>
+      <div class="pricing-card featured">
+        <p style="font-size:14px; color:#60a5fa; font-weight:600; margin-bottom:8px;">ALL MODULES</p>
+        <div style="font-size:48px; font-weight:800;">&euro;5</div>
+        <p style="font-size:14px; color:#93c5fd;">/user/month</p>
+        <div style="height:1px; background:rgba(255,255,255,0.1); margin:20px 0;"></div>
+        <p style="font-size:14px; color:#94a3b8; text-align:left; line-height:1.8;">
+          &#10003; Everything in Base<br>
+          &#10003; + WellMind module<br>
+          &#10003; + CarePath module<br>
+          &#10003; + Analytics<br>
+          &#10003; + Priority support
+        </p>
+        <div style="margin-top:16px; padding:8px; background:rgba(16,185,129,0.2); border-radius:6px;">
+          <p style="font-size:12px; color:#6ee7b7; font-weight:600;">MOST POPULAR</p>
+        </div>
+      </div>
+      <div class="pricing-card">
+        <p style="font-size:14px; color:#93c5fd; font-weight:600; margin-bottom:8px;">FREE PILOT</p>
+        <div style="font-size:48px; font-weight:800;">&euro;0</div>
+        <p style="font-size:14px; color:#93c5fd;">for 2 months</p>
+        <div style="height:1px; background:rgba(255,255,255,0.1); margin:20px 0;"></div>
+        <p style="font-size:14px; color:#94a3b8; text-align:left; line-height:1.8;">
+          &#10003; 50 users<br>
+          &#10003; All modules included<br>
+          &#10003; Full implementation<br>
+          &#10003; No credit card<br>
+          &#10003; No commitment
+        </p>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <p style="font-size:16px; color:#93c5fd;">
+        200 users &times; &euro;5/mo = <strong style="color:#fff;">&euro;1,000/month</strong> (&euro;12K/year) &bull;
+        Saves <strong style="color:#10b981;">&euro;900K/year</strong>
+      </p>
+    </div>
+    <a href="mailto:lerchbalazs@gmail.com?subject=Housing%20Solutions%20Demo%20Request" class="cta-button">
+      &#128197; Book a 30-Minute Demo
+    </a>
+    <p style="margin-top:24px; font-size:16px; color:#93c5fd;">
+      lerchbalazs@gmail.com
+    </p>
+  </div>
+  <div class="slide-number">11 / 11</div>
+</div>
+
+</body>
+</html>

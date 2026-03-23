@@ -70,6 +70,7 @@ import {
   LocalHospital as LocalHospitalIcon,
   Forum as SlackIcon,
   Gavel as GavelIcon,
+  Checklist as ChecklistIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -89,6 +90,7 @@ const buildMenuItems = (t) => [
   // ─── Main navigation ─────────────────────────────────
   { text: t('nav.dashboard'), icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
   { text: t('nav.myTasks'), icon: <AssignmentIcon />, path: '/my-tasks', permission: 'dashboard.view' },
+  { text: 'GTD', icon: <ChecklistIcon />, path: '/gtd', permission: 'dashboard.view' },
   { text: t('nav.tickets'), icon: <TicketIcon />, path: '/tickets', permission: 'tickets.view' },
   { text: t('nav.calendar'), icon: <CalendarIcon />, path: '/calendar', permission: 'calendar.view' },
 

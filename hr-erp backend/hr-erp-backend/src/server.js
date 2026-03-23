@@ -63,6 +63,7 @@ const nlpRoutes = require('./routes/nlp.routes');
 const damageReportRoutes = require('./routes/damageReport.routes');
 const translationRoutes = require('./routes/translation.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const gtdRoutes = require('./routes/gtd.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
 const slackBotService = require('./services/slack/slackBot.service');
@@ -248,6 +249,7 @@ app.use(`${API_PREFIX}/nlp`, nlpRoutes);
 app.use(`${API_PREFIX}/damage-reports`, damageReportRoutes);
 app.use(`${API_PREFIX}/translation`, translationRoutes);
 app.use(`${API_PREFIX}/analytics`, analyticsRoutes);
+app.use(`${API_PREFIX}/gtd`, gtdRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
 app.get('/auth/google/callback', googleCalendarController.handleGoogleCallback);
