@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -31,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { chatbotAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import BrunoCharacter from '../components/Bruno/BrunoCharacter';
 
 const MAX_CHARS = 500;
 
@@ -86,9 +88,9 @@ function MessageBubble({ message, onFeedback, isLast }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', mb: 1.5, px: 2 }}>
       {isBot && (
-        <Avatar sx={{ bgcolor: '#e3f2fd', width: 32, height: 32, mr: 1, mt: 0.5 }}>
-          <BotIcon sx={{ fontSize: 18, color: '#2563eb' }} />
-        </Avatar>
+        <Box sx={{ mr: 0.5, mt: 0.5 }}>
+          <BrunoCharacter size={32} state="idle" />
+        </Box>
       )}
       <Box sx={{ maxWidth: '70%' }}>
         <Paper
@@ -178,6 +180,7 @@ function TypingIndicator() {
 }
 
 export default function ChatbotPage() {
+  const navigate = useNavigate();
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -187,6 +190,7 @@ export default function ChatbotPage() {
   const [faqCategories, setFaqCategories] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [conversationStatus, setConversationStatus] = useState('active');
+  const [brunoState, setBrunoState] = useState('idle');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -236,6 +240,7 @@ export default function ChatbotPage() {
     setInputText('');
     setError(null);
     setSending(true);
+    setBrunoState('thinking');
 
     const tempUserMsg = {
       id: `temp-${Date.now()}`,
@@ -253,11 +258,14 @@ export default function ChatbotPage() {
           const filtered = prev.filter(m => m.id !== tempUserMsg.id);
           return [...filtered, response.data.userMessage, response.data.botMessage];
         });
+        setBrunoState('talking');
+        setTimeout(() => setBrunoState('idle'), 2000);
       }
     } catch (err) {
       setError('Nem sikerült elküldeni az üzenetet');
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
       setInputText(text);
+      setBrunoState('idle');
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -365,11 +373,9 @@ export default function ChatbotPage() {
         {/* Header */}
         <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#f8fafc' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: '#e3f2fd', width: 40, height: 40 }}>
-              <BotIcon sx={{ color: '#2563eb' }} />
-            </Avatar>
+            <BrunoCharacter state={brunoState} size={44} />
             <Box>
-              <Typography variant="subtitle1" fontWeight={600}>HR Chatbot Asszisztens</Typography>
+              <Typography variant="subtitle1" fontWeight={600}>Bruno — HR Asszisztens</Typography>
               <Typography variant="caption" color="text.secondary">
                 {conversationStatus === 'active' ? 'Online - Kérdezz bátran!' : conversationStatus === 'escalated' ? 'Eszkalálva' : 'Lezárva'}
               </Typography>
@@ -394,11 +400,10 @@ export default function ChatbotPage() {
           {messages.length === 0 ? (
             // Welcome state
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 4 }}>
-              <Avatar sx={{ bgcolor: '#e3f2fd', width: 64, height: 64, mb: 2 }}>
-                <BotIcon sx={{ fontSize: 32, color: '#2563eb' }} />
-              </Avatar>
+              <BrunoCharacter state="idle" size={96} showLabel />
+              <Box sx={{ height: 16 }} />
               <Typography variant="h6" fontWeight={600} gutterBottom>
-                Szia! Miben segíthetek?
+                Szia! Bruno vagyok. Miben segíthetek?
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center', maxWidth: 400 }}>
                 Kérdezz bátran a rendszerrel, HR folyamatokkal vagy a felület használatával kapcsolatban!
@@ -416,6 +421,14 @@ export default function ChatbotPage() {
                   />
                 ))}
               </Box>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => navigate('/faq')}
+                sx={{ mt: 2, color: 'text.secondary' }}
+              >
+                vagy böngészd a GYIK-et &rarr;
+              </Button>
             </Box>
           ) : (
             <>
@@ -452,7 +465,7 @@ export default function ChatbotPage() {
               maxRows={3}
               placeholder="Írj egy üzenetet... (Enter = küldés, Shift+Enter = új sor)"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value.slice(0, MAX_CHARS))}
+              onChange={(e) => { setInputText(e.target.value.slice(0, MAX_CHARS)); if (!sending) setBrunoState(e.target.value.trim() ? 'listening' : 'idle'); }}
               onKeyDown={handleKeyDown}
               disabled={sending}
               size="small"

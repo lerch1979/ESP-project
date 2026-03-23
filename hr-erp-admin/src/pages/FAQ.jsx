@@ -25,6 +25,7 @@ import {
 import stringSimilarity from 'string-similarity';
 import { chatbotAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import BrunoCharacter from '../components/Bruno/BrunoCharacter';
 
 function FAQ() {
   const navigate = useNavigate();
@@ -130,9 +131,29 @@ function FAQ() {
 
   return (
     <Box>
+      {/* Bruno banner */}
+      <Box
+        onClick={() => navigate('/chatbot')}
+        sx={{
+          display: 'flex', alignItems: 'center', gap: 2, p: 2, mb: 3,
+          bgcolor: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 3,
+          cursor: 'pointer', '&:hover': { bgcolor: '#DBEAFE', boxShadow: 1 },
+          transition: 'all 0.2s',
+        }}
+      >
+        <BrunoCharacter state="idle" size={48} />
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Nem találod a választ?</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Kérdezd Brunót, az AI asszisztenst — bármit megkérdezhetsz!
+          </Typography>
+        </Box>
+        <Chip label="Kérdezd Brunót &rarr;" color="primary" size="small" clickable />
+      </Box>
+
       {/* Header */}
       <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
-        Gyakran Ismételt Kérdések (FAQ)
+        Gyakran Ismételt Kérdések (GYIK)
       </Typography>
 
       {/* Search */}
