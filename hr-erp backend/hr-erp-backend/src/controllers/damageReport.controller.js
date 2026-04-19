@@ -1,6 +1,7 @@
 const damageService = require('../services/damageReport.service');
 const pdfService = require('../services/damageReportPdf.service');
 const { logger } = require('../utils/logger');
+const { query } = require('../database/connection');
 
 // ─── Create ─────────────────────────────────────────────────────────
 
@@ -24,7 +25,21 @@ const createManual = async (req, res) => {
       return res.status(400).json({ success: false, message: 'employee_id, incident_date, description kötelező' });
     }
 
-    const data = { ...req.body, contractor_id: req.user.contractorId };
+    // Resolve contractor_id: use user's contractor, or look up from employee
+    let contractorId = req.user.contractorId;
+    if (!contractorId) {
+      const empResult = await query('SELECT contractor_id FROM employees WHERE user_id = $1 LIMIT 1', [employee_id]);
+      if (empResult.rows.length > 0) contractorId = empResult.rows[0].contractor_id;
+      // Fallback: use first active contractor
+      if (!contractorId) {
+        const fallback = await query('SELECT id FROM contractors WHERE is_active = true LIMIT 1');
+        if (fallback.rows.length > 0) contractorId = fallback.rows[0].id;
+      }
+    }
+    if (!contractorId) {
+      return res.status(400).json({ success: false, message: 'Nincs elérhető alvállalkozó a kárigényhez' });
+    }
+    const data = { ...req.body, contractor_id: contractorId };
     const report = await damageService.createManual(data, req.user.id);
     res.status(201).json({ success: true, data: report });
   } catch (error) {

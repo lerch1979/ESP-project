@@ -1,4 +1,4 @@
-const { query, transaction } = require('../database/connection');
+const { query, transaction, pool } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
@@ -15,6 +15,8 @@ const EMPLOYEE_FILTER_FIELD_MAP = {
   marital_status: 'e.marital_status',
   position: 'e.position',
   country: 'e.permanent_address_country',
+  accommodation: 'a.name',
+  room_number: 'e.room_number',
 };
 
 function isValidEmail(email) {
@@ -32,12 +34,23 @@ const COLUMN_MAP = {
   'vezetéknév': 'last_name',
   'vezeteknev': 'last_name',
   'last_name': 'last_name',
-  'email': 'email',
-  'e-mail': 'email',
-  'telefon': 'phone',
-  'phone': 'phone',
-  'telefonszám': 'phone',
-  'telefonszam': 'phone',
+  'email': 'personal_email',
+  'e-mail': 'personal_email',
+  'személyes email': 'personal_email',
+  'szemelyes email': 'personal_email',
+  'personal_email': 'personal_email',
+  'telefon': 'personal_phone',
+  'phone': 'personal_phone',
+  'telefonszám': 'personal_phone',
+  'telefonszam': 'personal_phone',
+  'személyes telefon': 'personal_phone',
+  'szemelyes telefon': 'personal_phone',
+  'personal_phone': 'personal_phone',
+  'munkakezdés dátuma': 'start_date',
+  'munkakezdés': 'start_date',
+  'munkakezdes datuma': 'start_date',
+  'munkakezdes': 'start_date',
+  'start_date': 'start_date',
   'munkakör': 'position',
   'munkakor': 'position',
   'position': 'position',
@@ -113,6 +126,24 @@ const COLUMN_MAP = {
   'céges telefon': 'company_phone',
   'ceges telefon': 'company_phone',
   'company_phone': 'company_phone',
+  // Additional Hungarian header variants for resident bulk import
+  'e-mail cím': 'personal_email',
+  'e-mail cim': 'personal_email',
+  'email cím': 'personal_email',
+  'email cim': 'personal_email',
+  'nemzetiség': 'permanent_address_country',
+  'nemzetiseg': 'permanent_address_country',
+  'nationality': 'permanent_address_country',
+  'személyi igazolvány szám': 'passport_number',
+  'szemelyi igazolvany szam': 'passport_number',
+  'személyi igazolvány': 'passport_number',
+  'szemelyi igazolvany': 'passport_number',
+  'személyi szám': 'passport_number',
+  'szemelyi szam': 'passport_number',
+  'id_number': 'passport_number',
+  'vállalat': 'company_name',
+  'vallalat': 'company_name',
+  'company': 'company_name',
 };
 
 // All new employee-specific columns (stored directly on employees table)
@@ -181,7 +212,7 @@ const getEmployees = async (req, res) => {
 
     if (search) {
       whereConditions.push(
-        `(COALESCE(e.first_name, u.first_name, '') ILIKE $${paramIndex} OR COALESCE(e.last_name, u.last_name, '') ILIKE $${paramIndex} OR COALESCE(u.email, '') ILIKE $${paramIndex} OR COALESCE(e.employee_number, '') ILIKE $${paramIndex} OR CONCAT(COALESCE(e.last_name, u.last_name, ''), ' ', COALESCE(e.first_name, u.first_name, '')) ILIKE $${paramIndex} OR COALESCE(e.workplace, '') ILIKE $${paramIndex})`
+        `(COALESCE(e.first_name, u.first_name, '') ILIKE $${paramIndex} OR COALESCE(e.last_name, u.last_name, '') ILIKE $${paramIndex} OR COALESCE(e.personal_email, u.email, '') ILIKE $${paramIndex} OR COALESCE(e.employee_number, '') ILIKE $${paramIndex} OR CONCAT(COALESCE(e.last_name, u.last_name, ''), ' ', COALESCE(e.first_name, u.first_name, '')) ILIKE $${paramIndex} OR COALESCE(e.workplace, '') ILIKE $${paramIndex} OR COALESCE(e.personal_phone, '') ILIKE $${paramIndex})`
       );
       params.push(`%${search}%`);
       paramIndex++;
@@ -207,6 +238,7 @@ const getEmployees = async (req, res) => {
        FROM employees e
        LEFT JOIN users u ON e.user_id = u.id
        LEFT JOIN employee_status_types est ON e.status_id = est.id
+       LEFT JOIN accommodations a ON e.accommodation_id = a.id
        ${whereClause}`,
       params
     );
@@ -222,12 +254,13 @@ const getEmployees = async (req, res) => {
         e.permanent_address_county, e.permanent_address_city,
         e.permanent_address_street, e.permanent_address_number,
         e.company_name, e.company_email, e.company_phone,
+        e.personal_email, e.personal_phone,
         e.profile_photo_url, e.room_id,
         e.created_at, e.updated_at,
         COALESCE(e.first_name, u.first_name) as first_name,
         COALESCE(e.last_name, u.last_name) as last_name,
-        COALESCE(u.email, '') as email,
-        COALESCE(u.phone, '') as phone,
+        COALESCE(e.personal_email, u.email, '') as email,
+        COALESCE(e.personal_phone, u.phone, '') as phone,
         est.name as status_name,
         est.color as status_color,
         est.slug as status_slug,
@@ -286,12 +319,13 @@ const getEmployeeById = async (req, res) => {
         e.permanent_address_county, e.permanent_address_city,
         e.permanent_address_street, e.permanent_address_number,
         e.company_name, e.company_email, e.company_phone,
+        e.personal_email, e.personal_phone,
         e.profile_photo_url, e.room_id,
         e.created_at, e.updated_at,
         COALESCE(e.first_name, u.first_name) as first_name,
         COALESCE(e.last_name, u.last_name) as last_name,
-        COALESCE(u.email, '') as email,
-        COALESCE(u.phone, '') as phone,
+        COALESCE(e.personal_email, u.email, '') as email,
+        COALESCE(e.personal_phone, u.phone, '') as phone,
         est.name as status_name,
         est.color as status_color,
         est.slug as status_slug,
@@ -736,6 +770,15 @@ const deleteEmployee = async (req, res) => {
  * Tömeges munkavallaló importalas Excel/CSV fajlbol
  */
 const bulkImportEmployees = async (req, res) => {
+  // Encrypt if ENCRYPTION_KEY is available, otherwise store plaintext
+  const safeEncrypt = (value) => {
+    try {
+      return encrypt(value);
+    } catch {
+      return value;
+    }
+  };
+
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -755,6 +798,29 @@ const bulkImportEmployees = async (req, res) => {
       });
     }
 
+    // Convert date values (Excel serial numbers + Hungarian date strings)
+    const parseDate = (val) => {
+      if (val == null || val === '') return null;
+      // Excel serial number (e.g. 32580 → 1989-03-10)
+      if (typeof val === 'number') {
+        const excelEpoch = new Date(1899, 11, 30);
+        const date = new Date(excelEpoch.getTime() + val * 86400000);
+        return date.toISOString().split('T')[0];
+      }
+      const s = String(val).trim();
+      // Hungarian format: 2025.05.30. or 2025.05.30
+      const huMatch = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})\.?$/);
+      if (huMatch) return `${huMatch[1]}-${huMatch[2].padStart(2,'0')}-${huMatch[3].padStart(2,'0')}`;
+      // DD/MM/YYYY or DD.MM.YYYY
+      const euMatch = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/);
+      if (euMatch) return `${euMatch[3]}-${euMatch[2].padStart(2,'0')}-${euMatch[1].padStart(2,'0')}`;
+      // Already YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      return s;
+    };
+
+    const DATE_FIELDS = ['birth_date', 'arrival_date', 'visa_expiry', 'start_date'];
+
     // Map column headers
     const rows = rawRows.map(raw => {
       const mapped = {};
@@ -762,8 +828,37 @@ const bulkImportEmployees = async (req, res) => {
         const normalizedKey = key.toLowerCase().trim();
         const dbField = COLUMN_MAP[normalizedKey];
         if (dbField) {
-          mapped[dbField] = typeof value === 'string' ? value.trim() : String(value);
+          if (DATE_FIELDS.includes(dbField)) {
+            mapped[dbField] = parseDate(value);
+          } else {
+            mapped[dbField] = typeof value === 'string' ? value.trim() : String(value);
+          }
         }
+      }
+      // Handle full name splitting (Hungarian: LastName FirstName)
+      // If "Név" column was used, it maps to first_name but contains full name
+      if (mapped.first_name && !mapped.last_name) {
+        const nameParts = mapped.first_name.split(/\s+/);
+        if (nameParts.length >= 2) {
+          mapped.last_name = nameParts[0]; // Hungarian: last name first
+          mapped.first_name = nameParts.slice(1).join(' ');
+        }
+      }
+      // Map Hungarian gender values to English
+      if (mapped.gender) {
+        const g = mapped.gender.toLowerCase();
+        if (g === 'férfi' || g === 'ferfi') mapped.gender = 'male';
+        else if (g === 'nő' || g === 'no') mapped.gender = 'female';
+        else if (g !== 'male' && g !== 'female') mapped.gender = 'other';
+      }
+      // Map marital_status to allowed DB values
+      if (mapped.marital_status) {
+        const m = mapped.marital_status.toLowerCase();
+        if (m === 'nős' || m === 'nos' || m === 'férjezett' || m === 'ferjezett' || m === 'married') mapped.marital_status = 'married';
+        else if (m === 'hajadon' || m === 'egyedülálló' || m === 'egyedulallo' || m === 'single') mapped.marital_status = 'single';
+        else if (m === 'elvált' || m === 'elvalt' || m === 'divorced') mapped.marital_status = 'divorced';
+        else if (m === 'özvegy' || m === 'ozvegy' || m === 'widowed') mapped.marital_status = 'widowed';
+        else mapped.marital_status = null;
       }
       return mapped;
     });
@@ -779,31 +874,67 @@ const bulkImportEmployees = async (req, res) => {
       accMap[a.name.toLowerCase()] = a.id;
     });
 
+    // Pre-validate: check all accommodation names before processing any rows
+    const uniqueAccNames = [...new Set(
+      rows.filter(r => r.accommodation_name).map(r => r.accommodation_name.toLowerCase())
+    )];
+    const missingAccommodations = uniqueAccNames.filter(name => !accMap[name]);
+    if (missingAccommodations.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `A következő szálláshelyek nem léteznek a rendszerben: ${missingAccommodations.join(', ')}. Kérjük először hozza létre őket a Szálláshelyek menüben!`,
+        data: { missing_accommodations: missingAccommodations }
+      });
+    }
+
     const imported = [];
     const errors = [];
 
-    await transaction(async (client) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const rowNum = i + 2;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2;
 
-        // Need at least a last_name
-        if (!row.last_name && !row.first_name) {
-          errors.push({ row: rowNum, message: 'Hianyzo nev' });
+      // Need at least a last_name
+      if (!row.last_name && !row.first_name) {
+        errors.push({ row: rowNum, message: 'Hiányzó név' });
+        continue;
+      }
+
+      if (row.personal_email && !isValidEmail(row.personal_email)) {
+        errors.push({ row: rowNum, message: `Érvénytelen email: ${row.personal_email}` });
+        continue;
+      }
+
+      // Resolve accommodation name to id
+      let accommodationId = null;
+      if (row.accommodation_name) {
+        accommodationId = accMap[row.accommodation_name.toLowerCase()] || null;
+        if (!accommodationId) {
+          errors.push({ row: rowNum, message: `Ismeretlen szálláshely: ${row.accommodation_name}` });
           continue;
         }
+      }
 
-        if (row.email && !isValidEmail(row.email)) {
-          errors.push({ row: rowNum, message: `Ervenytelen email: ${row.email}` });
-          continue;
-        }
-
-        // Resolve accommodation name to id
-        let accommodationId = null;
-        if (row.accommodation_name) {
-          accommodationId = accMap[row.accommodation_name.toLowerCase()] || null;
-          if (!accommodationId) {
-            errors.push({ row: rowNum, message: `Ismeretlen szallashely: ${row.accommodation_name}` });
+      // Get individual client for each row insert
+      const client = await pool.connect();
+      try {
+        // Duplicate detection: name + birth_date + mothers_name
+        if (row.last_name && row.mothers_name) {
+          const dupCheck = await client.query(
+            `SELECT e.id, e.first_name, e.last_name, e.personal_email
+             FROM employees e
+             WHERE e.end_date IS NULL
+               AND LOWER(e.last_name) = LOWER($1)
+               AND LOWER(COALESCE(e.first_name, '')) = LOWER($2)
+               AND LOWER(COALESCE(e.mothers_name, '')) = LOWER($3)`,
+            [row.last_name, row.first_name || '', row.mothers_name]
+          );
+          if (dupCheck.rows.length > 0) {
+            const dup = dupCheck.rows[0];
+            errors.push({
+              row: rowNum,
+              message: `Duplikált munkavállaló: ${dup.last_name} ${dup.first_name} (${dup.personal_email || 'nincs email'}) már létezik`
+            });
             continue;
           }
         }
@@ -818,72 +949,77 @@ const bulkImportEmployees = async (req, res) => {
 
         // Check if user exists by email
         let userId = null;
-        if (row.email) {
-          const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [row.email]);
+        if (row.personal_email) {
+          const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [row.personal_email]);
           if (userCheck.rows.length > 0) {
             userId = userCheck.rows[0].id;
           }
         }
 
-        try {
-          const result = await client.query(
-            `INSERT INTO employees (
-              user_id, employee_number, status_id, position, start_date, accommodation_id,
-              first_name, last_name, gender, birth_date, birth_place, mothers_name,
-              tax_id, passport_number, social_security_number, marital_status,
-              arrival_date, visa_expiry, room_number, bank_account, workplace,
-              permanent_address_zip, permanent_address_country,
-              permanent_address_county, permanent_address_city,
-              permanent_address_street, permanent_address_number,
-              company_name, company_email, company_phone
-            )
-            VALUES (
-              $1, $2, $3, $4, CURRENT_DATE, $5,
-              $6, $7, $8, $9, $10, $11,
-              $12, $13, $14, $15,
-              $16, $17, $18, $19, $20,
-              $21, $22, $23, $24, $25, $26,
-              $27, $28, $29
-            )
-            RETURNING id, employee_number`,
-            [
-              userId,
-              empNumber,
-              activeStatusId,
-              row.position || null,
-              accommodationId,
-              row.first_name || null,
-              row.last_name || null,
-              row.gender || null,
-              row.birth_date || null,
-              row.birth_place || null,
-              row.mothers_name || null,
-              row.tax_id ? encrypt(row.tax_id) : null,
-              row.passport_number ? encrypt(row.passport_number) : null,
-              row.social_security_number ? encrypt(row.social_security_number) : null,
-              row.marital_status || null,
-              row.arrival_date || null,
-              row.visa_expiry || null,
-              row.room_number || null,
-              row.bank_account ? encrypt(row.bank_account) : null,
-              row.workplace || null,
-              row.permanent_address_zip || null,
-              row.permanent_address_country || null,
-              row.permanent_address_county || null,
-              row.permanent_address_city || null,
-              row.permanent_address_street || null,
-              row.permanent_address_number || null,
-              row.company_name || null,
-              row.company_email || null,
-              row.company_phone || null,
-            ]
-          );
-          imported.push(result.rows[0]);
-        } catch (err) {
-          errors.push({ row: rowNum, message: err.message });
-        }
+        const result = await client.query(
+          `INSERT INTO employees (
+            user_id, employee_number, status_id, position, start_date, accommodation_id,
+            first_name, last_name, gender, birth_date, birth_place, mothers_name,
+            tax_id, passport_number, social_security_number, marital_status,
+            arrival_date, visa_expiry, room_number, bank_account, workplace,
+            permanent_address_zip, permanent_address_country,
+            permanent_address_county, permanent_address_city,
+            permanent_address_street, permanent_address_number,
+            company_name, company_email, company_phone,
+            personal_email, personal_phone
+          )
+          VALUES (
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, $16,
+            $17, $18, $19, $20, $21,
+            $22, $23, $24, $25, $26, $27,
+            $28, $29, $30,
+            $31, $32
+          )
+          RETURNING id, employee_number`,
+          [
+            userId,
+            empNumber,
+            activeStatusId,
+            row.position || null,
+            row.start_date || null,
+            accommodationId,
+            row.first_name || null,
+            row.last_name || null,
+            row.gender || null,
+            row.birth_date || null,
+            row.birth_place || null,
+            row.mothers_name || null,
+            row.tax_id ? safeEncrypt(row.tax_id) : null,
+            row.passport_number ? safeEncrypt(row.passport_number) : null,
+            row.social_security_number ? safeEncrypt(row.social_security_number) : null,
+            row.marital_status || null,
+            row.arrival_date || null,
+            row.visa_expiry || null,
+            row.room_number || null,
+            row.bank_account ? safeEncrypt(row.bank_account) : null,
+            row.workplace || null,
+            row.permanent_address_zip || null,
+            row.permanent_address_country || null,
+            row.permanent_address_county || null,
+            row.permanent_address_city || null,
+            row.permanent_address_street || null,
+            row.permanent_address_number || null,
+            row.company_name || null,
+            row.company_email || null,
+            row.company_phone || null,
+            row.personal_email || null,
+            row.personal_phone || null,
+          ]
+        );
+        imported.push(result.rows[0]);
+      } catch (err) {
+        errors.push({ row: rowNum, message: err.message });
+      } finally {
+        client.release();
       }
-    });
+    }
 
     logger.info('Tömeges munkavallaló import', {
       imported: imported.length,

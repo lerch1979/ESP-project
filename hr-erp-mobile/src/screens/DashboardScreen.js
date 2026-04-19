@@ -41,6 +41,9 @@ export default function DashboardScreen() {
         projectAPI.getAll({ status: 'active', limit: 3 }).catch(() => ({ data: [] })),
         wellmindAPI.dashboard.get().catch(() => ({ data: null })),
       ]);
+      if (!statsRes?.data) {
+        throw new Error('Empty dashboard stats response');
+      }
       setStats(statsRes.data);
       setMyTasks(tasksRes.data || []);
       setActiveProjects(projectsRes.data || []);
@@ -65,7 +68,7 @@ export default function DashboardScreen() {
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorState message={error} onRetry={fetchStats} />;
 
-  const { tickets, contractors, accommodations, recentTickets } = stats;
+  const { tickets, contractors, accommodations, recentTickets } = stats || {};
 
   return (
     <ScrollView

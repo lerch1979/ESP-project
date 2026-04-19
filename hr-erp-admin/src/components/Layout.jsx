@@ -96,7 +96,7 @@ const buildMenuItems = (t) => [
 
   // ─── Employees & Accommodation ────
   { text: t('nav.residents'), icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
-  { text: t('nav.contractors'), icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
+  { text: 'Partnerek', icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
   { text: t('nav.accommodations'), icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
   { text: t('nav.damageReports'), icon: <GavelIcon />, path: '/damage-reports', permission: 'tickets.view' },
 

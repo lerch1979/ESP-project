@@ -20,6 +20,7 @@ const Users = lazy(() => import('./pages/Users'));
 const Contractors = lazy(() => import('./pages/Contractors'));
 const Accommodations = lazy(() => import('./pages/Accommodations'));
 const Employees = lazy(() => import('./pages/Employees'));
+const ResidentImport = lazy(() => import('./pages/ResidentImport'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Documents = lazy(() => import('./pages/Documents'));
@@ -64,6 +65,7 @@ const DamageReportDetail = lazy(() => import('./pages/DamageReportDetail'));
 
 // GTD Task Manager
 const GTDDashboard = lazy(() => import('./pages/GTDDashboard'));
+const BrunoTest = lazy(() => import('./pages/BrunoTest'));
 
 // CarePath
 const CarePathDashboard = lazy(() => import('./pages/CarePath/CarePathDashboard'));
@@ -96,7 +98,7 @@ function PageLoader() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ToastContainer
           position="top-right"
           autoClose={3000}
@@ -123,6 +125,7 @@ function App() {
               <Route path="contractors" element={<PermissionGuard permission="employees.view"><Contractors /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="employees" element={<PermissionGuard permission="employees.view"><Employees /></PermissionGuard>} />
+              <Route path="residents/import" element={<PermissionGuard permission="employees.create"><ResidentImport /></PermissionGuard>} />
               <Route path="documents" element={<PermissionGuard permission="documents.view"><Documents /></PermissionGuard>} />
               <Route path="reports" element={<PermissionGuard permission="reports.view"><Reports /></PermissionGuard>} />
               <Route path="calendar" element={<PermissionGuard permission="calendar.view"><Calendar /></PermissionGuard>} />
@@ -162,6 +165,7 @@ function App() {
 
               {/* GTD Task Manager */}
               <Route path="gtd" element={<PermissionGuard permission="dashboard.view"><GTDDashboard /></PermissionGuard>} />
+              <Route path="bruno-test" element={<BrunoTest />} />
 
               {/* CarePath */}
               <Route path="carepath" element={<CarePathDashboard />} />

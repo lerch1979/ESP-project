@@ -5,3 +5,15 @@ dist/
 # Logs
 logs/
 *.log
+
+# macOS
+.DS_Store
+
+# Manual backups — not source of truth
+*.BACKUP
+*.backup
+backups/
+outputs/
+
+# Per-subproject env files
+hr-erp-admin/.env

@@ -258,14 +258,35 @@ export default function ChatbotPage() {
           const filtered = prev.filter(m => m.id !== tempUserMsg.id);
           return [...filtered, response.data.userMessage, response.data.botMessage];
         });
-        setBrunoState('talking');
-        setTimeout(() => setBrunoState('idle'), 2000);
+        // Context-aware Bruno reactions
+        const botText = (response.data.botMessage?.content || '').toLowerCase();
+        const userText = text.toLowerCase();
+        if (userText.includes('tánc') || userText.includes('dance') || userText.includes('táncol')) {
+          setBrunoState('dancing');
+          setTimeout(() => setBrunoState('happy'), 7200);
+          setTimeout(() => setBrunoState('idle'), 9000);
+        } else if (userText.includes('köszön') || userText.includes('kösz') || userText.includes('thank')) {
+          setBrunoState('waving');
+          setTimeout(() => setBrunoState('happy'), 1500);
+          setTimeout(() => setBrunoState('idle'), 3000);
+        } else if (botText.includes('sikeresen') || botText.includes('kész') || botText.includes('successfully')) {
+          setBrunoState('celebrating');
+          setTimeout(() => setBrunoState('happy'), 1200);
+          setTimeout(() => setBrunoState('idle'), 3000);
+        } else if (botText.includes('sajnálom') || botText.includes('nem talál') || botText.includes('sorry')) {
+          setBrunoState('sad');
+          setTimeout(() => setBrunoState('idle'), 2500);
+        } else {
+          setBrunoState('talking');
+          setTimeout(() => setBrunoState('idle'), 2000);
+        }
       }
     } catch (err) {
       setError('Nem sikerült elküldeni az üzenetet');
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
       setInputText(text);
-      setBrunoState('idle');
+      setBrunoState('sad');
+      setTimeout(() => setBrunoState('idle'), 2000);
     } finally {
       setSending(false);
       inputRef.current?.focus();

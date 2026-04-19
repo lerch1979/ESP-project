@@ -55,7 +55,7 @@ function ChatBubble({ message }) {
 }
 
 export default function ChatbotConversationDetail() {
-  const { conversationId } = useParams();
+  const { id: conversationId } = useParams();
   const navigate = useNavigate();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);

@@ -21,6 +21,10 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -35,7 +39,7 @@ import {
   Description as DescIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import { damageReportsAPI } from '../services/api';
+import { damageReportsAPI, usersAPI, accommodationsAPI } from '../services/api';
 
 const STATUS_COLORS = {
   draft: 'default',
@@ -53,13 +57,58 @@ export default function DamageReportDetail() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const isNew = id === 'new';
   const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isNew ? false : true);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [newForm, setNewForm] = useState({
+    employee_id: '',
+    incident_date: new Date().toISOString().slice(0, 10),
+    description: '',
+    accommodation_id: '',
+    notes: '',
+  });
+  const [employees, setEmployees] = useState([]);
+  const [accommodations, setAccommodations] = useState([]);
 
   useEffect(() => {
-    loadReport();
+    if (isNew) {
+      const loadData = async () => {
+        try {
+          const [usersRes, accRes] = await Promise.all([
+            usersAPI.getAll({ limit: 500, is_active: true }),
+            accommodationsAPI.getAll({ limit: 500 }),
+          ]);
+          if (usersRes.success) setEmployees(usersRes.data.users || []);
+          if (accRes.success) setAccommodations(accRes.data.accommodations || []);
+        } catch { /* ignore */ }
+      };
+      loadData();
+    } else {
+      loadReport();
+    }
   }, [id]);
+
+  const handleCreateSubmit = async () => {
+    if (!newForm.employee_id || !newForm.description) {
+      toast.error('Munkavállaló és leírás megadása kötelező!');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await damageReportsAPI.createManual(newForm);
+      if (res.success) {
+        toast.success('Kárigény sikeresen létrehozva!');
+        navigate(`/damage-reports/${res.data.id}`);
+      }
+    } catch (error) {
+      console.error('Create error:', error);
+      toast.error('Hiba a kárigény létrehozásakor');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const loadReport = async () => {
     try {
@@ -118,6 +167,94 @@ export default function DamageReportDetail() {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isNew) {
+    return (
+      <Box sx={{ p: 3, maxWidth: 700, mx: 'auto' }}>
+        <Button startIcon={<BackIcon />} onClick={() => navigate('/damage-reports')} sx={{ mb: 2 }}>
+          Vissza
+        </Button>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>Új kárigény létrehozása</Typography>
+        <Paper sx={{ p: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel>Munkavállaló</InputLabel>
+                <Select
+                  value={newForm.employee_id}
+                  onChange={(e) => setNewForm(f => ({ ...f, employee_id: e.target.value }))}
+                  label="Munkavállaló"
+                >
+                  {employees.map(emp => (
+                    <MenuItem key={emp.id} value={emp.id}>
+                      {emp.last_name} {emp.first_name} {emp.email ? `(${emp.email})` : ''}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Szálláshely</InputLabel>
+                <Select
+                  value={newForm.accommodation_id}
+                  onChange={(e) => setNewForm(f => ({ ...f, accommodation_id: e.target.value }))}
+                  label="Szálláshely"
+                >
+                  <MenuItem value="">Nincs megadva</MenuItem>
+                  {accommodations.map(acc => (
+                    <MenuItem key={acc.id} value={acc.id}>{acc.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                required
+                type="date"
+                label="Esemény dátuma"
+                value={newForm.incident_date}
+                onChange={(e) => setNewForm(f => ({ ...f, incident_date: e.target.value }))}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                required
+                multiline
+                rows={4}
+                label="Leírás"
+                value={newForm.description}
+                onChange={(e) => setNewForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Megjegyzés"
+                value={newForm.notes}
+                onChange={(e) => setNewForm(f => ({ ...f, notes: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                variant="contained"
+                onClick={handleCreateSubmit}
+                disabled={creating}
+                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              >
+                {creating ? <CircularProgress size={24} /> : 'Kárigény létrehozása'}
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
       </Box>
     );
   }

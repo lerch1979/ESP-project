@@ -106,10 +106,18 @@ async function getById(id) {
 
 async function listReports(contractorId, filters = {}) {
   let sql = `
-    SELECT dr.*, u.first_name AS employee_first_name, u.last_name AS employee_last_name
+    SELECT dr.*,
+      u.first_name AS employee_first_name, u.last_name AS employee_last_name,
+      CONCAT(u.last_name, ' ', u.first_name) AS employee_name,
+      COALESCE(a.name, ea.name) AS accommodation_name,
+      c.name AS contractor_name
     FROM damage_reports dr
     JOIN users u ON dr.employee_id = u.id
-    WHERE dr.contractor_id = $1`;
+    LEFT JOIN accommodations a ON dr.accommodation_id = a.id
+    LEFT JOIN employees e ON e.user_id = u.id AND e.end_date IS NULL
+    LEFT JOIN accommodations ea ON e.accommodation_id = ea.id
+    LEFT JOIN contractors c ON dr.contractor_id = c.id
+    WHERE ($1::uuid IS NULL OR dr.contractor_id = $1)`;
   const params = [contractorId];
   let idx = 2;
 

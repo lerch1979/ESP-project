@@ -2,16 +2,15 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import { getItem, setItem, deleteItem } from './storage';
 
-// Your computer's LAN IP (for physical devices on the same WiFi)
-const LOCAL_IP = 'localhost';
+// Ngrok public URL for mobile access
+const NGROK_URL = 'https://blinker-bronze-evasion.ngrok-free.dev/api/v1';
 
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // Use LAN IP so physical devices on the same WiFi can reach the backend
-  return `http://${LOCAL_IP}:3001/api/v1`;
+  return NGROK_URL;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -26,6 +25,7 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   },
   timeout: 15000,
 });
@@ -83,9 +83,11 @@ api.interceptors.response.use(
           throw new Error('No refresh token');
         }
 
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          { refreshToken },
+          { headers: { 'ngrok-skip-browser-warning': 'true' } }
+        );
 
         const { token } = response.data.data;
         await setItem('token', token);
@@ -394,9 +396,5 @@ export const chatbotAPI = {
     return response.data;
   },
 };
-
-// WellMind API — extracted to src/services/wellmind/api.js
-// Re-export for backward compatibility
-export { default as wellmindAPI } from './wellmind/api';
 
 export default api;

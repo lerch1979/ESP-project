@@ -195,7 +195,7 @@ function BulkEmailModal({ open, onClose }) {
 
       switch (fieldKey) {
         case 'status':
-          return (filterOptions.statuses || []).map((s) => ({ value: s.name, label: s.name }));
+          return (filterOptions.statuses || []).map((s) => ({ value: s.id, label: s.name }));
         case 'workplace':
           return (filterOptions.workplaces || []).map((w) => ({ value: w, label: w }));
         case 'accommodation':

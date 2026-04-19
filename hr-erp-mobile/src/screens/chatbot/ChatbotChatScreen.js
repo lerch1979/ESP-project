@@ -12,10 +12,10 @@ import ChatbotBubble from '../../components/ChatbotBubble';
 const MAX_CHARS = 500;
 
 const QUICK_QUESTIONS = [
-  { id: 'q1', text: 'Hogyan kerhetek szabadsagot?', icon: 'calendar-outline' },
-  { id: 'q2', text: 'Mikor kapom a fizetest?', icon: 'cash-outline' },
-  { id: 'q3', text: 'Kinek jelentsem a lakasproblemat?', icon: 'home-outline' },
-  { id: 'q4', text: 'Mik a kozossegi szabalyok?', icon: 'people-outline' },
+  { id: 'q1', text: 'Hogyan kérhetek szabadságot?', icon: 'calendar-outline' },
+  { id: 'q2', text: 'Mikor kapom a fizetést?', icon: 'cash-outline' },
+  { id: 'q3', text: 'Kinek jelentsem a lakásproblémát?', icon: 'home-outline' },
+  { id: 'q4', text: 'Mik a közösségi szabályok?', icon: 'people-outline' },
 ];
 
 const FAQ_ICON_MAP = {
@@ -39,7 +39,7 @@ function TypingIndicator() {
       </View>
       <View style={styles.typingBubble}>
         <ActivityIndicator size="small" color={colors.textSecondary} />
-        <Text style={styles.typingText}>Valasz irasa...</Text>
+        <Text style={styles.typingText}>Válasz írása...</Text>
       </View>
     </View>
   );
@@ -85,7 +85,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           }
         } catch (err) {
           console.error('[Chatbot] Failed to create conversation:', err);
-          setError('Nem sikerult uj beszelgetest inditani. Probalja ujra!');
+          setError('Nem sikerült új beszélgetést indítani. Próbálja újra!');
         }
       }
       setLoading(false);
@@ -100,7 +100,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
       setMessages(response.data || []);
     } catch (err) {
       console.error('[Chatbot] Failed to load messages:', err);
-      setError('Nem sikerult betolteni az uzeneteket');
+      setError('Nem sikerült betölteni az üzeneteket');
     }
   };
 
@@ -141,7 +141,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         });
       }
     } catch (err) {
-      setError('Nem sikerult elkuldeni az uzenetet. Probalja ujra!');
+      setError('Nem sikerült elküldeni az üzenetet. Próbálja újra!');
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
       setInputText(text); // Restore input so user can retry
     } finally {
@@ -181,7 +181,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         });
       }
     } catch (err) {
-      setError('Nem sikerult feldolgozni a valasztast');
+      setError('Nem sikerült feldolgozni a választást');
     } finally {
       setSending(false);
     }
@@ -210,7 +210,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         });
       }
     } catch (err) {
-      setError('Nem sikerult feldolgozni a javaslatot');
+      setError('Nem sikerült feldolgozni a javaslatot');
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
     } finally {
       setSending(false);
@@ -223,12 +223,12 @@ export default function ChatbotChatScreen({ route, navigation }) {
       // If not helpful, offer to escalate
       if (!helpful && conversationStatus === 'active') {
         Alert.alert(
-          'Sajnaljuk!',
-          'Szeretne hibajegyet letrehozni, hogy egy munkatarsunk segitsen?',
+          'Sajnáljuk!',
+          'Szeretne hibajegyet létrehozni, hogy egy munkatársunk segítsen?',
           [
             { text: 'Nem', style: 'cancel' },
             {
-              text: 'Hibajegy letrehozasa',
+              text: 'Hibajegy létrehozása',
               onPress: () => handleEscalate(),
             },
           ]
@@ -242,22 +242,22 @@ export default function ChatbotChatScreen({ route, navigation }) {
 
   const handleEscalate = () => {
     Alert.alert(
-      'Beszelj emberrel',
-      'Szeretne tovabbitani a kerdeset egy munkatarsunknak? Automatikusan hibajegy jon letre.',
+      'Beszélj emberrel',
+      'Szeretné továbbítani a kérdését egy munkatársunknak? Automatikusan hibajegy jön létre.',
       [
-        { text: 'Megse', style: 'cancel' },
+        { text: 'Mégse', style: 'cancel' },
         {
-          text: 'Tovabbitas',
+          text: 'Továbbítás',
           onPress: async () => {
             try {
               const response = await chatbotAPI.escalateConversation(conversationId);
               if (response.success) {
                 setConversationStatus('escalated');
                 fetchMessages(conversationId);
-                Alert.alert('Sikeres', `Hibajegy letrehozva: ${response.data.ticketNumber}`);
+                Alert.alert('Sikeres', `Hibajegy létrehozva: ${response.data.ticketNumber}`);
               }
             } catch (err) {
-              setError('Nem sikerult az eszkalacio');
+              setError('Nem sikerült az eszkaláció');
             }
           },
         },
@@ -267,12 +267,12 @@ export default function ChatbotChatScreen({ route, navigation }) {
 
   const handleClose = () => {
     Alert.alert(
-      'Beszelgetes lezarasa',
-      'Biztosan le szeretne zarni a beszelgetest?',
+      'Beszélgetés lezárása',
+      'Biztosan le szeretné zárni a beszélgetést?',
       [
-        { text: 'Megse', style: 'cancel' },
+        { text: 'Mégse', style: 'cancel' },
         {
-          text: 'Lezaras',
+          text: 'Lezárás',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -280,7 +280,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
               setConversationStatus('closed');
               fetchMessages(conversationId);
             } catch (err) {
-              setError('Nem sikerult lezarni a beszelgetest');
+              setError('Nem sikerült lezárni a beszélgetést');
             }
           },
         },
@@ -299,7 +299,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         }
         setLoading(false);
       }).catch(() => {
-        setError('Nem sikerult ujra csatlakozni');
+        setError('Nem sikerült újra csatlakozni');
         setLoading(false);
       });
     } else {
@@ -351,7 +351,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Betoltes...</Text>
+        <Text style={styles.loadingText}>Betöltés...</Text>
       </View>
     );
   }
@@ -369,15 +369,19 @@ export default function ChatbotChatScreen({ route, navigation }) {
             <View style={styles.welcomeIcon}>
               <Ionicons name="chatbubble-ellipses" size={32} color={colors.info} />
             </View>
-            <Text style={styles.welcomeTitle}>Szia! Miben segithetek?</Text>
+            <Text style={styles.welcomeTitle}>Szia! Miben segíthetek?</Text>
             <Text style={styles.welcomeSubtitle}>
-              Valaszolj gyorsan a leggyakoribb kerdesekre, vagy irj sajat kerdest!
+              Válaszolj gyorsan a leggyakoribb kérdésekre, vagy írj saját kérdést!
             </Text>
           </View>
 
           {/* Quick questions */}
-          <Text style={styles.quickTitle}>Gyors kerdesek</Text>
-          <View style={styles.quickGrid}>
+          <Text style={styles.quickTitle}>Gyors kérdések</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickScrollRow}
+          >
             {QUICK_QUESTIONS.map((q) => (
               <TouchableOpacity
                 key={q.id}
@@ -389,12 +393,12 @@ export default function ChatbotChatScreen({ route, navigation }) {
                 <Text style={styles.quickText} numberOfLines={2}>{q.text}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
           {/* FAQ category chips */}
           {faqCategories.length > 0 && (
             <>
-              <Text style={styles.quickTitle}>Kategoriak</Text>
+              <Text style={styles.quickTitle}>Kategóriák</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -439,7 +443,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           ListEmptyComponent={
             <View style={styles.emptyChat}>
               <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.textLight} />
-              <Text style={styles.emptyChatText}>Kezdd el a beszelgetest!</Text>
+              <Text style={styles.emptyChatText}>Kezdd el a beszélgetést!</Text>
             </View>
           }
         />
@@ -470,7 +474,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           activeOpacity={0.7}
         >
           <Ionicons name="person-outline" size={18} color={colors.warning} />
-          <Text style={styles.escalateText}>Beszelj emberrel</Text>
+          <Text style={styles.escalateText}>Beszélj emberrel</Text>
         </TouchableOpacity>
       )}
 
@@ -481,7 +485,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={handleRetry} style={styles.retryButton}>
             <Ionicons name="refresh-outline" size={16} color={colors.info} />
-            <Text style={styles.retryText}>Ujra</Text>
+            <Text style={styles.retryText}>Újra</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -492,7 +496,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           <TextInput
             ref={inputRef}
             style={styles.textInput}
-            placeholder="Irj egy uzenetet..."
+            placeholder="Írj egy üzenetet..."
             placeholderTextColor={colors.textLight}
             value={inputText}
             onChangeText={(text) => setInputText(text.slice(0, MAX_CHARS))}
@@ -535,8 +539,8 @@ export default function ChatbotChatScreen({ route, navigation }) {
           />
           <Text style={styles.closedText}>
             {conversationStatus === 'escalated'
-              ? 'Beszelgetes eszkalava - hibajegy letrehozva'
-              : 'Beszelgetes lezarva'}
+              ? 'Beszélgetés eszkalálva - hibajegy létrehozva'
+              : 'Beszélgetés lezárva'}
           </Text>
         </View>
       )}
@@ -602,15 +606,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  quickScrollRow: {
     paddingHorizontal: 12,
     gap: 8,
     marginBottom: 16,
   },
   quickCard: {
-    width: '47%',
+    width: 220,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,

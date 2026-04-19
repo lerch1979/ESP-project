@@ -38,6 +38,23 @@ const COLUMN_MAP = {
   'megjegyzés': 'notes',
   'notes': 'notes',
   'megjegyzések': 'notes',
+  // Room fields
+  'szoba': 'room_number',
+  'szobaszám': 'room_number',
+  'room_number': 'room_number',
+  'room': 'room_number',
+  'emelet': 'floor',
+  'floor': 'floor',
+  'ágyak száma': 'beds',
+  'agyak szama': 'beds',
+  'beds': 'beds',
+  'létszám': 'beds',
+  'letszam': 'beds',
+  'szobatípus': 'room_type',
+  'szobatipus': 'room_type',
+  'room_type': 'room_type',
+  'tulajdonos': 'owner',
+  'owner': 'owner',
 };
 
 // Type display mapping for validation
@@ -604,79 +621,103 @@ const bulkImportAccommodations = async (req, res) => {
       return mapped;
     });
 
-    const imported = [];
+    const importedAccommodations = [];
+    const importedRooms = [];
     const errors = [];
 
+    // Group rows by accommodation name
+    const groups = {};
+    rows.forEach((row, i) => {
+      const rowNum = i + 2;
+      if (!row.name || !row.name.trim()) {
+        errors.push({ row: rowNum, message: 'Hiányzó szálláshely név' });
+        return;
+      }
+      const key = row.name.trim().toLowerCase();
+      if (!groups[key]) groups[key] = [];
+      groups[key].push({ ...row, _rowNum: rowNum });
+    });
+
     await transaction(async (client) => {
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const rowNum = i + 2; // +2 because row 1 is header
+      for (const [, groupRows] of Object.entries(groups)) {
+        const firstRow = groupRows[0];
+        const rowNum = firstRow._rowNum;
 
-        if (!row.name || !row.name.trim()) {
-          errors.push({ row: rowNum, message: 'Hiányzó név' });
-          continue;
-        }
-
-        // Map Hungarian type names to DB values
+        // Resolve type
         let resolvedType = 'studio';
-        if (row.type) {
-          const normalizedType = row.type.toLowerCase().trim();
-          resolvedType = TYPE_MAP[normalizedType];
+        if (firstRow.type) {
+          resolvedType = TYPE_MAP[firstRow.type.toLowerCase().trim()];
           if (!resolvedType) {
-            errors.push({ row: rowNum, message: `Ismeretlen típus: ${row.type}` });
+            errors.push({ row: rowNum, message: `Ismeretlen típus: ${firstRow.type}` });
             continue;
           }
         }
 
-        // Map Hungarian status names to DB values
+        // Resolve status
         let resolvedStatus = 'available';
-        if (row.status) {
-          const normalizedStatus = row.status.toLowerCase().trim();
-          resolvedStatus = STATUS_MAP[normalizedStatus];
+        if (firstRow.status) {
+          resolvedStatus = STATUS_MAP[firstRow.status.toLowerCase().trim()];
           if (!resolvedStatus) {
-            errors.push({ row: rowNum, message: `Ismeretlen státusz: ${row.status}` });
+            errors.push({ row: rowNum, message: `Ismeretlen státusz: ${firstRow.status}` });
             continue;
           }
         }
 
-        // Parse capacity
+        // Parse capacity (sum of beds if rooms provided, otherwise from capacity field)
         let capacity = 1;
-        if (row.capacity) {
-          capacity = parseInt(row.capacity);
-          if (isNaN(capacity) || capacity < 1) {
-            errors.push({ row: rowNum, message: `Érvénytelen kapacitás: ${row.capacity}` });
-            continue;
-          }
+        if (firstRow.capacity) {
+          capacity = parseInt(firstRow.capacity);
+          if (isNaN(capacity) || capacity < 1) capacity = 1;
         }
 
         // Parse monthly rent
         let monthlyRent = null;
-        if (row.monthly_rent) {
-          // Remove currency symbols and spaces
-          const cleanRent = row.monthly_rent.replace(/[^\d.,]/g, '').replace(',', '.');
+        if (firstRow.monthly_rent) {
+          const cleanRent = firstRow.monthly_rent.replace(/[^\d.,]/g, '').replace(',', '.');
           monthlyRent = parseFloat(cleanRent);
-          if (isNaN(monthlyRent)) {
-            errors.push({ row: rowNum, message: `Érvénytelen bérleti díj: ${row.monthly_rent}` });
-            continue;
-          }
+          if (isNaN(monthlyRent)) monthlyRent = null;
         }
 
         try {
-          const result = await client.query(
-            `INSERT INTO accommodations (name, address, type, capacity, status, monthly_rent, notes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING id, name`,
-            [
-              row.name.trim(),
-              row.address || null,
-              resolvedType,
-              capacity,
-              resolvedStatus,
-              monthlyRent,
-              row.notes || null,
-            ]
+          // Check if accommodation already exists
+          const existing = await client.query(
+            'SELECT id FROM accommodations WHERE LOWER(name) = LOWER($1)',
+            [firstRow.name.trim()]
           );
-          imported.push(result.rows[0]);
+
+          let accId;
+          if (existing.rows.length > 0) {
+            accId = existing.rows[0].id;
+          } else {
+            const result = await client.query(
+              `INSERT INTO accommodations (name, address, type, capacity, status, monthly_rent, notes)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               RETURNING id, name`,
+              [firstRow.name.trim(), firstRow.address || null, resolvedType, capacity, resolvedStatus, monthlyRent, firstRow.notes || null]
+            );
+            accId = result.rows[0].id;
+            importedAccommodations.push(result.rows[0]);
+          }
+
+          // Create rooms for each row that has room_number
+          for (const row of groupRows) {
+            if (!row.room_number) continue;
+            const beds = parseInt(row.beds) || 1;
+            const floor = row.floor ? parseInt(row.floor) : null;
+            const roomType = row.room_type || 'standard';
+
+            try {
+              await client.query(
+                `INSERT INTO accommodation_rooms (accommodation_id, room_number, floor, beds, room_type, is_active)
+                 VALUES ($1, $2, $3, $4, $5, true)
+                 ON CONFLICT (accommodation_id, room_number) DO UPDATE SET beds = $4, floor = $3, room_type = $5`,
+                [accId, String(row.room_number).trim(), floor, beds, roomType]
+              );
+              importedRooms.push({ accommodation: firstRow.name.trim(), room: row.room_number });
+            } catch (roomErr) {
+              errors.push({ row: row._rowNum, message: `Szoba hiba (${row.room_number}): ${roomErr.message}` });
+            }
+          }
         } catch (err) {
           errors.push({ row: rowNum, message: err.message });
         }
@@ -684,15 +725,17 @@ const bulkImportAccommodations = async (req, res) => {
     });
 
     logger.info('Tömeges szálláshely import', {
-      imported: imported.length,
+      accommodations: importedAccommodations.length,
+      rooms: importedRooms.length,
       errors: errors.length
     });
 
     res.json({
       success: true,
-      message: `${imported.length} szálláshely sikeresen importálva`,
+      message: `${importedAccommodations.length} szálláshely és ${importedRooms.length} szoba sikeresen importálva`,
       data: {
-        imported: imported.length,
+        imported: importedAccommodations.length,
+        rooms_imported: importedRooms.length,
         errors
       }
     });

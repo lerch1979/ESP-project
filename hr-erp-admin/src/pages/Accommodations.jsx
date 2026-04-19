@@ -33,7 +33,7 @@ import ResponsiveTable from '../components/ResponsiveTable';
 const ACCOMMODATION_FILTER_FIELDS = [
   { key: 'status', label: 'Állapot', type: 'preset' },
   { key: 'type', label: 'Típus', type: 'preset' },
-  { key: 'contractor', label: 'Alvállalkozó', type: 'dynamic' },
+  { key: 'contractor', label: 'Ingatlan tulajdonos', type: 'dynamic' },
 ];
 
 const ACCOMMODATION_PRESET_VALUES = {
@@ -290,7 +290,7 @@ function Accommodations() {
                     <TableCell sx={{ fontWeight: 600 }}>Cím</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Típus</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Kapacitás</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Jelenlegi alvállalkozó</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Ingatlan tulajdonos</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Havi díj</TableCell>
                   </TableRow>

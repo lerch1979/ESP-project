@@ -153,7 +153,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
 
   const loadContractors = async () => {
     try {
-      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true' });
+      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true', type: 'property_owner' });
       if (response.success) {
         setContractors(response.data.contractors);
       }
@@ -429,11 +429,11 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               </Grid>
               <Grid item xs={12}>
                 <FormControl fullWidth>
-                  <InputLabel>Jelenlegi alvállalkozó</InputLabel>
+                  <InputLabel>Ingatlan tulajdonos</InputLabel>
                   <Select
                     value={formData.current_contractor_id}
                     onChange={(e) => handleChange('current_contractor_id', e.target.value)}
-                    label="Jelenlegi alvállalkozó"
+                    label="Ingatlan tulajdonos"
                   >
                     <MenuItem value="">Nincs</MenuItem>
                     {contractors.map((t) => (
@@ -477,12 +477,12 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                   <DetailRow label="Típus" value={TYPE_LABELS[accommodation.type] || accommodation.type} />
                   <DetailRow label="Kapacitás" value={`${accommodation.capacity} fő`} />
                   <DetailRow label="Havi bérleti díj" value={formatRent(accommodation.monthly_rent)} />
-                  <DetailRow label="Jelenlegi alvállalkozó" value={accommodation.current_contractor_name || '-'} />
+                  <DetailRow label="Ingatlan tulajdonos" value={accommodation.current_contractor_name || '-'} />
                   {accommodation.current_contractor_email && (
-                    <DetailRow label="Alvállalkozó email" value={accommodation.current_contractor_email} />
+                    <DetailRow label="Tulajdonos email" value={accommodation.current_contractor_email} />
                   )}
                   {accommodation.current_contractor_phone && (
-                    <DetailRow label="Alvállalkozó telefon" value={accommodation.current_contractor_phone} />
+                    <DetailRow label="Tulajdonos telefon" value={accommodation.current_contractor_phone} />
                   )}
                   <DetailRow label="Megjegyzések" value={accommodation.notes || '-'} />
                   <Divider sx={{ my: 2 }} />
@@ -499,13 +499,13 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                   {contractorHistory.length > 0 && (
                     <Box sx={{ mt: 3 }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                        Alvállalkozó történet
+                        Tulajdonos történet
                       </Typography>
                       <TableContainer component={Paper} variant="outlined">
                         <Table size="small">
                           <TableHead>
                             <TableRow>
-                              <TableCell sx={{ fontWeight: 600 }}>Alvállalkozó</TableCell>
+                              <TableCell sx={{ fontWeight: 600 }}>Tulajdonos</TableCell>
                               <TableCell sx={{ fontWeight: 600 }}>Beköltözés</TableCell>
                               <TableCell sx={{ fontWeight: 600 }}>Kiköltözés</TableCell>
                             </TableRow>

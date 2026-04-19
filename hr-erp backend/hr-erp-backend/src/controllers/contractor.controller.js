@@ -50,12 +50,18 @@ const COLUMN_MAP = {
  */
 const getContractors = async (req, res) => {
   try {
-    const { search, is_active, page = 1, limit = 20 } = req.query;
+    const { search, is_active, type, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
     let whereConditions = [];
     let params = [];
     let paramIndex = 1;
+
+    if (type) {
+      whereConditions.push(`t.type = $${paramIndex}`);
+      params.push(type);
+      paramIndex++;
+    }
 
     if (is_active !== undefined && is_active !== 'all') {
       whereConditions.push(`t.is_active = $${paramIndex}`);
@@ -166,7 +172,7 @@ const getContractorById = async (req, res) => {
  */
 const createContractor = async (req, res) => {
   try {
-    const { name, email, phone, address } = req.body;
+    const { name, email, phone, address, type } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -196,8 +202,8 @@ const createContractor = async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO contractors (name, slug, email, phone, address)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO contractors (name, slug, email, phone, address, type)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -207,6 +213,7 @@ const createContractor = async (req, res) => {
       email || null,
       phone || null,
       address || null,
+      type || 'service_provider',
     ]);
 
     logActivity({
@@ -240,7 +247,7 @@ const createContractor = async (req, res) => {
 const updateContractor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, address, is_active } = req.body;
+    const { name, email, phone, address, is_active, type } = req.body;
 
     // Check contractor exists
     const existing = await query('SELECT * FROM contractors WHERE id = $1', [id]);
@@ -301,6 +308,12 @@ const updateContractor = async (req, res) => {
     if (is_active !== undefined) {
       fields.push(`is_active = $${paramIndex}`);
       params.push(is_active);
+      paramIndex++;
+    }
+
+    if (type !== undefined) {
+      fields.push(`type = $${paramIndex}`);
+      params.push(type);
       paramIndex++;
     }
 

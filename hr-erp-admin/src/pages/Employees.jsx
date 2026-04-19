@@ -47,6 +47,8 @@ import UserAvatar from '../components/common/UserAvatar';
 
 const EMPLOYEE_FILTER_FIELDS = [
   { key: 'status', label: 'Státusz', type: 'dynamic' },
+  { key: 'accommodation', label: 'Szálláshely', type: 'dynamic' },
+  { key: 'room_number', label: 'Szobaszám', type: 'dynamic' },
   { key: 'workplace', label: 'Munkahely', type: 'dynamic' },
   { key: 'gender', label: 'Nem', type: 'preset' },
   { key: 'visa_expiry', label: 'Vízum lejárat', type: 'preset' },
@@ -143,6 +145,8 @@ function Employees() {
       workplace: (filterOptions.employees?.workplaces || []).map(w => ({ value: w, label: w })),
       position: (filterOptions.employees?.positions || []).map(p => ({ value: p, label: p })),
       country: (filterOptions.employees?.countries || []).map(c => ({ value: c, label: c })),
+      accommodation: (filterOptions.employees?.accommodations || []).map(a => ({ value: a.name, label: a.name })),
+      room_number: (filterOptions.employees?.room_numbers || []).map(r => ({ value: r, label: r })),
     };
   };
 
@@ -435,6 +439,7 @@ function Employees() {
                     <TableCell sx={{ fontWeight: 600 }}>Telefon</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Munkakör</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Szálláshely</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Szoba</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Kezdés dátuma</TableCell>
                   </TableRow>
@@ -495,6 +500,11 @@ function Employees() {
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
                           {emp.accommodation_name || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {emp.room_number || emp.assigned_room_number || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>

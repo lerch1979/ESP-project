@@ -15,6 +15,8 @@ import {
   Button,
   Stack,
   CircularProgress,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -54,10 +56,11 @@ function Contractors() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedContractorId, setSelectedContractorId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [contractorType, setContractorType] = useState('all');
 
   useEffect(() => {
     loadContractors();
-  }, [page, rowsPerPage, search, activeFilters]);
+  }, [page, rowsPerPage, search, activeFilters, contractorType]);
 
   const handleFilterChange = (newFilters) => {
     setActiveFilters(newFilters);
@@ -74,6 +77,7 @@ function Contractors() {
 
       if (search) params.search = search;
       if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
+      if (contractorType !== 'all') params.type = contractorType;
 
       const response = await contractorsAPI.getAll(params);
 
@@ -137,7 +141,7 @@ function Contractors() {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-          Alvállalkozók
+          Partnerek
         </Typography>
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
           <Button
@@ -178,6 +182,19 @@ function Contractors() {
           </Button>
         </Stack>
       </Box>
+
+      {/* Type Tabs */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={contractorType}
+          onChange={(e, v) => { setContractorType(v); setPage(0); }}
+          sx={{ px: 2 }}
+        >
+          <Tab label="Összes" value="all" />
+          <Tab label="Ingatlan tulajdonosok" value="property_owner" />
+          <Tab label="Szolgáltatók" value="service_provider" />
+        </Tabs>
+      </Paper>
 
       {/* Search */}
       <Paper sx={{ p: 2, mb: 3 }}>

@@ -39,7 +39,7 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
 
   const loadContractors = async () => {
     try {
-      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true' });
+      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true', type: 'property_owner' });
       if (response.success) {
         setContractors(response.data.contractors);
       }
@@ -185,11 +185,11 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
 
           <Grid item xs={12}>
             <FormControl fullWidth>
-              <InputLabel>Jelenlegi alvállalkozó</InputLabel>
+              <InputLabel>Ingatlan tulajdonos</InputLabel>
               <Select
                 value={formData.current_contractor_id}
                 onChange={(e) => handleChange('current_contractor_id', e.target.value)}
-                label="Jelenlegi alvállalkozó"
+                label="Ingatlan tulajdonos"
               >
                 <MenuItem value="">Nincs</MenuItem>
                 {contractors.map((t) => (

@@ -936,13 +936,14 @@ const deleteDecisionNode = async (req, res) => {
 
 const getFaqCategories = async (req, res) => {
   try {
-    const contractorId = req.user.roles.includes('superadmin') ? (req.query.contractor_id || req.user.contractorId) : req.user.contractorId;
+    const isSuperAdmin = req.user.roleNames?.includes('superadmin') || req.user.roles?.includes('superadmin');
+    const contractorId = isSuperAdmin ? (req.query.contractor_id || null) : req.user.contractorId;
 
     const result = await query(
       `SELECT fc.*,
               (SELECT COUNT(*) FROM chatbot_knowledge_base WHERE category_id = fc.id) as entry_count
        FROM chatbot_faq_categories fc
-       WHERE fc.contractor_id = $1
+       WHERE ($1::uuid IS NULL OR fc.contractor_id = $1)
        ORDER BY fc.sort_order, fc.name`,
       [contractorId]
     );

@@ -56,7 +56,7 @@ const getFilterOptions = async (req, res) => {
 // Allowed filter fields mapped to their SQL expressions
 const FILTER_MAP = {
   status: {
-    column: 'est.name',
+    column: 'est.id',
     operator: '=',
   },
   workplace: {
@@ -186,7 +186,7 @@ const filterRecipients = async (req, res) => {
       SELECT
         e.id,
         COALESCE(NULLIF(CONCAT(e.last_name, ' ', e.first_name), ' '), CONCAT(u.last_name, ' ', u.first_name)) AS name,
-        COALESCE(e.company_email, u.email) AS email,
+        COALESCE(e.personal_email, e.company_email, u.email) AS email,
         e.workplace,
         a.name AS accommodation,
         e.visa_expiry,
@@ -195,7 +195,8 @@ const filterRecipients = async (req, res) => {
       LEFT JOIN users u ON e.user_id = u.id
       LEFT JOIN accommodations a ON e.accommodation_id = a.id
       LEFT JOIN employee_status_types est ON e.status_id = est.id
-      WHERE COALESCE(e.company_email, u.email) IS NOT NULL
+      WHERE e.end_date IS NULL
+        AND COALESCE(e.personal_email, e.company_email, u.email) IS NOT NULL
     `;
     const params = [];
     let paramIndex = 1;

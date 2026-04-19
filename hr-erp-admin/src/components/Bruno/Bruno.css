@@ -4,54 +4,293 @@
   align-items: center;
   cursor: default;
   user-select: none;
+  position: relative;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.1));
+  transition: filter 0.3s ease;
+  perspective: 800px;
 }
+.bruno-wrapper.hovered {
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.18));
+}
+
+.bruno-img {
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════
+   STATE ANIMATIONS
+   ═══════════════════════════════════ */
 
 .bruno-animated {
-  animation: bruno-breathe 3s ease-in-out infinite;
+  animation: bruno-breathe 3.5s ease-in-out infinite;
+  transition: filter 0.3s ease, transform 0.4s ease;
 }
 
+/* Idle: gentle breathing */
+.bruno-animated.idle {
+  animation: bruno-breathe 3.5s ease-in-out infinite;
+}
+
+/* Listening: head tilt wiggle */
 .bruno-animated.listening {
-  animation: bruno-wiggle 0.6s ease-in-out infinite;
+  animation: bruno-wiggle 0.7s ease-in-out infinite;
 }
 
+/* Thinking: slow tilt + pulse */
 .bruno-animated.thinking {
-  animation: bruno-pulse 1.2s ease-in-out infinite;
+  animation: bruno-think 2.5s ease-in-out infinite;
+  transform: rotate(-3deg);
 }
 
+/* Talking: bounce */
 .bruno-animated.talking {
   animation: bruno-bounce 0.8s ease-in-out;
 }
 
+/* Happy: hop */
 .bruno-animated.happy {
   animation: bruno-hop 0.8s ease-in-out;
+  filter: saturate(1.1) brightness(1.03);
 }
+
+/* Sad: droop + desaturate */
+.bruno-animated.sad {
+  animation: bruno-droop 0.5s ease-out forwards;
+  filter: saturate(0.7) brightness(0.93);
+}
+
+/* Waving: sway */
+.bruno-animated.waving {
+  animation: bruno-wave-body 0.6s ease-in-out 3;
+}
+
+/* Celebrating: big bounce + bright */
+.bruno-animated.celebrating {
+  animation: bruno-celebrate 1s ease-in-out;
+  filter: saturate(1.15) brightness(1.05);
+}
+
+/* Dancing: 3D illusion — Bruno appears to move inside the image */
+.bruno-animated.dancing {
+  transform-style: preserve-3d;
+  animation: bruno-dance 2.4s ease-in-out infinite;
+  filter: saturate(1.1) brightness(1.05);
+}
+.bruno-animated.dancing .bruno-img {
+  animation: bruno-dance-squash 2.4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+/* Dynamic shadow under Bruno while dancing */
+.bruno-animated.dancing::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 12px;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.25) 0%, transparent 70%);
+  animation: bruno-dance-shadow 2.4s ease-in-out infinite;
+  border-radius: 50%;
+}
+
+/* Surprised: quick jump */
+.bruno-animated.surprised {
+  animation: bruno-jump 0.4s ease-out;
+}
+
+/* ═══════════════════════════════════
+   THOUGHT BUBBLE
+   ═══════════════════════════════════ */
+
+.bruno-thought {
+  position: absolute;
+  top: -5px;
+  right: -15px;
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  animation: bruno-thought-bob 1.2s ease-in-out infinite;
+  z-index: 1;
+}
+
+.bruno-thought-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.bruno-thought-dot {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.bruno-thought-dot.dot1 {
+  width: 12px; height: 12px;
+  bottom: -10px; left: 8px;
+}
+.bruno-thought-dot.dot2 {
+  width: 7px; height: 7px;
+  bottom: -18px; left: 14px;
+}
+
+/* ═══════════════════════════════════
+   PARTICLES
+   ═══════════════════════════════════ */
+
+.bruno-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.bruno-particle {
+  position: absolute;
+  font-size: 18px;
+  opacity: 0;
+}
+.bruno-particle.p1 { left: 10%; animation: bruno-float-up 1.2s ease-out 0s forwards; }
+.bruno-particle.p2 { left: 50%; animation: bruno-float-up 1.2s ease-out 0.2s forwards; }
+.bruno-particle.p3 { left: 75%; animation: bruno-float-up 1.2s ease-out 0.4s forwards; }
+
+/* ═══════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════ */
 
 @keyframes bruno-breathe {
   0%, 100% { transform: scale(1) translateY(0); }
-  50% { transform: scale(1.04) translateY(-1px); }
+  50% { transform: scale(1.015) translateY(-1px); }
 }
 
 @keyframes bruno-wiggle {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-6deg); }
-  75% { transform: rotate(6deg); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
 }
 
-@keyframes bruno-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.97); }
+@keyframes bruno-think {
+  0%, 100% { transform: rotate(-3deg) translateY(0); }
+  50% { transform: rotate(-3deg) translateY(-2px); }
 }
 
 @keyframes bruno-bounce {
   0%, 100% { transform: translateY(0); }
-  25% { transform: translateY(-8px); }
-  50% { transform: translateY(0); }
-  75% { transform: translateY(-4px); }
+  20% { transform: translateY(-12px); }
+  40% { transform: translateY(0); }
+  55% { transform: translateY(-6px); }
+  70% { transform: translateY(0); }
 }
 
 @keyframes bruno-hop {
   0%, 100% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-14px) scale(1.06); }
-  50% { transform: translateY(0) scale(0.96); }
-  70% { transform: translateY(-6px) scale(1.03); }
+  30% { transform: translateY(-16px) scale(1.04); }
+  50% { transform: translateY(0) scale(0.97); }
+  70% { transform: translateY(-6px) scale(1.02); }
+}
+
+@keyframes bruno-droop {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(5px) scale(0.97); }
+}
+
+@keyframes bruno-wave-body {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-4deg); }
+  75% { transform: rotate(4deg); }
+}
+
+@keyframes bruno-celebrate {
+  0%, 100% { transform: translateY(0) scale(1); }
+  15% { transform: translateY(-24px) scale(1.08); }
+  30% { transform: translateY(0) scale(0.96); }
+  45% { transform: translateY(-14px) scale(1.04); }
+  60% { transform: translateY(0) scale(0.98); }
+  75% { transform: translateY(-6px) scale(1.02); }
+}
+
+@keyframes bruno-jump {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+@keyframes bruno-thought-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes bruno-float-up {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  25% { opacity: 1; transform: translateY(-12px) scale(1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.6); }
+}
+
+/* ═══════════════════════════════════
+   DANCE
+   ═══════════════════════════════════ */
+
+@keyframes bruno-dance {
+  0%, 100% { transform: translateY(0)    rotateY(0deg)   rotateZ(0deg)  scale(1); }
+  12.5%    { transform: translateY(-16px) rotateY(-10deg) rotateZ(-6deg) scale(1.03); }
+  25%      { transform: translateY(-24px) rotateY(0deg)   rotateZ(0deg)  scale(1.06); }
+  37.5%    { transform: translateY(-16px) rotateY(10deg)  rotateZ(6deg)  scale(1.03); }
+  50%      { transform: translateY(-4px)  rotateY(0deg)   rotateZ(0deg)  scale(1); }
+  62.5%    { transform: translateY(-14px) rotateY(-7deg)  rotateZ(-4deg) scale(1.02); }
+  75%      { transform: translateY(-14px) rotateY(7deg)   rotateZ(4deg)  scale(1.02); }
+  87.5%    { transform: translateY(-20px) rotateY(-3deg)  rotateZ(0deg)  scale(1.04); }
+}
+
+/* Squash & stretch on the image — simulates body compression */
+@keyframes bruno-dance-squash {
+  0%, 100% { transform: scaleY(1) scaleX(1) translateY(0); }
+  12.5%    { transform: scaleY(1.03) scaleX(0.97) translateY(2px); }
+  25%      { transform: scaleY(0.95) scaleX(1.04) translateY(-4px); }
+  37.5%    { transform: scaleY(1.03) scaleX(0.97) translateY(2px); }
+  50%      { transform: scaleY(1.04) scaleX(0.97) translateY(4px); }
+  62.5%    { transform: scaleY(0.98) scaleX(1.01) translateY(0); }
+  75%      { transform: scaleY(0.98) scaleX(1.01) translateY(0); }
+  87.5%    { transform: scaleY(0.96) scaleX(1.03) translateY(-3px); }
+}
+
+/* Shadow shrinks when Bruno is "in the air" */
+@keyframes bruno-dance-shadow {
+  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.25; }
+  25%      { transform: translateX(-50%) scaleX(0.6); opacity: 0.15; }
+  50%      { transform: translateX(-50%) scaleX(1); opacity: 0.25; }
+  87.5%    { transform: translateX(-50%) scaleX(0.7); opacity: 0.18; }
+}
+
+/* Music notes floating around dancing Bruno */
+.bruno-notes {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.bruno-note {
+  position: absolute;
+  font-size: 20px;
+  opacity: 0;
+}
+.bruno-note.n1 { left: -10px; top: 20%; animation: bruno-note-float 2s ease-in-out infinite 0s; }
+.bruno-note.n2 { right: -10px; top: 10%; animation: bruno-note-float 2s ease-in-out infinite 0.7s; }
+.bruno-note.n3 { left: 5px; top: 5%; animation: bruno-note-float 2s ease-in-out infinite 1.4s; }
+
+@keyframes bruno-note-float {
+  0%   { opacity: 0; transform: translateY(0) rotate(0deg); }
+  15%  { opacity: 1; }
+  80%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-45px) rotate(20deg); }
 }

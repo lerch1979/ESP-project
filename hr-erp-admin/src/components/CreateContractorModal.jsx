@@ -9,6 +9,10 @@ import {
   Grid,
   CircularProgress,
   Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -20,6 +24,7 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
     email: '',
     phone: '',
     address: '',
+    type: 'service_provider',
   });
 
   const handleChange = (field, value) => {
@@ -55,7 +60,7 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
   };
 
   const handleClose = () => {
-    setFormData({ name: '', email: '', phone: '', address: '' });
+    setFormData({ name: '', email: '', phone: '', address: '', type: 'service_provider' });
     onClose();
   };
 
@@ -78,6 +83,20 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
               onChange={(e) => handleChange('name', e.target.value)}
               placeholder="pl. Housing Solutions Kft."
             />
+          </Grid>
+
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Típus</InputLabel>
+              <Select
+                value={formData.type}
+                onChange={(e) => handleChange('type', e.target.value)}
+                label="Típus"
+              >
+                <MenuItem value="property_owner">Ingatlan tulajdonos</MenuItem>
+                <MenuItem value="service_provider">Szolgáltató</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
 
           <Grid item xs={12}>

@@ -24,6 +24,7 @@ export default function CreateTicketScreen({ navigation }) {
   const [priorities, setPriorities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     const load = async () => {
@@ -44,18 +45,17 @@ export default function CreateTicketScreen({ navigation }) {
   }, []);
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      Alert.alert('Hiba', 'A cím megadása kötelező');
+    const nextErrors = {};
+    if (!title.trim()) nextErrors.title = 'A cím megadása kötelező';
+    if (!categoryId) nextErrors.category = 'Kérjük, válasszon kategóriát';
+    if (!priorityId) nextErrors.priority = 'Kérjük, válasszon prioritást';
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      Alert.alert('Hiányzó adatok', Object.values(nextErrors).join('\n'));
       return;
     }
-    if (!categoryId) {
-      Alert.alert('Hiba', 'Kérjük, válasszon kategóriát');
-      return;
-    }
-    if (!priorityId) {
-      Alert.alert('Hiba', 'Kérjük, válasszon prioritást');
-      return;
-    }
+    setErrors({});
 
     setSubmitting(true);
     try {
@@ -87,12 +87,16 @@ export default function CreateTicketScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.label}>Cím *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.title && styles.inputError]}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={(text) => {
+              setTitle(text);
+              if (errors.title) setErrors((e) => ({ ...e, title: null }));
+            }}
             placeholder="Hibajegy címe"
             placeholderTextColor={colors.textLight}
           />
+          {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
           <Text style={styles.label}>Leírás</Text>
           <TextInput
@@ -107,12 +111,15 @@ export default function CreateTicketScreen({ navigation }) {
           />
 
           <Text style={styles.label}>Kategória *</Text>
-          <View style={styles.optionGroup}>
+          <View style={[styles.optionGroup, errors.category && styles.optionGroupError]}>
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
                 style={[styles.optionButton, categoryId === cat.id && styles.optionButtonSelected]}
-                onPress={() => setCategoryId(cat.id)}
+                onPress={() => {
+                  setCategoryId(cat.id);
+                  if (errors.category) setErrors((e) => ({ ...e, category: null }));
+                }}
                 activeOpacity={0.7}
               >
                 <Text
@@ -123,14 +130,18 @@ export default function CreateTicketScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </View>
+          {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
 
           <Text style={styles.label}>Prioritás *</Text>
-          <View style={styles.optionGroup}>
+          <View style={[styles.optionGroup, errors.priority && styles.optionGroupError]}>
             {priorities.map((pri) => (
               <TouchableOpacity
                 key={pri.id}
                 style={[styles.optionButton, priorityId === pri.id && styles.optionButtonSelected]}
-                onPress={() => setPriorityId(pri.id)}
+                onPress={() => {
+                  setPriorityId(pri.id);
+                  if (errors.priority) setErrors((e) => ({ ...e, priority: null }));
+                }}
                 activeOpacity={0.7}
               >
                 <Text
@@ -141,6 +152,7 @@ export default function CreateTicketScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </View>
+          {errors.priority && <Text style={styles.errorText}>{errors.priority}</Text>}
         </View>
 
         <TouchableOpacity
@@ -197,6 +209,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  inputError: {
+    borderColor: colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: 4,
+  },
   textArea: {
     minHeight: 100,
   },
@@ -204,6 +225,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  optionGroupError: {
+    borderWidth: 1.5,
+    borderColor: colors.error,
+    borderRadius: 8,
+    padding: 6,
   },
   optionButton: {
     paddingHorizontal: 14,

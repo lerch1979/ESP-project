@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1F2937; }
+.slide { width: 297mm; height: 210mm; padding: 18mm 22mm; position: relative; page-break-after: always; overflow: hidden; }
+.slide:last-child { page-break-after: avoid; }
+.footer { position: absolute; bottom: 8mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between; font-size: 8pt; color: #9CA3AF; }
+h1 { font-size: 28pt; color: #1E4D7B; font-weight: 800; margin-bottom: 8px; }
+h2 { font-size: 20pt; color: #1E4D7B; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 14pt; color: #1E4D7B; font-weight: 700; margin-bottom: 6px; }
+.subtitle { font-size: 14pt; color: #6B7280; margin-bottom: 16px; }
+.big-num { font-size: 36pt; font-weight: 900; color: #1E4D7B; }
+.green { color: #22C55E; } .orange { color: #F97316; } .blue { color: #1E4D7B; } .red { color: #DC2626; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.card { background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; }
+.card-blue { background: #EFF6FF; border: 2px solid #1E4D7B; border-radius: 10px; padding: 16px; }
+.card-green { background: #F0FDF4; border: 2px solid #22C55E; border-radius: 10px; padding: 16px; }
+.card-orange { background: #FFF7ED; border: 2px solid #F97316; border-radius: 10px; padding: 16px; }
+.card-red { background: #FEF2F2; border: 2px solid #DC2626; border-radius: 10px; padding: 16px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 700; }
+.badge-blue { background: #1E4D7B; color: white; }
+.badge-green { background: #22C55E; color: white; }
+.badge-orange { background: #F97316; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 8px; }
+th { background: #1E4D7B; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+td { padding: 7px 12px; border-bottom: 1px solid #E5E7EB; }
+tr:nth-child(even) { background: #F8FAFC; }
+ul { padding-left: 18px; font-size: 11pt; line-height: 1.7; }
+li { margin-bottom: 3px; }
+.check { color: #22C55E; font-weight: 700; }
+p { font-size: 11pt; line-height: 1.6; }
+.small { font-size: 9pt; color: #6B7280; }
+.cta-btn { display: inline-block; background: #F97316; color: white; font-size: 16pt; font-weight: 700; padding: 14px 40px; border-radius: 10px; text-decoration: none; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: BORÍTÓ -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <div style="font-size: 14pt; letter-spacing: 4px; font-weight: 300; margin-bottom: 20px;">HOUSING SOLUTIONS KFT.</div>
+  <h1 style="color: white; font-size: 36pt; margin-bottom: 16px;">Housing Solutions<br>Platform</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 16px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 8px;">Csökkentse a fluktuációt 40%-kal</div>
+  <div style="font-size: 13pt; color: #93C5FD; margin-bottom: 4px;">AI-alapú Munkaerő-stabilitási Rendszer</div>
+  <div style="font-size: 20pt; color: #F97316; font-weight: 700; margin-top: 24px;">Egy Platform. Teljes Munkaerő-menedzsment.</div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas</span><span>Housing Solutions Kft. — Fertőd</span></div>
+</div>
+
+<!-- SLIDE 2: AZ ÖN KIHÍVÁSAI -->
+<div class="slide">
+  <h1>A Munkaerő-instabilitás Rejtett Költségei</h1>
+  <p class="subtitle">Amit minden HR igazgató és facility manager tapasztal</p>
+  <div class="grid3" style="margin-top: 14px;">
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 32pt;">📉</div>
+      <div class="big-num red">30-50%</div>
+      <h3>Éves fluktuáció</h3>
+      <p>A fizikai munkavállalók körében a legmagasabb a lemorzsolódás</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 32pt;">💸</div>
+      <div class="big-num orange">30.000+</div>
+      <h3>EUR / fő pótlási költség</h3>
+      <p>Toborzás, betanítás, elveszett termelékenység</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 32pt;">🔥</div>
+      <div class="big-num blue">60%</div>
+      <h3>HR idő tűzoltásra megy</h3>
+      <p>Szállásügyi panaszok, konfliktusok, adminisztráció</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card-orange" style="padding: 12px 16px;">
+      <div style="font-size: 11pt;">🏠 <strong>Szállásügyi panaszok</strong> = termelékenységvesztés, betegszabadság, felmondás</div>
+    </div>
+    <div class="card-red" style="padding: 12px 16px;">
+      <div style="font-size: 11pt;">📋 <strong>Compliance fejfájás:</strong> GDPR, AI törvény, Mt. 177.§ — papíralapú rendszerekkel lehetetlen</div>
+    </div>
+  </div>
+  <div style="margin-top: 14px; background: #F8FAFC; padding: 10px 16px; border-radius: 8px; border-left: 4px solid #1E4D7B;">
+    <em>"Időnk 60%-át szállásügyi problémákra költjük, miközben a valódi HR feladataink háttérbe szorulnak."</em> — <strong>HR Igazgató, multinacionális gyártó cég</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>2</span></div>
+</div>
+
+<!-- SLIDE 3: A FLUKTUÁCIÓ KÖLTSÉGE -->
+<div class="slide">
+  <h1>Számítsa Ki Rejtett Költségeit</h1>
+  <p class="subtitle">Példa: 200 munkavállalós telephely</p>
+  <div class="grid2" style="margin-top: 16px;">
+    <div>
+      <table>
+        <tr><th colspan="2">Fluktuációs költség kalkuláció</th></tr>
+        <tr><td>Munkavállalók száma</td><td style="text-align:right; font-weight:700;">200 fő</td></tr>
+        <tr><td>Jelenlegi fluktuáció</td><td style="text-align:right; font-weight:700; color:#DC2626;">40% (80 fő/év)</td></tr>
+        <tr><td>Pótlási költség / fő</td><td style="text-align:right; font-weight:700;">30.000 EUR</td></tr>
+        <tr><td>Elveszett termelékenység / fő</td><td style="text-align:right; font-weight:700;">10.000 EUR</td></tr>
+        <tr style="background:#FEF2F2;"><td style="font-weight:700; font-size:12pt;">ÖSSZES ÉVES KÖLTSÉG</td><td style="text-align:right; font-weight:900; font-size:14pt; color:#DC2626;">3,2 millió EUR</td></tr>
+      </table>
+    </div>
+    <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+      <div style="font-size: 60pt; font-weight: 900; color: #DC2626;">3,2M €</div>
+      <div style="font-size: 14pt; color: #6B7280; margin-top: 8px;">évente elpazarolva</div>
+      <div style="width: 80px; height: 4px; background: #F97316; margin: 20px auto;"></div>
+      <div style="font-size: 18pt; color: #22C55E; font-weight: 700;">Mi lenne, ha ezt<br>felére csökkenthetné?</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>3</span></div>
+</div>
+
+<!-- SLIDE 4: MEGOLDÁSUNK -->
+<div class="slide">
+  <h1>Housing Solutions Platform</h1>
+  <p class="subtitle">Egy integrált platform — nincs több zsonglőrködés eszközök között</p>
+  <div class="grid3" style="margin-top: 16px;">
+    <div class="card-blue" style="text-align: center; padding: 20px;">
+      <div style="font-size: 40pt;">🏠</div>
+      <h2 style="font-size: 16pt; margin-top: 8px;">Szállás-stabilitás</h2>
+      <p>Szálláskezelés, karbantartás, kárigények, szoba-hozzárendelés</p>
+      <div class="badge badge-blue" style="margin-top: 10px;">Alap modul</div>
+    </div>
+    <div class="card-green" style="text-align: center; padding: 20px;">
+      <div style="font-size: 40pt;">💚</div>
+      <h2 style="font-size: 16pt; margin-top: 8px;">WellMind</h2>
+      <p>Napi jólléti check-in, 12 kategória, korai figyelmeztetések</p>
+      <div class="badge badge-green" style="margin-top: 10px;">Megelőző</div>
+    </div>
+    <div class="card-orange" style="text-align: center; padding: 20px;">
+      <div style="font-size: 40pt;">❤️</div>
+      <h2 style="font-size: 16pt; margin-top: 8px;">CarePath</h2>
+      <p>24/7 EAP támogatás, orvosi, mentális, jogi, pénzügyi</p>
+      <div class="badge badge-orange" style="margin-top: 10px;">Reaktív</div>
+    </div>
+  </div>
+  <div style="text-align: center; margin-top: 20px;">
+    <div style="display: inline-block; background: #F8FAFC; border: 2px solid #E5E7EB; border-radius: 10px; padding: 12px 30px;">
+      <span style="font-size: 20pt;">📱</span>
+      <strong style="font-size: 13pt;"> Mobilalkalmazás (50 képernyő)</strong>
+      <span style="margin: 0 12px; color: #E5E7EB;">|</span>
+      <span style="font-size: 20pt;">💻</span>
+      <strong style="font-size: 13pt;"> Admin Vezérlőpult</strong>
+      <span style="margin: 0 12px; color: #E5E7EB;">|</span>
+      <span style="font-size: 20pt;">🌐</span>
+      <strong style="font-size: 13pt;"> 5 Nyelv</strong>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>4</span></div>
+</div>
+
+<!-- SLIDE 5: SZÁLLÁS-STABILITÁS -->
+<div class="slide">
+  <h1>🏠 Valós Idejű Szálláskezelés</h1>
+  <p class="subtitle">Digitalizálja a szálláskezelést — nincs több papír</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <ul style="font-size: 12pt; line-height: 2;">
+        <li><span class="check">✅</span> Tisztasági ellenőrzések nyomon követése</li>
+        <li><span class="check">✅</span> Karbantartási kérések kezelése</li>
+        <li><span class="check">✅</span> Kárigény jegyzőkönyvek <strong>(Mt. 177.§ megfelelő)</strong></li>
+        <li><span class="check">✅</span> Szoba-hozzárendelés optimalizálás</li>
+        <li><span class="check">✅</span> Lakók mobilapplikációja</li>
+        <li><span class="check">✅</span> 5 nyelvű PDF generálás</li>
+        <li><span class="check">✅</span> Fizetési terv követés</li>
+        <li><span class="check">✅</span> Aláírás-munkafolyamat</li>
+      </ul>
+    </div>
+    <div style="background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; text-align: center;">
+      <div style="font-size: 60pt; margin-bottom: 12px;">📋</div>
+      <h3>Kárigény Jegyzőkönyv</h3>
+      <p style="margin-top: 8px;">Mt. 177.§ megfelelő<br>5 nyelven generálva automatikusan<br>Digitális aláírás<br>Fizetési terv integráció</p>
+      <div class="badge badge-blue" style="margin-top: 12px;">Jogi megfelelőség garantált</div>
+    </div>
+  </div>
+  <div class="card-green" style="margin-top: 14px; padding: 10px 16px;">
+    <strong>Eredmény:</strong> Nincs több papír. Minden digitális, nyomon követhető és jogilag megfelelő.
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>5</span></div>
+</div>
+
+<!-- SLIDE 6: WELLMIND -->
+<div class="slide">
+  <h1>💚 WellMind — Megelőző Jóllét</h1>
+  <p class="subtitle">Érje utol a problémákat, MIELŐTT elmérgesednének</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Hogyan működik?</h3>
+      <div style="margin-top: 10px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom: 10px;">
+          <div style="width:36px; height:36px; background:#22C55E; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">1</div>
+          <div><strong>Munkavállaló:</strong> 30 mp-es napi check-in (4 kérdés)</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom: 10px;">
+          <div style="width:36px; height:36px; background:#3B82F6; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">2</div>
+          <div><strong>Rendszer:</strong> AI elemez 12 jólléti kategóriát</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom: 10px;">
+          <div style="width:36px; height:36px; background:#F97316; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">3</div>
+          <div><strong>Vezető:</strong> Korai figyelmeztető értesítések</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:36px; height:36px; background:#8B5CF6; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">4</div>
+          <div><strong>Cselekvés:</strong> Proaktív beavatkozás, mielőtt felmondana</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>12 Jólléti Kategória</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; font-size: 10pt;">
+        <div class="card" style="padding:6px 10px;">😴 Alvásminőség</div>
+        <div class="card" style="padding:6px 10px;">😰 Stressz-szint</div>
+        <div class="card" style="padding:6px 10px;">💪 Energia</div>
+        <div class="card" style="padding:6px 10px;">🤝 Csapatkapcsolatok</div>
+        <div class="card" style="padding:6px 10px;">🏠 Szállás elégedettség</div>
+        <div class="card" style="padding:6px 10px;">💼 Munka-magánélet egyensúly</div>
+        <div class="card" style="padding:6px 10px;">🎯 Motiváció</div>
+        <div class="card" style="padding:6px 10px;">🏥 Fizikai egészség</div>
+        <div class="card" style="padding:6px 10px;">🧠 Mentális jóllét</div>
+        <div class="card" style="padding:6px 10px;">💰 Pénzügyi aggodalom</div>
+        <div class="card" style="padding:6px 10px;">📈 Karrier fejlődés</div>
+        <div class="card-orange" style="padding:6px 10px; font-weight:700;">⭐ Szállás index — EGYEDI!</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-green" style="margin-top: 10px; padding: 10px 16px;">
+    <strong>Eredmény:</strong> Előzze meg a felmondások 60%-át, mielőtt megtörténnek. A szállás-specifikus betekintés csak a mi platformunkon érhető el.
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>6</span></div>
+</div>
+
+<!-- SLIDE 7: CAREPATH -->
+<div class="slide">
+  <h1>❤️ CarePath — 24/7 Munkavállalói Segítség</h1>
+  <p class="subtitle">Teljes körű EAP támogatás, benne a platform árában</p>
+  <div class="grid3" style="margin-top: 14px;">
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 28pt;">🏥</div>
+      <h3>Orvosi támogatás</h3>
+      <p style="font-size: 10pt;">Biztosítás koordináció, orvosi beutalók, sürgősségi protokoll</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 28pt;">🧠</div>
+      <h3>Mentálhigiéné</h3>
+      <p style="font-size: 10pt;">Tanácsadás, stresszkezelés, krízis intervenció</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 28pt;">⚖️</div>
+      <h3>Jogi segítség</h3>
+      <p style="font-size: 10pt;">Dokumentáció, tanácsadás, munkaügyi kérdések</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 28pt;">💰</div>
+      <h3>Pénzügyi tanácsadás</h3>
+      <p style="font-size: 10pt;">Költségvetés, megtakarítás, hazautalás segítség</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 28pt;">📚</div>
+      <h3>Karriertanácsadás</h3>
+      <p style="font-size: 10pt;">Képzések, karrierút, fejlődési lehetőségek</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 28pt;">📞</div>
+      <h3>24/7 Forródrót</h3>
+      <p style="font-size: 10pt;">5 nyelven elérhető, anonim opció, krízis protokoll</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card-blue" style="padding: 10px 16px; text-align: center;">
+      <strong>Hagyományos EAP költség:</strong><br><span style="font-size: 16pt; color: #DC2626; font-weight: 700;">50 EUR/fő/hó</span>
+    </div>
+    <div class="card-green" style="padding: 10px 16px; text-align: center;">
+      <strong>A mi CarePath modulunk:</strong><br><span style="font-size: 16pt; color: #22C55E; font-weight: 700;">Benne van az árban!</span>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>7</span></div>
+</div>
+
+<!-- SLIDE 8: ROI KALKULÁTOR -->
+<div class="slide">
+  <h1>💰 Az Ön Megtakarításai</h1>
+  <p class="subtitle">A Housing Solutions Platform megtérülése</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Bemenet</h3>
+      <table>
+        <tr><td>Munkavállalók száma</td><td style="text-align:right; font-weight:700;">200 fő</td></tr>
+        <tr><td>Jelenlegi fluktuáció</td><td style="text-align:right; font-weight:700; color:#DC2626;">40%</td></tr>
+        <tr><td>Pótlási költség / fő</td><td style="text-align:right; font-weight:700;">30.000 EUR</td></tr>
+      </table>
+      <h3 style="margin-top: 16px;">Eredmény a platformunkkal</h3>
+      <table>
+        <tr><td>Jelenlegi éves költség</td><td style="text-align:right; font-weight:700; color:#DC2626;">2.400.000 EUR</td></tr>
+        <tr><td>Platformunkkal (25% fluktuáció)</td><td style="text-align:right; font-weight:700; color:#22C55E;">1.500.000 EUR</td></tr>
+        <tr style="background:#F0FDF4;"><td style="font-weight:700;">ÉVES MEGTAKARÍTÁS</td><td style="text-align:right; font-weight:900; font-size:14pt; color:#22C55E;">900.000 EUR ✅</td></tr>
+      </table>
+    </div>
+    <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap: 16px;">
+      <div>
+        <div style="font-size: 11pt; color: #6B7280;">Platform költsége</div>
+        <div style="font-size: 20pt; font-weight: 700;">12.000 EUR/év</div>
+        <div style="font-size: 10pt; color: #6B7280;">(5 EUR/fő/hó × 200 fő × 12 hó)</div>
+      </div>
+      <div style="width: 80px; height: 4px; background: #22C55E;"></div>
+      <div>
+        <div style="font-size: 11pt; color: #6B7280;">NETTÓ ROI</div>
+        <div style="font-size: 40pt; font-weight: 900; color: #22C55E;">888.000 €</div>
+        <div style="font-size: 16pt; font-weight: 700; color: #1E4D7B;">74:1 megtérülés!</div>
+      </div>
+      <div class="card-green" style="padding: 10px 20px;">
+        <strong>A platform 2 hét alatt megtérül</strong>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>8</span></div>
+</div>
+
+<!-- SLIDE 9: IMPLEMENTÁCIÓ -->
+<div class="slide">
+  <h1>🚀 Élesben 4 Hét Alatt</h1>
+  <p class="subtitle">Fehérkesztyűs implementáció mellékelve — Önnek semmit nem kell csinálnia</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 20px;">
+    <div style="text-align: center;">
+      <div style="width:60px; height:60px; background:#1E4D7B; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24pt; font-weight:700; margin: 0 auto 10px;">1</div>
+      <h3 style="font-size: 12pt;">1-2. hét</h3>
+      <p style="font-size: 11pt; font-weight: 700; color: #1E4D7B;">Beállítás</p>
+      <ul style="font-size: 9pt; text-align: left; margin-top: 8px;">
+        <li>Adatmigráció</li>
+        <li>Rendszer konfigurálás</li>
+        <li>Admin fiókok</li>
+      </ul>
+    </div>
+    <div style="text-align: center;">
+      <div style="width:60px; height:60px; background:#3B82F6; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24pt; font-weight:700; margin: 0 auto 10px;">2</div>
+      <h3 style="font-size: 12pt;">3. hét</h3>
+      <p style="font-size: 11pt; font-weight: 700; color: #3B82F6;">Képzés</p>
+      <ul style="font-size: 9pt; text-align: left; margin-top: 8px;">
+        <li>2 órás admin képzés</li>
+        <li>Dokumentáció</li>
+        <li>Támogatás elérhető</li>
+      </ul>
+    </div>
+    <div style="text-align: center;">
+      <div style="width:60px; height:60px; background:#22C55E; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24pt; font-weight:700; margin: 0 auto 10px;">3</div>
+      <h3 style="font-size: 12pt;">4. hét</h3>
+      <p style="font-size: 11pt; font-weight: 700; color: #22C55E;">Onboarding</p>
+      <ul style="font-size: 9pt; text-align: left; margin-top: 8px;">
+        <li>App terjesztés</li>
+        <li>Gyors útmutató (5 nyelv)</li>
+        <li>Gamifikáció indítás</li>
+      </ul>
+    </div>
+    <div style="text-align: center;">
+      <div style="width:60px; height:60px; background:#F97316; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24pt; font-weight:700; margin: 0 auto 10px;">4</div>
+      <h3 style="font-size: 12pt;">2. hónap</h3>
+      <p style="font-size: 11pt; font-weight: 700; color: #F97316;">Éles üzem</p>
+      <ul style="font-size: 9pt; text-align: left; margin-top: 8px;">
+        <li>Minden modul aktív</li>
+        <li>Analitika engedélyezve</li>
+        <li>Folyamatos támogatás</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card-blue" style="margin-top: 20px; padding: 12px 20px; text-align: center;">
+    <strong style="font-size: 13pt;">Dedikált projekt-menedzser az Ön szolgálatában az implementáció teljes időtartama alatt</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>9</span></div>
+</div>
+
+<!-- SLIDE 10: MEGFELELŐSÉG -->
+<div class="slide">
+  <h1>🔒 Vállalati Szintű Biztonság és Megfelelőség</h1>
+  <p class="subtitle">Az Ön adatai biztonságban. A megfelelőség garantált.</p>
+  <div class="grid2" style="margin-top: 14px;">
+    <div>
+      <h3>Megfelelőség</h3>
+      <ul style="font-size: 12pt; line-height: 2;">
+        <li><span class="check">✅</span> GDPR megfelelő (22/25/35. cikk)</li>
+        <li><span class="check">✅</span> AI törvény igazított (nincs érzelmi következtetés)</li>
+        <li><span class="check">✅</span> Mt. 177.§ kárigény jegyzőkönyv</li>
+        <li><span class="check">✅</span> ISO 27001 kész infrastruktúra</li>
+        <li><span class="check">✅</span> Adatok EU-ban tárolva</li>
+        <li><span class="check">✅</span> SOC 2 Type II (folyamatban)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Biztonsági funkciók</h3>
+      <ul style="font-size: 12pt; line-height: 2;">
+        <li>🔐 Végponttól végpontig titkosítás (TLS 1.3)</li>
+        <li>👤 Szerepkör-alapú hozzáférés szabályozás (RBAC)</li>
+        <li>📝 Teljes audit naplók</li>
+        <li>🛡️ Rendszeres penetrációs tesztelés</li>
+        <li>🔄 Napi automatikus biztonsági mentés</li>
+        <li>☁️ Kubernetes infrastruktúra (99.9% SLA)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid3" style="margin-top: 14px;">
+    <div class="card" style="text-align: center; padding: 12px;">
+      <div style="font-size: 24pt;">🇪🇺</div>
+      <strong>GDPR</strong>
+    </div>
+    <div class="card" style="text-align: center; padding: 12px;">
+      <div style="font-size: 24pt;">🤖</div>
+      <strong>AI Act Ready</strong>
+    </div>
+    <div class="card" style="text-align: center; padding: 12px;">
+      <div style="font-size: 24pt;">🇭🇺</div>
+      <strong>Mt. 177.§</strong>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>10</span></div>
+</div>
+
+<!-- SLIDE 11: ÁRAZÁS ÉS KÖVETKEZŐ LÉPÉSEK -->
+<div class="slide">
+  <h1>Rugalmas Árazás. Nincs Hosszú Távú Szerződés.</h1>
+  <p class="subtitle">Fizessen csak azért, amit használ — bármikor lemondható</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <table>
+        <tr><th>Modul</th><th style="text-align:right;">Ár / fő / hó</th></tr>
+        <tr><td><strong>Alap Platform</strong><br><span class="small">Szálláskezelés, jegyek, mobilapp, admin</span></td><td style="text-align:right; font-size:14pt; font-weight:700;">3 EUR</td></tr>
+        <tr><td><strong>+ WellMind</strong><br><span class="small">Jólléti check-in, analitika, riasztások</span></td><td style="text-align:right; font-size:14pt; font-weight:700;">+1 EUR</td></tr>
+        <tr><td><strong>+ CarePath</strong><br><span class="small">EAP, 24/7 forródrót, szolgáltatók</span></td><td style="text-align:right; font-size:14pt; font-weight:700;">+1 EUR</td></tr>
+        <tr style="background:#EFF6FF;"><td style="font-weight:700; font-size:12pt;">ÖSSZESEN (minden modul)</td><td style="text-align:right; font-weight:900; font-size:18pt; color:#1E4D7B;">5 EUR</td></tr>
+      </table>
+      <div style="margin-top: 10px; font-size: 10pt; color: #6B7280;">
+        Példa (200 fő): <strong>1.000 EUR/hó</strong> vagy <strong>12.000 EUR/év</strong>
+      </div>
+    </div>
+    <div>
+      <div class="card-green" style="padding: 20px; text-align: center; margin-bottom: 14px;">
+        <h2 style="color: #22C55E; font-size: 18pt;">🎁 INGYENES PILOT</h2>
+        <ul style="list-style: none; padding: 0; font-size: 12pt; line-height: 2; text-align: left; margin-top: 10px;">
+          <li><span class="check">✅</span> 2 hónap ingyenes</li>
+          <li><span class="check">✅</span> 50 felhasználó</li>
+          <li><span class="check">✅</span> Minden modul mellékelve</li>
+          <li><span class="check">✅</span> Nincs bankkártya szükséges</li>
+          <li><span class="check">✅</span> Fehérkesztyűs implementáció</li>
+        </ul>
+      </div>
+      <div style="text-align: center;">
+        <div class="cta-btn">📅 Foglaljon 30 Perces Demót</div>
+        <div style="margin-top: 12px; font-size: 11pt;">
+          <strong>Lerch Balázs</strong> — Alapító<br>
+          📧 lerchbalazs@gmail.com<br>
+          🏢 Housing Solutions Kft. — Fertőd
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions — Ügyfél Prezentáció</span><span>11</span></div>
+</div>
+
+</body>
+</html>

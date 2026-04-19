@@ -3,7 +3,21 @@ const { logger } = require('../utils/logger');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
 const autoAssignService = require('../services/autoAssign.service');
 const slaService = require('../services/sla.service');
+const translation = require('../services/translation.service');
 const { isValidUUID, sanitizeString, parsePagination, sanitizeSearch } = require('../utils/validation');
+
+async function translateForViewer(req, rowOrRows, fields = ['title', 'description']) {
+  try {
+    const viewerLang = await translation.getUserLanguage(req.user.id);
+    if (Array.isArray(rowOrRows)) {
+      return await translation.translateArray(rowOrRows, 'language', viewerLang, fields);
+    }
+    return await translation.translateObject(rowOrRows, 'language', viewerLang, fields);
+  } catch (err) {
+    logger.warn('[ticket] translation failed, returning untranslated:', err.message);
+    return rowOrRows;
+  }
+}
 
 const TICKET_FILTER_FIELD_MAP = {
   status: 'ts.slug',
@@ -115,6 +129,7 @@ const getTickets = async (req, res) => {
         t.ticket_number,
         t.title,
         t.description,
+        t.language,
         t.created_at,
         t.updated_at,
         t.due_date,
@@ -151,11 +166,12 @@ const getTickets = async (req, res) => {
 
     allParams.push(limit, offset);
     const ticketsResult = await query(ticketsQuery, allParams);
+    const translatedTickets = await translateForViewer(req, ticketsResult.rows);
 
     res.json({
       success: true,
       data: {
-        tickets: ticketsResult.rows,
+        tickets: translatedTickets,
         pagination: {
           total: parseInt(countResult.rows[0].total),
           page: parseInt(page),
@@ -279,12 +295,21 @@ const getTicketById = async (req, res) => {
 
     const historyResult = await query(historyQuery, [id]);
 
+    const translatedTicket = await translateForViewer(req, ticket);
+    const viewerLang = translatedTicket._targetLang || (await translation.getUserLanguage(req.user.id));
+    const translatedComments = await translation.translateArray(
+      commentsResult.rows.map((c) => ({ ...c, language: c.language || ticket.language || 'hu' })),
+      'language',
+      viewerLang,
+      ['comment']
+    );
+
     res.json({
       success: true,
       data: {
         ticket: {
-          ...ticket,
-          comments: commentsResult.rows,
+          ...translatedTicket,
+          comments: translatedComments,
           attachments: attachmentsResult.rows,
           history: historyResult.rows
         }
@@ -327,12 +352,19 @@ const createTicket = async (req, res) => {
         "SELECT id FROM ticket_statuses WHERE slug = 'new' LIMIT 1"
       );
 
+      // Capture creator's preferred language so admins can be shown a translation later
+      const creatorLangResult = await client.query(
+        'SELECT preferred_language FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      const creatorLang = creatorLangResult.rows[0]?.preferred_language || 'hu';
+
       // Ticket létrehozása
       const insertQuery = `
         INSERT INTO tickets (
-          contractor_id, ticket_number, title, description,
+          contractor_id, ticket_number, title, description, language,
           category_id, status_id, priority_id, created_by, assigned_to
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
 
@@ -341,6 +373,7 @@ const createTicket = async (req, res) => {
         ticketNumber,
         title,
         description || null,
+        creatorLang,
         category_id || null,
         statusResult.rows[0].id,
         priority_id || null,

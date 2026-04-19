@@ -149,6 +149,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   useEffect(() => {
     if (open && employeeId) {
       loadEmployee();
+      loadDropdowns();
       setEditing(false);
       setActiveTab(0);
     }
@@ -335,20 +336,21 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
     }
   };
 
-  const handleDeactivate = async () => {
-    if (!window.confirm('Biztosan deaktiválod ezt a munkavállalót?')) return;
+  const handleStatusChange = async (newStatusId) => {
+    const newStatus = statuses.find(s => s.id === newStatusId);
+    if (!window.confirm(`Biztosan megváltoztatod a státuszt: "${newStatus?.name}"?`)) return;
 
     setSaving(true);
     try {
-      const response = await employeesAPI.delete(employeeId);
+      const response = await employeesAPI.update(employeeId, { status_id: newStatusId });
       if (response.success) {
-        toast.success('Munkavállaló deaktiválva!');
+        toast.success('Státusz sikeresen megváltoztatva!');
+        loadEmployee();
         onSuccess();
-        onClose();
       }
     } catch (error) {
-      console.error('Munkavállaló deaktiválási hiba:', error);
-      toast.error('Hiba a munkavállaló deaktiválásakor');
+      console.error('Státusz változtatási hiba:', error);
+      toast.error('Hiba a státusz megváltoztatásakor');
     } finally {
       setSaving(false);
     }
@@ -852,15 +854,32 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
         ) : (
           <>
             <Button onClick={handleClose}>Bezárás</Button>
-            {employee && !employee.end_date && activeTab === 0 && (
+            {employee && activeTab === 0 && (
               <>
-                <Button
-                  onClick={handleDeactivate}
-                  color="error"
-                  disabled={saving}
-                >
-                  Deaktiválás
-                </Button>
+                <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <Select
+                    value={employee.status_id || ''}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    disabled={saving}
+                    displayEmpty
+                    MenuProps={{
+                      anchorOrigin: { vertical: 'top', horizontal: 'left' },
+                      transformOrigin: { vertical: 'bottom', horizontal: 'left' },
+                    }}
+                    renderValue={(val) => {
+                      const s = statuses.find(st => st.id === val);
+                      return s ? (
+                        <Chip label={s.name} size="small" sx={{ bgcolor: `${s.color}20`, color: s.color, fontWeight: 600 }} />
+                      ) : 'Státusz';
+                    }}
+                  >
+                    {statuses.map((s) => (
+                      <MenuItem key={s.id} value={s.id}>
+                        <Chip label={s.name} size="small" sx={{ bgcolor: `${s.color}20`, color: s.color }} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 <Button
                   onClick={handleEdit}
                   variant="contained"
@@ -985,8 +1004,10 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
       <DetailRow label="Törzsszám" value={employee.employee_number || '-'} />
       <DetailRow label="Munkakör" value={employee.position || '-'} />
       <DetailRow label="Munkahely" value={employee.workplace || '-'} />
-      <DetailRow label="Email" value={employee.email || '-'} />
-      <DetailRow label="Telefon" value={employee.phone || '-'} />
+      <DetailRow label="Személyes email" value={employee.personal_email || employee.email || '-'} />
+      <DetailRow label="Személyes telefon" value={employee.personal_phone || employee.phone || '-'} />
+      <DetailRow label="Céges email" value={employee.company_email || '-'} />
+      <DetailRow label="Céges telefon" value={employee.company_phone || '-'} />
       <DetailRow label="Érkezés dátuma" value={fmtDate(employee.arrival_date)} />
       <DetailRow label="Kezdés dátuma" value={fmtDate(employee.start_date)} />
       {employee.end_date && (

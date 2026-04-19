@@ -248,6 +248,9 @@ app.use(`${API_PREFIX}/slack`, slackRoutes);
 app.use(`${API_PREFIX}/nlp`, nlpRoutes);
 app.use(`${API_PREFIX}/damage-reports`, damageReportRoutes);
 app.use(`${API_PREFIX}/translation`, translationRoutes);
+// Top-level /translate alias — matches the documented contract { text, fromLang, toLang }
+const { authenticateToken } = require('./middleware/auth');
+app.post(`${API_PREFIX}/translate`, authenticateToken, translationRoutes.translateHandler);
 app.use(`${API_PREFIX}/analytics`, analyticsRoutes);
 app.use(`${API_PREFIX}/gtd`, gtdRoutes);
 
