@@ -37,6 +37,15 @@ for PORT in 3001 5173 8082; do
   fi
 done
 
+# Also kill zombie nodemons that survived an EADDRINUSE crash (stuck in
+# "app crashed - waiting for file changes" — no port, but still holding
+# ttys and preventing clean restarts).
+ZOMBIES=$(pgrep -f "nodemon.*hr-erp-backend.*src/server.js" 2>/dev/null)
+if [ -n "$ZOMBIES" ]; then
+  echo "$ZOMBIES" | xargs kill -9 2>/dev/null
+  echo -e "  ${GREEN}✓${NC} Cleaned up $(echo "$ZOMBIES" | wc -l | tr -d ' ') orphan nodemon(s)"
+fi
+
 if [ $STOPPED -eq 0 ]; then
   echo -e "  ${YELLOW}No HR-ERP services were running${NC}"
 else

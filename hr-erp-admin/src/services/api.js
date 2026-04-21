@@ -1399,6 +1399,34 @@ export const invoiceDraftsAPI = {
   },
 };
 
+// Classification Rules API (invoice auto-classification rules)
+export const classificationRulesAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/classification-rules', { params });
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/classification-rules', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/classification-rules/${id}`, data);
+    return response.data;
+  },
+
+  remove: async (id) => {
+    const response = await api.delete(`/classification-rules/${id}`);
+    return response.data;
+  },
+
+  test: async (data) => {
+    const response = await api.post('/classification-rules/test', data);
+    return response.data;
+  },
+};
+
 export const emailInboxAPI = {
   getAll: async (params = {}) => {
     const response = await api.get('/email-inbox', { params });
@@ -1434,6 +1462,11 @@ export const emailInboxAPI = {
 
   reclassify: async (id, documentType) => {
     const response = await api.post(`/email-inbox/reclassify/${id}`, { documentType });
+    return response.data;
+  },
+
+  reclassifyCostCenter: async (id, notes) => {
+    const response = await api.post(`/email-inbox/${id}/reclassify-cost-center`, { notes });
     return response.data;
   },
 

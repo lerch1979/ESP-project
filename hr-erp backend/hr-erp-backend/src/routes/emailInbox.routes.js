@@ -53,6 +53,7 @@ router.post('/poll-emails', checkPermission('settings.edit'), controller.pollEma
 router.post('/classify/:id', checkPermission('settings.edit'), controller.classify);
 router.post('/route/:id', checkPermission('settings.edit'), controller.route);
 router.post('/reclassify/:id', checkPermission('settings.edit'), controller.reclassify);
+router.post('/:id/reclassify-cost-center', checkPermission('settings.edit'), controller.reclassifyCostCenter);
 router.delete('/:id', checkPermission('settings.edit'), controller.remove);
 
 module.exports = router;

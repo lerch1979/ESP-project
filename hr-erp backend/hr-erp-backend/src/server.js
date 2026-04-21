@@ -62,6 +62,7 @@ const slackRoutes = require('./routes/slack.routes');
 const nlpRoutes = require('./routes/nlp.routes');
 const damageReportRoutes = require('./routes/damageReport.routes');
 const translationRoutes = require('./routes/translation.routes');
+const classificationRulesRoutes = require('./routes/classificationRules.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const gtdRoutes = require('./routes/gtd.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
@@ -248,6 +249,7 @@ app.use(`${API_PREFIX}/slack`, slackRoutes);
 app.use(`${API_PREFIX}/nlp`, nlpRoutes);
 app.use(`${API_PREFIX}/damage-reports`, damageReportRoutes);
 app.use(`${API_PREFIX}/translation`, translationRoutes);
+app.use(`${API_PREFIX}/classification-rules`, classificationRulesRoutes);
 // Top-level /translate alias — matches the documented contract { text, fromLang, toLang }
 const { authenticateToken } = require('./middleware/auth');
 app.post(`${API_PREFIX}/translate`, authenticateToken, translationRoutes.translateHandler);

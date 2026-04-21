@@ -4,8 +4,48 @@ const claudeOCR = require('../services/claudeOCR.service');
 const documentClassifier = require('../services/documentClassifier.service');
 const entityExtractor = require('../services/entityExtractor.service');
 const documentRouter = require('../services/documentRouter.service');
+const invoiceClassifier = require('../services/invoiceClassification.service');
 const path = require('path');
 const fs = require('fs');
+
+/**
+ * Safely coerce a JSON-extracted value to a DB-typed value.
+ * Returns null for non-matching inputs so DECIMAL/DATE columns never reject.
+ */
+function safeDecimal(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+function safeDate(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+function safeString(v, maxLen) {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v).trim();
+  return s.length > maxLen ? s.slice(0, maxLen) : s;
+}
+
+/**
+ * Derive dedicated invoice columns from extracted_data JSONB.
+ * Used by INSERT (new inbox rows) and UPDATE (re-process script).
+ */
+function extractInvoiceColumns(extractedData) {
+  const d = extractedData || {};
+  return {
+    invoice_number: safeString(d.invoiceNumber, 100),
+    vendor_name: safeString(d.vendorName, 255),
+    vendor_tax_number: safeString(d.vendorTaxNumber, 32),
+    currency: safeString(d.currency, 10),
+    invoice_date: safeDate(d.invoiceDate),
+    due_date: safeDate(d.dueDate),
+    net_amount: safeDecimal(d.netAmount),
+    vat_amount: safeDecimal(d.vatAmount),
+    gross_amount: safeDecimal(d.grossAmount),
+  };
+}
 
 /**
  * Format an email inbox row for API response
@@ -23,6 +63,23 @@ function formatInbox(row) {
     classificationReasoning: row.classification_reasoning,
     extractedText: row.extracted_text,
     extractedData: row.extracted_data,
+    // Dedicated invoice columns (from migration 082)
+    invoiceNumber: row.invoice_number || null,
+    invoiceDate: row.invoice_date || null,
+    dueDate: row.due_date || null,
+    vendorName: row.vendor_name || null,
+    vendorTaxNumber: row.vendor_tax_number || null,
+    netAmount: row.net_amount !== null && row.net_amount !== undefined ? Number(row.net_amount) : null,
+    vatAmount: row.vat_amount !== null && row.vat_amount !== undefined ? Number(row.vat_amount) : null,
+    grossAmount: row.gross_amount !== null && row.gross_amount !== undefined ? Number(row.gross_amount) : null,
+    currency: row.currency || null,
+    // Classification result (from migration 083)
+    costCenterId: row.cost_center_id || null,
+    costCenterCode: row.cost_center_code || null,
+    costCenterName: row.cost_center_name || null,
+    classificationReason: row.classification_reason || null,
+    autoClassified: row.auto_classified || false,
+    notes: row.notes || null,
     status: row.status,
     routedTo: row.routed_to,
     routedId: row.routed_id,
@@ -99,8 +156,52 @@ async function processDocumentFile(filePath, metadata = {}) {
     extractedData = entityExtractor.extract(extractedText, classification.documentType);
   }
 
-  // Step 4: Create email_inbox record
-  const needsReview = classification.confidence < 70 || classification.documentType === 'other';
+  // Step 4: Post-OCR validation — reject obviously non-financial documents
+  // instead of inserting them with misleading values.
+  const hasConcreteField = !!(
+    extractedData?.invoiceNumber || extractedData?.grossAmount || extractedData?.netAmount
+  );
+  const isFinancialType = ['invoice', 'contract', 'receipt'].includes(classification.documentType);
+
+  let rejectReason = null;
+  if (classification.confidence < 30 && !hasConcreteField) {
+    rejectReason = `Alacsony besorolási magabiztosság (${classification.confidence}%) és nincs konkrét számla-mező`;
+  } else if (classification.documentType === 'other' && classification.confidence < 40 && !hasConcreteField) {
+    rejectReason = `'other' típus és alacsony magabiztosság (${classification.confidence}%)`;
+  } else if (!isFinancialType && !hasConcreteField && classification.confidence < 60) {
+    rejectReason = `Nem pénzügyi dokumentum és nincs számla-mező (${classification.confidence}%)`;
+  }
+
+  if (rejectReason) {
+    logger.info(`POST-OCR REJECT: ${filename} — ${rejectReason}`);
+  }
+
+  // Step 4.5: Run rule-based cost center classification (only for invoices
+  // that passed post-OCR validation). Uses vendor name + sender email for
+  // PARTNER rules; settlement/keyword rules require admin-authored `notes`
+  // (empty at initial ingest — filled later via reclassify-cost-center).
+  let classifyResult = null;
+  if (!rejectReason && classification.documentType === 'invoice') {
+    try {
+      classifyResult = await invoiceClassifier.classifyInvoice({
+        vendorName: extractedData?.vendorName,
+        subject: metadata.emailSubject,
+        notes: null, // initial ingest — notes empty; admin fills via UI later
+        emailFrom: metadata.emailFrom,
+      });
+      logger.info(`Cost center: ${classifyResult.cost_center_code || '?'} ` +
+                  `(conf ${classifyResult.confidence}, source ${classifyResult.source}) — ${classifyResult.reason}`);
+    } catch (e) {
+      logger.warn('Cost center classification failed:', e.message);
+    }
+  }
+
+  // Step 5: Create email_inbox record. needs_review is set if EITHER
+  // the OCR classification is weak OR the cost-center classifier says so.
+  const ocrNeedsReview = !rejectReason && (classification.confidence < 70 || classification.documentType === 'other');
+  const ccNeedsReview = classifyResult?.needs_review === true;
+  const needsReview = ocrNeedsReview || ccNeedsReview;
+  const invCols = extractInvoiceColumns(extractedData);
 
   const result = await query(`
     INSERT INTO email_inbox (
@@ -109,8 +210,14 @@ async function processDocumentFile(filePath, metadata = {}) {
       document_type, confidence_score, classification_reasoning,
       extracted_text, extracted_data,
       status, needs_review,
-      email_message_id, source
-    ) VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      email_message_id, source,
+      invoice_number, invoice_date, due_date,
+      vendor_name, vendor_tax_number,
+      net_amount, vat_amount, gross_amount, currency,
+      cost_center_id, classification_reason, auto_classified
+    ) VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+              $14, $15, $16, $17, $18, $19, $20, $21, $22,
+              $23, $24, $25)
     RETURNING *
   `, [
     metadata.emailFrom || 'manual_upload',
@@ -119,20 +226,26 @@ async function processDocumentFile(filePath, metadata = {}) {
     relativePath,
     classification.documentType,
     classification.confidence,
-    classification.reasoning,
+    rejectReason ? `${classification.reasoning} | REJECT: ${rejectReason}` : classification.reasoning,
     extractedText.substring(0, 10000),
     JSON.stringify(extractedData),
-    needsReview ? 'needs_review' : 'pending',
+    rejectReason ? 'rejected' : (needsReview ? 'needs_review' : 'pending'),
     needsReview,
     metadata.emailMessageId || null,
     metadata.source || 'manual',
+    invCols.invoice_number, invCols.invoice_date, invCols.due_date,
+    invCols.vendor_name, invCols.vendor_tax_number,
+    invCols.net_amount, invCols.vat_amount, invCols.gross_amount, invCols.currency,
+    classifyResult?.cost_center_id || null,
+    classifyResult?.reason || null,
+    classifyResult?.auto_approved || false,
   ]);
 
   const inboxItem = result.rows[0];
 
-  // Step 5: Auto-route if confidence is high enough
+  // Step 6: Auto-route if confidence is high enough AND not rejected
   let routingResult = null;
-  if (!needsReview) {
+  if (!needsReview && !rejectReason) {
     try {
       routingResult = await documentRouter.routeDocument(inboxItem.id);
     } catch (e) {
@@ -224,9 +337,12 @@ const getAll = async (req, res) => {
     const [listResult, countResult] = await Promise.all([
       query(`
         SELECT e.*,
-          u.first_name || ' ' || u.last_name as reviewer_name
+          u.first_name || ' ' || u.last_name as reviewer_name,
+          cc.code as cost_center_code,
+          cc.name as cost_center_name
         FROM email_inbox e
         LEFT JOIN users u ON e.reviewed_by = u.id
+        LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
         ${whereClause}
         ORDER BY e.${sortCol} ${sortDirection}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -287,9 +403,12 @@ const getById = async (req, res) => {
   try {
     const result = await query(`
       SELECT e.*,
-        u.first_name || ' ' || u.last_name as reviewer_name
+        u.first_name || ' ' || u.last_name as reviewer_name,
+        cc.code as cost_center_code,
+        cc.name as cost_center_name
       FROM email_inbox e
       LEFT JOIN users u ON e.reviewed_by = u.id
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
       WHERE e.id = $1
     `, [req.params.id]);
 
@@ -381,8 +500,10 @@ const classify = async (req, res) => {
     ]);
 
     const result = await query(`
-      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name
+      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name,
+        cc.code as cost_center_code, cc.name as cost_center_name
       FROM email_inbox e LEFT JOIN users u ON e.reviewed_by = u.id
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
       WHERE e.id = $1
     `, [id]);
 
@@ -416,8 +537,10 @@ const route = async (req, res) => {
     await query(`UPDATE email_inbox SET reviewed_by = $1 WHERE id = $2`, [req.user.id, id]);
 
     const result = await query(`
-      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name
+      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name,
+        cc.code as cost_center_code, cc.name as cost_center_name
       FROM email_inbox e LEFT JOIN users u ON e.reviewed_by = u.id
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
       WHERE e.id = $1
     `, [id]);
 
@@ -467,8 +590,10 @@ const reclassify = async (req, res) => {
     `, [documentType, JSON.stringify(extractedData), req.user.id, id]);
 
     const result = await query(`
-      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name
+      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name,
+        cc.code as cost_center_code, cc.name as cost_center_name
       FROM email_inbox e LEFT JOIN users u ON e.reviewed_by = u.id
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
       WHERE e.id = $1
     `, [id]);
 
@@ -476,6 +601,87 @@ const reclassify = async (req, res) => {
   } catch (error) {
     logger.error('Error reclassifying:', error);
     res.status(500).json({ success: false, message: 'Hiba az átsorolásnál' });
+  }
+};
+
+/**
+ * POST /api/v1/email-inbox/:id/reclassify-cost-center
+ * Body: { notes? }   — optional; if provided, updates email_inbox.notes first
+ *
+ * Admin workflow: admin types "Beled szálló — rezsi" in notes, we re-run
+ * the rule-engine with the new notes, and the Beled settlement keyword rule
+ * catches it → CC assigned automatically.
+ */
+const reclassifyCostCenter = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body || {};
+
+    // Update notes if provided
+    if (typeof notes === 'string') {
+      await query('UPDATE email_inbox SET notes = $1, updated_at = NOW() WHERE id = $2',
+        [notes, id]);
+    }
+
+    // Fetch the row (join cost_centers for the new code/name in response)
+    const row = await query(`
+      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name,
+             cc.code as cost_center_code, cc.name as cost_center_name
+      FROM email_inbox e
+      LEFT JOIN users u ON e.reviewed_by = u.id
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
+      WHERE e.id = $1
+    `, [id]);
+    if (row.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Email nem található' });
+    }
+    const item = row.rows[0];
+
+    // Re-run classification
+    const result = await invoiceClassifier.classifyInvoice({
+      vendorName: item.vendor_name,
+      subject: item.email_subject,
+      notes: item.notes,
+      emailFrom: item.email_from,
+    });
+
+    // Persist result
+    await query(`
+      UPDATE email_inbox SET
+        cost_center_id = $1,
+        classification_reason = $2,
+        auto_classified = $3,
+        needs_review = $4,
+        updated_at = NOW()
+      WHERE id = $5
+    `, [
+      result.cost_center_id,
+      result.reason,
+      result.auto_approved,
+      result.needs_review,
+      id,
+    ]);
+
+    // Return updated row
+    const updated = await query(`
+      SELECT e.*, u.first_name || ' ' || u.last_name as reviewer_name,
+             cc.code as cost_center_code, cc.name as cost_center_name
+      FROM email_inbox e
+      LEFT JOIN users u ON e.reviewed_by = u.id
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
+      WHERE e.id = $1
+    `, [id]);
+
+    res.json({
+      success: true,
+      data: {
+        emailInbox: formatInbox(updated.rows[0]),
+        classification: result,
+      },
+    });
+  } catch (err) {
+    logger.error('[reclassifyCostCenter]', err);
+    res.status(500).json({ success: false, message: 'Költséghely újraosztályozási hiba' });
   }
 };
 
@@ -583,4 +789,6 @@ module.exports = {
   getGmailStatus,
   processDocumentFile,
   processEmailBody,
+  extractInvoiceColumns,
+  reclassifyCostCenter,
 };

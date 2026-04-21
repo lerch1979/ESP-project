@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Typography, Box, Grid, Chip, Alert, LinearProgress,
   Select, MenuItem, FormControl, InputLabel, Divider,
   Table, TableBody, TableRow, TableCell, IconButton, Tooltip,
+  TextField, Stack, CircularProgress,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -44,6 +45,13 @@ export default function DocumentReviewModal({ open, onClose, document, onUpdate 
   const [reclassifyType, setReclassifyType] = useState('');
   const [loading, setLoading] = useState(false);
   const [routingLog, setRoutingLog] = useState(null);
+  const [ccNotes, setCcNotes] = useState('');
+  const [savingCC, setSavingCC] = useState(false);
+
+  // Keep local notes state in sync with the currently opened document
+  useEffect(() => {
+    setCcNotes(document?.notes || '');
+  }, [document?.id, document?.notes]);
 
   if (!document) return null;
 
@@ -86,6 +94,26 @@ export default function DocumentReviewModal({ open, onClose, document, onUpdate 
       toast.error('Hiba a napló betöltésekor');
     }
   };
+
+  const handleReclassifyCostCenter = async () => {
+    setSavingCC(true);
+    try {
+      const result = await emailInboxAPI.reclassifyCostCenter(document.id, ccNotes);
+      const code = result?.data?.classification?.cost_center_code || '—';
+      toast.success('Költséghely frissítve: ' + code);
+      onUpdate?.();
+      onClose();
+    } catch (e) {
+      toast.error('Hiba az újraosztályozás során');
+    } finally {
+      setSavingCC(false);
+    }
+  };
+
+  // NOTE: "Jóváhagyás" is a visual-only alias for "Újraosztályozás" — the
+  // backend doesn't separately track admin approval for cost center
+  // classifications, so both buttons call the same reclassify endpoint.
+  const handleApproveCostCenter = handleReclassifyCostCenter;
 
   const renderExtractedData = () => {
     const data = document.extractedData;
@@ -263,6 +291,94 @@ export default function DocumentReviewModal({ open, onClose, document, onUpdate 
             </Box>
           </Box>
         )}
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Cost center classification */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>Költséghely besorolás</Typography>
+
+          {/* A) Current classification display */}
+          <Stack spacing={1.5} sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 160 }}>
+                Jelenlegi költséghely:
+              </Typography>
+              {document.costCenterCode ? (
+                <>
+                  <Chip
+                    label={document.costCenterCode}
+                    size="small"
+                    color={document.autoClassified ? 'default' : 'warning'}
+                    sx={{ fontFamily: 'monospace', fontWeight: 600 }}
+                  />
+                  {document.costCenterName && (
+                    <Typography variant="body2">{document.costCenterName}</Typography>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary">— Nincs beosztva</Typography>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 160 }}>
+                Besorolás indoka:
+              </Typography>
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                {document.classificationReason || '—'}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 160 }}>
+                Státusz:
+              </Typography>
+              {document.needsReview ? (
+                <Chip label="Review szükséges" size="small" color="warning" />
+              ) : (document.autoClassified ? (
+                <Chip label="Jóváhagyva" size="small" color="success" />
+              ) : (
+                <Typography variant="body2" color="text.secondary">—</Typography>
+              ))}
+            </Box>
+          </Stack>
+
+          {/* B) Notes field + reclassify */}
+          <TextField
+            label="Megjegyzés (település vagy egyéb azonosító)"
+            multiline
+            rows={2}
+            fullWidth
+            size="small"
+            value={ccNotes}
+            onChange={(e) => setCcNotes(e.target.value)}
+            helperText={'Pl. „Beled szálló — 2026 március rezsi". A rendszer ebből keresi a település-szabályokat.'}
+            sx={{ mb: 2 }}
+          />
+
+          {/* C) Action buttons */}
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleReclassifyCostCenter}
+              disabled={savingCC}
+              startIcon={savingCC ? <CircularProgress size={16} color="inherit" /> : <EditIcon />}
+            >
+              Újraosztályozás
+            </Button>
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={handleApproveCostCenter}
+              disabled={savingCC}
+              startIcon={<CheckIcon />}
+            >
+              Jóváhagyás
+            </Button>
+          </Stack>
+        </Box>
 
         {/* Routing Log */}
         <Box sx={{ mt: 2 }}>

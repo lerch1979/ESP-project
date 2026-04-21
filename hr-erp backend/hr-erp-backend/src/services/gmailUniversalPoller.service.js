@@ -15,6 +15,39 @@ const SUPPORTED_MIME_TYPES = {
   'image/jpeg': '.jpg',
 };
 
+const DOC_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg']);
+
+// Strict financial-document filter. All lowercase, accent-agnostic matching below.
+const FINANCIAL_KEYWORDS = [
+  // HU
+  'szamla', 'számla', 'faktura', 'proforma', 'dijbekero', 'díjbekérő',
+  'nyugta', 'elismervény', 'elismerveny',
+  'szerzodes', 'szerződés', 'megallapodas', 'megállapodás',
+  'fizetes', 'fizetés', 'utalas', 'utalás',
+  'szamlaerkezes', 'számlaérkezés', 'e-szamla', 'e-számla',
+  'foldgaz', 'földgáz', 'villamosenergia', 'villany',
+  'berlet', 'bérlet', 'termekdij', 'termékdíj',
+  // EN
+  'invoice', 'bill', 'receipt', 'contract', 'agreement', 'payment',
+  'payslip', 'pro forma', 'tax', 'vat', 'remittance',
+];
+
+const NEGATIVE_KEYWORDS = [
+  'hírlevél', 'hirlevel', 'newsletter', 'unsubscribe', 'promotion', 'reklám', 'reklam',
+  'automatikus', 'auto-reply', 'auto reply', 'out of office', 'ooo',
+  'biztonsági értesítés', 'biztonsagi ertesites', 'security alert', 'verification',
+  'confirm your email', 'password reset',
+];
+
+// Attachment size thresholds
+const MIN_IMAGE_BYTES = 100 * 1024;    // <100KB = likely logo/signature, ignore
+const MIN_LOGO_BYTES = 50 * 1024;      // small images are almost always decorative
+
 class GmailUniversalPollerService {
   constructor() {
     this.gmail = null;
@@ -167,10 +200,20 @@ class GmailUniversalPollerService {
     const from = headers.find(h => h.name === 'From')?.value || '';
     const subject = headers.find(h => h.name === 'Subject')?.value || '';
 
-    logger.info(`Processing email: "${subject}" from ${from}`);
-
-    // Find supported attachments
+    // Find supported attachments first — filter decision needs them
     const attachmentParts = this.findAttachmentParts(message.data.payload);
+
+    // ── STRICT FILTER ──────────────────────────────────────────────
+    // Cheap header+attachment check BEFORE the expensive Claude OCR call.
+    // ────────────────────────────────────────────────────────────────
+    const decision = this.shouldProcessEmail(subject, from, attachmentParts);
+    if (!decision.should) {
+      logger.info(`FILTER SKIP: "${subject.slice(0, 60)}" — ${decision.reason}`);
+      await this.markAsRead(messageId);
+      return 'skipped';
+    }
+
+    logger.info(`FILTER ACCEPT [${decision.priority}]: "${subject.slice(0, 60)}" — ${decision.reason}`);
 
     const { processDocumentFile, processEmailBody } = require('../controllers/emailInbox.controller');
 
@@ -215,6 +258,8 @@ class GmailUniversalPollerService {
 
   /**
    * Recursively find supported attachment parts in message payload
+   * Also records size in bytes (from Gmail payload.body.size) so the filter
+   * can distinguish a 3KB logo from a 300KB scanned invoice.
    */
   findAttachmentParts(payload, parts = []) {
     if (payload.body?.attachmentId && payload.filename) {
@@ -224,6 +269,7 @@ class GmailUniversalPollerService {
           attachmentId: payload.body.attachmentId,
           filename: payload.filename,
           mimeType,
+          size: payload.body.size || 0,
         });
       }
     }
@@ -235,6 +281,80 @@ class GmailUniversalPollerService {
     }
 
     return parts;
+  }
+
+  /**
+   * Decide whether an email is worth running through Claude OCR.
+   * Pure header+attachment-list check — no Claude calls, no DB writes.
+   * Returns { should, reason, priority }.
+   *
+   * Rules (first match wins):
+   *   1. Negative keyword in subject → REJECT unconditionally
+   *   2. Any PDF/DOC/DOCX attachment → HIGH (accept)
+   *   3. Image attachment ≥100KB + financial keyword → MEDIUM
+   *   4. No attachment but strong financial keyword → LOW (rare body-only invoice)
+   *   5. Anything else → REJECT
+   */
+  shouldProcessEmail(subject, from, attachmentParts) {
+    const subjLower = (subject || '').toLowerCase();
+    const fromLower = (from || '').toLowerCase();
+
+    // 1. Hard reject on negative keywords (newsletters, alerts, auto-replies)
+    for (const neg of NEGATIVE_KEYWORDS) {
+      if (subjLower.includes(neg) || fromLower.includes(neg)) {
+        return { should: false, reason: `Negatív kulcsszó: "${neg}"`, priority: null };
+      }
+    }
+
+    // Large file = probable document; small = likely logo/signature
+    const bigDocs = attachmentParts.filter((p) => DOC_MIME_TYPES.has(p.mimeType));
+    const bigImages = attachmentParts.filter(
+      (p) => IMAGE_MIME_TYPES.has(p.mimeType) && p.size >= MIN_IMAGE_BYTES
+    );
+    const anyImages = attachmentParts.filter((p) => IMAGE_MIME_TYPES.has(p.mimeType));
+    const tinyImages = anyImages.filter((p) => p.size < MIN_LOGO_BYTES);
+
+    const hasFinancialKeyword = FINANCIAL_KEYWORDS.some((kw) => subjLower.includes(kw));
+
+    // 2. PDF/DOC is strongest signal → accept regardless of subject
+    if (bigDocs.length > 0) {
+      return {
+        should: true,
+        reason: `PDF/DOC melléklet (${bigDocs.map((d) => d.filename).join(', ')})`,
+        priority: 'HIGH',
+      };
+    }
+
+    // 3. Large image + financial keyword → probable scanned invoice
+    if (bigImages.length > 0 && hasFinancialKeyword) {
+      return {
+        should: true,
+        reason: `Nagy kép (${(bigImages[0].size / 1024).toFixed(0)}KB) + pénzügyi kulcsszó a subject-ben`,
+        priority: 'MEDIUM',
+      };
+    }
+
+    // 4. No document but very strong financial keyword (rare body-only invoice)
+    if (attachmentParts.length === 0 && hasFinancialKeyword) {
+      return {
+        should: true,
+        reason: 'Melléklet nélküli email pénzügyi kulcsszóval a subject-ben',
+        priority: 'LOW',
+      };
+    }
+
+    // 5. Anything else: skip with specific reason
+    if (attachmentParts.length === 0) {
+      return { should: false, reason: 'Nincs melléklet és nincs pénzügyi kulcsszó', priority: null };
+    }
+    if (tinyImages.length === anyImages.length && anyImages.length > 0) {
+      return { should: false, reason: `Csak kis képek (< ${MIN_LOGO_BYTES / 1024}KB) — valószínűleg logó/aláírás`, priority: null };
+    }
+    return {
+      should: false,
+      reason: 'Csak nem-dokumentum mellékletek és nincs pénzügyi kulcsszó',
+      priority: null,
+    };
   }
 
   /**

@@ -17,3 +17,11 @@ outputs/
 
 # Per-subproject env files
 hr-erp-admin/.env
+
+# OAuth / API credentials (never commit)
+scripts/gmail-credentials.json
+scripts/*token*.json
+scripts/*.secret.json
+
+# Tesseract OCR language models (~10 MB each, auto-downloaded at runtime)
+*.traineddata

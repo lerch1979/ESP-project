@@ -1,0 +1,611 @@
+<!-- Generated 2026-04-19 · v3 · based on changelog-2026-04-19.md -->
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>HR-ERP Pitch Deck v3 HU</title>
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1F2937; }
+.slide { width: 297mm; height: 210mm; padding: 18mm 22mm; position: relative; page-break-after: always; overflow: hidden; }
+.slide:last-child { page-break-after: avoid; }
+.footer { position: absolute; bottom: 8mm; left: 22mm; right: 22mm; display: flex; justify-content: space-between; font-size: 8pt; color: #9CA3AF; }
+h1 { font-size: 28pt; color: #1E4D7B; font-weight: 800; margin-bottom: 8px; }
+h2 { font-size: 20pt; color: #1E4D7B; font-weight: 700; margin-bottom: 12px; }
+h3 { font-size: 14pt; color: #1E4D7B; font-weight: 700; margin-bottom: 6px; }
+.subtitle { font-size: 13pt; color: #6B7280; margin-bottom: 16px; }
+.big-num { font-size: 36pt; font-weight: 900; color: #1E4D7B; }
+.green { color: #22C55E; } .orange { color: #F97316; } .blue { color: #1E4D7B; } .red { color: #DC2626; } .purple { color: #7C3AED; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.grid5 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 10px; }
+.card { background: #F8FAFC; border-radius: 10px; padding: 16px; border: 1px solid #E5E7EB; }
+.card-blue { background: #EFF6FF; border: 2px solid #1E4D7B; }
+.card-green { background: #F0FDF4; border: 2px solid #22C55E; }
+.card-orange { background: #FFF7ED; border: 2px solid #F97316; }
+.card-purple { background: #F5F3FF; border: 2px solid #7C3AED; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 700; }
+.badge-blue { background: #1E4D7B; color: white; }
+.badge-green { background: #22C55E; color: white; }
+.badge-orange { background: #F97316; color: white; }
+.badge-purple { background: #7C3AED; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 8px; }
+th { background: #1E4D7B; color: white; padding: 6px 10px; text-align: left; font-weight: 600; }
+td { padding: 5px 10px; border-bottom: 1px solid #E5E7EB; }
+tr:nth-child(even) { background: #F8FAFC; }
+.bar { height: 22px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 9pt; font-weight: 700; margin-bottom: 4px; }
+ul { padding-left: 18px; font-size: 11pt; line-height: 1.7; }
+li { margin-bottom: 3px; }
+.check { color: #22C55E; font-weight: 700; } .x { color: #DC2626; font-weight: 700; }
+p { font-size: 11pt; line-height: 1.6; }
+.small { font-size: 9pt; color: #6B7280; }
+@media print { .slide { page-break-after: always; } }
+</style>
+</head>
+<body>
+
+<!-- 1: FEDOLAP -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <div style="font-size: 16pt; letter-spacing: 4px; font-weight: 300; margin-bottom: 20px;">HOUSING SOLUTIONS KFT.</div>
+  <h1 style="color: white; font-size: 38pt; margin-bottom: 12px;">HR-ERP Platform</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 16px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 8px;">AI-alapú, többnyelvű munkaerő- és szálláskezelés</div>
+  <div style="font-size: 14pt; color: #93C5FD;">Magyar HR. Anyanyelvi munkavállalók. Egy platform.</div>
+  <div style="font-size: 12pt; color: #93C5FD; margin-top: 30px;">Magvető Befektetési Lehetőség &middot; 2026-04-19 &middot; v3</div>
+  <div style="font-size: 11pt; color: #60A5FA; margin-top: 8px;">Lerch Balázs &mdash; Alapító és Ügyvezető</div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas</span><span>Housing Solutions Kft. &mdash; Fertőd, Magyarország</span></div>
+</div>
+
+<!-- 2: A PROBLEMA -->
+<div class="slide">
+  <h1>A Probléma: Nyelvi Akadály + Fluktuáció</h1>
+  <p class="subtitle">A magyar munkáltatók filippínó, ukrán és német munkavállalókkal dolgoznak &mdash; papírral és tolmáccsal</p>
+  <div class="grid3" style="margin-top: 16px;">
+    <div class="card" style="text-align: center;">
+      <div class="big-num red">30&ndash;50%</div>
+      <h3>Éves fluktuáció</h3>
+      <p>Fizikai munkavállalóknál &mdash; 5&ndash;15 ezer EUR kilépésenként toborzás, betanítás, elveszett termelékenység</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num orange">60%</div>
+      <h3>HR idő &bdquo;tűzoltásra&rdquo;</h3>
+      <p>Szállásügyi panaszok, többnyelvű kommunikáció, kárigények, papír-adminisztráció</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="big-num blue">5</div>
+      <h3>eltérő nyelv</h3>
+      <p>egy telephelyen: magyar, angol, tagalog, ukrán, német &mdash; félreértés garantált</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card-orange" style="padding: 12px 16px; border-radius: 8px;">
+      <strong>A rés:</strong> a globális HR-platformok (Workday, ADP) nem ismerik a magyar munkajogot, a szállás-üzemeltetést és nem kommunikálnak filippínó munkavállalóval. A hazai SaaS-ok pedig nem integráltak.
+    </div>
+    <div class="card" style="padding: 12px 16px; border-radius: 8px; text-align: center;">
+      <div style="font-size: 14pt; font-weight: 700; color: #DC2626;">500&nbsp;000+ EUR</div>
+      <div class="small">éves veszteség 100 fős telephelyenként</div>
+      <div class="small">papír-folyamatok, félreértések, elveszett dokumentumok</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>2</span></div>
+</div>
+
+<!-- 3: MEGOLDAS -->
+<div class="slide">
+  <h1>Megoldásunk: Integrált HR-ERP + AI</h1>
+  <p class="subtitle">Egyetlen platform a hibajegytől a bérszámfejtésig &mdash; anyanyelvi kommunikációval</p>
+  <div class="grid5" style="margin-top: 12px;">
+    <div class="card-blue" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 22pt;">&#127968;</div>
+      <h3 style="font-size: 11pt;">Szállás + HR együtt</h3>
+      <p style="font-size: 9pt;">Szobakiosztás, ágykihasználtság, kárigény &mdash; a munkavállaló-nyilvántartással összekötve</p>
+    </div>
+    <div class="card-green" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 22pt;">&#129309;</div>
+      <h3 style="font-size: 11pt;">Hibajegy + SLA</h3>
+      <p style="font-size: 9pt;">Auto-kiosztás, SLA-deadline-ok, eszkaláció &mdash; mobilról beadható</p>
+    </div>
+    <div class="card-purple" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 22pt;">&#129302;</div>
+      <h3 style="font-size: 11pt;">AI többnyelvűség</h3>
+      <p style="font-size: 9pt;">Claude Haiku 4.5 &mdash; a filippínó munkavállaló tagalogul ír, a HR magyarul olvas</p>
+    </div>
+    <div class="card-orange" style="border-radius: 10px; padding: 12px; text-align: center;">
+      <div style="font-size: 22pt;">&#128153;</div>
+      <h3 style="font-size: 11pt;">WellMind + CarePath</h3>
+      <p style="font-size: 9pt;">Napi pulse-felmérés, NLP sentiment, 24/7 EAP tanácsadás</p>
+    </div>
+    <div class="card" style="border-radius: 10px; padding: 12px; text-align: center; border: 2px solid #6366F1;">
+      <div style="font-size: 22pt;">&#128200;</div>
+      <h3 style="font-size: 11pt;">Pénzügy + OCR</h3>
+      <p style="font-size: 9pt;">Claude OCR számla-feldolgozás, költséghely-fa, bérsáv-kezelés</p>
+    </div>
+  </div>
+  <div class="card-blue" style="margin-top: 14px; padding: 12px; border-radius: 8px; text-align: center;">
+    <strong>Az egyetlen magyar HR-platform, amely a szállást, a munkavállalót és az AI-alapú anyanyelvi kommunikációt egyetlen rendszerbe fogja.</strong>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>3</span></div>
+</div>
+
+<!-- 4: PLATFORM STATISZTIKAK -->
+<div class="slide">
+  <h1>Platform-skála &mdash; Nem MVP, Production</h1>
+  <p class="subtitle">Mért adatok, 2026-04-19 &mdash; 27 commit az elmúlt 30 napban</p>
+  <div class="grid4" style="margin-top: 12px;">
+    <div class="card" style="text-align: center;"><div class="big-num">17</div><div class="small">funkcionális modul</div></div>
+    <div class="card" style="text-align: center;"><div class="big-num">427</div><div class="small">API végpont</div></div>
+    <div class="card" style="text-align: center;"><div class="big-num">124</div><div class="small">DB tábla (élő)</div></div>
+    <div class="card" style="text-align: center;"><div class="big-num">423</div><div class="small">DB index (élő)</div></div>
+  </div>
+  <div class="grid4" style="margin-top: 12px;">
+    <div class="card" style="text-align: center;"><div style="font-size: 22pt; font-weight: 800; color: #1E4D7B;">74</div><div class="small">SQL migráció</div></div>
+    <div class="card" style="text-align: center;"><div style="font-size: 22pt; font-weight: 800; color: #1E4D7B;">56</div><div class="small">teszt fájl</div></div>
+    <div class="card" style="text-align: center;"><div style="font-size: 22pt; font-weight: 800; color: #1E4D7B;">64</div><div class="small">admin UI oldal</div></div>
+    <div class="card" style="text-align: center;"><div style="font-size: 22pt; font-weight: 800; color: #1E4D7B;">51</div><div class="small">mobil képernyő</div></div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card">
+      <h3>Kód-skála</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>169</strong> backend JS fájl (Node/Express)</li>
+        <li><strong>~1600</strong> i18n kulcs (319 &times; 5 nyelv)</li>
+        <li><strong>+28</strong> új API végpont, <strong>+21</strong> új tábla 30 nap alatt</li>
+        <li>Tesztek majdnem megduplázódtak: 31 &rarr; <strong>56</strong> fájl</li>
+      </ul>
+    </div>
+    <div class="card-green">
+      <h3>Production érettség</h3>
+      <ul style="font-size: 10pt;">
+        <li>Kubernetes deployment + GitHub Actions CI/CD</li>
+        <li>Redis cache + Bull job queue háttérmunkákra</li>
+        <li>PWA admin UI, ETag HTTP cache</li>
+        <li>Napi log-forgatás, 30 napos megőrzés</li>
+        <li>1 SQL injection javítva (audit baseline)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>4</span></div>
+</div>
+
+<!-- 5: AI & TOBBNYELVUSEG -->
+<div class="slide">
+  <h1>&#129302; AI &amp; Többnyelvűség &mdash; A Kulcs-differenciátor</h1>
+  <p class="subtitle">Claude Haiku 4.5 alapú valós idejű fordítás 5 nyelv között</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>5 támogatott nyelv</h3>
+      <div class="grid5" style="gap: 6px; margin-top: 8px;">
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 24pt;">&#127469;&#127482;</div>
+          <div style="font-size: 10pt; font-weight: 700;">Magyar</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 24pt;">&#127468;&#127463;</div>
+          <div style="font-size: 10pt; font-weight: 700;">Angol</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 24pt;">&#127477;&#127469;</div>
+          <div style="font-size: 10pt; font-weight: 700;">Tagalog</div>
+          <div class="small">filippínó</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 24pt;">&#127482;&#127462;</div>
+          <div style="font-size: 10pt; font-weight: 700;">Ukrán</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 24pt;">&#127465;&#127466;</div>
+          <div style="font-size: 10pt; font-weight: 700;">Német</div>
+        </div>
+      </div>
+      <h3 style="margin-top: 14px;">Hogyan működik</h3>
+      <ul style="font-size: 10pt;">
+        <li>A munkavállaló <strong>anyanyelvén</strong> írja meg a jegyét / megjegyzését</li>
+        <li>A rendszer automatikusan lefordítja a viewer <code>preferred_language</code>-ére</li>
+        <li>A magyar admin magyarul lát mindent &mdash; nincs copy-paste Google Translate-be</li>
+        <li>Két irány: admin &rarr; munkavállaló válasz is anyanyelven jelenik meg</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Műszaki részletek</h3>
+      <div class="card-purple" style="padding: 12px; border-radius: 8px;">
+        <ul style="font-size: 10pt;">
+          <li><strong>Model:</strong> <code>claude-haiku-4-5-20251001</code></li>
+          <li><strong>Prompt caching</strong> a system prompton &mdash; ~90% input-költség-csökkentés</li>
+          <li><strong>30 napos DB cache</strong> (<code>translation_cache</code> tábla) &mdash; ismétlődő szövegek ingyen</li>
+          <li><strong>XML-tagolt input</strong> &mdash; prompt injection védelem</li>
+          <li>Fallback: Google Translate (ha Claude API nem elérhető)</li>
+        </ul>
+      </div>
+      <h3 style="margin-top: 12px;">Költség-profil</h3>
+      <div class="grid2" style="gap: 8px;">
+        <div class="card-green" style="text-align: center; padding: 12px;">
+          <div style="font-size: 22pt; font-weight: 800; color: #22C55E;">~90%</div>
+          <div class="small">költségmegtakarítás prompt caching + DB cache együtt</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 12px;">
+          <div style="font-size: 22pt; font-weight: 800; color: #1E4D7B;">2&times;</div>
+          <div class="small">Claude integráció: fordítás + számla OCR</div>
+        </div>
+      </div>
+      <div class="card-blue" style="margin-top: 12px; padding: 10px; border-radius: 8px;">
+        <strong>Bekötve:</strong> Ticket viewer, Chatbot, Damage Report (migráció írva), mobil push-értesítés
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>5</span></div>
+</div>
+
+<!-- 6: BRUNO AI -->
+<div class="slide">
+  <h1>&#129412; Bruno AI &mdash; Kontextus-érzékeny Munkatárs-képző</h1>
+  <p class="subtitle">Animált AI-karakter, amely munkafolyamat közben segít &mdash; különösen az új külföldi munkavállalóknak</p>
+  <div class="grid2" style="margin-top: 12px;">
+    <div>
+      <h3>Mit csinál Bruno?</h3>
+      <ul style="font-size: 11pt;">
+        <li><strong>Kontextus-érzékeny tippek:</strong> látja, melyik oldalon van a user, és célzott tanácsot ad</li>
+        <li><strong>Animált reakciók:</strong> motiváló visszajelzés gamification-rendszerrel együtt</li>
+        <li><strong>Anyanyelven beszél:</strong> a viewer nyelvi preferenciája szerint</li>
+        <li><strong>Nem tolakodó:</strong> csak akkor jelenik meg, ha kell &mdash; új user, elakadt folyamat, új funkció</li>
+      </ul>
+      <h3 style="margin-top: 14px;">Miért fontos?</h3>
+      <p style="font-size: 10pt;">Egy filippínó vagy ukrán munkavállaló első napján ritkán kap megfelelő onboarding-et. Bruno beugrik helyette: megmutatja, hogyan adjon be jegyet, hol töltse ki a pulse-felmérést, mit tegyen kárigény esetén.</p>
+    </div>
+    <div>
+      <div class="card-purple" style="padding: 16px; border-radius: 10px;">
+        <h3 style="color: #7C3AED;">Technikai háttér</h3>
+        <ul style="font-size: 10pt;">
+          <li><code>components/Bruno/BrunoCharacter.jsx</code></li>
+          <li>296 sor CSS &mdash; teljes animációs library</li>
+          <li>Admin belépési pont: <code>pages/BrunoTest.jsx</code></li>
+          <li>Integrálható minden admin- és mobil-képernyőn</li>
+          <li>Claude-alapú válaszgenerálás, ha a user kérdez</li>
+        </ul>
+      </div>
+      <div class="card-green" style="margin-top: 14px; padding: 12px; border-radius: 8px; text-align: center;">
+        <strong>Eredmény:</strong> rövidebb onboarding, kevesebb HR-kérdés, magasabb adopciós arány &mdash; különösen a nyelvi akadályokkal küzdő új munkavállalóknál.
+      </div>
+      <div style="margin-top: 14px; text-align: center; font-size: 40pt;">&#129412;</div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>6</span></div>
+</div>
+
+<!-- 7: FO MODULOK -->
+<div class="slide">
+  <h1>17 Modul &mdash; Egy Platform</h1>
+  <p class="subtitle">Hét funkcionális csoportban, mindegyik bekötve, production-ben</p>
+  <div class="grid3" style="margin-top: 10px;">
+    <div class="card-blue" style="padding: 12px;">
+      <h3 style="font-size: 12pt;">Core &mdash; Alap</h3>
+      <ul style="font-size: 10pt;">
+        <li>Hibajegyek (SLA, auto-kiosztás)</li>
+        <li>Munkavállaló-nyilvántartás (PII-titkosítva)</li>
+        <li>Szálláshelyek + szobakiosztás</li>
+        <li>Alvállalkozó-menedzsment</li>
+      </ul>
+    </div>
+    <div class="card-green" style="padding: 12px;">
+      <h3 style="font-size: 12pt;">Pénzügy</h3>
+      <ul style="font-size: 10pt;">
+        <li>Bérszámfejtés + bérsáv-kezelés</li>
+        <li>Számlázás + PDF-export</li>
+        <li>Számla OCR (Claude, Gmail polling)</li>
+        <li>Költséghely-fa</li>
+      </ul>
+    </div>
+    <div class="card-orange" style="padding: 12px;">
+      <h3 style="font-size: 12pt;">Jóllét</h3>
+      <ul style="font-size: 10pt;">
+        <li>WellMind &mdash; Pulse felmérés (86 kérdés)</li>
+        <li>Pulse Analytics Dashboard (5 view)</li>
+        <li>CarePath &mdash; 24/7 EAP</li>
+        <li>NLP sentiment elemzés (opt-in)</li>
+      </ul>
+    </div>
+    <div class="card" style="padding: 12px; border: 2px solid #6366F1;">
+      <h3 style="font-size: 12pt; color: #6366F1;">Produktivitás</h3>
+      <ul style="font-size: 10pt;">
+        <li>GTD Task Manager (új)</li>
+        <li>Projekt + Kanban + Gantt</li>
+        <li>Timesheet 3 nézetben</li>
+        <li>SLA deadline-tracker</li>
+      </ul>
+    </div>
+    <div class="card-purple" style="padding: 12px;">
+      <h3 style="font-size: 12pt;">Kommunikáció</h3>
+      <ul style="font-size: 10pt;">
+        <li>AI Chatbot (Claude)</li>
+        <li>Többnyelvű fordítás (5 nyelv)</li>
+        <li>Notification Center</li>
+        <li>Slack integráció</li>
+      </ul>
+    </div>
+    <div class="card" style="padding: 12px; border: 2px solid #DC2626;">
+      <h3 style="font-size: 12pt; color: #DC2626;">Compliance</h3>
+      <ul style="font-size: 10pt;">
+        <li>Kárigény-jegyzőkönyv (Mt. 166.&sect;, 177.&sect;)</li>
+        <li>Teljes audit log</li>
+        <li>GDPR adatkezelői szerepkörök</li>
+        <li>5 nyelvű PDF-generálás</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card-blue" style="margin-top: 12px; padding: 10px 14px; border-radius: 8px;">
+    <strong>Engagement:</strong> Gamification (badge, leaderboard, streak), Bruno AI kontextus-érzékeny karakter, dokumentum-szkennelés kamerával, Google Calendar szinkron.
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>7</span></div>
+</div>
+
+<!-- 8: TECHNIKAI ARCHITEKTURA -->
+<div class="slide">
+  <h1>Technikai Architektúra</h1>
+  <p class="subtitle">Production-ready, nem prototípus</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Stack</h3>
+      <table>
+        <tr><th>Réteg</th><th>Technológia</th></tr>
+        <tr><td>Admin UI</td><td>React 18 + Vite 5 + MUI 5 (PWA)</td></tr>
+        <tr><td>Mobil</td><td>React Native 0.81 + Expo 54</td></tr>
+        <tr><td>Backend</td><td>Node.js + Express 4.18 (cluster mód)</td></tr>
+        <tr><td>DB</td><td>PostgreSQL, <strong>124 tábla</strong>, <strong>423 index</strong></td></tr>
+        <tr><td>Cache / Queue</td><td>Redis (ioredis) + Bull 4.16</td></tr>
+        <tr><td>AI</td><td>Anthropic Claude (fordítás + OCR + chatbot)</td></tr>
+        <tr><td>Deployment</td><td>Kubernetes + GitHub Actions CI/CD</td></tr>
+        <tr><td>i18n</td><td>react-i18next, 5 nyelv, ~1600 kulcs</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Integrációk</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>Claude API</strong> (2 pontban): <code>translation.service.js</code> + <code>claudeOCR.service.js</code></li>
+        <li><strong>Google Calendar</strong> kétirányú szinkron + webhook</li>
+        <li><strong>Gmail MCP</strong> &mdash; számla-email polling</li>
+        <li><strong>Slack</strong> (@slack/bolt) &mdash; riasztások, user-sync</li>
+        <li><strong>SMTP</strong> (nodemailer) &mdash; tranzakciós emailek</li>
+        <li><strong>Tesseract.js</strong> OCR fallback</li>
+      </ul>
+      <h3 style="margin-top: 10px;">Teljesítmény</h3>
+      <div class="grid2" style="gap: 8px;">
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 18pt; font-weight: 800;">PWA</div>
+          <div class="small">offline-first admin UI</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 18pt; font-weight: 800;">ETag</div>
+          <div class="small">HTTP cache minden GET-en</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 18pt; font-weight: 800;">Bull</div>
+          <div class="small">async háttér-queue</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 10px;">
+          <div style="font-size: 18pt; font-weight: 800;">RLS</div>
+          <div class="small">multi-tenant izoláció</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>8</span></div>
+</div>
+
+<!-- 9: BIZTONSAG -->
+<div class="slide">
+  <h1>&#128737;&#65039; Biztonság &amp; Compliance</h1>
+  <p class="subtitle">GDPR + EU AI Act compliant &mdash; mérnök-szintű, nem marketinges biztonság</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Biztonsági verem</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>JWT</strong> hitelesítés, erős secret (audit után rotálva)</li>
+        <li><strong>CSRF</strong> double-submit cookie védelem</li>
+        <li><strong>Rate limiting</strong> + slow-down (bejelentkezésen 5 / 15 perc)</li>
+        <li><strong>Helmet</strong> + HSTS + CSP (<code>/api/v1/csp-report</code>)</li>
+        <li><strong>PII AES-titkosítás</strong> mezőszinten (TAJ, adószám, lakcím)</li>
+        <li><strong>Row-Level Security</strong> multi-tenant izolációhoz</li>
+        <li><strong>bcrypt</strong> + jelszóházirend</li>
+      </ul>
+      <h3 style="margin-top: 10px;">Javítva az elmúlt 30 napban</h3>
+      <div class="card" style="border-left: 4px solid #DC2626; padding: 10px;">
+        <p style="font-size: 10pt;"><strong>1 SQL injection javítva</strong> &mdash; <code>setDatabaseUser.js</code> template literal queries paraméterezettre cserélve, commit <code>2e943991</code>. <strong>Erős JWT secret</strong> generálás bevezetve a gyenge default helyett.</p>
+      </div>
+    </div>
+    <div>
+      <h3>Compliance</h3>
+      <table>
+        <tr><th>Szabályozás</th><th>Állapot</th></tr>
+        <tr><td>GDPR 22/25/35. cikk</td><td><span class="check">&#10004;</span> Compliant</td></tr>
+        <tr><td>EU AI Act</td><td><span class="check">&#10004;</span> Compliant</td></tr>
+        <tr><td>Mt. 166. &sect; (kárfelelősség)</td><td><span class="check">&#10004;</span></td></tr>
+        <tr><td>Mt. 177. &sect; (kárigény)</td><td><span class="check">&#10004;</span></td></tr>
+        <tr><td>ISO 45003</td><td><span class="check">&#10004;</span></td></tr>
+        <tr><td>DPIA dokumentáció</td><td><span class="check">&#10004;</span></td></tr>
+      </table>
+      <h3 style="margin-top: 10px;">Audit és szerepkörök</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>7 szerepkör:</strong> superadmin, data_controller, admin, task_owner, contractor, user, accommodated_employee</li>
+        <li><strong>40+ alap-jogosultság</strong> (<code>modul.művelet</code> formátum)</li>
+        <li><strong>Teljes audit trail</strong> minden írási művelethez</li>
+        <li><strong>Kulcs-rotáció</strong> PII titkosításhoz (<code>rotate-encryption-key.js</code>)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>9</span></div>
+</div>
+
+<!-- 10: COMPETITIVE ADVANTAGE -->
+<div class="slide">
+  <h1>&#128640; Versenyelőny</h1>
+  <p class="subtitle">&bdquo;Az egyetlen magyar HR-platform, amely...&rdquo;</p>
+  <div style="margin-top: 16px;">
+    <div class="card-green" style="padding: 14px 20px; border-radius: 10px; margin-bottom: 10px;">
+      <p style="font-size: 13pt;"><span class="check" style="font-size: 16pt;">&#10004;</span> &nbsp;<strong>Anyanyelvi AI fordítással dolgozik</strong> &mdash; Claude Haiku 4.5, 5 nyelv, 30 napos cache, prompt caching. A filippínó munkavállaló tagalogul ír, a magyar HR magyarul olvas.</p>
+    </div>
+    <div class="card-orange" style="padding: 14px 20px; border-radius: 10px; margin-bottom: 10px;">
+      <p style="font-size: 13pt;"><span class="check" style="font-size: 16pt;">&#10004;</span> &nbsp;<strong>Szálláshelyet ÉS munkavállalót együtt kezel</strong> &mdash; szobakiosztás, ágykihasználtság, kárigény, tisztasági ellenőrzés, mindegyik az employee-rekordhoz kötve. Nincs párhuzamos Excel.</p>
+    </div>
+    <div class="card-blue" style="padding: 14px 20px; border-radius: 10px; margin-bottom: 10px;">
+      <p style="font-size: 13pt;"><span class="check" style="font-size: 16pt;">&#10004;</span> &nbsp;<strong>Teljes wellbeing monitoring</strong> &mdash; WellMind pulse (86 kérdés) + Pulse Analytics Dashboard + CarePath EAP + NLP sentiment elemzés (opt-in). Megelőzés, nem reakció.</p>
+    </div>
+    <div class="card-purple" style="padding: 14px 20px; border-radius: 10px; margin-bottom: 10px;">
+      <p style="font-size: 13pt;"><span class="check" style="font-size: 16pt;">&#10004;</span> &nbsp;<strong>GDPR + EU AI Act compliant</strong> &mdash; adatkezelői szerepkör, opt-in sentiment, DPIA dokumentáció, Mt. 177. &sect; kárigény-workflow 5 nyelvű PDF-fel.</p>
+    </div>
+    <div class="card" style="padding: 14px 20px; border-radius: 10px; border: 2px solid #1E4D7B;">
+      <p style="font-size: 13pt;"><span class="check" style="font-size: 16pt;">&#10004;</span> &nbsp;<strong>Production-ready K8s infrastruktúrán fut</strong> &mdash; nem MVP, már él. 124 tábla, 423 index, 427 API végpont, 56 teszt fájl, CI/CD pipeline. 27 commit 30 nap alatt.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>10</span></div>
+</div>
+
+<!-- 11: PIAC & ROI -->
+<div class="slide">
+  <h1>Piac &amp; ROI</h1>
+  <p class="subtitle">Magyar és KKE piac &mdash; alulszolgált, magas ROI az ügyfél oldalán</p>
+  <div class="grid2" style="margin-top: 10px;">
+    <div>
+      <h3>Célpiac</h3>
+      <div class="card-blue" style="padding: 14px; margin-bottom: 10px;">
+        <div style="font-size: 22pt; font-weight: 800; color: #1E4D7B;">&euro;500 M+</div>
+        <div class="small">KKE fizikai munkaerőt és szállást üzemeltető SMB + mid-market</div>
+      </div>
+      <h3>ICP (Ideal Customer Profile)</h3>
+      <ul style="font-size: 10pt;">
+        <li>Építőipar, vendéglátás, gyártás, logisztika</li>
+        <li>50&ndash;5000 munkavállaló, ebből jelentős rész külföldi</li>
+        <li>Munkáltatói szállás üzemeltetése</li>
+        <li>Magas fluktuáció (&gt;30%)</li>
+        <li>Magyarország &rarr; Lengyelország, Csehország, Szlovákia</li>
+      </ul>
+      <h3 style="margin-top: 10px;">Árazás (SaaS, moduláris)</h3>
+      <table>
+        <tr><th>Plán</th><th>Ár/fő/hó</th></tr>
+        <tr><td>Alap (szállás + hibajegy + mobil)</td><td>3 EUR</td></tr>
+        <tr><td>+ WellMind</td><td>+1 EUR</td></tr>
+        <tr><td>+ CarePath</td><td>+1 EUR</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Ügyfél ROI &mdash; Példa (200 fő)</h3>
+      <table>
+        <tr><th>Megtakarítás</th><th>Éves</th></tr>
+        <tr><td>Fluktuáció-csökkenés (40% &rarr; 25%)</td><td><strong>900&nbsp;000 EUR</strong></td></tr>
+        <tr><td>Betegszabadság-csökkenés (20%)</td><td><strong>30&nbsp;000 EUR</strong></td></tr>
+        <tr><td>Termelékenység-növekedés (10%)</td><td><strong>480&nbsp;000 EUR</strong></td></tr>
+        <tr><td><strong>Összesen</strong></td><td><strong class="green">1&nbsp;410&nbsp;000 EUR</strong></td></tr>
+        <tr><td>Platform költség</td><td>12&nbsp;000 EUR</td></tr>
+        <tr><td><strong>ROI</strong></td><td><strong class="green">117&times;</strong></td></tr>
+      </table>
+      <div class="card-green" style="margin-top: 12px; padding: 12px; border-radius: 8px;">
+        <h3 style="color: #22C55E;">Unit Economics</h3>
+        <ul style="font-size: 10pt;">
+          <li>Bruttó árrés: <strong>85%</strong></li>
+          <li>LTV : CAC cél: <strong>9&ndash;15 : 1</strong></li>
+          <li>Megtérülési idő: <strong>&lt; 2 hónap</strong></li>
+          <li>Éves churn célszint: <strong>&lt; 10%</strong></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>11</span></div>
+</div>
+
+<!-- 12: ROADMAP -->
+<div class="slide">
+  <h1>Roadmap &mdash; Következő 6&ndash;12 Hónap</h1>
+  <p class="subtitle">A platform él, a következő lépések a GTM és a fordítási réteg mélyítése</p>
+  <div class="grid4" style="margin-top: 16px;">
+    <div class="card" style="border-top: 4px solid #1E4D7B;">
+      <h3>2026 Q2</h3>
+      <div class="small">Pilot + i18n mélyítés</div>
+      <ul style="font-size: 9pt;">
+        <li>Mobile language picker UI</li>
+        <li>Kárigény-jegyzőkönyv fordítás bekötése</li>
+        <li>2&ndash;3 pilot ügyfél, esettanulmány</li>
+        <li>076 migráció élesítése</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #22C55E;">
+      <h3>2026 Q3</h3>
+      <div class="small">PMF + Chatbot többnyelvű</div>
+      <ul style="font-size: 9pt;">
+        <li>Chatbot válasz a viewer nyelvén</li>
+        <li>Scheduled reports (node-cron)</li>
+        <li>10 ügyfél, 15&ndash;30K EUR MRR</li>
+        <li>Árazás validáció</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #F97316;">
+      <h3>2026 Q4</h3>
+      <div class="small">Skálázás</div>
+      <ul style="font-size: 9pt;">
+        <li>50 ügyfél, 60&ndash;120K EUR ARR</li>
+        <li>KKE terjeszkedés előkészítése</li>
+        <li>1&ndash;2 értékesítő felvétele</li>
+        <li>SOC 2 Type II audit indítása</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top: 4px solid #6366F1;">
+      <h3>2027</h3>
+      <div class="small">KKE piacvezető</div>
+      <ul style="font-size: 9pt;">
+        <li>Lengyelország, Csehország, Szlovákia</li>
+        <li>165K+ EUR ARR</li>
+        <li>Plus nyelv: lengyel, cseh, szlovák</li>
+        <li>Kategóriadefiniáló pozíció</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top: 14px;">
+    <div class="card-blue">
+      <h3>Befektetési ajánlat</h3>
+      <div style="text-align: center; margin: 8px 0;">
+        <div style="font-size: 11pt; color: #6B7280;">Magvető Kör</div>
+        <div style="font-size: 28pt; font-weight: 900; color: #1E4D7B;">500&nbsp;000 EUR</div>
+        <div class="small">Pre-money értékelés: 2,5M EUR</div>
+      </div>
+      <div class="bar" style="width: 100%; background: #1E4D7B;">Értékesítés + Marketing &mdash; 40% (200K)</div>
+      <div class="bar" style="width: 75%; background: #22C55E;">Termékfejlesztés &mdash; 30% (150K)</div>
+      <div class="bar" style="width: 75%; background: #F97316;">Műveletek + Legal &mdash; 30% (150K)</div>
+    </div>
+    <div class="card">
+      <h3>Exit lehetőségek</h3>
+      <ul style="font-size: 10pt;">
+        <li><strong>Stratégiai felvásárlás:</strong> Workday, SAP SuccessFactors, ADP &mdash; KKE belépési kapocs</li>
+        <li><strong>Regionális HR-SaaS konszolidátor</strong> (BambooHR, Personio)</li>
+        <li><strong>Private Equity:</strong> 8&ndash;12&times; ARR (HR-vertikál konzolidáció)</li>
+      </ul>
+      <h3 style="margin-top: 10px;">Futamidő</h3>
+      <p style="font-size: 10pt;"><strong>12 hónap</strong> a termék-piac illeszkedésig (10 fizető ügyfél, &lt;10% churn). Break-even MRR: ~6&nbsp;500 EUR/hó, várható 8&ndash;9. hónap.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Housing Solutions &mdash; HR-ERP Platform v3</span><span>12</span></div>
+</div>
+
+<!-- 13: ZARO -->
+<div class="slide" style="background: linear-gradient(135deg, #1E4D7B 0%, #0F3460 100%); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+  <h1 style="color: white; font-size: 32pt;">Magyar HR. Anyanyelvi Munkavállalók.<br>Egy Platform.</h1>
+  <div style="width: 80px; height: 4px; background: #F97316; margin: 20px auto;"></div>
+  <div style="font-size: 16pt; color: #93C5FD; margin-bottom: 24px;">Production-ready AI HR-ERP. Most keresünk magvető befektetőt.</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 620px; margin-bottom: 24px;">
+    <div><div style="font-size: 10pt; color: #60A5FA;">Alapító</div><div style="font-size: 14pt;">Lerch Balázs</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Email</div><div style="font-size: 14pt;">lerchbalazs@gmail.com</div></div>
+    <div><div style="font-size: 10pt; color: #60A5FA;">Helyszín</div><div style="font-size: 14pt;">Fertőd, Magyarország</div></div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(5, auto); gap: 20px; margin-bottom: 20px;">
+    <div style="text-align: center;"><div style="font-size: 22pt; font-weight: 800;">17</div><div style="font-size: 9pt; color: #93C5FD;">Modul</div></div>
+    <div style="text-align: center;"><div style="font-size: 22pt; font-weight: 800;">427</div><div style="font-size: 9pt; color: #93C5FD;">API végpont</div></div>
+    <div style="text-align: center;"><div style="font-size: 22pt; font-weight: 800;">124</div><div style="font-size: 9pt; color: #93C5FD;">DB tábla</div></div>
+    <div style="text-align: center;"><div style="font-size: 22pt; font-weight: 800;">5</div><div style="font-size: 9pt; color: #93C5FD;">Nyelv</div></div>
+    <div style="text-align: center;"><div style="font-size: 22pt; font-weight: 800;">K8s</div><div style="font-size: 9pt; color: #93C5FD;">Production</div></div>
+  </div>
+  <div style="font-size: 11pt; color: #60A5FA;">
+    Claude Haiku 4.5 &middot; Redis + Bull &middot; PWA &middot; GDPR + AI Act &middot; 27 commit / 30 nap
+  </div>
+  <div class="footer" style="color: #60A5FA;"><span>Bizalmas &mdash; Housing Solutions Kft.</span><span>13</span></div>
+</div>
+
+</body>
+</html>

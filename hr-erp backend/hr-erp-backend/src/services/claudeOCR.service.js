@@ -3,50 +3,103 @@ const path = require('path');
 const { logger } = require('../utils/logger');
 const pdfParse = require('pdf-parse');
 const Tesseract = require('tesseract.js');
-
-// ============================================
-// CLAUDE API CODE (commented out — billing down)
-// Uncomment and set USE_CLAUDE=true to switch back
-// ============================================
-
-/*
 const Anthropic = require('@anthropic-ai/sdk');
 
-const EXTRACTION_PROMPT = `Analyze this invoice image/PDF and extract the following information in JSON format.
-Return ONLY valid JSON, no additional text.
-Required fields:
+// ============================================
+// CLAUDE API — primary extractor
+// ============================================
+// Model: claude-sonnet-4-6 by default (override via CLAUDE_OCR_MODEL).
+// Sonnet 4.6 is accurate enough for dense HU/EN invoices with mixed layouts.
+// Cost per 1-page PDF: ~$0.01-0.02. Scales well with prompt caching.
+// Disable with INVOICE_OCR_PROVIDER=regex (uses pure regex path below).
+
+const CLAUDE_MODEL = process.env.CLAUDE_OCR_MODEL || 'claude-sonnet-4-6';
+const OCR_PROVIDER = process.env.INVOICE_OCR_PROVIDER || 'auto'; // 'claude' | 'regex' | 'auto'
+const claudeClient = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
+
+const EXTRACTION_SYSTEM_PROMPT = `You are a precise invoice/document data extractor specializing in Hungarian (hu) and English (en) business documents.
+
+You receive a PDF or image of a document (invoice, receipt, bank statement, contract). Extract structured data and return ONLY a valid JSON object — no prose, no markdown fence, no explanation.
+
+Schema (use exactly these field names, null if not found):
 {
-  "invoiceNumber": "string", "vendorName": "string", "vendorTaxNumber": "string",
-  "netAmount": number, "vatAmount": number, "grossAmount": number,
-  "invoiceDate": "YYYY-MM-DD", "dueDate": "YYYY-MM-DD",
-  "beneficiaryIban": "string", "description": "string",
-  "currency": "string", "vendorAddress": "string", "vatRate": "string"
+  "invoiceNumber": string | null,       // e.g. "2026/0042", "INV-12345"
+  "vendorName": string | null,          // company that issued the invoice
+  "vendorTaxNumber": string | null,     // HU format: 8+1+2 digits, e.g. "12345678-1-42"
+  "vendorAddress": string | null,
+  "netAmount": number | null,           // "Nettó összeg" / net amount — NUMBER only, no currency
+  "vatAmount": number | null,           // "ÁFA összeg" / VAT amount
+  "grossAmount": number | null,         // "Bruttó összeg" / "Fizetendő összeg" / total
+  "currency": "HUF" | "EUR" | "USD" | "GBP" | "CHF" | null,
+  "vatRate": string | null,             // e.g. "27%" or "5%"
+  "invoiceDate": string | null,         // ISO YYYY-MM-DD
+  "dueDate": string | null,             // ISO YYYY-MM-DD
+  "beneficiaryIban": string | null,     // e.g. "HU12 1234 5678 9012 3456 7890 1234"
+  "description": string | null,         // 1-3 line items joined by "; "
+  "confidence": number                  // 0-100 — your certainty the doc is a real invoice
 }
-If a field is not found, set it to null. Return only the JSON object.`;
+
+Rules:
+- Hungarian number format uses "." or space as thousands separator and "," as decimal:
+  "32.860 Ft" → 32860, "1 234 567,89 HUF" → 1234567.89.
+- Do NOT include currency symbol in amount fields. Put the currency code in "currency".
+- If net + VAT are present but gross is missing (or vice-versa), compute the missing one.
+- If the document is NOT an invoice (e.g. security notification, product list email),
+  return all fields null with "confidence": 0.
+- Preserve exact vendor names including accents and company suffixes (Kft., Zrt., Bt., Nyrt.).
+- If multiple candidate amounts exist, pick the one labeled "Bruttó" / "Fizetendő" / "Végösszeg" as grossAmount.`;
 
 async function extractWithClaude(absolutePath, ext) {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  if (!claudeClient) return null;
+
+  const supported = { '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+  const mediaType = supported[ext];
+  if (!mediaType) return null;
+
   const fileBuffer = fs.readFileSync(absolutePath);
   const base64Data = fileBuffer.toString('base64');
-  const mediaType = ext === '.pdf' ? 'application/pdf' :
-    ext === '.png' ? 'image/png' : 'image/jpeg';
+  const isPdf = ext === '.pdf';
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
+  const response = await claudeClient.messages.create({
+    model: CLAUDE_MODEL,
+    max_tokens: 2048,
+    system: [{ type: 'text', text: EXTRACTION_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages: [{
       role: 'user',
       content: [
-        { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64Data } },
-        { type: 'text', text: EXTRACTION_PROMPT },
+        {
+          type: isPdf ? 'document' : 'image',
+          source: { type: 'base64', media_type: mediaType, data: base64Data },
+        },
+        { type: 'text', text: 'Extract invoice data from the attached document.' },
       ],
     }],
   });
 
-  const jsonMatch = response.content[0]?.text?.match(/\{[\s\S]*\}/);
-  return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+  const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+  // Strip ```json fences if the model slipped them in
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    logger.warn('[claudeOCR] Claude returned no JSON object');
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    // Sanity-check: must have at least one concrete field
+    const hasAnyField = parsed.invoiceNumber || parsed.vendorName || parsed.grossAmount ||
+                        parsed.netAmount || parsed.invoiceDate;
+    if (!hasAnyField && (parsed.confidence || 0) < 30) {
+      logger.info('[claudeOCR] Claude says doc is not an invoice (confidence < 30)');
+    }
+    return parsed;
+  } catch (err) {
+    logger.warn('[claudeOCR] Could not parse Claude JSON:', err.message);
+    return null;
+  }
 }
-*/
 
 // ============================================
 // REGEX PATTERNS for Hungarian invoice parsing
@@ -135,6 +188,33 @@ class ClaudeOCRService {
 
       logger.info(`Starting OCR extraction for: ${path.basename(filePath)} (${(fileBuffer.length / 1024).toFixed(1)} KB)`);
 
+      // ──────────────────────────────────────────────
+      // Primary path: Claude Sonnet 4.6 (document + vision API)
+      // Handles PDFs and images natively; extracts HU/EN invoices reliably.
+      // ──────────────────────────────────────────────
+      if ((OCR_PROVIDER === 'auto' || OCR_PROVIDER === 'claude') && claudeClient &&
+          ['.pdf', '.png', '.jpg', '.jpeg'].includes(ext)) {
+        try {
+          const claudeResult = await extractWithClaude(absolutePath, ext);
+          if (claudeResult && (claudeResult.vendorName || claudeResult.grossAmount ||
+              claudeResult.invoiceNumber || claudeResult.netAmount)) {
+            logger.info(`Claude OCR success: ${claudeResult.vendorName || '?'} — ` +
+                        `${claudeResult.grossAmount || '?'} ${claudeResult.currency || ''} — ` +
+                        `#${claudeResult.invoiceNumber || '?'} (conf: ${claudeResult.confidence || '?'})`);
+            return claudeResult;
+          }
+          logger.info('Claude OCR returned empty — falling back to regex');
+        } catch (err) {
+          logger.warn(`Claude OCR failed (${err.message}) — falling back to regex`);
+        }
+        if (OCR_PROVIDER === 'claude') {
+          return null; // strict Claude mode — no fallback
+        }
+      }
+
+      // ──────────────────────────────────────────────
+      // Fallback path: pdf-parse / Tesseract + regex
+      // ──────────────────────────────────────────────
       let text = '';
 
       // Strategy 1: Direct text extraction from PDF

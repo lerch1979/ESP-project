@@ -40,6 +40,7 @@ const Projects = lazy(() => import('./pages/Projects'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
 const SalaryTransparency = lazy(() => import('./pages/SalaryTransparency'));
 const EmailInbox = lazy(() => import('./pages/finance/EmailInbox'));
+const ClassificationRules = lazy(() => import('./pages/finance/ClassificationRules'));
 
 // Admin pages
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
@@ -149,6 +150,7 @@ function App() {
               <Route path="projects/:id" element={<PermissionGuard permission="projects.view"><ProjectDetail /></PermissionGuard>} />
               <Route path="admin/auto-assign" element={<PermissionGuard permission="settings.view"><AutoAssign /></PermissionGuard>} />
               <Route path="email-inbox" element={<PermissionGuard permission="settings.edit"><EmailInbox /></PermissionGuard>} />
+              <Route path="finance/classification-rules" element={<PermissionGuard permission="settings.edit"><ClassificationRules /></PermissionGuard>} />
               <Route path="salary-transparency" element={<PermissionGuard permission="settings.view"><SalaryTransparency /></PermissionGuard>} />
               <Route path="chatbot" element={<PermissionGuard permission="dashboard.view"><ChatbotPage /></PermissionGuard>} />
               <Route path="chatbot/knowledge-base" element={<PermissionGuard permission="faq.edit"><ChatbotKnowledgeBase /></PermissionGuard>} />

@@ -71,6 +71,7 @@ import {
   Forum as SlackIcon,
   Gavel as GavelIcon,
   Checklist as ChecklistIcon,
+  Rule as RuleIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -106,6 +107,7 @@ const buildMenuItems = (t) => [
       { text: t('nav.invoices'), icon: <ReceiptIcon />, path: '/invoices', permission: 'settings.edit' },
       { text: t('nav.costCenters'), icon: <AccountTreeIcon />, path: '/cost-centers', permission: 'settings.edit' },
       { text: t('nav.emailInvoices'), icon: <EmailIcon />, path: '/email-inbox', permission: 'settings.edit' },
+      { text: 'Besorolási szabályok', icon: <RuleIcon />, path: '/finance/classification-rules', permission: 'settings.edit' },
       { text: t('nav.invoiceReports'), icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
       { text: t('nav.salaryTransparency'), icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
     ],

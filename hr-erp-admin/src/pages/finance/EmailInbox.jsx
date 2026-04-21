@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Box, Paper, Typography, Button, Stack, TextField, InputAdornment,
   CircularProgress, Chip, IconButton, Tooltip, Card, CardContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TablePagination, MenuItem, Select, FormControl, InputLabel,
-  Tabs, Tab, LinearProgress,
+  Tabs, Tab, LinearProgress, Checkbox, FormControlLabel,
 } from '@mui/material';
 import {
   Search as SearchIcon, Email as EmailIcon, Refresh as RefreshIcon,
@@ -117,6 +117,8 @@ export default function EmailInbox() {
   const [inboxSearch, setInboxSearch] = useState('');
   const [inboxDocType, setInboxDocType] = useState('');
   const [inboxStatus, setInboxStatus] = useState('');
+  const [inboxOnlyOverdue, setInboxOnlyOverdue] = useState(false);
+  const [inboxShowRejected, setInboxShowRejected] = useState(false);
   const [inboxStats, setInboxStats] = useState(null);
   const [docReviewOpen, setDocReviewOpen] = useState(false);
   const [docReviewItem, setDocReviewItem] = useState(null);
@@ -193,6 +195,76 @@ export default function EmailInbox() {
   useEffect(() => { loadLookups(); }, [loadLookups]);
   useEffect(() => { if (tab === 0) { loadDrafts(); loadDraftStats(); } }, [tab, loadDrafts, loadDraftStats]);
   useEffect(() => { if (tab === 1) { loadInboxItems(); loadInboxStats(); loadGmailStatus(); } }, [tab, loadInboxItems, loadInboxStats, loadGmailStatus]);
+
+  // ============================================
+  // DERIVED DATA - Email Inbox (duplicates / overdue / sort / summary)
+  // ============================================
+
+  // Set of invoice numbers appearing more than once in the current page's items
+  const duplicateInvoiceNumbers = useMemo(() => {
+    const counts = new Map();
+    inboxItems.forEach((it) => {
+      if (it.invoiceNumber) counts.set(it.invoiceNumber, (counts.get(it.invoiceNumber) || 0) + 1);
+    });
+    const dup = new Set();
+    counts.forEach((n, k) => { if (n > 1) dup.add(k); });
+    return dup;
+  }, [inboxItems]);
+
+  // Filtered + sorted items used by the table
+  const inboxItemsView = useMemo(() => {
+    const now = Date.now();
+    const threeDays = 3 * 24 * 60 * 60 * 1000;
+    let list = inboxItems;
+    // Hide 'rejected' rows by default — they're low-confidence non-financial docs
+    // that the OCR validator filtered out. Toggle to audit.
+    if (!inboxShowRejected) {
+      list = list.filter((it) => it.status !== 'rejected');
+    }
+    if (inboxOnlyOverdue) {
+      list = list.filter((it) =>
+        it.dueDate &&
+        new Date(it.dueDate).getTime() < now &&
+        it.documentType === 'invoice' &&
+        !['paid', 'archived'].includes(it.status)
+      );
+    }
+    const classify = (it) => {
+      if (!it.dueDate) return 2;
+      const t = new Date(it.dueDate).getTime();
+      const overdue = t < now && !['paid', 'archived'].includes(it.status);
+      if (overdue) return 0;
+      if (t - now < threeDays) return 1;
+      return 2;
+    };
+    return [...list].sort((a, b) => {
+      const ca = classify(a);
+      const cb = classify(b);
+      if (ca !== cb) return ca - cb;
+      if (ca === 0 || ca === 1) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+  }, [inboxItems, inboxOnlyOverdue, inboxShowRejected]);
+
+  // Summary metrics for the bar above the table
+  const inboxInvoiceSummary = useMemo(() => {
+    const now = Date.now();
+    let pendingCount = 0;
+    let pendingGross = 0;
+    let overdueCount = 0;
+    inboxItems.forEach((it) => {
+      if (it.documentType === 'invoice' && it.status !== 'paid') {
+        pendingCount += 1;
+        if (typeof it.grossAmount === 'number') pendingGross += it.grossAmount;
+      }
+      if (it.dueDate && new Date(it.dueDate).getTime() < now && it.status !== 'paid') {
+        overdueCount += 1;
+      }
+    });
+    return { pendingCount, pendingGross, overdueCount };
+  }, [inboxItems]);
 
   // ============================================
   // HANDLERS - Invoice Drafts
@@ -496,6 +568,34 @@ export default function EmailInbox() {
             <StatCard title="Összesen" value={inboxStats?.total ?? '-'} icon={<InboxIcon />} color="#7c3aed" />
           </Stack>
 
+          {/* Invoice summary bar */}
+          <Card variant="outlined" sx={{ mb: 3 }}>
+            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+              <Stack direction="row" spacing={4} alignItems="center" flexWrap="wrap">
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Függő számlák</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>{inboxInvoiceSummary.pendingCount} db</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Összes bruttó</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {new Intl.NumberFormat('hu-HU').format(inboxInvoiceSummary.pendingGross)} Ft
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Lejárt</Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 700 }}
+                    color={inboxInvoiceSummary.overdueCount > 0 ? 'error' : 'text.primary'}
+                  >
+                    {inboxInvoiceSummary.overdueCount} db
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+
           {/* Type breakdown cards */}
           {inboxStats && (
             <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap' }}>
@@ -531,8 +631,28 @@ export default function EmailInbox() {
                   ))}
                 </Select>
               </FormControl>
-              {(inboxSearch || inboxStatus || inboxDocType) && (
-                <Button variant="text" startIcon={<ClearIcon />} onClick={() => { setInboxSearch(''); setInboxStatus(''); setInboxDocType(''); setInboxPage(0); }} color="error" size="small">Törlés</Button>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={inboxOnlyOverdue}
+                    onChange={(e) => { setInboxOnlyOverdue(e.target.checked); setInboxPage(0); }}
+                  />
+                }
+                label="Csak lejárt"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={inboxShowRejected}
+                    onChange={(e) => { setInboxShowRejected(e.target.checked); setInboxPage(0); }}
+                  />
+                }
+                label="Elutasított emailek megjelenítése"
+              />
+              {(inboxSearch || inboxStatus || inboxDocType || inboxOnlyOverdue || inboxShowRejected) && (
+                <Button variant="text" startIcon={<ClearIcon />} onClick={() => { setInboxSearch(''); setInboxStatus(''); setInboxDocType(''); setInboxOnlyOverdue(false); setInboxShowRejected(false); setInboxPage(0); }} color="error" size="small">Törlés</Button>
               )}
             </Stack>
           </Paper>
@@ -558,20 +678,46 @@ export default function EmailInbox() {
                         <TableCell sx={{ fontWeight: 600 }}>Beérkezés</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Forrás</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Tárgy / Fájlnév</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Szállító</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Számlaszám</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }} align="right">Bruttó</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Fiz. határidő</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Dokumentum típus</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>AI bizonyosság</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Továbbítva</TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>Státusz</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Költséghely</TableCell>
                         <TableCell sx={{ fontWeight: 600, width: 120 }}>Műveletek</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {inboxItems.map((item) => {
+                      {inboxItemsView.map((item) => {
                         const typeCfg = DOC_TYPES[item.documentType] || DOC_TYPES.other;
                         const statusCfg = INBOX_STATUSES[item.status] || INBOX_STATUSES.pending;
                         const conf = item.confidenceScore || 0;
+                        const isDuplicate = item.invoiceNumber && duplicateInvoiceNumbers.has(item.invoiceNumber);
+                        const now = Date.now();
+                        const threeDays = 3 * 24 * 60 * 60 * 1000;
+                        const dueTs = item.dueDate ? new Date(item.dueDate).getTime() : null;
+                        const isOverdue = dueTs !== null && dueTs < now && !['paid', 'archived'].includes(item.status);
+                        const isSoon = dueTs !== null && !isOverdue && dueTs - now < threeDays;
+                        const vendorShort = item.vendorName
+                          ? (item.vendorName.length > 30 ? item.vendorName.slice(0, 30) + '…' : item.vendorName)
+                          : '';
+                        const grossText = (item.grossAmount !== null && item.grossAmount !== undefined)
+                          ? `${new Intl.NumberFormat('hu-HU').format(item.grossAmount)} ${item.currency || 'Ft'}`
+                          : '';
+                        const dueShort = item.dueDate ? String(item.dueDate).slice(0, 10) : '';
+                        const rowBg = isOverdue
+                          ? 'rgba(220,0,0,0.06)'
+                          : (isDuplicate ? 'rgba(255, 193, 7, 0.08)' : undefined);
                         return (
-                          <TableRow key={item.id} hover sx={{ cursor: 'pointer' }} onClick={() => { setDocReviewItem(item); setDocReviewOpen(true); }}>
+                          <TableRow
+                            key={item.id}
+                            hover
+                            sx={{ cursor: 'pointer', backgroundColor: rowBg }}
+                            onClick={() => { setDocReviewItem(item); setDocReviewOpen(true); }}
+                          >
                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                             <TableCell>
                               {item.source === 'gmail' ? (
@@ -583,6 +729,45 @@ export default function EmailInbox() {
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500, maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.emailSubject || '-'}</Typography>
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{item.attachmentFilename || item.emailFrom || '-'}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              {item.vendorName ? (
+                                <Typography variant="body2" title={item.vendorName}>{vendorShort}</Typography>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">-</Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                  {item.invoiceNumber || ''}
+                                </Typography>
+                                {isDuplicate && (
+                                  <Tooltip title="Ez a számlaszám már szerepel a rendszerben">
+                                    <Chip label="⚠️ Duplikált" color="warning" size="small" />
+                                  </Tooltip>
+                                )}
+                              </Stack>
+                            </TableCell>
+                            <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{grossText}</TableCell>
+                            <TableCell>
+                              {dueShort ? (
+                                isOverdue ? (
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <Typography variant="body2">{dueShort}</Typography>
+                                    <Chip label="Lejárt!" color="error" size="small" />
+                                  </Stack>
+                                ) : isSoon ? (
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <Typography variant="body2">{dueShort}</Typography>
+                                    <Chip label="Hamarosan lejár" color="warning" size="small" />
+                                  </Stack>
+                                ) : (
+                                  <Typography variant="body2">{dueShort}</Typography>
+                                )
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">-</Typography>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Chip icon={typeCfg.icon} label={typeCfg.label} size="small"
@@ -602,6 +787,20 @@ export default function EmailInbox() {
                             </TableCell>
                             <TableCell>
                               <Chip label={statusCfg.label} size="small" sx={{ bgcolor: statusCfg.color, color: '#fff' }} />
+                            </TableCell>
+                            <TableCell>
+                              {item.costCenterCode ? (
+                                <Tooltip title={item.classificationReason || ''}>
+                                  <Chip
+                                    label={item.costCenterCode}
+                                    size="small"
+                                    color={item.autoClassified ? 'default' : 'warning'}
+                                    sx={{ fontFamily: 'monospace', fontWeight: 600 }}
+                                  />
+                                </Tooltip>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">—</Typography>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
