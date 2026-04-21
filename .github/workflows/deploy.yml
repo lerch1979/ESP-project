@@ -40,11 +40,31 @@ jobs:
     - name: Install dependencies
       run: cd "hr-erp backend/hr-erp-backend" && npm ci
 
+    - name: Run database migrations
+      # CI's postgres service is a fresh empty DB. Without running migrations,
+      # integration tests hit controllers whose SQL queries error out → 500
+      # instead of the expected 401/404. The backend reads DB_HOST/DB_NAME/
+      # DB_USER/DB_PASSWORD (not DATABASE_URL) — keep both in sync.
+      run: cd "hr-erp backend/hr-erp-backend" && npm run db:migrate
+      env:
+        NODE_ENV: test
+        DATABASE_URL: postgresql://postgres:test@localhost:5432/hr_erp_test
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: hr_erp_test
+        DB_USER: postgres
+        DB_PASSWORD: test
+
     - name: Run tests
       run: cd "hr-erp backend/hr-erp-backend" && npm test
       env:
         NODE_ENV: test
         DATABASE_URL: postgresql://postgres:test@localhost:5432/hr_erp_test
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: hr_erp_test
+        DB_USER: postgres
+        DB_PASSWORD: test
 
   build-and-push:
     needs: test
