@@ -65,6 +65,8 @@ const translationRoutes = require('./routes/translation.routes');
 const classificationRulesRoutes = require('./routes/classificationRules.routes');
 const inspectionRoutes = require('./routes/inspection.routes');
 const inspectionTemplateRoutes = require('./routes/inspectionTemplate.routes');
+const inspectionScheduleRoutes = require('./routes/inspectionSchedule.routes');
+const inspectionTaskRoutes = require('./routes/inspectionTask.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const gtdRoutes = require('./routes/gtd.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
@@ -254,6 +256,8 @@ app.use(`${API_PREFIX}/translation`, translationRoutes);
 app.use(`${API_PREFIX}/classification-rules`, classificationRulesRoutes);
 app.use(`${API_PREFIX}/inspections`, inspectionRoutes);
 app.use(`${API_PREFIX}/inspection-templates`, inspectionTemplateRoutes);
+app.use(`${API_PREFIX}/inspection-schedules`, inspectionScheduleRoutes);
+app.use(`${API_PREFIX}/inspection-tasks`, inspectionTaskRoutes);
 // Top-level /translate alias — matches the documented contract { text, fromLang, toLang }
 const { authenticateToken } = require('./middleware/auth');
 app.post(`${API_PREFIX}/translate`, authenticateToken, translationRoutes.translateHandler);
@@ -319,6 +323,16 @@ async function startServer() {
     } else {
       logger.info('📧 Gmail universal polling disabled (GMAIL_REFRESH_TOKEN not set)');
     }
+
+    // Daily inspection automation: auto-create due inspections, mark overdue
+    // tasks, refresh trends MV. Runs at 03:00 local time.
+    const inspectionAutomation = require('./services/inspectionAutomation.service');
+    cron.schedule('0 3 * * *', () => {
+      inspectionAutomation.runDaily().catch((err) => {
+        logger.error('[cron:inspectionAutomation] failed:', err.message);
+      });
+    });
+    logger.info('📋 Inspection automation cron scheduled (daily at 03:00)');
 
     // Szerver indítása
     const server = app.listen(PORT, async () => {
