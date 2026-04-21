@@ -88,7 +88,14 @@ function StatCard({ title, value, subtitle, color, icon }) {
 // ============================================
 
 export default function EmailInbox() {
-  const [tab, setTab] = useState(0); // 0 = Invoice Drafts, 1 = All Documents
+  // Initial tab: honor ?tab=1 query param (used by /finance/email-inbox redirect
+  // so admins landing there go straight to "Dokumentum besorolás" where the new
+  // invoice-classification features live). Default tab 0 (Számla piszkozatok)
+  // for the bare /email-inbox URL preserves legacy behavior.
+  const [tab, setTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') === '1' ? 1 : 0;
+  });
 
   // ---- Invoice Drafts state ----
   const [drafts, setDrafts] = useState([]);

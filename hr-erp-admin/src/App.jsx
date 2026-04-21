@@ -150,6 +150,7 @@ function App() {
               <Route path="projects/:id" element={<PermissionGuard permission="projects.view"><ProjectDetail /></PermissionGuard>} />
               <Route path="admin/auto-assign" element={<PermissionGuard permission="settings.view"><AutoAssign /></PermissionGuard>} />
               <Route path="email-inbox" element={<PermissionGuard permission="settings.edit"><EmailInbox /></PermissionGuard>} />
+              <Route path="finance/email-inbox" element={<Navigate to="/email-inbox?tab=1" replace />} />
               <Route path="finance/classification-rules" element={<PermissionGuard permission="settings.edit"><ClassificationRules /></PermissionGuard>} />
               <Route path="salary-transparency" element={<PermissionGuard permission="settings.view"><SalaryTransparency /></PermissionGuard>} />
               <Route path="chatbot" element={<PermissionGuard permission="dashboard.view"><ChatbotPage /></PermissionGuard>} />
