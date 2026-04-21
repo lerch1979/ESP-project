@@ -39,6 +39,10 @@ router.post('/:id/scores',           checkPermission('settings.edit'), ctrl.addS
 router.post('/:id/complete',         checkPermission('settings.edit'), ctrl.complete);
 router.delete('/:id',                checkPermission('settings.edit'), ctrl.remove);
 
+// Room-level scoring (Day 3 Part A)
+router.get('/:id/rooms',                         ctrl.listRooms);
+router.post('/:id/rooms/:roomId/score',          checkPermission('settings.edit'), ctrl.scoreRoom);
+
 // Photo upload (inspector captures from mobile)
 router.get('/:id/photos',            photoCtrl.listInspectionPhotos);
 router.post('/:id/photos',           checkPermission('settings.edit'),

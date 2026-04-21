@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Stack, Tabs, Tab, Button, Chip, TextField, Grid, Divider,
   CircularProgress, IconButton, Table, TableHead, TableRow, TableCell, TableBody,
-  Card, CardContent, Tooltip, Alert,
+  Card, CardContent, Tooltip, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
+  Slider, FormControlLabel, Switch,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon, CheckCircle as CheckCircleIcon, Save as SaveIcon,
-  PhotoCamera as PhotoCameraIcon, Refresh as RefreshIcon,
+  PhotoCamera as PhotoCameraIcon, Refresh as RefreshIcon, Edit as EditIcon,
+  TrendingUp as UpIcon, TrendingDown as DownIcon, TrendingFlat as FlatIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
@@ -47,6 +49,11 @@ export default function InspectionDetail() {
   const [uploading, setUploading] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
+  // Room-level scoring (Day 3 Part A)
+  const [roomRows, setRoomRows] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [scoreModal, setScoreModal] = useState({ open: false, room: null, scores: null, saving: false });
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -72,7 +79,48 @@ export default function InspectionDetail() {
     }
   }, []);
 
-  useEffect(() => { load(); loadCategories(); }, [load, loadCategories]);
+  const loadRooms = useCallback(async () => {
+    setRoomsLoading(true);
+    try {
+      const res = await inspectionsAPI.listInspectionRooms(id);
+      setRoomRows(res?.data || []);
+    } catch {
+      setRoomRows([]);
+    } finally {
+      setRoomsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { load(); loadCategories(); loadRooms(); }, [load, loadCategories, loadRooms]);
+
+  const openScoreModal = (room) => {
+    setScoreModal({
+      open: true,
+      room,
+      scores: {
+        technical_score: room.technical_score ?? 40,
+        hygiene_score:   room.hygiene_score   ?? 25,
+        aesthetic_score: room.aesthetic_score ?? 15,
+        notes:           room.notes           || '',
+        needs_attention: !!room.needs_attention,
+      },
+      saving: false,
+    });
+  };
+
+  const saveRoomScore = async () => {
+    const { room, scores } = scoreModal;
+    setScoreModal((s) => ({ ...s, saving: true }));
+    try {
+      await inspectionsAPI.scoreRoom(id, room.room_id, scores);
+      toast.success(`${room.room_number} — mentve`);
+      setScoreModal({ open: false, room: null, scores: null, saving: false });
+      loadRooms();
+    } catch (e) {
+      toast.error('Sikertelen szoba pontozás');
+      setScoreModal((s) => ({ ...s, saving: false }));
+    }
+  };
 
   const saveNotes = async () => {
     setSavingNotes(true);
@@ -201,6 +249,7 @@ export default function InspectionDetail() {
           <Tab label={`Fotók (${photos.length})`} />
           <Tab label={`Feladatok (${tasks.length})`} />
           <Tab label={`Kárigények (${damages.length})`} />
+          <Tab label={`Szobánkénti pontozás (${roomRows.filter((r) => r.room_inspection_id).length}/${roomRows.length})`} />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -323,8 +372,154 @@ export default function InspectionDetail() {
               </Table>
             )
           )}
+          {tab === 5 && (
+            <Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Minden szobára külön pontozás rögzíthető. Az első pontozás után trend és változás jelenik meg.
+                </Typography>
+                <IconButton onClick={loadRooms} disabled={roomsLoading}><RefreshIcon /></IconButton>
+              </Stack>
+              {roomsLoading && <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress /></Box>}
+              {!roomsLoading && roomRows.length === 0 && (
+                <Alert severity="info">Nincs rögzített szoba ehhez a szálláshelyhez.</Alert>
+              )}
+              {!roomsLoading && roomRows.length > 0 && (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Szoba</TableCell>
+                      <TableCell>Emelet</TableCell>
+                      <TableCell>Ágyak</TableCell>
+                      <TableCell>Műszaki</TableCell>
+                      <TableCell>Higiénia</TableCell>
+                      <TableCell>Esztétika</TableCell>
+                      <TableCell>Összesen</TableCell>
+                      <TableCell>Jegy</TableCell>
+                      <TableCell>Trend</TableCell>
+                      <TableCell>Lakók</TableCell>
+                      <TableCell align="right">Pontozás</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {roomRows.map((r) => {
+                      const trendIcon = r.trend === 'improving' ? <UpIcon fontSize="small" sx={{ color: 'success.main' }} />
+                                      : r.trend === 'declining' ? <DownIcon fontSize="small" sx={{ color: 'error.main' }} />
+                                      : r.trend === 'stable'    ? <FlatIcon fontSize="small" sx={{ color: 'info.main' }} />
+                                      : null;
+                      const residents = Array.isArray(r.residents_snapshot) ? r.residents_snapshot.length : 0;
+                      return (
+                        <TableRow key={r.room_id} hover>
+                          <TableCell sx={{ fontWeight: 600 }}>{r.room_number}</TableCell>
+                          <TableCell>{r.floor ?? '—'}</TableCell>
+                          <TableCell>{r.beds ?? '—'}</TableCell>
+                          <TableCell>{r.technical_score ?? '—'}</TableCell>
+                          <TableCell>{r.hygiene_score ?? '—'}</TableCell>
+                          <TableCell>{r.aesthetic_score ?? '—'}</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>{r.total_score ?? '—'}</TableCell>
+                          <TableCell><GradeBadge grade={r.grade} /></TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              {trendIcon}
+                              {r.score_change != null && (
+                                <Typography variant="caption" color={r.score_change > 0 ? 'success.main' : r.score_change < 0 ? 'error.main' : 'text.secondary'}>
+                                  {r.score_change > 0 ? '+' : ''}{r.score_change}
+                                </Typography>
+                              )}
+                            </Stack>
+                          </TableCell>
+                          <TableCell>{residents > 0 ? residents : '—'}</TableCell>
+                          <TableCell align="right">
+                            <Tooltip title={r.room_inspection_id ? 'Újrapontozás' : 'Pontozás'}>
+                              <IconButton size="small" onClick={() => openScoreModal(r)}><EditIcon fontSize="small" /></IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </Box>
+          )}
         </Box>
       </Paper>
+
+      <Dialog
+        open={scoreModal.open}
+        onClose={() => !scoreModal.saving && setScoreModal({ open: false, room: null, scores: null, saving: false })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Szoba pontozása
+          {scoreModal.room && (
+            <Typography variant="body2" color="text.secondary">
+              {scoreModal.room.room_number} — {scoreModal.room.floor != null ? `${scoreModal.room.floor}. em.` : ''} {scoreModal.room.beds} ágy
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          {scoreModal.scores && (
+            <Stack spacing={3} sx={{ mt: 1 }}>
+              <Box>
+                <Typography variant="body2">Műszaki állapot (0-50): <b>{scoreModal.scores.technical_score}</b></Typography>
+                <Slider
+                  value={scoreModal.scores.technical_score}
+                  min={0} max={50} step={1}
+                  onChange={(_, v) => setScoreModal((s) => ({ ...s, scores: { ...s.scores, technical_score: v } }))}
+                />
+              </Box>
+              <Box>
+                <Typography variant="body2">Higiénia (0-30): <b>{scoreModal.scores.hygiene_score}</b></Typography>
+                <Slider
+                  value={scoreModal.scores.hygiene_score}
+                  min={0} max={30} step={1}
+                  onChange={(_, v) => setScoreModal((s) => ({ ...s, scores: { ...s.scores, hygiene_score: v } }))}
+                />
+              </Box>
+              <Box>
+                <Typography variant="body2">Esztétika (0-20): <b>{scoreModal.scores.aesthetic_score}</b></Typography>
+                <Slider
+                  value={scoreModal.scores.aesthetic_score}
+                  min={0} max={20} step={1}
+                  onChange={(_, v) => setScoreModal((s) => ({ ...s, scores: { ...s.scores, aesthetic_score: v } }))}
+                />
+              </Box>
+              <Divider />
+              <Typography variant="subtitle2">
+                Összesen: {scoreModal.scores.technical_score + scoreModal.scores.hygiene_score + scoreModal.scores.aesthetic_score} / 100
+              </Typography>
+              <TextField
+                label="Megjegyzés"
+                fullWidth multiline rows={3}
+                value={scoreModal.scores.notes}
+                onChange={(e) => setScoreModal((s) => ({ ...s, scores: { ...s.scores, notes: e.target.value } }))}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={scoreModal.scores.needs_attention}
+                    onChange={(e) => setScoreModal((s) => ({ ...s, scores: { ...s.scores, needs_attention: e.target.checked } }))}
+                  />
+                }
+                label="Figyelmet igényel"
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setScoreModal({ open: false, room: null, scores: null, saving: false })}
+            disabled={scoreModal.saving}
+          >
+            Mégsem
+          </Button>
+          <Button variant="contained" onClick={saveRoomScore} disabled={scoreModal.saving}>
+            {scoreModal.saving ? 'Mentés…' : 'Mentés'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <TaskAssignmentModal
         open={Boolean(selectedTask)}

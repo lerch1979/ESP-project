@@ -1938,6 +1938,20 @@ export const inspectionsAPI = {
     return response.data;
   },
 
+  // Room-level scoring (Day 3 Part A)
+  listInspectionRooms: async (inspectionId) => {
+    const response = await api.get(`/inspections/${inspectionId}/rooms`);
+    return response.data;
+  },
+  scoreRoom: async (inspectionId, roomId, payload) => {
+    const response = await api.post(`/inspections/${inspectionId}/rooms/${roomId}/score`, payload);
+    return response.data;
+  },
+  getRoomHistory: async (roomId) => {
+    const response = await api.get(`/rooms/${roomId}/inspection-history`);
+    return response.data;
+  },
+
   // Templates: categories
   listCategories: async (params = {}) => {
     const response = await api.get('/inspection-templates/categories', { params });

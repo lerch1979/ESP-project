@@ -79,6 +79,7 @@ const MIGRATIONS = [
   // tolerates the table being absent in CI since our new inspection tests
   // won't hit that FK path yet).
   { id: '086', name: 'property_inspection_system',   file: 'migrations/086_property_inspection_system.sql' },
+  { id: '087', name: 'room_inspections',             file: 'migrations/087_room_inspections.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)

@@ -124,6 +124,7 @@ const buildMenuItems = (t) => [
       { text: 'Feladatok',     icon: <AssignmentIcon />,     path: '/inspections/tasks',      permission: 'settings.edit' },
       { text: 'Sablonok',      icon: <CategoryIcon />,       path: '/inspections/templates',  permission: 'settings.edit' },
       { text: 'Riportok',      icon: <AssessmentIcon />,     path: '/inspections/reports',    permission: 'settings.edit' },
+      { text: 'Szoba trendek', icon: <TimelineIcon />,       path: '/inspections/room-trends',permission: 'settings.edit' },
     ],
   },
 

@@ -445,6 +445,221 @@ const complete = async (req, res) => {
   }
 };
 
+/** GET /api/v1/inspections/:id/rooms — list room-level scores for an inspection.
+ *  Also returns rooms belonging to the inspection's accommodation that
+ *  DON'T yet have a score, so the UI can show "pending" rows.
+ */
+const listRooms = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inspRes = await query(
+      `SELECT accommodation_id FROM inspections WHERE id = $1`,
+      [id]
+    );
+    if (inspRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Ellenőrzés nem található' });
+    }
+    const accommodationId = inspRes.rows[0].accommodation_id;
+
+    const result = await query(
+      `SELECT
+         r.id              AS room_id,
+         r.room_number,
+         r.floor,
+         r.beds,
+         r.room_type,
+         ri.id             AS room_inspection_id,
+         ri.technical_score,
+         ri.hygiene_score,
+         ri.aesthetic_score,
+         ri.total_score,
+         ri.grade,
+         ri.previous_score,
+         ri.score_change,
+         ri.trend,
+         ri.residents_snapshot,
+         ri.notes,
+         ri.needs_attention,
+         ri.created_at     AS scored_at
+       FROM accommodation_rooms r
+       LEFT JOIN room_inspections ri
+         ON ri.room_id = r.id AND ri.inspection_id = $1
+       WHERE r.accommodation_id = $2 AND r.is_active = true
+       ORDER BY r.floor NULLS FIRST, r.room_number`,
+      [id, accommodationId]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    logger.error('[inspection.listRooms]', err);
+    res.status(500).json({ success: false, message: 'Szobák lekérési hiba' });
+  }
+};
+
+/** POST /api/v1/inspections/:id/rooms/:roomId/score
+ *  Body: { technical_score, hygiene_score, aesthetic_score, notes?, needs_attention? }
+ *  Auto-computes total, grade, previous_score/score_change/trend, residents_snapshot.
+ *  Uses ON CONFLICT so re-scoring updates in place.
+ */
+const scoreRoom = async (req, res) => {
+  try {
+    const { id, roomId } = req.params;
+    const {
+      technical_score, hygiene_score, aesthetic_score,
+      notes, needs_attention = false,
+    } = req.body || {};
+
+    const tech = Number(technical_score) || 0;
+    const hyg  = Number(hygiene_score) || 0;
+    const aes  = Number(aesthetic_score) || 0;
+
+    if (tech < 0 || tech > 50 || hyg < 0 || hyg > 30 || aes < 0 || aes > 20) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pontszámok tartománya: műszaki 0-50, higiénia 0-30, esztétika 0-20',
+      });
+    }
+
+    const data = await transaction(async (client) => {
+      // Verify the room belongs to the inspection's accommodation
+      const roomRes = await client.query(
+        `SELECT r.id, r.room_number, r.accommodation_id
+         FROM accommodation_rooms r
+         JOIN inspections i ON i.accommodation_id = r.accommodation_id
+         WHERE r.id = $1 AND i.id = $2`,
+        [roomId, id]
+      );
+      if (roomRes.rows.length === 0) throw new Error('ROOM_MISMATCH');
+      const roomNumber = roomRes.rows[0].room_number;
+
+      const total = tech + hyg + aes;
+      const grade = scoreToGrade(total);
+
+      // Previous score → for delta/trend.
+      const prevRes = await client.query(
+        `SELECT total_score FROM room_inspections
+         WHERE room_id = $1 AND inspection_id <> $2
+         ORDER BY created_at DESC LIMIT 1`,
+        [roomId, id]
+      );
+      const previousScore = prevRes.rows[0]?.total_score ?? null;
+      let scoreChange = null;
+      let trend = null;
+      if (previousScore !== null) {
+        scoreChange = total - previousScore;
+        if (scoreChange > 2) trend = 'improving';
+        else if (scoreChange < -2) trend = 'declining';
+        else trend = 'stable';
+      }
+
+      // Residents snapshot: employees currently in this room.
+      const residentsRes = await client.query(
+        `SELECT id AS user_id,
+                first_name || ' ' || last_name AS name,
+                created_at AS move_in_date
+         FROM employees
+         WHERE room_id = $1 AND is_active = true`,
+        [roomId]
+      );
+
+      const upsert = await client.query(
+        `INSERT INTO room_inspections (
+           inspection_id, room_id, room_number,
+           technical_score, hygiene_score, aesthetic_score,
+           total_score, grade,
+           previous_score, score_change, trend,
+           residents_snapshot, notes, needs_attention
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (inspection_id, room_id) DO UPDATE SET
+           technical_score   = EXCLUDED.technical_score,
+           hygiene_score     = EXCLUDED.hygiene_score,
+           aesthetic_score   = EXCLUDED.aesthetic_score,
+           total_score       = EXCLUDED.total_score,
+           grade             = EXCLUDED.grade,
+           previous_score    = EXCLUDED.previous_score,
+           score_change      = EXCLUDED.score_change,
+           trend             = EXCLUDED.trend,
+           residents_snapshot = EXCLUDED.residents_snapshot,
+           notes             = EXCLUDED.notes,
+           needs_attention   = EXCLUDED.needs_attention
+         RETURNING *`,
+        [
+          id, roomId, roomNumber,
+          tech, hyg, aes,
+          total, grade,
+          previousScore, scoreChange, trend,
+          JSON.stringify(residentsRes.rows), notes || null, !!needs_attention,
+        ]
+      );
+
+      return upsert.rows[0];
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.message === 'ROOM_MISMATCH') {
+      return res.status(400).json({
+        success: false,
+        message: 'A szoba nem tartozik az ellenőrzés szálláshelyéhez',
+      });
+    }
+    logger.error('[inspection.scoreRoom]', err);
+    res.status(500).json({ success: false, message: 'Szoba pontozási hiba' });
+  }
+};
+
+/** GET /api/v1/rooms/:id/inspection-history — per-room score history. */
+const roomHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const roomRes = await query(
+      `SELECT r.id, r.room_number, r.floor, r.beds, r.room_type,
+              a.id AS accommodation_id, a.name AS accommodation_name
+       FROM accommodation_rooms r
+       LEFT JOIN accommodations a ON r.accommodation_id = a.id
+       WHERE r.id = $1`,
+      [id]
+    );
+    if (roomRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Szoba nem található' });
+    }
+
+    const [historyRes, trendRes] = await Promise.all([
+      query(
+        `SELECT ri.*,
+                i.inspection_number,
+                i.inspection_type,
+                i.completed_at,
+                u.first_name || ' ' || u.last_name AS inspector_name
+         FROM room_inspections ri
+         JOIN inspections i ON ri.inspection_id = i.id
+         LEFT JOIN users u ON i.inspector_id = u.id
+         WHERE ri.room_id = $1
+         ORDER BY ri.created_at DESC`,
+        [id]
+      ),
+      query(
+        `SELECT * FROM room_inspection_trends WHERE room_id = $1`,
+        [id]
+      ),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        room: roomRes.rows[0],
+        trend: trendRes.rows[0] || null,
+        history: historyRes.rows,
+      },
+    });
+  } catch (err) {
+    logger.error('[inspection.roomHistory]', err);
+    res.status(500).json({ success: false, message: 'Szoba történeti lekérési hiba' });
+  }
+};
+
 /** DELETE /api/v1/inspections/:id — admin only, only scheduled/cancelled */
 const remove = async (req, res) => {
   try {
@@ -475,6 +690,9 @@ module.exports = {
   addScores,
   complete,
   remove,
+  listRooms,
+  scoreRoom,
+  roomHistory,
   // exported helpers so the template/schedule controllers can reuse
   _helpers: { scoreToGrade, severityFromRatio, taskPriorityFromSeverity, dueOffsetDays, nextInspectionNumber },
 };

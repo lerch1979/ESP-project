@@ -95,6 +95,7 @@ const InspectionTemplates = lazy(() => import('./pages/inspections/InspectionTem
 const InspectionSchedules = lazy(() => import('./pages/inspections/InspectionSchedules'));
 const InspectionTasks = lazy(() => import('./pages/inspections/InspectionTasks'));
 const InspectionReports = lazy(() => import('./pages/inspections/InspectionReports'));
+const RoomTrends = lazy(() => import('./pages/inspections/RoomTrends'));
 
 // Suspense fallback
 function PageLoader() {
@@ -206,6 +207,7 @@ function App() {
               <Route path="inspections/schedules" element={<PermissionGuard permission="settings.edit"><InspectionSchedules /></PermissionGuard>} />
               <Route path="inspections/tasks" element={<PermissionGuard permission="settings.edit"><InspectionTasks /></PermissionGuard>} />
               <Route path="inspections/reports" element={<PermissionGuard permission="settings.edit"><InspectionReports /></PermissionGuard>} />
+              <Route path="inspections/room-trends" element={<PermissionGuard permission="settings.edit"><RoomTrends /></PermissionGuard>} />
               <Route path="inspections/:id" element={<PermissionGuard permission="settings.edit"><InspectionDetail /></PermissionGuard>} />
             </Route>
 
