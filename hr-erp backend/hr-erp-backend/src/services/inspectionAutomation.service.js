@@ -11,6 +11,7 @@
  */
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const compensationSvc = require('./compensation.service');
 
 const FREQ_INTERVAL = {
   weekly: "7 days",
@@ -92,16 +93,20 @@ async function markOverdueTasks() {
   return r.rows.length;
 }
 
-/** Refresh the inspection_trends materialized view (cheap — COUNT(*)s only). */
+/** Refresh materialized views for inspection + room trend aggregates. */
 async function refreshTrends() {
-  try {
-    await query(`REFRESH MATERIALIZED VIEW inspection_trends`);
-    return true;
-  } catch (err) {
-    // First call on an empty DB can fail if the MV is missing — safe to ignore
-    logger.warn('[inspectionAutomation] refreshTrends:', err.message);
-    return false;
+  const views = ['inspection_trends', 'room_inspection_trends'];
+  let okCount = 0;
+  for (const v of views) {
+    try {
+      await query(`REFRESH MATERIALIZED VIEW ${v}`);
+      okCount++;
+    } catch (err) {
+      // MV may be missing on older dev DBs; safe to ignore here.
+      logger.warn(`[inspectionAutomation] refresh ${v}:`, err.message);
+    }
   }
+  return okCount === views.length;
 }
 
 /** Single-entry cron target. Safe to call manually via REPL for testing. */
@@ -111,11 +116,18 @@ async function runDaily() {
     const created = await autoCreateDueInspections();
     const overdue = await markOverdueTasks();
     const trendsOk = await refreshTrends();
+    let escalations = { firstReminder: 0, finalWarning: 0, escalated: 0, skipped: 0 };
+    try {
+      escalations = await compensationSvc.runDailyEscalations();
+    } catch (err) {
+      logger.error('[inspectionAutomation] compensation escalations failed:', err.message);
+    }
     logger.info(
       `[inspectionAutomation] daily run done in ${Date.now() - startedAt}ms — ` +
-      `created=${created.length}, overdue=${overdue}, trends_refreshed=${trendsOk}`
+      `created=${created.length}, overdue=${overdue}, trends_refreshed=${trendsOk}, ` +
+      `escalations=${JSON.stringify(escalations)}`
     );
-    return { created, overdueCount: overdue, trendsRefreshed: trendsOk };
+    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations };
   } catch (err) {
     logger.error('[inspectionAutomation] daily run error:', err);
     throw err;

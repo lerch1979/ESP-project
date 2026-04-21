@@ -782,10 +782,188 @@ async function generateInspectionReport(inspectionId) {
   return doc;
 }
 
+// ─── Document 4: Compensation Notice (Kártérítési értesítő) ─────────
+
+const COMP_TYPE_HU = {
+  damage:             'Kártérítés',
+  cleaning:           'Takarítási költség',
+  late_payment:       'Késedelmi kamat',
+  contract_violation: 'Szerződésszegés',
+  other:              'Egyéb',
+};
+
+async function loadCompensationContext(compensationId) {
+  const r = await query(
+    `SELECT c.*,
+            a.name  AS accommodation_name,
+            a.address AS accommodation_address,
+            i.inspection_number,
+            i.completed_at AS inspection_date,
+            r.room_number,
+            u.first_name || ' ' || u.last_name AS created_by_name
+     FROM compensations c
+     LEFT JOIN accommodations a      ON c.accommodation_id = a.id
+     LEFT JOIN inspections    i      ON c.inspection_id    = i.id
+     LEFT JOIN accommodation_rooms r ON c.room_id          = r.id
+     LEFT JOIN users u               ON c.created_by       = u.id
+     WHERE c.id = $1`,
+    [compensationId]
+  );
+  if (r.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
+
+  const [payments, reminders] = await Promise.all([
+    query(`SELECT * FROM compensation_payments WHERE compensation_id = $1 ORDER BY paid_at`, [compensationId]),
+    query(`SELECT * FROM compensation_reminders WHERE compensation_id = $1 ORDER BY sent_at`, [compensationId]),
+  ]);
+
+  return { compensation: r.rows[0], payments: payments.rows, reminders: reminders.rows };
+}
+
+/**
+ * Formal demand letter to the responsible party. Structured as a Hungarian
+ * "Kártérítési értesítő" (compensation notice) — used as evidence in
+ * payroll deduction proceedings and legal action.
+ */
+async function generateCompensationNotice(compensationId) {
+  const { compensation: c, payments, reminders } = await loadCompensationContext(compensationId);
+
+  const doc = createDoc({ title: 'Kártérítési értesítő' });
+  drawHeader(doc, {
+    title: 'KÁRTÉRÍTÉSI ÉRTESÍTŐ',
+    subtitle: 'Fizetési felszólítás',
+    number: c.compensation_number,
+  });
+
+  doc.font('Regular').fontSize(10).fillColor(COLORS.dark);
+  const escalationLabel = c.escalation_level >= 3
+    ? 'Jogi eljárás alá helyezve'
+    : c.escalation_level === 2 ? 'Végső felszólítás'
+    : c.escalation_level === 1 ? 'Ismételt felszólítás'
+    : 'Első értesítő';
+  doc.text(`Tárgy: Fizetési kötelezettség (${escalationLabel})`, { align: 'justify' });
+  doc.moveDown(0.5);
+  doc.text(
+    `A ${COMPANY.name} nevében értesítjük Önt, hogy az alábbiakban részletezett ${COMP_TYPE_HU[c.compensation_type] || c.compensation_type} címén fizetési kötelezettsége áll fenn.`,
+    { align: 'justify' }
+  );
+
+  drawSectionTitle(doc, 'Adatok');
+  drawKeyValueTable(doc, [
+    ['Értesítő száma',    c.compensation_number],
+    ['Felelős neve',      c.responsible_name || '—'],
+    ['Felelős e-mail',    c.responsible_email || '—'],
+    ['Felelős telefon',   c.responsible_phone || '—'],
+    ['Ingatlan',          c.accommodation_name || '—'],
+    ['Ingatlan cím',      c.accommodation_address || '—'],
+    ['Szoba',             c.room_number || '—'],
+    ['Kapcsolódó ellenőrzés',
+      c.inspection_number
+        ? `${c.inspection_number} (${fmtDate(c.inspection_date)})`
+        : '—'],
+    ['Kiállítás dátuma',  fmtDate(c.issued_at, true)],
+    ['Fizetési határidő', fmtDate(c.due_date)],
+    ['Értesítő szintje',  escalationLabel],
+  ]);
+
+  // Amount block — dominant visual
+  drawSectionTitle(doc, 'Fizetendő összeg');
+  const x = doc.page.margins.left;
+  const w = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const h = 80;
+  const y = doc.y;
+  doc.save().roundedRect(x, y, w, h, 6).fill(COLORS.bg).restore();
+  doc.save().roundedRect(x, y, 6, h, 3).fill(COLORS.danger).restore();
+
+  const outstanding = Number(c.amount_gross) - Number(c.amount_paid || 0);
+  const boxW = (w - 24) / 3;
+  const boxes = [
+    { label: 'Alapösszeg',   value: fmtMoney(c.amount_gross) },
+    { label: 'Befizetve',    value: fmtMoney(c.amount_paid || 0) },
+    { label: 'Hátralék',     value: fmtMoney(outstanding), accent: true },
+  ];
+  boxes.forEach((b, i) => {
+    const bx = x + 12 + boxW * i;
+    doc.font('Regular').fontSize(9).fillColor(COLORS.muted)
+       .text(b.label, bx, y + 12, { width: boxW, align: 'center' });
+    doc.font('Bold').fontSize(b.accent ? 22 : 16)
+       .fillColor(b.accent ? COLORS.danger : COLORS.dark)
+       .text(b.value, bx, y + 28, { width: boxW, align: 'center' });
+  });
+  doc.y = y + h + 10;
+
+  drawSectionTitle(doc, 'A követelés indoklása');
+  doc.font('Regular').fontSize(10).fillColor(COLORS.dark)
+     .text(c.description || '—', { align: 'justify' });
+  if (c.calculation_notes) {
+    doc.moveDown(0.5);
+    doc.font('Bold').text('Számítási jegyzet:');
+    doc.font('Regular').text(c.calculation_notes, { align: 'justify' });
+  }
+
+  if (payments.length > 0) {
+    drawSectionTitle(doc, `Beérkezett részfizetések (${payments.length})`);
+    drawTable(doc, [
+      { label: 'Dátum',     render: r => fmtDate(r.paid_at), width: 120 },
+      { label: 'Összeg',    render: r => fmtMoney(r.amount), width: 120, align: 'right', bold: true },
+      { label: 'Módszer',   key: 'method',                    width: 120, align: 'center' },
+      { label: 'Hivatkozás', key: 'reference',                width: 140 },
+    ], payments);
+  }
+
+  if (reminders.length > 0) {
+    drawSectionTitle(doc, `Értesítők / emlékeztetők története (${reminders.length})`);
+    drawTable(doc, [
+      { label: 'Dátum',    render: r => fmtDate(r.sent_at, true), width: 140 },
+      { label: 'Típus',    key: 'reminder_type',                   width: 130 },
+      { label: 'Csatorna', key: 'sent_channel',                    width: 80, align: 'center' },
+      { label: 'Státusz',  key: 'delivery_status',                 width: 80, align: 'center' },
+    ], reminders);
+  }
+
+  drawSectionTitle(doc, 'Fizetési feltételek');
+  doc.font('Regular').fontSize(10).fillColor(COLORS.dark)
+     .text(
+       '1. A fenti hátralékos összeg a megadott határidőig a Szolgáltató által megadott bankszámlára átutalással, vagy a munkavállalói bérből történő levonással kiegyenlítendő.\n' +
+       '2. A határidő eredménytelen elteltét követően a Szolgáltató jogi úton érvényesíti követelését, melynek költségei a Felelőst terhelik.\n' +
+       '3. Részletfizetési megállapodás kérhető a kibocsátótól, a határidő lejárta előtt írásban.\n' +
+       '4. Amennyiben a követelés megalapozatlannak tartja, kifogását a ' + fmtDate(c.due_date) + ' dátumig jelezheti.',
+       { align: 'justify', lineGap: 2 }
+     );
+
+  drawSectionTitle(doc, 'Kapcsolat');
+  doc.font('Regular').fontSize(10).fillColor(COLORS.dark)
+     .text(`${COMPANY.name}  •  ${COMPANY.address}`);
+  doc.text(`${COMPANY.email}  •  ${COMPANY.phone}`);
+  if (c.created_by_name) {
+    doc.moveDown(0.3);
+    doc.font('Italic').fontSize(9).fillColor(COLORS.muted)
+       .text(`Kiállította: ${c.created_by_name}`);
+  }
+
+  // QR for verification
+  const qrPayload = JSON.stringify({
+    t: 'hs-compensation',
+    n: c.compensation_number,
+    due: c.due_date,
+    amt: Number(c.amount_gross),
+  });
+  const qrBuf = await drawQR(doc, qrPayload, 70);
+  const qrX = doc.page.width - doc.page.margins.right - 70;
+  const qrY = doc.y + 10;
+  doc.image(qrBuf, qrX, qrY, { width: 70, height: 70 });
+  doc.font('Regular').fontSize(7).fillColor(COLORS.muted)
+     .text('Ellenőrző kód', qrX, qrY + 74, { width: 70, align: 'center' });
+
+  finalizeDoc(doc, { verifyText: `Kártérítés: ${c.compensation_number}` });
+  doc.end();
+  return doc;
+}
+
 module.exports = {
   generateLegalProtocol,
   generateOwnerReport,
   generateInspectionReport,
+  generateCompensationNotice,
   // exports for testing
-  _internals: { createDoc, drawHeader, loadInspectionContext, GRADE_HU, SEVERITY_HU, PRIORITY_HU, TYPE_HU, COLORS, COMPANY },
+  _internals: { createDoc, drawHeader, loadInspectionContext, loadCompensationContext, GRADE_HU, SEVERITY_HU, PRIORITY_HU, TYPE_HU, COMP_TYPE_HU, COLORS, COMPANY },
 };

@@ -11,6 +11,7 @@ import {
   PhotoCamera as PhotoCameraIcon, Refresh as RefreshIcon, Edit as EditIcon,
   TrendingUp as UpIcon, TrendingDown as DownIcon, TrendingFlat as FlatIcon,
   PictureAsPdf as PdfIcon, Gavel as GavelIcon, Home as HomeIcon, Assessment as AssessmentIcon,
+  MonetizationOn as CompIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
@@ -248,6 +249,17 @@ export default function InspectionDetail() {
               disabled={pdfDownloading === 'report'}
             >
               Belső riport
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title="Kártérítés létrehozása">
+          <span>
+            <Button
+              variant="outlined" color="warning" size="small"
+              startIcon={<CompIcon />}
+              onClick={() => navigate(`/compensations/new?inspectionId=${id}`)}
+            >
+              Kártérítés
             </Button>
           </span>
         </Tooltip>

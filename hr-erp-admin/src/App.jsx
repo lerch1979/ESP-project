@@ -96,6 +96,9 @@ const InspectionSchedules = lazy(() => import('./pages/inspections/InspectionSch
 const InspectionTasks = lazy(() => import('./pages/inspections/InspectionTasks'));
 const InspectionReports = lazy(() => import('./pages/inspections/InspectionReports'));
 const RoomTrends = lazy(() => import('./pages/inspections/RoomTrends'));
+const CompensationsList = lazy(() => import('./pages/compensations/CompensationsList'));
+const CompensationDetail = lazy(() => import('./pages/compensations/CompensationDetail'));
+const CreateCompensation = lazy(() => import('./pages/compensations/CreateCompensation'));
 
 // Suspense fallback
 function PageLoader() {
@@ -209,6 +212,11 @@ function App() {
               <Route path="inspections/reports" element={<PermissionGuard permission="settings.edit"><InspectionReports /></PermissionGuard>} />
               <Route path="inspections/room-trends" element={<PermissionGuard permission="settings.edit"><RoomTrends /></PermissionGuard>} />
               <Route path="inspections/:id" element={<PermissionGuard permission="settings.edit"><InspectionDetail /></PermissionGuard>} />
+
+              {/* Compensations */}
+              <Route path="compensations" element={<PermissionGuard permission="settings.edit"><CompensationsList /></PermissionGuard>} />
+              <Route path="compensations/new" element={<PermissionGuard permission="settings.edit"><CreateCompensation /></PermissionGuard>} />
+              <Route path="compensations/:id" element={<PermissionGuard permission="settings.edit"><CompensationDetail /></PermissionGuard>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

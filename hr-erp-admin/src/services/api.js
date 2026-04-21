@@ -1957,6 +1957,21 @@ export const inspectionsAPI = {
   downloadOwnerReport:   (id)   => api.get(`/inspections/${id}/pdf/owner`,  { responseType: 'blob' }).then(r => r.data),
   downloadInspectionReport: (id) => api.get(`/inspections/${id}/pdf/report`, { responseType: 'blob' }).then(r => r.data),
 
+  // Compensations (Day 3 Part C) — all via inspectionsAPI for UI convenience;
+  // they hit /compensations/* under the hood.
+  listCompensations: async (params = {}) => (await api.get('/compensations', { params })).data,
+  getCompensation:   async (id)          => (await api.get(`/compensations/${id}`)).data,
+  createCompensation: async (payload, opts = {}) =>
+    (await api.post(`/compensations${opts.issue ? '?issue=true' : ''}`, payload)).data,
+  issueCompensation: async (id) => (await api.post(`/compensations/${id}/issue`)).data,
+  recordCompensationPayment: async (id, payload) =>
+    (await api.post(`/compensations/${id}/payments`, payload)).data,
+  waiveCompensation:    async (id, reason) => (await api.post(`/compensations/${id}/waive`,    { reason })).data,
+  escalateCompensation: async (id, payload = {}) =>
+    (await api.post(`/compensations/${id}/escalate`, payload)).data,
+  downloadCompensationNotice: (id) =>
+    api.get(`/compensations/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+
   // Templates: categories
   listCategories: async (params = {}) => {
     const response = await api.get('/inspection-templates/categories', { params });
