@@ -72,6 +72,7 @@ import {
   Gavel as GavelIcon,
   Checklist as ChecklistIcon,
   Rule as RuleIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -110,6 +111,19 @@ const buildMenuItems = (t) => [
       { text: 'Besorolási szabályok', icon: <RuleIcon />, path: '/finance/classification-rules', permission: 'settings.edit' },
       { text: t('nav.invoiceReports'), icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
       { text: t('nav.salaryTransparency'), icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
+    ],
+  },
+
+  // ─── Ingatlan Ellenőrzés ──────────────────────────────
+  {
+    text: 'Ingatlan Ellenőrzés', icon: <ChecklistIcon />, permission: 'settings.edit', children: [
+      { text: 'Dashboard',     icon: <BarChartIcon />,       path: '/inspections/dashboard',  permission: 'settings.edit' },
+      { text: 'Új ellenőrzés', icon: <AddIcon />,            path: '/inspections/new',        permission: 'settings.edit' },
+      { text: 'Ellenőrzések',  icon: <ListAltIcon />,        path: '/inspections',            permission: 'settings.edit' },
+      { text: 'Ütemezések',    icon: <ScheduleIcon />,       path: '/inspections/schedules',  permission: 'settings.edit' },
+      { text: 'Feladatok',     icon: <AssignmentIcon />,     path: '/inspections/tasks',      permission: 'settings.edit' },
+      { text: 'Sablonok',      icon: <CategoryIcon />,       path: '/inspections/templates',  permission: 'settings.edit' },
+      { text: 'Riportok',      icon: <AssessmentIcon />,     path: '/inspections/reports',    permission: 'settings.edit' },
     ],
   },
 

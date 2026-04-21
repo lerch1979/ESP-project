@@ -87,6 +87,15 @@ const SentimentDashboard = lazy(() => import('./pages/WellMind/SentimentDashboar
 // Slack
 const SlackIntegration = lazy(() => import('./pages/SlackIntegration'));
 
+// Inspections (Ingatlan Ellenőrzés)
+const InspectionsList = lazy(() => import('./pages/inspections/InspectionsList'));
+const InspectionDetail = lazy(() => import('./pages/inspections/InspectionDetail'));
+const InspectionDashboard = lazy(() => import('./pages/inspections/InspectionDashboard'));
+const InspectionTemplates = lazy(() => import('./pages/inspections/InspectionTemplates'));
+const InspectionSchedules = lazy(() => import('./pages/inspections/InspectionSchedules'));
+const InspectionTasks = lazy(() => import('./pages/inspections/InspectionTasks'));
+const InspectionReports = lazy(() => import('./pages/inspections/InspectionReports'));
+
 // Suspense fallback
 function PageLoader() {
   return (
@@ -188,6 +197,16 @@ function App() {
               <Route path="wellmind/interventions" element={<InterventionsManagement />} />
               <Route path="wellmind/team-metrics" element={<TeamMetrics />} />
               <Route path="wellmind/sentiment" element={<PermissionGuard permission="settings.edit"><SentimentDashboard /></PermissionGuard>} />
+
+              {/* Inspections */}
+              <Route path="inspections" element={<PermissionGuard permission="settings.edit"><InspectionsList /></PermissionGuard>} />
+              <Route path="inspections/dashboard" element={<PermissionGuard permission="settings.edit"><InspectionDashboard /></PermissionGuard>} />
+              <Route path="inspections/new" element={<Navigate to="/inspections?create=1" replace />} />
+              <Route path="inspections/templates" element={<PermissionGuard permission="settings.edit"><InspectionTemplates /></PermissionGuard>} />
+              <Route path="inspections/schedules" element={<PermissionGuard permission="settings.edit"><InspectionSchedules /></PermissionGuard>} />
+              <Route path="inspections/tasks" element={<PermissionGuard permission="settings.edit"><InspectionTasks /></PermissionGuard>} />
+              <Route path="inspections/reports" element={<PermissionGuard permission="settings.edit"><InspectionReports /></PermissionGuard>} />
+              <Route path="inspections/:id" element={<PermissionGuard permission="settings.edit"><InspectionDetail /></PermissionGuard>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

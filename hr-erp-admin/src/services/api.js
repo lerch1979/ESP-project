@@ -1889,6 +1889,138 @@ export const damageReportsAPI = {
   },
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// INSPECTIONS API (Property inspection system)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const inspectionsAPI = {
+  // Inspections
+  getAll: async (params = {}) => {
+    const response = await api.get('/inspections', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/inspections/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/inspections', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.patch(`/inspections/${id}`, data);
+    return response.data;
+  },
+  addScores: async (id, scores) => {
+    const response = await api.post(`/inspections/${id}/scores`, { scores });
+    return response.data;
+  },
+  complete: async (id) => {
+    const response = await api.post(`/inspections/${id}/complete`);
+    return response.data;
+  },
+  remove: async (id) => {
+    const response = await api.delete(`/inspections/${id}`);
+    return response.data;
+  },
+  uploadPhoto: async (id, formData) => {
+    const response = await api.post(`/inspections/${id}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  listPhotos: async (id) => {
+    const response = await api.get(`/inspections/${id}/photos`);
+    return response.data;
+  },
+  deletePhoto: async (photoId) => {
+    const response = await api.delete(`/inspections/photos/${photoId}`);
+    return response.data;
+  },
+
+  // Templates: categories
+  listCategories: async (params = {}) => {
+    const response = await api.get('/inspection-templates/categories', { params });
+    return response.data;
+  },
+  createCategory: async (data) => {
+    const response = await api.post('/inspection-templates/categories', data);
+    return response.data;
+  },
+  updateCategory: async (id, data) => {
+    const response = await api.put(`/inspection-templates/categories/${id}`, data);
+    return response.data;
+  },
+  deleteCategory: async (id) => {
+    const response = await api.delete(`/inspection-templates/categories/${id}`);
+    return response.data;
+  },
+
+  // Templates: items
+  listItems: async (params = {}) => {
+    const response = await api.get('/inspection-templates/items', { params });
+    return response.data;
+  },
+  createItem: async (data) => {
+    const response = await api.post('/inspection-templates/items', data);
+    return response.data;
+  },
+  updateItem: async (id, data) => {
+    const response = await api.put(`/inspection-templates/items/${id}`, data);
+    return response.data;
+  },
+  deleteItem: async (id) => {
+    const response = await api.delete(`/inspection-templates/items/${id}`);
+    return response.data;
+  },
+
+  // Schedules
+  listSchedules: async (params = {}) => {
+    const response = await api.get('/inspection-schedules', { params });
+    return response.data;
+  },
+  upcomingSchedules: async (days = 30) => {
+    const response = await api.get('/inspection-schedules/upcoming', { params: { days } });
+    return response.data;
+  },
+  createSchedule: async (data) => {
+    const response = await api.post('/inspection-schedules', data);
+    return response.data;
+  },
+  updateSchedule: async (id, data) => {
+    const response = await api.put(`/inspection-schedules/${id}`, data);
+    return response.data;
+  },
+  deleteSchedule: async (id) => {
+    const response = await api.delete(`/inspection-schedules/${id}`);
+    return response.data;
+  },
+
+  // Tasks
+  listTasks: async (params = {}) => {
+    const response = await api.get('/inspection-tasks', { params });
+    return response.data;
+  },
+  getTaskById: async (id) => {
+    const response = await api.get(`/inspection-tasks/${id}`);
+    return response.data;
+  },
+  updateTask: async (id, data) => {
+    const response = await api.patch(`/inspection-tasks/${id}`, data);
+    return response.data;
+  },
+  verifyTask: async (id) => {
+    const response = await api.post(`/inspection-tasks/${id}/verify`);
+    return response.data;
+  },
+  uploadTaskPhoto: async (id, formData) => {
+    const response = await api.post(`/inspection-tasks/${id}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};
+
 // GTD Task Manager API
 export const gtdAPI = {
   // Inbox
