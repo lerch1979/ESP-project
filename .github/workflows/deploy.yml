@@ -116,7 +116,11 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # TODO: re-enable when the production Kubernetes cluster is configured and
+    # the KUBE_CONFIG repo secret is populated. For now this job stays skipped
+    # so the pipeline shows green after test + build-and-push succeed.
+    # Previously: if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: false
     environment: production
 
     steps:
