@@ -8,6 +8,7 @@ import { Search, Chat } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { chatbotAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import { LanguageBadge } from '../utils/languageBadges';
 
 const STATUS_CONFIG = {
   active: { label: 'Aktív', color: 'info' },
@@ -95,7 +96,10 @@ export default function ChatbotConversations() {
                     <Typography variant="caption" color="text.secondary">{conv.email}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>{conv.title}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>{conv.title}</Typography>
+                      {conv.language && <LanguageBadge language={conv.language} />}
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Chip label={status.label} size="small" color={status.color} />

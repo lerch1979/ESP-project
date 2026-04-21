@@ -83,6 +83,9 @@
     "empty": "Keine Benachrichtigungen",
     "markAllRead": "Alle als gelesen markieren"
   },
+  "profile": {
+    "language": "Sprache"
+  },
   "settings": {
     "title": "Einstellungen",
     "profile": "Profil",

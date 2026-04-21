@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  Alert,
   Box,
   Paper,
   Typography,
@@ -31,6 +32,7 @@ import {
 import { ticketsAPI, damageReportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import UserAvatar from '../components/common/UserAvatar';
+import { LanguageBadge, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '../utils/languageBadges';
 
 function TicketDetail() {
   const { id } = useParams();
@@ -42,6 +44,7 @@ function TicketDetail() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statuses, setStatuses] = useState([]);
+  const [showOriginal, setShowOriginal] = useState(false);
 
   useEffect(() => {
     loadStatuses();
@@ -262,9 +265,12 @@ function TicketDetail() {
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-              {ticket.title}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
+                {ticket.title}
+              </Typography>
+              <LanguageBadge language={ticket.language} />
+            </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               {ticket.ticket_number}
             </Typography>
@@ -291,6 +297,31 @@ function TicketDetail() {
           </FormControl>
         </Box>
       </Box>
+
+      {/* Fordítási értesítő */}
+      {ticket.language && ticket.language !== 'hu' && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {LANGUAGE_FLAGS[ticket.language]} Ez a ticket {LANGUAGE_NAMES[ticket.language]} nyelven
+          érkezett és automatikusan le lett fordítva magyarra.
+          <Button size="small" onClick={() => setShowOriginal((prev) => !prev)} sx={{ ml: 1 }}>
+            {showOriginal ? 'Fordítás mutatása' : 'Eredeti szöveg'}
+          </Button>
+        </Alert>
+      )}
+      {showOriginal && ticket.original_title && (
+        <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1, mb: 2 }}>
+          <Typography variant="caption" color="text.secondary">Eredeti cím:</Typography>
+          <Typography variant="body2">{ticket.original_title}</Typography>
+          {ticket.original_description && (
+            <>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Eredeti leírás:
+              </Typography>
+              <Typography variant="body2">{ticket.original_description}</Typography>
+            </>
+          )}
+        </Box>
+      )}
 
       <Grid container spacing={3}>
         {/* Bal oldal */}

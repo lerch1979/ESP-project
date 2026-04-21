@@ -83,6 +83,9 @@
     "empty": "Немає сповіщень",
     "markAllRead": "Позначити все прочитаним"
   },
+  "profile": {
+    "language": "Мова"
+  },
   "settings": {
     "title": "Налаштування",
     "profile": "Профіль",

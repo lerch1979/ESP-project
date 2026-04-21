@@ -83,6 +83,9 @@
     "empty": "No notifications",
     "markAllRead": "Mark all read"
   },
+  "profile": {
+    "language": "Language"
+  },
   "settings": {
     "title": "Settings",
     "profile": "Profile",

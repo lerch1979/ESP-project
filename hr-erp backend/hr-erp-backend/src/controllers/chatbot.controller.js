@@ -2,6 +2,83 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { isValidUUID } = require('../utils/validation');
 const chatbotService = require('../services/chatbot.service');
+const translation = require('../services/translation.service');
+
+// ─── Translation helpers ────────────────────────────────────────────────────
+//
+// Bot-reply pipeline (FAQ/decision-tree/Claude prompts) is Hungarian-centric:
+// - On write: translate user text hu-in, translate bot text user-lang-out.
+// - On read: original user sees user message original + bot translated_content;
+//   admins (admin, superadmin, data_controller) see everything in Hungarian.
+
+const ADMIN_VIEWER_ROLES = ['admin', 'superadmin', 'data_controller'];
+
+function isAdminViewer(req) {
+  const roles = req.user?.roles || [];
+  return roles.some((r) => ADMIN_VIEWER_ROLES.includes(r));
+}
+
+async function safeTranslate(text, fromLang, toLang) {
+  // Degraded-mode guard: never let a translation failure break the request.
+  try {
+    if (!text || typeof text !== 'string' || !text.trim()) return text || '';
+    if (!fromLang || !toLang || fromLang === toLang) return text;
+    return await translation.translateText(text, fromLang, toLang);
+  } catch (err) {
+    logger.warn('[chatbot] translation failed, returning original:', err.message);
+    return text;
+  }
+}
+
+async function renderMessagesForViewer(req, rawMessages, conversationOwnerId) {
+  // Returns a shallow-cloned list with `content` adjusted to the viewer's
+  // language. Admins always see Hungarian; the conversation owner sees their
+  // own language. Non-user/non-bot ("system") messages are returned as-is
+  // other than translation of their text.
+  if (!Array.isArray(rawMessages) || rawMessages.length === 0) return rawMessages || [];
+
+  const viewerIsAdmin = isAdminViewer(req);
+  const viewerIsOwner = req.user?.id === conversationOwnerId;
+
+  if (viewerIsAdmin) {
+    // Admin view: everything in Hungarian. Bot messages are already 'hu';
+    // user messages that were authored in another language get translated.
+    return Promise.all(
+      rawMessages.map(async (m) => {
+        const lang = m.language || 'hu';
+        if (lang === 'hu') return m;
+        const translated = await safeTranslate(m.content, lang, 'hu');
+        return { ...m, content: translated, original_content: m.content };
+      })
+    );
+  }
+
+  if (viewerIsOwner) {
+    // Owner view: user messages shown in their original language; bot
+    // messages rendered via cached translated_content when available and
+    // lazily translated otherwise (covers legacy rows written before wiring).
+    const viewerLang = await translation.getUserLanguage(req.user.id);
+    return Promise.all(
+      rawMessages.map(async (m) => {
+        if (m.sender_type === 'bot' || m.sender_type === 'system') {
+          const storedLang = m.language || 'hu';
+          if (m.translated_content && m.is_translated) {
+            return { ...m, content: m.translated_content, original_content: m.content };
+          }
+          if (storedLang === viewerLang) return m;
+          const translated = await safeTranslate(m.content, storedLang, viewerLang);
+          return { ...m, content: translated, original_content: m.content };
+        }
+        // User messages: always show in the language they were authored in.
+        return m;
+      })
+    );
+  }
+
+  // Fallback (neither owner nor admin, e.g. cross-contractor lookup denied
+  // elsewhere): return raw rows untranslated.
+  return rawMessages;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIER 1: User endpoints
@@ -20,21 +97,28 @@ const createConversation = async (req, res) => {
     );
     const conversation = result.rows[0];
 
-    // Add welcome message
+    const userLang = await translation.getUserLanguage(userId);
+
+    // Add welcome message — stored canonical in Hungarian, translated for user
     const welcomeMsg = await chatbotService.getWelcomeMessage(contractorId);
+    const welcomeTranslated = userLang === 'hu'
+      ? null
+      : await safeTranslate(welcomeMsg, 'hu', userLang);
     await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content)
-       VALUES ($1, 'bot', 'text', $2)`,
-      [conversation.id, welcomeMsg]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, language, translated_content, is_translated)
+       VALUES ($1, 'bot', 'text', $2, 'hu', $3, $4)`,
+      [conversation.id, welcomeMsg, welcomeTranslated, !!welcomeTranslated]
     );
 
     // Get FAQ categories for welcome options
     const categories = await chatbotService.getFaqCategories(contractorId);
     if (categories.length > 0) {
+      const prompt = 'Válasszon témát:';
+      const promptTranslated = userLang === 'hu' ? null : await safeTranslate(prompt, 'hu', userLang);
       await query(
-        `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata)
-         VALUES ($1, 'bot', 'faq_list', 'Válasszon témát:', $2)`,
-        [conversation.id, JSON.stringify({ categories })]
+        `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, language, translated_content, is_translated)
+         VALUES ($1, 'bot', 'faq_list', $2, $3, 'hu', $4, $5)`,
+        [conversation.id, prompt, JSON.stringify({ categories }), promptTranslated, !!promptTranslated]
       );
     }
 
@@ -93,7 +177,7 @@ const getMessages = async (req, res) => {
 
     // Verify ownership
     const convCheck = await query(
-      `SELECT id FROM chatbot_conversations WHERE id = $1 AND user_id = $2`,
+      `SELECT id, user_id FROM chatbot_conversations WHERE id = $1 AND user_id = $2`,
       [conversationId, userId]
     );
     if (convCheck.rows.length === 0) {
@@ -105,7 +189,8 @@ const getMessages = async (req, res) => {
       [conversationId]
     );
 
-    res.json({ success: true, data: result.rows });
+    const rendered = await renderMessagesForViewer(req, result.rows, convCheck.rows[0].user_id);
+    res.json({ success: true, data: rendered });
   } catch (error) {
     logger.error('Error getting messages:', error);
     res.status(500).json({ success: false, message: 'Hiba az üzenetek lekérdezése közben' });
@@ -137,28 +222,45 @@ const sendMessage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Ez a beszélgetés már lezárult' });
     }
 
-    // Save user message
+    // Resolve user's preferred language (defaults to 'hu' if missing/unknown)
+    const userLang = await translation.getUserLanguage(userId);
+
+    // Translate user input into Hungarian so the bot pipeline (FAQ/decision
+    // tree/Claude prompts, all Hungarian-centric) matches correctly.
+    // Keep the original for storage and display.
+    const sanitizedHu = userLang === 'hu'
+      ? sanitized
+      : await safeTranslate(sanitized, userLang, 'hu');
+
+    // Save user message in its ORIGINAL language
     const userMsg = await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content)
-       VALUES ($1, 'user', 'text', $2) RETURNING *`,
-      [conversationId, sanitized]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, language)
+       VALUES ($1, 'user', 'text', $2, $3) RETURNING *`,
+      [conversationId, sanitized, userLang]
     );
 
-    // Process and get bot response (track response time)
+    // Process and get bot response in Hungarian (track response time)
     const startTime = Date.now();
-    const botResponse = await chatbotService.processMessage(conversationId, sanitized, userId, contractorId);
+    const botResponse = await chatbotService.processMessage(conversationId, sanitizedHu, userId, contractorId);
     const responseTimeMs = Date.now() - startTime;
 
     // Store response_time_ms in bot message metadata
     const metadata = { ...botResponse.metadata, response_time_ms: responseTimeMs };
 
-    // Save bot response (with faq_id and confidence_score if available)
+    // Translate bot reply to user's language (cached) for serving + storage
+    const botContentTranslated = userLang === 'hu'
+      ? null
+      : await safeTranslate(botResponse.content, 'hu', userLang);
+    const isTranslated = !!botContentTranslated;
+
+    // Save bot response: canonical Hungarian in `content`, user-lang render
+    // in `translated_content`. `language` is always the canonical source ('hu').
     const faqId = metadata.kb_id || null;
     const confidenceScore = metadata.confidence_score || null;
     const botMsg = await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, faq_id, confidence_score)
-       VALUES ($1, 'bot', $2, $3, $4, $5, $6) RETURNING *`,
-      [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(metadata), faqId, confidenceScore]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, faq_id, confidence_score, language, translated_content, is_translated)
+       VALUES ($1, $2, $3, $4, $5, $6, 'hu', $7, $8) RETURNING *`,
+      [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(metadata), faqId, confidenceScore, botContentTranslated, isTranslated]
     );
 
     // Update conversation timestamp and title if first user message
@@ -173,11 +275,18 @@ const sendMessage = async (req, res) => {
       );
     }
 
+    // Return the bot message rendered in the user's language (so the mobile
+    // client can display it immediately without a re-fetch).
+    const botRow = botMsg.rows[0];
+    const botRowForUser = isTranslated
+      ? { ...botRow, content: botRow.translated_content, original_content: botRow.content }
+      : botRow;
+
     res.json({
       success: true,
       data: {
         userMessage: userMsg.rows[0],
-        botMessage: botMsg.rows[0],
+        botMessage: botRowForUser,
       },
     });
   } catch (error) {
@@ -206,12 +315,16 @@ const escalateConversation = async (req, res) => {
 
     const { ticketId, ticketNumber } = await chatbotService.createEscalationTicket(conversationId, userId, contractorId);
 
-    // Add escalation message
+    // Add escalation message (canonical Hungarian + cached user-lang translation)
+    const userLang = await translation.getUserLanguage(userId);
     const escalationMsg = await chatbotService.getEscalationMessage(contractorId);
+    const escalationTranslated = userLang === 'hu'
+      ? null
+      : await safeTranslate(escalationMsg, 'hu', userLang);
     await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata)
-       VALUES ($1, 'system', 'escalation', $2, $3)`,
-      [conversationId, escalationMsg, JSON.stringify({ ticket_id: ticketId, ticket_number: ticketNumber })]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, language, translated_content, is_translated)
+       VALUES ($1, 'system', 'escalation', $2, $3, 'hu', $4, $5)`,
+      [conversationId, escalationMsg, JSON.stringify({ ticket_id: ticketId, ticket_number: ticketNumber }), escalationTranslated, !!escalationTranslated]
     );
 
     res.json({
@@ -241,11 +354,16 @@ const closeConversation = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Aktív beszélgetés nem található' });
     }
 
-    // Add system message
+    // Add system close message (canonical Hungarian + cached user-lang translation)
+    const userLang = await translation.getUserLanguage(userId);
+    const closeMsg = 'A beszélgetés lezárva.';
+    const closeTranslated = userLang === 'hu'
+      ? null
+      : await safeTranslate(closeMsg, 'hu', userLang);
     await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content)
-       VALUES ($1, 'system', 'text', 'A beszélgetés lezárva.')`,
-      [conversationId]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, language, translated_content, is_translated)
+       VALUES ($1, 'system', 'text', $2, 'hu', $3, $4)`,
+      [conversationId, closeMsg, closeTranslated, !!closeTranslated]
     );
 
     res.json({ success: true, message: 'Beszélgetés lezárva', data: result.rows[0] });
@@ -310,18 +428,35 @@ const selectSuggestion = async (req, res) => {
     }
     const kbEntry = kbResult.rows[0];
 
-    // Save user message (the selected question)
+    // KB entries are authored in Hungarian. For non-hu users, show the
+    // question in their language (so the chat log reads naturally) and the
+    // answer in their language. Both are cached via translation_cache.
+    const userLang = await translation.getUserLanguage(userId);
+    const displayQuestion = userLang === 'hu'
+      ? kbEntry.question
+      : await safeTranslate(kbEntry.question, 'hu', userLang);
+    const answerTranslated = userLang === 'hu'
+      ? null
+      : await safeTranslate(kbEntry.answer, 'hu', userLang);
+
+    // Save user message (the selected question) in the user's language
     const userMsg = await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content)
-       VALUES ($1, 'user', 'text', $2) RETURNING *`,
-      [conversationId, kbEntry.question]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, language)
+       VALUES ($1, 'user', 'text', $2, $3) RETURNING *`,
+      [conversationId, displayQuestion, userLang]
     );
 
-    // Save bot message (the answer)
+    // Save bot message (the answer) — canonical Hungarian + cached translation
     const botMsg = await query(
-      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata)
-       VALUES ($1, 'bot', 'text', $2, $3) RETURNING *`,
-      [conversationId, kbEntry.answer, JSON.stringify({ source: 'knowledge_base', kb_id: kbEntry.id, question: kbEntry.question })]
+      `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, language, translated_content, is_translated)
+       VALUES ($1, 'bot', 'text', $2, $3, 'hu', $4, $5) RETURNING *`,
+      [
+        conversationId,
+        kbEntry.answer,
+        JSON.stringify({ source: 'knowledge_base', kb_id: kbEntry.id, question: kbEntry.question }),
+        answerTranslated,
+        !!answerTranslated,
+      ]
     );
 
     // Increment usage_count
@@ -330,11 +465,16 @@ const selectSuggestion = async (req, res) => {
       [kb_id]
     );
 
+    const botRow = botMsg.rows[0];
+    const botRowForUser = botRow.is_translated
+      ? { ...botRow, content: botRow.translated_content, original_content: botRow.content }
+      : botRow;
+
     res.json({
       success: true,
       data: {
         userMessage: userMsg.rows[0],
-        botMessage: botMsg.rows[0],
+        botMessage: botRowForUser,
       },
     });
   } catch (error) {
@@ -483,11 +623,19 @@ const adminGetConversationDetail = async (req, res) => {
       [conversationId]
     );
 
+    // Render for the viewer (admin => everything in Hungarian; owner => own
+    // language). `language` stays on each row so the UI can badge originals.
+    const rendered = await renderMessagesForViewer(
+      req,
+      messages.rows,
+      convResult.rows[0].user_id
+    );
+
     res.json({
       success: true,
       data: {
         conversation: convResult.rows[0],
-        messages: messages.rows,
+        messages: rendered,
       },
     });
   } catch (error) {

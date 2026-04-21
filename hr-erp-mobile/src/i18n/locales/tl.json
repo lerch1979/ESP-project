@@ -83,6 +83,9 @@
     "empty": "Walang notipikasyon",
     "markAllRead": "Markahan lahat na nabasa"
   },
+  "profile": {
+    "language": "Wika"
+  },
   "settings": {
     "title": "Mga Setting",
     "profile": "Profile",

@@ -14,6 +14,14 @@ echo "║     HR-ERP Platform — Stopping Services      ║"
 echo "╚══════════════════════════════════════════════╝"
 echo -e "${NC}"
 
+# Aggressive pre-kill: any leftover HR-ERP backend processes (nodemon parent
+# + direct node child) go first. Prevents EADDRINUSE on next start when a
+# zombie nodemon holds stale state but not the port.
+pkill -f "nodemon.*hr-erp-backend" 2>/dev/null || true
+pkill -f "node src/server.js" 2>/dev/null || true
+pkill -f "nodemon.*hr-erp" 2>/dev/null || true
+sleep 1
+
 STOPPED=0
 
 for PORT in 3001 5173 8082; do

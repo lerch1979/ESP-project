@@ -140,6 +140,14 @@ export const authAPI = {
   },
 };
 
+// User API
+export const userAPI = {
+  updateLanguage: async (langCode) => {
+    const response = await api.patch('/users/me/language', { language: langCode });
+    return response.data;
+  },
+};
+
 // Dashboard API
 export const dashboardAPI = {
   getStats: async () => {

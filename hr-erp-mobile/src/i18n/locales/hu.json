@@ -83,6 +83,9 @@
     "empty": "Nincs értesítés",
     "markAllRead": "Mind olvasott"
   },
+  "profile": {
+    "language": "Nyelv"
+  },
   "settings": {
     "title": "Beállítások",
     "profile": "Profil",

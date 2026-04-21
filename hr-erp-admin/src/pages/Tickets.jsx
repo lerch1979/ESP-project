@@ -28,6 +28,7 @@ import { toast } from 'react-toastify';
 import CreateTicketModal from '../components/CreateTicketModal';
 import FilterBuilder from '../components/FilterBuilder';
 import ResponsiveTable from '../components/ResponsiveTable';
+import { LanguageBadge } from '../utils/languageBadges';
 
 const TICKET_FILTER_FIELDS = [
   { key: 'status', label: 'Státusz', type: 'dynamic' },
@@ -320,9 +321,12 @@ function Tickets() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {ticket.title}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {ticket.title}
+                          </Typography>
+                          <LanguageBadge language={ticket.language} />
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">
