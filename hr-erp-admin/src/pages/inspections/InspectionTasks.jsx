@@ -9,6 +9,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
+import ExportButton from '../../components/inspections/ExportButton';
 import TaskAssignmentModal from '../../components/inspections/TaskAssignmentModal';
 
 const PRIORITY_STYLE = {
@@ -72,7 +73,29 @@ export default function InspectionTasks() {
     <Box>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Ellenőrzési feladatok</Typography>
-        <IconButton onClick={load}><RefreshIcon /></IconButton>
+        <Stack direction="row" spacing={1}>
+          <ExportButton
+            label="Export" filenameBase="karbantartasi-feladatok"
+            onExport={inspectionsAPI.exportMaintenanceTasksXlsx}
+            filters={[
+              { key: 'status', label: 'Státusz', options: [
+                { value: 'pending',     label: 'Várólista' },
+                { value: 'assigned',    label: 'Kiosztva' },
+                { value: 'in_progress', label: 'Folyamatban' },
+                { value: 'completed',   label: 'Befejezve' },
+                { value: 'overdue',     label: 'Lejárt' },
+              ]},
+              { key: 'priority', label: 'Prioritás', options: [
+                { value: 'emergency', label: 'Sürgős' },
+                { value: 'critical',  label: 'Kritikus' },
+                { value: 'high',      label: 'Magas' },
+                { value: 'medium',    label: 'Közepes' },
+                { value: 'low',       label: 'Alacsony' },
+              ]},
+            ]}
+          />
+          <IconButton onClick={load}><RefreshIcon /></IconButton>
+        </Stack>
       </Stack>
 
       {loading ? (

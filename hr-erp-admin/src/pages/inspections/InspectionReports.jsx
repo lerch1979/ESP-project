@@ -11,6 +11,7 @@ import {
 import { toast } from 'react-toastify';
 import { inspectionsAPI, accommodationsAPI, usersAPI } from '../../services/api';
 import GradeBadge from '../../components/inspections/GradeBadge';
+import ExportButton from '../../components/inspections/ExportButton';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('hu-HU') : '-';
 
@@ -116,10 +117,29 @@ export default function InspectionReports() {
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadRows}>Frissítés</Button>
           <Tooltip title="CSV export">
-            <Button variant="contained" startIcon={<FileDownloadIcon />} onClick={downloadCSV} disabled={rows.length === 0}>
-              Exportálás CSV-ként
+            <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={downloadCSV} disabled={rows.length === 0}>
+              CSV
             </Button>
           </Tooltip>
+          <ExportButton
+            label="Excel (Ellenőrzések)" filenameBase="ellenorzesek"
+            variant="contained"
+            onExport={inspectionsAPI.exportInspectionsXlsx}
+            defaultFilters={{
+              from: from || '', to: to || '',
+              accommodation_id: accommodationId || '', inspector_id: inspectorId || '',
+            }}
+          />
+          <ExportButton
+            label="Excel (Szálláshely teljesítmény)" filenameBase="szallashely-teljesitmeny"
+            onExport={inspectionsAPI.exportPropertyPerformanceXlsx}
+            defaultFilters={{ from: from || '', to: to || '' }}
+          />
+          <ExportButton
+            label="Excel (Ellenőr teljesítmény)" filenameBase="ellenor-teljesitmeny"
+            onExport={inspectionsAPI.exportInspectorPerformanceXlsx}
+            defaultFilters={{ from: from || '', to: to || '' }}
+          />
           <Tooltip title="PDF export — hamarosan">
             <span>
               <Button variant="outlined" startIcon={<PictureAsPdfIcon />} disabled>

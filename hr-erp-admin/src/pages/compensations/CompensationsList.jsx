@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
+import ExportButton from '../../components/inspections/ExportButton';
 
 const STATUS_CHIP = {
   draft:         { label: 'Piszkozat',         color: 'default' },
@@ -83,12 +84,26 @@ export default function CompensationsList() {
               Ellenőrzésből származó követelések, értesítők és fizetések
             </Typography>
           </Box>
-          <Button
-            variant="contained" startIcon={<AddIcon />}
-            onClick={() => navigate('/compensations/new')}
-          >
-            Új kártérítés
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <ExportButton
+              label="Export" filenameBase="karteritesek-birsagok"
+              onExport={inspectionsAPI.exportCompensationsXlsx}
+              filters={[
+                { key: 'type', label: 'Típus', options: [
+                  { value: 'fine',   label: 'Bírság' },
+                  { value: 'damage', label: 'Kártérítés' },
+                ] },
+                { key: 'status', label: 'Státusz', options: Object.entries(STATUS_CHIP).map(([v, m]) => ({ value: v, label: m.label })) },
+              ]}
+              defaultFilters={{ status: filters.status || '' }}
+            />
+            <Button
+              variant="contained" startIcon={<AddIcon />}
+              onClick={() => navigate('/compensations/new')}
+            >
+              Új kártérítés
+            </Button>
+          </Stack>
         </Stack>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>

@@ -12,6 +12,7 @@ import {
 import { toast } from 'react-toastify';
 import { inspectionsAPI, accommodationsAPI } from '../../services/api';
 import GradeBadge from '../../components/inspections/GradeBadge';
+import ExportButton from '../../components/inspections/ExportButton';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Minden' },
@@ -157,6 +158,19 @@ export default function InspectionsList() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" sx={{ fontWeight: 700 }}>Ellenőrzések</Typography>
         <Stack direction="row" spacing={1}>
+          <ExportButton
+            label="Export" filenameBase="ellenorzesek"
+            onExport={inspectionsAPI.exportInspectionsXlsx}
+            filters={[
+              { key: 'status', label: 'Státusz', options: STATUS_OPTIONS.filter(o => o.value) },
+              { key: 'type',   label: 'Típus',   options: TYPE_OPTIONS.filter(o => o.value) },
+              { key: 'accommodation_id', label: 'Szálláshely ID' },
+            ]}
+            defaultFilters={{
+              status, type, accommodation_id: accommodationId,
+              from: from ? from.slice(0, 10) : '', to: to ? to.slice(0, 10) : '',
+            }}
+          />
           <IconButton onClick={loadRows} title="Frissítés"><RefreshIcon /></IconButton>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Új ellenőrzés

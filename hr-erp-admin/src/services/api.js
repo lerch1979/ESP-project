@@ -1998,6 +1998,13 @@ export const inspectionsAPI = {
   listActiveDeductions:      async (params = {}) => (await api.get('/fines/salary-deductions', { params })).data,
   runPayrollDeductions:      async (month)       => (await api.post('/fines/payroll/run', { month })).data,
 
+  // Part D — Excel exports (returns Blob)
+  exportInspectionsXlsx:          (params = {}) => api.get('/inspection-exports/inspections',           { params, responseType: 'blob' }).then(r => r.data),
+  exportPropertyPerformanceXlsx:  (params = {}) => api.get('/inspection-exports/property-performance',  { params, responseType: 'blob' }).then(r => r.data),
+  exportCompensationsXlsx:        (params = {}) => api.get('/inspection-exports/compensations',         { params, responseType: 'blob' }).then(r => r.data),
+  exportInspectorPerformanceXlsx: (params = {}) => api.get('/inspection-exports/inspector-performance', { params, responseType: 'blob' }).then(r => r.data),
+  exportMaintenanceTasksXlsx:     (params = {}) => api.get('/inspection-exports/maintenance-tasks',     { params, responseType: 'blob' }).then(r => r.data),
+
   // Templates: categories
   listCategories: async (params = {}) => {
     const response = await api.get('/inspection-templates/categories', { params });
