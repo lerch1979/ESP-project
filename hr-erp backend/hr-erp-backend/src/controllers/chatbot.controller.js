@@ -577,10 +577,18 @@ const adminGetConversations = async (req, res) => {
 
     const result = await query(
       `SELECT c.*, u.first_name, u.last_name, u.email,
-              (SELECT content FROM chatbot_messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
+              lm.content as last_message,
+              lm.language as last_message_language,
               (SELECT COUNT(*) FROM chatbot_messages WHERE conversation_id = c.id) as message_count
        FROM chatbot_conversations c
        JOIN users u ON c.user_id = u.id
+       LEFT JOIN LATERAL (
+         SELECT content, language
+         FROM chatbot_messages
+         WHERE conversation_id = c.id
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) lm ON true
        ${where}
        ORDER BY c.updated_at DESC
        LIMIT $${idx} OFFSET $${idx + 1}`,
@@ -592,9 +600,26 @@ const adminGetConversations = async (req, res) => {
       params
     );
 
+    // Translate last_message previews to Hungarian for admin viewers.
+    // Cache-first via translation_cache; truncate to 100 chars before translating
+    // so we don't waste Claude tokens on long messages. Bot messages are already
+    // 'hu' (no-op). Owner view is not served by this endpoint (admin-only).
+    const PREVIEW_LEN = 100;
+    const rows = await Promise.all(result.rows.map(async (row) => {
+      if (!row.last_message) return row;
+      const preview = String(row.last_message).slice(0, PREVIEW_LEN);
+      const lang = row.last_message_language || 'hu';
+      if (lang === 'hu') {
+        return { ...row, last_message_preview: preview };
+      }
+      // Non-Hungarian last message → translate preview for admin display
+      const translated = await safeTranslate(preview, lang, 'hu');
+      return { ...row, last_message_preview: translated };
+    }));
+
     res.json({
       success: true,
-      data: result.rows,
+      data: rows,
       pagination: { total: parseInt(countResult.rows[0].total), page: parseInt(page), limit: parseInt(limit) },
     });
   } catch (error) {

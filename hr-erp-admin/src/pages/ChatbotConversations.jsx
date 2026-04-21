@@ -107,7 +107,7 @@ export default function ChatbotConversations() {
                   <TableCell align="center">{conv.message_count || 0}</TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 200 }}>
-                      {conv.last_message || '-'}
+                      {conv.last_message_preview || conv.last_message || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>{formatDate(conv.created_at)}</TableCell>
