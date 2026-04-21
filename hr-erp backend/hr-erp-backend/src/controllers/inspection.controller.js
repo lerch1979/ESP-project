@@ -15,6 +15,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const pdfService = require('../services/inspectionPDF.service');
+const notify = require('../services/inAppNotification.service');
 
 const VALID_TYPES = ['weekly', 'monthly', 'quarterly', 'yearly', 'checkin', 'checkout', 'incident', 'complaint'];
 const VALID_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'reviewed'];
@@ -433,6 +434,17 @@ const complete = async (req, res) => {
       };
     });
 
+    // Fire-and-forget notifications to inspector + accommodation contacts.
+    // Never block the response or fail the transaction on notify errors.
+    notify.notify({
+      userId: data.inspection.inspectorId,
+      type: 'inspection_completed',
+      title: `Ellenőrzés lezárva: ${data.inspection.inspectionNumber}`,
+      message: `Eredmény: ${data.inspection.totalScore ?? '—'}/100. ${data.tasksCreated.length} feladat generálva.`,
+      link: `/inspections/${data.inspection.id}`,
+      data: { inspection_id: data.inspection.id, tasks_created: data.tasksCreated.length },
+    }).catch(() => {});
+
     res.json({ success: true, data });
   } catch (err) {
     if (err.message === 'NOT_FOUND') {
@@ -553,13 +565,16 @@ const scoreRoom = async (req, res) => {
         else trend = 'stable';
       }
 
-      // Residents snapshot: employees currently in this room.
+      // Residents snapshot: employees currently in this room. We don't
+      // filter by status here — snapshots are historical records, so
+      // "who lived here at the time of the inspection" matters more than
+      // their current employment state.
       const residentsRes = await client.query(
         `SELECT id AS user_id,
                 first_name || ' ' || last_name AS name,
                 created_at AS move_in_date
          FROM employees
-         WHERE room_id = $1 AND is_active = true`,
+         WHERE room_id = $1`,
         [roomId]
       );
 

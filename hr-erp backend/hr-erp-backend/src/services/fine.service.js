@@ -20,6 +20,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const legacy = require('./compensation.service');
+const notify = require('./inAppNotification.service');
 
 const TYPES = ['fine', 'damage'];
 const DEFAULT_DAMAGE_DAYS = 30;
@@ -208,6 +209,20 @@ async function createFine(inspectionId, fineTypeId, residents, { userId, roomIns
       actorUserId: userId,
     });
 
+    // Push in-app notifications to any residents who are system users.
+    // Done inside the transaction so residentRows are in scope; notifier
+    // swallows its own failures (never blocks the transaction).
+    const userIds = residentRows.map(r => r.resident_id).filter(Boolean);
+    if (userIds.length > 0) {
+      notify.notifyMany(userIds, {
+        type: 'fine_issued',
+        title: `Bírság: ${fineType.name}`,
+        message: `${perPerson.toLocaleString('hu-HU')} HUF — azonnali fizetés kötelező (${number}).`,
+        link: `/compensations/${compensation.id}`,
+        data: { compensation_id: compensation.id, fine_type_code: fineType.code },
+      }).catch(() => {});
+    }
+
     return { compensation, residents: residentRows, fineType };
   });
 }
@@ -310,6 +325,17 @@ async function createDamageCompensation(inspectionId, details, residents, { user
       metadata: { type: 'damage', residents: residents.length, total, due_date: due },
       actorUserId: userId,
     });
+
+    const userIds = residentRows.map(r => r.resident_id).filter(Boolean);
+    if (userIds.length > 0) {
+      notify.notifyMany(userIds, {
+        type: 'damage_issued',
+        title: `Kártérítés: ${number}`,
+        message: `${details.description || 'Kár'} — hátralék határidő: ${due}. Ha nem fizet, bérből levonásra kerül.`,
+        link: `/compensations/${compensation.id}`,
+        data: { compensation_id: compensation.id, due_date: due },
+      }).catch(() => {});
+    }
 
     return { compensation, residents: residentRows };
   });
@@ -502,6 +528,17 @@ async function convertToSalaryDeduction(compensationResidentId, { months = DEFAU
       metadata: { resident_id: resident.id, monthly, months, start_month: startMonth, end_month: endMonth },
       actorUserId: userId,
     });
+
+    if (resident.resident_id) {
+      notify.notify({
+        userId: resident.resident_id,
+        type: 'salary_deduction_scheduled',
+        title: 'Bérlevonás ütemezve',
+        message: `${monthly.toLocaleString('hu-HU')} HUF × ${months} hónap, ${startMonth} hónaptól.`,
+        link: `/compensations/${resident.compensation_id}`,
+        data: { monthly, months, start_month: startMonth, end_month: endMonth },
+      }).catch(() => {});
+    }
 
     return { salaryDeduction: sd.rows[0], resident: (await client.query(`SELECT * FROM compensation_residents WHERE id = $1`, [resident.id])).rows[0] };
   });
