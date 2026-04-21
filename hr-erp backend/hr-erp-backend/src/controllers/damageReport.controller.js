@@ -1,7 +1,28 @@
 const damageService = require('../services/damageReport.service');
 const pdfService = require('../services/damageReportPdf.service');
+const translation = require('../services/translation.service');
 const { logger } = require('../utils/logger');
 const { query } = require('../database/connection');
+
+/**
+ * Wrap damage-report rows in a viewer-language rendering.
+ * Same pattern as ticket.controller.js: lookup viewer preferred_language,
+ * translate description + notes via cache-first Claude.
+ * Degrades to untranslated on any error.
+ */
+async function translateForViewer(req, rowOrRows) {
+  if (!rowOrRows) return rowOrRows;
+  try {
+    const viewerLang = await translation.getUserLanguage(req.user.id);
+    const fields = ['description', 'notes'];
+    return Array.isArray(rowOrRows)
+      ? await translation.translateArray(rowOrRows, 'language', viewerLang, fields)
+      : await translation.translateObject(rowOrRows, 'language', viewerLang, fields);
+  } catch (err) {
+    logger.warn('[damageReport] translation failed, returning untranslated:', err.message);
+    return rowOrRows;
+  }
+}
 
 // ─── Create ─────────────────────────────────────────────────────────
 
@@ -10,7 +31,8 @@ const createFromTicket = async (req, res) => {
     const { ticket_id } = req.body;
     if (!ticket_id) return res.status(400).json({ success: false, message: 'ticket_id kötelező' });
 
-    const report = await damageService.createFromTicket(ticket_id, req.user.id, req.user.contractorId);
+    const creatorLang = await translation.getUserLanguage(req.user.id);
+    const report = await damageService.createFromTicket(ticket_id, req.user.id, req.user.contractorId, creatorLang);
     res.status(201).json({ success: true, data: report });
   } catch (error) {
     logger.error('Error creating damage report from ticket:', error);
@@ -40,7 +62,8 @@ const createManual = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Nincs elérhető alvállalkozó a kárigényhez' });
     }
     const data = { ...req.body, contractor_id: contractorId };
-    const report = await damageService.createManual(data, req.user.id);
+    const creatorLang = await translation.getUserLanguage(req.user.id);
+    const report = await damageService.createManual(data, req.user.id, creatorLang);
     res.status(201).json({ success: true, data: report });
   } catch (error) {
     logger.error('Error creating manual damage report:', error);
@@ -62,7 +85,8 @@ const listReports = async (req, res) => {
       offset: parseInt(req.query.offset) || 0,
     };
     const reports = await damageService.listReports(req.user.contractorId, filters);
-    res.json({ success: true, data: reports });
+    const translated = await translateForViewer(req, reports);
+    res.json({ success: true, data: translated });
   } catch (error) {
     logger.error('Error listing damage reports:', error);
     res.status(500).json({ success: false, message: 'Hiba történt' });
@@ -73,7 +97,8 @@ const getReport = async (req, res) => {
   try {
     const report = await damageService.getById(req.params.id);
     if (!report) return res.status(404).json({ success: false, message: 'Jegyzőkönyv nem található' });
-    res.json({ success: true, data: report });
+    const translated = await translateForViewer(req, report);
+    res.json({ success: true, data: translated });
   } catch (error) {
     logger.error('Error getting damage report:', error);
     res.status(500).json({ success: false, message: 'Hiba történt' });

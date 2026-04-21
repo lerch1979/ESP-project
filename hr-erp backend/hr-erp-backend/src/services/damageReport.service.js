@@ -14,7 +14,7 @@ async function generateReportNumber() {
 
 // ─── Create from Ticket ─────────────────────────────────────────────
 
-async function createFromTicket(ticketId, createdBy, contractorId) {
+async function createFromTicket(ticketId, createdBy, contractorId, creatorLang = null) {
   const ticketResult = await query(
     `SELECT t.*, u.first_name, u.last_name, u.id AS emp_id
      FROM tickets t
@@ -27,29 +27,33 @@ async function createFromTicket(ticketId, createdBy, contractorId) {
   const ticket = ticketResult.rows[0];
   const reportNumber = await generateReportNumber();
 
+  // Inherit language from the source ticket if the creator's language wasn't
+  // passed in (e.g. the ticket was originally filed by a non-HU employee).
+  const lang = creatorLang || ticket.language || 'hu';
+
   const result = await query(
     `INSERT INTO damage_reports
       (report_number, ticket_id, employee_id, contractor_id, incident_date,
-       description, created_by, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft')
+       description, created_by, status, language)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8)
      RETURNING *`,
     [reportNumber, ticketId, ticket.emp_id || createdBy, contractorId,
-     ticket.created_at || new Date(), ticket.description || ticket.title, createdBy]
+     ticket.created_at || new Date(), ticket.description || ticket.title, createdBy, lang]
   );
   return result.rows[0];
 }
 
 // ─── Create Manual ──────────────────────────────────────────────────
 
-async function createManual(data, createdBy) {
+async function createManual(data, createdBy, creatorLang = 'hu') {
   const reportNumber = await generateReportNumber();
   const result = await query(
     `INSERT INTO damage_reports
       (report_number, employee_id, contractor_id, accommodation_id, room_id,
        incident_date, discovery_date, description, damage_items,
        liability_type, fault_percentage, total_cost, employee_salary,
-       photo_urls, notes, created_by, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft')
+       photo_urls, notes, created_by, status, language)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft',$17)
      RETURNING *`,
     [reportNumber, data.employee_id, data.contractor_id,
      data.accommodation_id || null, data.room_id || null,
@@ -57,7 +61,7 @@ async function createManual(data, createdBy) {
      data.description, JSON.stringify(data.damage_items || []),
      data.liability_type || 'negligence', data.fault_percentage || 100,
      data.total_cost || 0, data.employee_salary || null,
-     data.photo_urls || [], data.notes || null, createdBy]
+     data.photo_urls || [], data.notes || null, createdBy, creatorLang]
   );
   return result.rows[0];
 }
