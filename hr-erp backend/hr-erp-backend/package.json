@@ -84,14 +84,13 @@
     "supertest": "^6.3.3"
   },
   "jest": {
-    "_comment": "testPathIgnorePatterns below lists PRE-EXISTING broken tests (confirmed via git stash vs main^) — triage/fix each individually",
+    "forceExit": true,
     "testPathIgnorePatterns": [
       "/node_modules/",
       "<rootDir>/tests/agentEmail.test.js",
       "<rootDir>/tests/cacheInvalidation.test.js",
       "<rootDir>/tests/costCenter.test.js",
       "<rootDir>/tests/gamification.test.js",
-      "<rootDir>/tests/integration/",
       "<rootDir>/tests/nlp.sentiment.test.js",
       "<rootDir>/tests/payment.test.js",
       "<rootDir>/tests/rls.test.js",

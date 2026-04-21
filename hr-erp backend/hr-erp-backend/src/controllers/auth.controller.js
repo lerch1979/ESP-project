@@ -213,6 +213,15 @@ const refreshToken = async (req, res) => {
       });
     }
 
+    // Malformed / tampered / signed-with-wrong-secret tokens should also be 401,
+    // not 500 — they're client errors, not server errors.
+    if (error.name === 'JsonWebTokenError' || error.name === 'NotBeforeError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Érvénytelen refresh token'
+      });
+    }
+
     logger.error('Token frissítési hiba:', error);
     res.status(500).json({
       success: false,

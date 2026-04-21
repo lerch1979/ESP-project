@@ -15,11 +15,12 @@ describe('Auth API Integration', () => {
         .post('/api/v1/auth/login')
         .send({ email: 'admin@hr-erp.com', password: 'password123' });
 
-      // Accept 200 or handle if test DB not seeded
+      // Accept 200 or handle if test DB not seeded.
+      // Response shape: { success, message, data: { token, refreshToken, user } }
       if (res.status === 200) {
-        expect(res.body).toHaveProperty('token');
-        authToken = res.body.token;
-        refreshToken = res.body.refreshToken;
+        expect(res.body).toHaveProperty('data.token');
+        authToken = res.body.data.token;
+        refreshToken = res.body.data.refreshToken;
       } else {
         // DB not seeded — skip remaining tests gracefully
         console.warn('Auth login returned', res.status, '— DB may not be seeded');
@@ -68,7 +69,8 @@ describe('Auth API Integration', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('email');
+      // Response shape: { success, data: { user: { email, ... } } }
+      expect(res.body).toHaveProperty('data.user.email');
     });
 
     it('should return 401 without token', async () => {
@@ -96,7 +98,8 @@ describe('Auth API Integration', () => {
         .send({ refreshToken });
 
       if (res.status === 200) {
-        expect(res.body).toHaveProperty('token');
+        // Response shape: { success, data: { token, ... } }
+        expect(res.body).toHaveProperty('data.token');
       }
     });
 
