@@ -9,6 +9,19 @@ jest.mock('../src/database/connection', () => ({
   transaction: jest.fn(),
 }));
 
+// Mock the translation service so getUserLanguage / translateText don't fire
+// internal query() calls that would consume test mocks intended for the
+// controller's own SQL. Identity translate + default 'hu' mirrors the no-op
+// path taken when ANTHROPIC_API_KEY is absent, which matches pre-translation
+// test expectations exactly.
+jest.mock('../src/services/translation.service', () => ({
+  translateText: jest.fn(async (text) => text),
+  getUserLanguage: jest.fn(async () => 'hu'),
+  translateObject: jest.fn(async (obj) => obj),
+  translateArray: jest.fn(async (arr) => arr),
+  AUTO_APPROVE_THRESHOLD: 70,
+}));
+
 jest.mock('../src/services/chatbot.service', () => ({
   getWelcomeMessage: jest.fn().mockResolvedValue('Üdvözlöm!'),
   getFallbackMessage: jest.fn().mockResolvedValue('Nem találtam.'),
