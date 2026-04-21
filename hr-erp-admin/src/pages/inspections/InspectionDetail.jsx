@@ -10,6 +10,7 @@ import {
   ArrowBack as ArrowBackIcon, CheckCircle as CheckCircleIcon, Save as SaveIcon,
   PhotoCamera as PhotoCameraIcon, Refresh as RefreshIcon, Edit as EditIcon,
   TrendingUp as UpIcon, TrendingDown as DownIcon, TrendingFlat as FlatIcon,
+  PictureAsPdf as PdfIcon, Gavel as GavelIcon, Home as HomeIcon, Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
@@ -108,6 +109,28 @@ export default function InspectionDetail() {
     });
   };
 
+  const [pdfDownloading, setPdfDownloading] = useState(null);
+  const downloadPdf = async (kind) => {
+    const map = {
+      legal:  { fn: inspectionsAPI.downloadLegalProtocol, name: 'jegyzokonyv' },
+      owner:  { fn: inspectionsAPI.downloadOwnerReport,   name: 'tulajdonosi-riport' },
+      report: { fn: inspectionsAPI.downloadInspectionReport, name: 'ellenorzesi-riport' },
+    };
+    const cfg = map[kind];
+    setPdfDownloading(kind);
+    try {
+      const blob = await cfg.fn(id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      // Revoke after a delay so the popup has time to load the blob.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      toast.error('PDF generálás sikertelen');
+    } finally {
+      setPdfDownloading(null);
+    }
+  };
+
   const saveRoomScore = async () => {
     const { room, scores } = scoreModal;
     setScoreModal((s) => ({ ...s, saving: true }));
@@ -192,6 +215,42 @@ export default function InspectionDetail() {
           {data.inspectionNumber || `Ellenőrzés #${data.id}`}
         </Typography>
         <IconButton onClick={load} title="Frissítés"><RefreshIcon /></IconButton>
+        <Tooltip title="Jegyzőkönyv (PDF)">
+          <span>
+            <Button
+              variant="outlined" color="primary" size="small"
+              startIcon={<GavelIcon />}
+              onClick={() => downloadPdf('legal')}
+              disabled={pdfDownloading === 'legal'}
+            >
+              Jegyzőkönyv
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title="Tulajdonosi riport (PDF)">
+          <span>
+            <Button
+              variant="outlined" size="small"
+              startIcon={<HomeIcon />}
+              onClick={() => downloadPdf('owner')}
+              disabled={pdfDownloading === 'owner'}
+            >
+              Tulajdonosi
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip title="Belső részletes riport (PDF)">
+          <span>
+            <Button
+              variant="outlined" size="small"
+              startIcon={<AssessmentIcon />}
+              onClick={() => downloadPdf('report')}
+              disabled={pdfDownloading === 'report'}
+            >
+              Belső riport
+            </Button>
+          </span>
+        </Tooltip>
         {data.status === 'in_progress' && (
           <Button
             variant="contained" color="success" startIcon={<CheckCircleIcon />}

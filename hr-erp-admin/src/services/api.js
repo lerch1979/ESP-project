@@ -1952,6 +1952,11 @@ export const inspectionsAPI = {
     return response.data;
   },
 
+  // PDF downloads (Day 3 Part B) — returns a Blob
+  downloadLegalProtocol: (id)   => api.get(`/inspections/${id}/pdf/legal`,  { responseType: 'blob' }).then(r => r.data),
+  downloadOwnerReport:   (id)   => api.get(`/inspections/${id}/pdf/owner`,  { responseType: 'blob' }).then(r => r.data),
+  downloadInspectionReport: (id) => api.get(`/inspections/${id}/pdf/report`, { responseType: 'blob' }).then(r => r.data),
+
   // Templates: categories
   listCategories: async (params = {}) => {
     const response = await api.get('/inspection-templates/categories', { params });

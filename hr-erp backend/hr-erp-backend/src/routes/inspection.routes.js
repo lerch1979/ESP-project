@@ -43,6 +43,11 @@ router.delete('/:id',                checkPermission('settings.edit'), ctrl.remo
 router.get('/:id/rooms',                         ctrl.listRooms);
 router.post('/:id/rooms/:roomId/score',          checkPermission('settings.edit'), ctrl.scoreRoom);
 
+// PDF downloads (Day 3 Part B)
+router.get('/:id/pdf/legal',   ctrl.pdfLegal);
+router.get('/:id/pdf/owner',   ctrl.pdfOwner);
+router.get('/:id/pdf/report',  ctrl.pdfReport);
+
 // Photo upload (inspector captures from mobile)
 router.get('/:id/photos',            photoCtrl.listInspectionPhotos);
 router.post('/:id/photos',           checkPermission('settings.edit'),

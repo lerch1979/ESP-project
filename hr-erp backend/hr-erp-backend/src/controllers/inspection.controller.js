@@ -14,6 +14,7 @@
  */
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const pdfService = require('../services/inspectionPDF.service');
 
 const VALID_TYPES = ['weekly', 'monthly', 'quarterly', 'yearly', 'checkin', 'checkout', 'incident', 'complaint'];
 const VALID_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'reviewed'];
@@ -660,6 +661,46 @@ const roomHistory = async (req, res) => {
   }
 };
 
+// ─── PDF downloads (Day 3 Part B) ───────────────────────────────────
+
+/**
+ * Streams a generated PDF to the client with a sensible filename. The
+ * service returns a pdfkit doc that has already been `.end()`ed; we just
+ * pipe it. Errors inside the generator are caught below; errors during
+ * streaming are impossible to recover from gracefully — we log + hang up.
+ */
+async function streamPDF(res, generator, filename) {
+  try {
+    const doc = await generator();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    doc.pipe(res);
+  } catch (err) {
+    if (err.message === 'INSPECTION_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Ellenőrzés nem található' });
+    }
+    logger.error('[inspection.pdf]', err);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'PDF generálási hiba' });
+    }
+  }
+}
+
+/** GET /api/v1/inspections/:id/pdf/legal — Jegyzőkönyv */
+const pdfLegal = (req, res) =>
+  streamPDF(res, () => pdfService.generateLegalProtocol(req.params.id),
+            `jegyzokonyv-${req.params.id}.pdf`);
+
+/** GET /api/v1/inspections/:id/pdf/owner — Tulajdonosi riport */
+const pdfOwner = (req, res) =>
+  streamPDF(res, () => pdfService.generateOwnerReport(req.params.id),
+            `tulajdonosi-riport-${req.params.id}.pdf`);
+
+/** GET /api/v1/inspections/:id/pdf/report — Belső részletes riport */
+const pdfReport = (req, res) =>
+  streamPDF(res, () => pdfService.generateInspectionReport(req.params.id),
+            `ellenorzesi-riport-${req.params.id}.pdf`);
+
 /** DELETE /api/v1/inspections/:id — admin only, only scheduled/cancelled */
 const remove = async (req, res) => {
   try {
@@ -693,6 +734,9 @@ module.exports = {
   listRooms,
   scoreRoom,
   roomHistory,
+  pdfLegal,
+  pdfOwner,
+  pdfReport,
   // exported helpers so the template/schedule controllers can reuse
   _helpers: { scoreToGrade, severityFromRatio, taskPriorityFromSeverity, dueOffsetDays, nextInspectionNumber },
 };
