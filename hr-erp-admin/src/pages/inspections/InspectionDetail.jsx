@@ -263,6 +263,17 @@ export default function InspectionDetail() {
             </Button>
           </span>
         </Tooltip>
+        <Tooltip title="Bírság kiállítása (helyszíni)">
+          <span>
+            <Button
+              variant="contained" color="error" size="small"
+              startIcon={<CompIcon />}
+              onClick={() => navigate(`/compensations/new-fine?inspectionId=${id}`)}
+            >
+              Bírság
+            </Button>
+          </span>
+        </Tooltip>
         {data.status === 'in_progress' && (
           <Button
             variant="contained" color="success" startIcon={<CheckCircleIcon />}

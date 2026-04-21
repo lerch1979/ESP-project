@@ -125,7 +125,9 @@ const buildMenuItems = (t) => [
       { text: 'Sablonok',      icon: <CategoryIcon />,       path: '/inspections/templates',  permission: 'settings.edit' },
       { text: 'Riportok',      icon: <AssessmentIcon />,     path: '/inspections/reports',    permission: 'settings.edit' },
       { text: 'Szoba trendek', icon: <TimelineIcon />,       path: '/inspections/room-trends',permission: 'settings.edit' },
-      { text: 'Kártérítések',  icon: <MonetizationOnIcon />, path: '/compensations',          permission: 'settings.edit' },
+      { text: 'Kártérítések',  icon: <MonetizationOnIcon />, path: '/compensations',                    permission: 'settings.edit' },
+      { text: 'Bírság típusok', icon: <MonetizationOnIcon />, path: '/compensations/fine-types',         permission: 'settings.edit' },
+      { text: 'Bérlevonások',  icon: <MonetizationOnIcon />, path: '/compensations/salary-deductions',  permission: 'settings.edit' },
     ],
   },
 

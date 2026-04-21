@@ -1981,6 +1981,23 @@ export const inspectionsAPI = {
     (await api.post(`/compensations/${id}/salary-deduction`, payload)).data,
   sendCompensationNotice: async (id) => (await api.post(`/compensations/${id}/send-notice`)).data,
 
+  // Refined Part C — fine types + on-site payment + auto-deduct
+  listFineTypes:   async (params = {}) => (await api.get('/fine-types', { params })).data,
+  createFineType:  async (payload)      => (await api.post('/fine-types', payload)).data,
+  updateFineType:  async (id, payload)  => (await api.put(`/fine-types/${id}`, payload)).data,
+  deleteFineType:  async (id)           => (await api.delete(`/fine-types/${id}`)).data,
+  createFine:      async (payload)      => (await api.post('/fines', payload)).data,
+  createDamage:    async (payload)      => (await api.post('/fines/damages', payload)).data,
+  listCompensationResidents: async (id) => (await api.get(`/fines/compensations/${id}/residents`)).data,
+  recordOnSitePayment:       async (residentId, payload) =>
+    (await api.post(`/fines/residents/${residentId}/on-site-payment`, payload)).data,
+  recordResidentPayment:     async (residentId, payload) =>
+    (await api.post(`/fines/residents/${residentId}/payments`, payload)).data,
+  convertResidentToDeduction: async (residentId, payload = {}) =>
+    (await api.post(`/fines/residents/${residentId}/convert-to-deduction`, payload)).data,
+  listActiveDeductions:      async (params = {}) => (await api.get('/fines/salary-deductions', { params })).data,
+  runPayrollDeductions:      async (month)       => (await api.post('/fines/payroll/run', { month })).data,
+
   // Templates: categories
   listCategories: async (params = {}) => {
     const response = await api.get('/inspection-templates/categories', { params });

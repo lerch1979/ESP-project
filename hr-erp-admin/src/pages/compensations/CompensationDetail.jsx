@@ -11,10 +11,11 @@ import {
   Payments as PaymentsIcon, TrendingUp as EscalateIcon, Block as WaiveIcon,
   Send as IssueIcon, Email as EmailIcon, Groups as GroupsIcon,
   Gavel as DisputeIcon, AccountBalance as DeductionIcon, CheckCircle as ResolveIcon,
-  Add as AddIcon, Delete as DeleteIcon,
+  Add as AddIcon, Delete as DeleteIcon, TouchApp as OnSiteIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
+import OnSitePaymentModal from './OnSitePaymentModal';
 
 const STATUS_CHIP = {
   draft:         { label: 'Piszkozat',         color: 'default' },
@@ -62,18 +63,36 @@ export default function CompensationDetail() {
   const [resolveDialog, setResolveDialog] = useState({ open: false, outcome: 'upheld', notes: '', newAmount: '' });
   const [deductDialog, setDeductDialog]   = useState({ open: false, employee_name: '', amount_per_period: '', periods_total: 3, start_date: new Date().toISOString().slice(0, 10), notes: '' });
   const [busy, setBusy] = useState(false);
+  const [residents, setResidents] = useState([]);
+  const [onSiteModal, setOnSiteModal] = useState({ open: false, resident: null });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await inspectionsAPI.getCompensation(id);
-      setData(res?.data || null);
+      const [resp, resRes] = await Promise.all([
+        inspectionsAPI.getCompensation(id),
+        inspectionsAPI.listCompensationResidents(id).catch(() => ({ data: [] })),
+      ]);
+      setData(resp?.data || null);
+      setResidents(resRes?.data || []);
     } catch {
       toast.error('Kártérítés betöltése sikertelen');
     } finally {
       setLoading(false);
     }
   }, [id]);
+
+  const convertResidentToDeduction = async (resident) => {
+    if (!window.confirm(`Bérlevonássá konvertálod ${resident.resident_name} hátralékát (3 hó)?`)) return;
+    setBusy(true);
+    try {
+      await inspectionsAPI.convertResidentToDeduction(resident.id, { months: 3 });
+      toast.success('Bérlevonás ütemezve');
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Konverzió sikertelen');
+    } finally { setBusy(false); }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -359,6 +378,7 @@ export default function CompensationDetail() {
         <Tabs value={tab} onChange={(_, v) => setTab(v)}>
           <Tab label="Részletek" />
           <Tab label={`Felelősök (${data.responsibilities?.length || 0})`} />
+          <Tab label={`Lakók (${residents.length})`} />
           <Tab label={`Fizetések (${data.payments?.length || 0})`} />
           <Tab label={`Bérlevonások (${data.salaryDeductions?.length || 0})`} />
           <Tab label={`Értesítők (${data.reminders?.length || 0})`} />
@@ -432,6 +452,64 @@ export default function CompensationDetail() {
 
           {tab === 2 && (
             <>
+              {residents.length === 0 ? (
+                <Alert severity="info">Nincs lakó hozzárendelve (a régi kártérítések allokáció-alapúak).</Alert>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Lakó</TableCell>
+                      <TableCell>E-mail</TableCell>
+                      <TableCell align="right">Allokált</TableCell>
+                      <TableCell align="right">Befizetve</TableCell>
+                      <TableCell align="right">Hátralék</TableCell>
+                      <TableCell>Státusz</TableCell>
+                      <TableCell>Aláírva</TableCell>
+                      <TableCell align="right">Műveletek</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {residents.map(r => {
+                      const outstanding = Number(r.amount_assigned) - Number(r.amount_paid || 0);
+                      const payable = r.status === 'pending' && outstanding > 0;
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell sx={{ fontWeight: 600 }}>{r.resident_name}</TableCell>
+                          <TableCell>{r.resident_email || '—'}</TableCell>
+                          <TableCell align="right">{fmtMoney(r.amount_assigned, data.currency)}</TableCell>
+                          <TableCell align="right">{fmtMoney(r.amount_paid, data.currency)}</TableCell>
+                          <TableCell align="right" sx={{ color: outstanding > 0 ? 'error.main' : 'text.primary', fontWeight: 600 }}>
+                            {fmtMoney(outstanding, data.currency)}
+                          </TableCell>
+                          <TableCell><Chip size="small" label={r.status} /></TableCell>
+                          <TableCell>{r.signed_at ? fmtDate(r.signed_at, true) : '—'}</TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              {payable && (
+                                <Button size="small" variant="contained" color="success" startIcon={<OnSiteIcon />}
+                                  onClick={() => setOnSiteModal({ open: true, resident: r })}>
+                                  Helyszíni
+                                </Button>
+                              )}
+                              {payable && (
+                                <Button size="small" variant="outlined" color="warning" startIcon={<DeductionIcon />}
+                                  onClick={() => convertResidentToDeduction(r)} disabled={busy}>
+                                  Bérlevonás
+                                </Button>
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </>
+          )}
+
+          {tab === 3 && (
+            <>
               {(data.payments?.length || 0) === 0 ? (
                 <Alert severity="info">Még nincs rögzített fizetés.</Alert>
               ) : (
@@ -461,7 +539,7 @@ export default function CompensationDetail() {
             </>
           )}
 
-          {tab === 3 && (
+          {tab === 4 && (
             <>
               {(data.salaryDeductions?.length || 0) === 0 ? (
                 <Alert severity="info">Nincs ütemezett bérlevonás.</Alert>
@@ -494,7 +572,7 @@ export default function CompensationDetail() {
             </>
           )}
 
-          {tab === 4 && (
+          {tab === 5 && (
             <>
               {(data.reminders?.length || 0) === 0 ? (
                 <Alert severity="info">Még nincs elküldött értesítő.</Alert>
@@ -526,6 +604,13 @@ export default function CompensationDetail() {
           )}
         </Box>
       </Paper>
+
+      <OnSitePaymentModal
+        open={onSiteModal.open}
+        resident={onSiteModal.resident}
+        onClose={() => setOnSiteModal({ open: false, resident: null })}
+        onSuccess={() => { setOnSiteModal({ open: false, resident: null }); load(); }}
+      />
 
       {/* Allocation dialog */}
       <Dialog open={allocDialog.open} onClose={() => setAllocDialog({ open: false, parties: [] })} maxWidth="md" fullWidth>

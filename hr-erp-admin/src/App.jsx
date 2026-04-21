@@ -99,6 +99,9 @@ const RoomTrends = lazy(() => import('./pages/inspections/RoomTrends'));
 const CompensationsList = lazy(() => import('./pages/compensations/CompensationsList'));
 const CompensationDetail = lazy(() => import('./pages/compensations/CompensationDetail'));
 const CreateCompensation = lazy(() => import('./pages/compensations/CreateCompensation'));
+const FineTypesManagement = lazy(() => import('./pages/compensations/FineTypesManagement'));
+const CreateFineFromInspection = lazy(() => import('./pages/compensations/CreateFineFromInspection'));
+const SalaryDeductionsList = lazy(() => import('./pages/compensations/SalaryDeductionsList'));
 
 // Suspense fallback
 function PageLoader() {
@@ -216,6 +219,9 @@ function App() {
               {/* Compensations */}
               <Route path="compensations" element={<PermissionGuard permission="settings.edit"><CompensationsList /></PermissionGuard>} />
               <Route path="compensations/new" element={<PermissionGuard permission="settings.edit"><CreateCompensation /></PermissionGuard>} />
+              <Route path="compensations/new-fine" element={<PermissionGuard permission="settings.edit"><CreateFineFromInspection /></PermissionGuard>} />
+              <Route path="compensations/fine-types" element={<PermissionGuard permission="settings.edit"><FineTypesManagement /></PermissionGuard>} />
+              <Route path="compensations/salary-deductions" element={<PermissionGuard permission="settings.edit"><SalaryDeductionsList /></PermissionGuard>} />
               <Route path="compensations/:id" element={<PermissionGuard permission="settings.edit"><CompensationDetail /></PermissionGuard>} />
             </Route>
 
