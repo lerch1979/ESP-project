@@ -82,6 +82,7 @@ const MIGRATIONS = [
   { id: '087', name: 'room_inspections',             file: 'migrations/087_room_inspections.sql' },
   { id: '088', name: 'compensation_system',          file: 'migrations/088_compensation_system.sql' },
   { id: '089', name: 'compensation_extended',        file: 'migrations/089_compensation_extended.sql' },
+  { id: '090', name: 'fines_and_residents',          file: 'migrations/090_fines_and_residents.sql' },
 ];
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)
