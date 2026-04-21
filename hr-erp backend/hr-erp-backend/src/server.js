@@ -370,6 +370,11 @@ async function startServer() {
   }
 }
 
-startServer();
+// Don't auto-listen in test mode — integration tests import `app` via
+// supertest and bind to a random port themselves. Attempting to listen on
+// PORT (3001) during jest would EADDRINUSE against the dev server.
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 module.exports = app;

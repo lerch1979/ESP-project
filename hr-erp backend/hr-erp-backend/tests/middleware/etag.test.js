@@ -30,10 +30,13 @@ describe('etagMiddleware', () => {
   });
 
   it('should set ETag header on JSON response', () => {
+    // Capture the ORIGINAL res.json before the middleware wraps it,
+    // otherwise the "not.toBe" assertion trivially compares the wrapper
+    // with itself.
+    const originalJson = res.json;
     etagMiddleware(req, res, next);
 
-    const originalJson = res.json;
-    // The middleware replaces res.json
+    // The middleware should have replaced res.json with a wrapper
     expect(res.json).not.toBe(originalJson);
 
     // Call the new res.json
