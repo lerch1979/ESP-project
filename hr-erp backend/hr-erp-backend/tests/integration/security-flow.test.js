@@ -7,6 +7,15 @@
 
 require('dotenv').config();
 
+// Encryption service requires ENCRYPTION_KEY (64 hex chars = 32 bytes).
+// In local dev it comes from .env; in CI it's absent and encrypt() throws
+// "Failed to encrypt data". Set a deterministic test key if not already
+// provided so the encryption lifecycle tests run identically everywhere.
+if (!process.env.ENCRYPTION_KEY) {
+  process.env.ENCRYPTION_KEY =
+    'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2';
+}
+
 const { generateToken, csrfProtection } = require('../../src/middleware/csrf');
 const { sanitizeString, isValidUUID, parsePagination, sanitizeSearch } = require('../../src/utils/validation');
 const { encrypt, decrypt, encryptPiiFields, decryptPiiFields } = require('../../src/services/encryption.service');
