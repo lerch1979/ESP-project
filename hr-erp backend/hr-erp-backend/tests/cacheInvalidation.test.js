@@ -12,6 +12,11 @@ jest.mock('../src/config/redis', () => ({
 describe('CacheInvalidationService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks resets .mock.calls but NOT .mockReturnValue. The
+    // "not connected" test flips isConnected to false; without restoring,
+    // every test after it sees the early-return in the service.
+    isConnected.mockReturnValue(true);
+    cacheDel.mockResolvedValue(undefined);
   });
 
   describe('invalidatePattern', () => {

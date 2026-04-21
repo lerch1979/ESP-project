@@ -49,8 +49,8 @@ describe('setDatabaseUser', () => {
 
     const req = {
       user: {
-        id: 'user-uuid-1',
-        contractorId: 'contractor-uuid-1',
+        id: '11111111-1111-1111-1111-111111111111',
+        contractorId: '22222222-2222-2222-2222-222222222222',
         roles: ['admin'],
       },
     };
@@ -78,8 +78,8 @@ describe('setDatabaseUser', () => {
 
     const req = {
       user: {
-        id: 'user-uuid-1',
-        contractorId: 'contractor-uuid-1',
+        id: '11111111-1111-1111-1111-111111111111',
+        contractorId: '22222222-2222-2222-2222-222222222222',
         roles: ['superadmin', 'admin'],
       },
     };
@@ -99,8 +99,8 @@ describe('setDatabaseUser', () => {
 
     const req = {
       user: {
-        id: 'user-uuid-1',
-        contractorId: 'contractor-uuid-1',
+        id: '11111111-1111-1111-1111-111111111111',
+        contractorId: '22222222-2222-2222-2222-222222222222',
         roles: ['data_controller', 'admin'],
       },
     };
@@ -120,7 +120,7 @@ describe('setDatabaseUser', () => {
 
     const req = {
       user: {
-        id: 'user-uuid-1',
+        id: '11111111-1111-1111-1111-111111111111',
         roles: ['user'],
       },
     };
@@ -187,7 +187,7 @@ describe('setAuditUser', () => {
     };
     db.pool.connect.mockResolvedValue(client);
 
-    const req = { user: { id: 'user-uuid-1' } };
+    const req = { user: { id: '11111111-1111-1111-1111-111111111111' } };
     const res = {};
     const next = jest.fn();
 
@@ -222,8 +222,8 @@ describe('RLS Policy Logic', () => {
 
     const req = {
       user: {
-        id: 'admin-uuid',
-        contractorId: 'contractor-1',
+        id: '33333333-3333-3333-3333-333333333333',
+        contractorId: '44444444-4444-4444-4444-444444444444',
         roles: ['superadmin'],
       },
     };
@@ -245,8 +245,8 @@ describe('RLS Policy Logic', () => {
 
     const req = {
       user: {
-        id: 'user-uuid',
-        contractorId: 'contractor-2',
+        id: '55555555-5555-5555-5555-555555555555',
+        contractorId: '66666666-6666-6666-6666-666666666666',
         roles: ['user'],
       },
     };
@@ -259,7 +259,7 @@ describe('RLS Policy Logic', () => {
       c[0].includes('current_contractor_id')
     );
     expect(contractorCalls.length).toBe(1);
-    expect(contractorCalls[0][0]).toContain('contractor-2');
+    expect(contractorCalls[0][0]).toContain('66666666-6666-6666-6666-666666666666');
   });
 
   function mockClient() {

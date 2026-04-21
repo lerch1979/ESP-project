@@ -86,16 +86,7 @@
   "jest": {
     "forceExit": true,
     "testPathIgnorePatterns": [
-      "/node_modules/",
-      "<rootDir>/tests/agentEmail.test.js",
-      "<rootDir>/tests/cacheInvalidation.test.js",
-      "<rootDir>/tests/costCenter.test.js",
-      "<rootDir>/tests/gamification.test.js",
-      "<rootDir>/tests/nlp.sentiment.test.js",
-      "<rootDir>/tests/payment.test.js",
-      "<rootDir>/tests/rls.test.js",
-      "<rootDir>/tests/salary.test.js",
-      "<rootDir>/tests/slack.test.js"
+      "/node_modules/"
     ]
   }
 }
