@@ -129,4 +129,80 @@ const pdfNotice = async (req, res) => {
   }
 };
 
-module.exports = { list, getById, create, issue, recordPayment, waive, escalate, pdfNotice };
+const allocate = async (req, res) => {
+  try {
+    const parties = req.body?.parties || [];
+    const rows = await svc.allocateResponsibilities(req.params.id, parties, { userId: req.user?.id });
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    if (err.message === 'COMPENSATION_NOT_FOUND') return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
+    if (/^(At least|Percentages|Each)/.test(err.message)) return res.status(400).json({ success: false, message: err.message });
+    logger.error('[compensation.allocate]', err);
+    res.status(500).json({ success: false, message: 'Allokációs hiba' });
+  }
+};
+
+const dispute = async (req, res) => {
+  try {
+    const row = await svc.submitDispute(req.params.id, { reason: req.body.reason, userId: req.user?.id });
+    res.json({ success: true, data: svc.format(row) });
+  } catch (err) {
+    if (err.message === 'COMPENSATION_NOT_FOUND') return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
+    if (/^(reason|Cannot)/.test(err.message)) {
+      return res.status(err.message.startsWith('Cannot') ? 409 : 400)
+                .json({ success: false, message: err.message });
+    }
+    logger.error('[compensation.dispute]', err);
+    res.status(500).json({ success: false, message: 'Vitatás hiba' });
+  }
+};
+
+const resolveDispute = async (req, res) => {
+  try {
+    const row = await svc.resolveDispute(req.params.id, {
+      outcome: req.body.outcome,
+      notes: req.body.notes,
+      newAmount: req.body.new_amount,
+      userId: req.user?.id,
+    });
+    res.json({ success: true, data: svc.format(row) });
+  } catch (err) {
+    if (err.message === 'COMPENSATION_NOT_FOUND') return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
+    if (/^(outcome|newAmount|Cannot)/.test(err.message)) {
+      return res.status(err.message.startsWith('Cannot') ? 409 : 400)
+                .json({ success: false, message: err.message });
+    }
+    logger.error('[compensation.resolveDispute]', err);
+    res.status(500).json({ success: false, message: 'Vitatás lezárási hiba' });
+  }
+};
+
+const scheduleDeduction = async (req, res) => {
+  try {
+    const row = await svc.scheduleSalaryDeduction(req.params.id, req.body, { userId: req.user?.id });
+    res.status(201).json({ success: true, data: row });
+  } catch (err) {
+    if (err.message === 'COMPENSATION_NOT_FOUND') return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
+    if (/^(employee_name|amount_per_period|periods_total|start_date)/.test(err.message)) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    logger.error('[compensation.scheduleDeduction]', err);
+    res.status(500).json({ success: false, message: 'Bérlevonás ütemezési hiba' });
+  }
+};
+
+const sendEmail = async (req, res) => {
+  try {
+    const result = await svc.sendNoticeEmail(req.params.id, { userId: req.user?.id });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    if (err.message === 'COMPENSATION_NOT_FOUND') return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
+    logger.error('[compensation.sendEmail]', err);
+    res.status(500).json({ success: false, message: 'E-mail küldési hiba' });
+  }
+};
+
+module.exports = {
+  list, getById, create, issue, recordPayment, waive, escalate, pdfNotice,
+  allocate, dispute, resolveDispute, scheduleDeduction, sendEmail,
+};

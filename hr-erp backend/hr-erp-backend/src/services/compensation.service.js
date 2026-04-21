@@ -23,6 +23,18 @@ const { logger } = require('../utils/logger');
 const ACTIVE_STATUSES = ['issued', 'notified', 'disputed', 'partial_paid'];
 const TYPES = ['damage', 'cleaning', 'late_payment', 'contract_violation', 'other'];
 
+// Reminder cadence (ladder steps, in days relative to due_date):
+//   -3  : first_reminder   (level 1)
+//   0   : final_warning    (level 2)
+//   +15 : serious_overdue  (level 3)
+//   +30 : escalation       (level 4, status → escalated)
+const REMINDER_CADENCE = [
+  { daysFromDue: -3, minLevel: 1, type: 'first_reminder',    setStatus: null },
+  { daysFromDue:  0, minLevel: 2, type: 'final_warning',     setStatus: null },
+  { daysFromDue: 15, minLevel: 3, type: 'serious_overdue',   setStatus: null },
+  { daysFromDue: 30, minLevel: 4, type: 'escalation',        setStatus: 'escalated' },
+];
+
 async function nextCompensationNumber(client) {
   // `client` is a pg Client (inside a transaction) with a `.query()` method;
   // `query` is a free function. Handle both.
@@ -249,8 +261,11 @@ async function waiveCompensation(id, { reason, userId }) {
   });
 }
 
-/** Bump the escalation ladder by one level, logging a reminder. */
-async function escalateCompensation(id, { reminderType, reason, userId } = {}) {
+/**
+ * Bump the escalation ladder by one level (or to a specified level),
+ * logging a reminder. Caps at 4 (legal referral → status='escalated').
+ */
+async function escalateCompensation(id, { reminderType, reason, userId, targetLevel, setStatus } = {}) {
   return transaction(async (client) => {
     const cur = await client.query(`SELECT * FROM compensations WHERE id = $1 FOR UPDATE`, [id]);
     if (cur.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
@@ -258,8 +273,10 @@ async function escalateCompensation(id, { reminderType, reason, userId } = {}) {
     if (!ACTIVE_STATUSES.includes(c.status)) {
       throw new Error(`Cannot escalate from status: ${c.status}`);
     }
-    const nextLevel = Math.min(3, (c.escalation_level || 0) + 1);
-    const becomesEscalated = nextLevel === 3;
+    const nextLevel = targetLevel != null
+      ? Math.min(4, Math.max(c.escalation_level || 0, targetLevel))
+      : Math.min(4, (c.escalation_level || 0) + 1);
+    const becomesEscalated = setStatus === 'escalated' || nextLevel === 4;
 
     const r = await client.query(
       `UPDATE compensations SET
@@ -274,6 +291,7 @@ async function escalateCompensation(id, { reminderType, reason, userId } = {}) {
 
     const fallbackType = nextLevel === 1 ? 'first_reminder'
                        : nextLevel === 2 ? 'final_warning'
+                       : nextLevel === 3 ? 'serious_overdue'
                        : 'escalation';
     await logReminder(client, id, {
       type: reminderType || fallbackType,
@@ -287,6 +305,360 @@ async function escalateCompensation(id, { reminderType, reason, userId } = {}) {
     });
     return r.rows[0];
   });
+}
+
+// ─── Responsibility allocation ──────────────────────────────────────
+
+/**
+ * Replace the set of responsibilities for a compensation. `parties` is an
+ * array of { user_id?, name, email?, phone?, percentage }. Percentages
+ * must sum to 100. Each row's amount_allocated is auto-computed from the
+ * parent compensation's amount_gross.
+ */
+async function allocateResponsibilities(compensationId, parties, { userId } = {}) {
+  if (!Array.isArray(parties) || parties.length === 0) {
+    throw new Error('At least one party is required');
+  }
+  const totalPct = parties.reduce((s, p) => s + Number(p.percentage || 0), 0);
+  if (Math.abs(totalPct - 100) > 0.01) {
+    throw new Error(`Percentages must sum to 100 (got ${totalPct})`);
+  }
+  for (const p of parties) {
+    if (!p.name || !p.name.trim()) throw new Error('Each party must have a name');
+    if (p.percentage <= 0 || p.percentage > 100) throw new Error('Each percentage must be in (0, 100]');
+  }
+
+  return transaction(async (client) => {
+    const cur = await client.query(`SELECT id, amount_gross FROM compensations WHERE id = $1 FOR UPDATE`, [compensationId]);
+    if (cur.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
+    const gross = Number(cur.rows[0].amount_gross);
+
+    await client.query(`DELETE FROM compensation_responsibilities WHERE compensation_id = $1`, [compensationId]);
+
+    const inserted = [];
+    for (const p of parties) {
+      const pct = Number(p.percentage);
+      const allocated = Math.round(gross * pct) / 100;
+      const r = await client.query(
+        `INSERT INTO compensation_responsibilities
+           (compensation_id, user_id, name, email, phone, percentage, amount_allocated)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [compensationId, p.user_id || null, p.name.trim(), p.email || null, p.phone || null, pct, allocated]
+      );
+      inserted.push(r.rows[0]);
+    }
+
+    await logReminder(client, compensationId, {
+      type: 'allocation_notified',
+      channel: 'in_app',
+      subject: 'Felelősség allokáció',
+      body: `${parties.length} felelős fél allokálva (${parties.map(p => `${p.name}: ${p.percentage}%`).join(', ')}).`,
+      metadata: { parties: parties.map(p => ({ name: p.name, pct: Number(p.percentage) })) },
+      actorUserId: userId,
+    });
+
+    return inserted;
+  });
+}
+
+async function listResponsibilities(compensationId) {
+  const r = await query(
+    `SELECT r.*,
+            u.email AS user_email
+     FROM compensation_responsibilities r
+     LEFT JOIN users u ON r.user_id = u.id
+     WHERE r.compensation_id = $1
+     ORDER BY r.percentage DESC, r.created_at`,
+    [compensationId]
+  );
+  return r.rows;
+}
+
+// ─── Dispute workflow ───────────────────────────────────────────────
+
+/**
+ * Submit a dispute. Can be called by the responsible party or by an admin
+ * on their behalf. Transitions status → 'disputed' and freezes the
+ * escalation ladder until resolved.
+ */
+async function submitDispute(id, { reason, userId }) {
+  if (!reason || !reason.trim()) throw new Error('reason is required');
+
+  return transaction(async (client) => {
+    const cur = await client.query(`SELECT * FROM compensations WHERE id = $1 FOR UPDATE`, [id]);
+    if (cur.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
+    const c = cur.rows[0];
+    if (!['issued', 'notified', 'partial_paid'].includes(c.status)) {
+      throw new Error(`Cannot dispute from status: ${c.status}`);
+    }
+
+    const r = await client.query(
+      `UPDATE compensations SET
+         status = 'disputed',
+         disputed_at = NOW(),
+         dispute_reason = $2,
+         dispute_submitted_by = $3,
+         updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [id, reason, userId || null]
+    );
+
+    await logReminder(client, id, {
+      type: 'dispute_submitted',
+      channel: 'in_app',
+      subject: 'Vitatás bejelentve',
+      body: `Indoklás: ${reason}`,
+      metadata: { submitted_by: userId, reason },
+      actorUserId: userId,
+    });
+    return r.rows[0];
+  });
+}
+
+/**
+ * Resolve a dispute. `outcome` drives what happens next:
+ *   - 'upheld'    → return to active state (issued/partial_paid) at full amount
+ *   - 'reduced'   → return to active state with new_amount_gross
+ *   - 'dismissed' → waive the remainder (status → waived)
+ */
+async function resolveDispute(id, { outcome, notes, newAmount, userId }) {
+  if (!['upheld', 'reduced', 'dismissed'].includes(outcome)) {
+    throw new Error('outcome must be: upheld | reduced | dismissed');
+  }
+  if (outcome === 'reduced' && (newAmount == null || Number(newAmount) < 0)) {
+    throw new Error('newAmount is required for outcome=reduced');
+  }
+
+  return transaction(async (client) => {
+    const cur = await client.query(`SELECT * FROM compensations WHERE id = $1 FOR UPDATE`, [id]);
+    if (cur.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
+    const c = cur.rows[0];
+    if (c.status !== 'disputed') {
+      throw new Error(`Cannot resolve dispute from status: ${c.status}`);
+    }
+
+    let nextStatus;
+    let nextAmount = Number(c.amount_gross);
+    const originalAmount = c.original_amount_gross != null ? Number(c.original_amount_gross) : Number(c.amount_gross);
+
+    if (outcome === 'upheld') {
+      nextStatus = Number(c.amount_paid) > 0 ? 'partial_paid' : 'issued';
+    } else if (outcome === 'reduced') {
+      nextAmount = Number(newAmount);
+      if (Number(c.amount_paid) >= nextAmount && nextAmount > 0) nextStatus = 'paid';
+      else if (Number(c.amount_paid) > 0) nextStatus = 'partial_paid';
+      else nextStatus = 'issued';
+    } else {
+      nextStatus = 'waived';
+    }
+
+    const isWaived = nextStatus === 'waived';
+    const isPaid   = nextStatus === 'paid';
+    const r = await client.query(
+      `UPDATE compensations SET
+         status = $2,
+         dispute_resolution = $3,
+         dispute_resolution_notes = $4,
+         resolved_at = NOW(),
+         amount_gross = $5,
+         original_amount_gross = COALESCE(original_amount_gross, $6),
+         waived_at = CASE WHEN $8 THEN NOW() ELSE waived_at END,
+         waived_reason = CASE WHEN $8 THEN COALESCE(waived_reason, $4) ELSE waived_reason END,
+         waived_by = CASE WHEN $8 THEN $7 ELSE waived_by END,
+         paid_at = CASE WHEN $9 AND paid_at IS NULL THEN NOW() ELSE paid_at END,
+         updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [id, nextStatus, outcome, notes || null, nextAmount, originalAmount, userId || null, isWaived, isPaid]
+    );
+
+    await logReminder(client, id, {
+      type: 'dispute_resolved',
+      channel: 'in_app',
+      subject: `Vitatás lezárva: ${outcome}`,
+      body: notes || outcome,
+      metadata: { outcome, new_amount: nextAmount, resolved_by: userId },
+      actorUserId: userId,
+    });
+    return r.rows[0];
+  });
+}
+
+// ─── Salary deduction ───────────────────────────────────────────────
+
+/**
+ * Schedule a multi-period salary deduction against the compensation. Does
+ * NOT actually hit payroll — that integration is a separate concern. This
+ * just records the plan and updates the compensation reminder log.
+ */
+async function scheduleSalaryDeduction(compensationId, payload, { userId } = {}) {
+  const {
+    responsibility_id,
+    user_id,
+    employee_name,
+    amount_per_period,
+    periods_total,
+    start_date,
+  } = payload || {};
+
+  if (!employee_name) throw new Error('employee_name is required');
+  if (!amount_per_period || Number(amount_per_period) <= 0) throw new Error('amount_per_period must be > 0');
+  if (!periods_total || Number(periods_total) <= 0) throw new Error('periods_total must be > 0');
+  if (!start_date) throw new Error('start_date is required');
+
+  // Compute end_date in pure integer arithmetic to avoid DST/timezone drift.
+  // periods_total represents full monthly cycles from start_date.
+  const [ys, ms, ds] = start_date.split('-').map(Number);
+  let endY = ys, endM = ms + Number(periods_total) - 1;
+  while (endM > 12) { endM -= 12; endY += 1; }
+  const endStr = `${endY}-${String(endM).padStart(2, '0')}-${String(ds).padStart(2, '0')}`;
+
+  return transaction(async (client) => {
+    const cur = await client.query(`SELECT * FROM compensations WHERE id = $1`, [compensationId]);
+    if (cur.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
+
+    const r = await client.query(
+      `INSERT INTO salary_deductions
+         (compensation_id, responsibility_id, user_id, employee_name,
+          amount_per_period, periods_total, start_date, end_date, status,
+          notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'scheduled',$9,$10) RETURNING *`,
+      [
+        compensationId,
+        responsibility_id || null,
+        user_id || null,
+        employee_name,
+        Number(amount_per_period),
+        Number(periods_total),
+        start_date,
+        endStr,
+        payload.notes || null,
+        userId || null,
+      ]
+    );
+
+    await logReminder(client, compensationId, {
+      type: 'salary_deduction_scheduled',
+      channel: 'in_app',
+      subject: 'Bérlevonás ütemezve',
+      body: `${employee_name}: ${Number(amount_per_period).toLocaleString('hu-HU')} HUF × ${periods_total} hónap, kezdés: ${start_date}`,
+      metadata: {
+        amount_per_period: Number(amount_per_period),
+        periods_total: Number(periods_total),
+        start_date,
+      },
+      actorUserId: userId,
+    });
+
+    return r.rows[0];
+  });
+}
+
+async function listSalaryDeductions(compensationId) {
+  const r = await query(
+    `SELECT * FROM salary_deductions WHERE compensation_id = $1 ORDER BY created_at DESC`,
+    [compensationId]
+  );
+  return r.rows;
+}
+
+// ─── Email notification ─────────────────────────────────────────────
+
+/**
+ * Email the compensation notice PDF to the responsible party (or all of
+ * them, if responsibilities are allocated). Re-uses the existing SMTP
+ * config; is a no-op when SMTP credentials aren't configured.
+ */
+async function sendNoticeEmail(compensationId, { userId } = {}) {
+  const nodemailer = require('nodemailer');
+  const pdfSvc = require('./inspectionPDF.service');
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    logger.warn('[compensation.sendNoticeEmail] SMTP not configured — skipping');
+    return { skipped: true, reason: 'SMTP_NOT_CONFIGURED' };
+  }
+
+  const cur = await query(`SELECT * FROM compensations WHERE id = $1`, [compensationId]);
+  if (cur.rows.length === 0) throw new Error('COMPENSATION_NOT_FOUND');
+  const c = cur.rows[0];
+
+  const responsibilities = await listResponsibilities(compensationId);
+  const recipients = responsibilities.length > 0
+    ? responsibilities.filter(r => r.email).map(r => ({ email: r.email, name: r.name }))
+    : (c.responsible_email ? [{ email: c.responsible_email, name: c.responsible_name }] : []);
+
+  if (recipients.length === 0) {
+    return { skipped: true, reason: 'NO_EMAIL_ON_FILE' };
+  }
+
+  // Render PDF into a buffer
+  const doc = await pdfSvc.generateCompensationNotice(compensationId);
+  const chunks = [];
+  await new Promise((resolve, reject) => {
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', resolve);
+    doc.on('error', reject);
+  });
+  const pdfBuffer = Buffer.concat(chunks);
+
+  const transporter = nodemailer.createTransport({
+    host:   process.env.SMTP_HOST || 'smtp.gmail.com',
+    port:   parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+
+  const subject = `Kártérítési értesítő – ${c.compensation_number}`;
+  const body = [
+    `Tisztelt Címzett!`,
+    ``,
+    `Mellékletben küldjük a(z) ${c.compensation_number} számú kártérítési értesítőt.`,
+    ``,
+    `Fizetendő összeg: ${Number(c.amount_gross).toLocaleString('hu-HU')} ${c.currency}`,
+    `Fizetési határidő: ${c.due_date}`,
+    ``,
+    `Housing Solutions Kft.`,
+  ].join('\n');
+
+  const results = [];
+  for (const recipient of recipients) {
+    try {
+      const info = await transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: recipient.email,
+        subject,
+        text: body,
+        attachments: [{
+          filename: `karteriteses-ertesito-${c.compensation_number}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        }],
+      });
+      results.push({ to: recipient.email, ok: true, messageId: info.messageId });
+    } catch (err) {
+      logger.error(`[compensation.sendNoticeEmail] ${recipient.email}:`, err.message);
+      results.push({ to: recipient.email, ok: false, error: err.message });
+    }
+  }
+
+  await transaction(async (client) => {
+    await client.query(
+      `UPDATE compensations SET status = 'notified', updated_at = NOW()
+       WHERE id = $1 AND status = 'issued'`,
+      [compensationId]
+    );
+    for (const r of results) {
+      await logReminder(client, compensationId, {
+        type: 'initial_notification',
+        channel: 'email',
+        subject,
+        body,
+        metadata: { recipient: r.to, delivery: r.ok ? 'sent' : 'failed', error: r.error || null },
+        actorUserId: userId,
+      });
+    }
+  });
+
+  return { sent: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length, results };
 }
 
 async function logReminder(client, compensationId, r) {
@@ -367,15 +739,19 @@ async function getCompensation(id) {
   );
   if (r.rows.length === 0) return null;
 
-  const [payments, reminders] = await Promise.all([
+  const [payments, reminders, responsibilities, deductions] = await Promise.all([
     query(`SELECT * FROM compensation_payments WHERE compensation_id = $1 ORDER BY paid_at DESC`, [id]),
     query(`SELECT * FROM compensation_reminders WHERE compensation_id = $1 ORDER BY sent_at DESC`, [id]),
+    listResponsibilities(id),
+    listSalaryDeductions(id),
   ]);
 
   return {
     ...format(r.rows[0]),
     payments: payments.rows,
     reminders: reminders.rows,
+    responsibilities,
+    salaryDeductions: deductions,
   };
 }
 
@@ -395,24 +771,31 @@ async function runDailyEscalations() {
     [ACTIVE_STATUSES]
   );
 
-  const counters = { firstReminder: 0, finalWarning: 0, escalated: 0, skipped: 0 };
+  const counters = { firstReminder: 0, finalWarning: 0, seriousOverdue: 0, escalated: 0, skipped: 0 };
   for (const row of due.rows) {
     const daysPastDue = Number(row.days_past_due);
     const lvl = row.escalation_level || 0;
 
+    // Find the highest eligible step whose threshold has been reached,
+    // then jump to that level (so a compensation that suddenly became
+    // 20 days overdue goes straight to serious_overdue, not through all
+    // the intermediate steps).
+    const eligible = REMINDER_CADENCE.filter(s => daysPastDue >= s.daysFromDue);
+    if (eligible.length === 0) { counters.skipped++; continue; }
+    const step = eligible[eligible.length - 1];
+    if (lvl >= step.minLevel) { counters.skipped++; continue; }
+
     try {
-      if (daysPastDue === -1 && lvl < 1) {
-        await escalateCompensation(row.id, { reminderType: 'first_reminder' });
-        counters.firstReminder++;
-      } else if (daysPastDue >= 0 && daysPastDue < 7 && lvl < 2) {
-        await escalateCompensation(row.id, { reminderType: 'final_warning' });
-        counters.finalWarning++;
-      } else if (daysPastDue >= 7 && lvl < 3) {
-        await escalateCompensation(row.id, { reminderType: 'escalation' });
-        counters.escalated++;
-      } else {
-        counters.skipped++;
-      }
+      await escalateCompensation(row.id, {
+        reminderType: step.type,
+        targetLevel: step.minLevel,
+        setStatus: step.setStatus,
+      });
+      const key = step.type === 'first_reminder'  ? 'firstReminder'
+                : step.type === 'final_warning'   ? 'finalWarning'
+                : step.type === 'serious_overdue' ? 'seriousOverdue'
+                : 'escalated';
+      counters[key]++;
     } catch (e) {
       logger.error(`[compensation.escalation:${row.id}]`, e.message);
       counters.skipped++;
@@ -432,6 +815,14 @@ module.exports = {
   listCompensations,
   getCompensation,
   runDailyEscalations,
+  // Advanced features (ext. spec)
+  allocateResponsibilities,
+  listResponsibilities,
+  submitDispute,
+  resolveDispute,
+  scheduleSalaryDeduction,
+  listSalaryDeductions,
+  sendNoticeEmail,
   format,
-  _helpers: { nextCompensationNumber, logReminder, ACTIVE_STATUSES, TYPES },
+  _helpers: { nextCompensationNumber, logReminder, ACTIVE_STATUSES, TYPES, REMINDER_CADENCE },
 };

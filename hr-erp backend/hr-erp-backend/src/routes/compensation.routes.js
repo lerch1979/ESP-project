@@ -12,9 +12,14 @@ router.get('/:id/pdf', ctrl.pdfNotice);
 
 // Write — settings.edit as proxy permission (matches existing inspection routes)
 router.post('/',                    checkPermission('settings.edit'), ctrl.create);
-router.post('/:id/issue',           checkPermission('settings.edit'), ctrl.issue);
-router.post('/:id/payments',        checkPermission('settings.edit'), ctrl.recordPayment);
-router.post('/:id/waive',           checkPermission('settings.edit'), ctrl.waive);
-router.post('/:id/escalate',        checkPermission('settings.edit'), ctrl.escalate);
+router.post('/:id/issue',              checkPermission('settings.edit'), ctrl.issue);
+router.post('/:id/payments',           checkPermission('settings.edit'), ctrl.recordPayment);
+router.post('/:id/waive',              checkPermission('settings.edit'), ctrl.waive);
+router.post('/:id/escalate',           checkPermission('settings.edit'), ctrl.escalate);
+router.post('/:id/responsibilities',   checkPermission('settings.edit'), ctrl.allocate);
+router.post('/:id/dispute',            checkPermission('settings.edit'), ctrl.dispute);
+router.post('/:id/resolve-dispute',    checkPermission('settings.edit'), ctrl.resolveDispute);
+router.post('/:id/salary-deduction',   checkPermission('settings.edit'), ctrl.scheduleDeduction);
+router.post('/:id/send-notice',        checkPermission('settings.edit'), ctrl.sendEmail);
 
 module.exports = router;

@@ -9,7 +9,9 @@ import {
 import {
   ArrowBack as ArrowBackIcon, Refresh as RefreshIcon, PictureAsPdf as PdfIcon,
   Payments as PaymentsIcon, TrendingUp as EscalateIcon, Block as WaiveIcon,
-  Send as IssueIcon,
+  Send as IssueIcon, Email as EmailIcon, Groups as GroupsIcon,
+  Gavel as DisputeIcon, AccountBalance as DeductionIcon, CheckCircle as ResolveIcon,
+  Add as AddIcon, Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
@@ -55,6 +57,10 @@ export default function CompensationDetail() {
   const [tab, setTab] = useState(0);
   const [paymentDialog, setPaymentDialog] = useState({ open: false, amount: '', method: 'transfer', reference: '', notes: '' });
   const [waiveDialog, setWaiveDialog]     = useState({ open: false, reason: '' });
+  const [allocDialog, setAllocDialog]     = useState({ open: false, parties: [] });
+  const [disputeDialog, setDisputeDialog] = useState({ open: false, reason: '' });
+  const [resolveDialog, setResolveDialog] = useState({ open: false, outcome: 'upheld', notes: '', newAmount: '' });
+  const [deductDialog, setDeductDialog]   = useState({ open: false, employee_name: '', amount_per_period: '', periods_total: 3, start_date: new Date().toISOString().slice(0, 10), notes: '' });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -126,6 +132,91 @@ export default function CompensationDetail() {
     } finally { setBusy(false); }
   };
 
+  const sendEmail = async () => {
+    if (!window.confirm('Elküldöd a PDF értesítőt a felelős félnek/feleknek?')) return;
+    setBusy(true);
+    try {
+      const res = await inspectionsAPI.sendCompensationNotice(id);
+      const r = res?.data || {};
+      if (r.skipped) {
+        toast.warning(`Nem küldve: ${r.reason === 'SMTP_NOT_CONFIGURED' ? 'SMTP nincs beállítva' : 'nincs e-mail cím'}`);
+      } else {
+        toast.success(`Elküldve: ${r.sent || 0}${r.failed ? ` (sikertelen: ${r.failed})` : ''}`);
+      }
+      load();
+    } catch (e) {
+      toast.error('E-mail küldés sikertelen: ' + (e?.response?.data?.message || e.message));
+    } finally { setBusy(false); }
+  };
+
+  const saveAllocation = async () => {
+    const total = allocDialog.parties.reduce((s, p) => s + Number(p.percentage || 0), 0);
+    if (Math.abs(total - 100) > 0.01) return toast.warn(`Az összeg 100% kell legyen (jelenleg ${total})`);
+    if (allocDialog.parties.some(p => !p.name?.trim())) return toast.warn('Minden félnek kell név');
+    setBusy(true);
+    try {
+      await inspectionsAPI.allocateResponsibilities(id, allocDialog.parties.map(p => ({
+        name: p.name.trim(),
+        email: p.email || null,
+        phone: p.phone || null,
+        percentage: Number(p.percentage),
+      })));
+      setAllocDialog({ open: false, parties: [] });
+      toast.success('Allokáció mentve');
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Allokáció sikertelen');
+    } finally { setBusy(false); }
+  };
+
+  const saveDispute = async () => {
+    if (!disputeDialog.reason.trim()) return toast.warn('Indoklás kötelező');
+    setBusy(true);
+    try {
+      await inspectionsAPI.submitDispute(id, disputeDialog.reason);
+      setDisputeDialog({ open: false, reason: '' });
+      toast.success('Vitatás bejelentve');
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Vitatás sikertelen');
+    } finally { setBusy(false); }
+  };
+
+  const saveResolve = async () => {
+    if (resolveDialog.outcome === 'reduced' && !resolveDialog.newAmount) return toast.warn('Új összeg kötelező');
+    setBusy(true);
+    try {
+      const payload = { outcome: resolveDialog.outcome, notes: resolveDialog.notes || null };
+      if (resolveDialog.outcome === 'reduced') payload.new_amount = Number(resolveDialog.newAmount);
+      await inspectionsAPI.resolveDispute(id, payload);
+      setResolveDialog({ open: false, outcome: 'upheld', notes: '', newAmount: '' });
+      toast.success('Vitatás lezárva');
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Lezárás sikertelen');
+    } finally { setBusy(false); }
+  };
+
+  const saveDeduction = async () => {
+    if (!deductDialog.employee_name?.trim()) return toast.warn('Alkalmazott név kötelező');
+    if (!Number(deductDialog.amount_per_period)) return toast.warn('Havi összeg kötelező');
+    setBusy(true);
+    try {
+      await inspectionsAPI.scheduleSalaryDeduction(id, {
+        employee_name: deductDialog.employee_name.trim(),
+        amount_per_period: Number(deductDialog.amount_per_period),
+        periods_total: Number(deductDialog.periods_total),
+        start_date: deductDialog.start_date,
+        notes: deductDialog.notes || null,
+      });
+      setDeductDialog({ open: false, employee_name: '', amount_per_period: '', periods_total: 3, start_date: new Date().toISOString().slice(0, 10), notes: '' });
+      toast.success('Bérlevonás ütemezve');
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Ütemezés sikertelen');
+    } finally { setBusy(false); }
+  };
+
   const downloadPdf = async () => {
     try {
       const blob = await inspectionsAPI.downloadCompensationNotice(id);
@@ -142,9 +233,14 @@ export default function CompensationDetail() {
 
   const st = STATUS_CHIP[data.status] || { label: data.status, color: 'default' };
   const canRecordPayment = ['issued','notified','disputed','partial_paid'].includes(data.status);
-  const canEscalate      = ['issued','notified','disputed','partial_paid'].includes(data.status) && data.escalationLevel < 3;
+  const canEscalate      = ['issued','notified','disputed','partial_paid'].includes(data.status) && data.escalationLevel < 4;
   const canWaive         = !['waived','paid','closed'].includes(data.status);
   const canIssue         = data.status === 'draft';
+  const canEmail         = ['issued','notified','partial_paid','disputed'].includes(data.status);
+  const canDispute       = ['issued','notified','partial_paid'].includes(data.status);
+  const canResolve       = data.status === 'disputed';
+  const canAllocate      = !['waived','paid','closed'].includes(data.status);
+  const canDeduct        = ['issued','notified','partial_paid','disputed','escalated'].includes(data.status);
 
   return (
     <Box>
@@ -174,6 +270,43 @@ export default function CompensationDetail() {
         {canWaive && (
           <Button variant="outlined" color="error" startIcon={<WaiveIcon />} onClick={() => setWaiveDialog({ open: true, reason: '' })}>
             Elengedés
+          </Button>
+        )}
+        {canEmail && (
+          <Button variant="outlined" startIcon={<EmailIcon />} onClick={sendEmail} disabled={busy}>
+            PDF e-mailben
+          </Button>
+        )}
+        {canAllocate && (
+          <Button variant="outlined" startIcon={<GroupsIcon />}
+                  onClick={() => setAllocDialog({
+                    open: true,
+                    parties: data.responsibilities?.length
+                      ? data.responsibilities.map(r => ({ name: r.name, email: r.email, phone: r.phone, percentage: Number(r.percentage) }))
+                      : [{ name: data.responsibleName || '', email: data.responsibleEmail || '', phone: data.responsiblePhone || '', percentage: 100 }]
+                  })}>
+            Felelősség megosztása
+          </Button>
+        )}
+        {canDispute && (
+          <Button variant="outlined" color="warning" startIcon={<DisputeIcon />} onClick={() => setDisputeDialog({ open: true, reason: '' })}>
+            Vitatás
+          </Button>
+        )}
+        {canResolve && (
+          <Button variant="contained" color="info" startIcon={<ResolveIcon />}
+                  onClick={() => setResolveDialog({ open: true, outcome: 'upheld', notes: '', newAmount: String(data.amountGross || '') })}>
+            Vitatás lezárása
+          </Button>
+        )}
+        {canDeduct && (
+          <Button variant="outlined" startIcon={<DeductionIcon />}
+                  onClick={() => setDeductDialog(d => ({
+                    ...d, open: true,
+                    employee_name: data.responsibleName || '',
+                    amount_per_period: String(Math.round(Number(data.amountOutstanding || 0) / 3)),
+                  }))}>
+            Bérlevonás
           </Button>
         )}
       </Stack>
@@ -225,7 +358,9 @@ export default function CompensationDetail() {
       <Paper variant="outlined">
         <Tabs value={tab} onChange={(_, v) => setTab(v)}>
           <Tab label="Részletek" />
+          <Tab label={`Felelősök (${data.responsibilities?.length || 0})`} />
           <Tab label={`Fizetések (${data.payments?.length || 0})`} />
+          <Tab label={`Bérlevonások (${data.salaryDeductions?.length || 0})`} />
           <Tab label={`Értesítők (${data.reminders?.length || 0})`} />
         </Tabs>
 
@@ -262,6 +397,41 @@ export default function CompensationDetail() {
 
           {tab === 1 && (
             <>
+              {(data.responsibilities?.length || 0) === 0 ? (
+                <Alert severity="info">Még nincs allokálva több felelős fél. A "Felelősség megosztása" gombbal osztható meg a kártérítés.</Alert>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Név</TableCell>
+                      <TableCell>E-mail</TableCell>
+                      <TableCell>Telefon</TableCell>
+                      <TableCell align="right">Részarány</TableCell>
+                      <TableCell align="right">Allokált összeg</TableCell>
+                      <TableCell align="right">Befizetve</TableCell>
+                      <TableCell>Értesítve</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.responsibilities.map(r => (
+                      <TableRow key={r.id}>
+                        <TableCell sx={{ fontWeight: 600 }}>{r.name}</TableCell>
+                        <TableCell>{r.email || '—'}</TableCell>
+                        <TableCell>{r.phone || '—'}</TableCell>
+                        <TableCell align="right">{Number(r.percentage).toFixed(1)}%</TableCell>
+                        <TableCell align="right">{fmtMoney(r.amount_allocated, data.currency)}</TableCell>
+                        <TableCell align="right">{fmtMoney(r.amount_paid, data.currency)}</TableCell>
+                        <TableCell>{r.notified_at ? fmtDate(r.notified_at, true) : '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </>
+          )}
+
+          {tab === 2 && (
+            <>
               {(data.payments?.length || 0) === 0 ? (
                 <Alert severity="info">Még nincs rögzített fizetés.</Alert>
               ) : (
@@ -291,7 +461,40 @@ export default function CompensationDetail() {
             </>
           )}
 
-          {tab === 2 && (
+          {tab === 3 && (
+            <>
+              {(data.salaryDeductions?.length || 0) === 0 ? (
+                <Alert severity="info">Nincs ütemezett bérlevonás.</Alert>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Alkalmazott</TableCell>
+                      <TableCell align="right">Havi összeg</TableCell>
+                      <TableCell align="right">Időszakok</TableCell>
+                      <TableCell>Kezdés</TableCell>
+                      <TableCell>Befejezés</TableCell>
+                      <TableCell>Státusz</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.salaryDeductions.map(d => (
+                      <TableRow key={d.id}>
+                        <TableCell>{d.employee_name}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>{fmtMoney(d.amount_per_period)}</TableCell>
+                        <TableCell align="right">{d.periods_completed}/{d.periods_total}</TableCell>
+                        <TableCell>{fmtDate(d.start_date)}</TableCell>
+                        <TableCell>{fmtDate(d.end_date)}</TableCell>
+                        <TableCell><Chip size="small" label={d.status} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </>
+          )}
+
+          {tab === 4 && (
             <>
               {(data.reminders?.length || 0) === 0 ? (
                 <Alert severity="info">Még nincs elküldött értesítő.</Alert>
@@ -323,6 +526,150 @@ export default function CompensationDetail() {
           )}
         </Box>
       </Paper>
+
+      {/* Allocation dialog */}
+      <Dialog open={allocDialog.open} onClose={() => setAllocDialog({ open: false, parties: [] })} maxWidth="md" fullWidth>
+        <DialogTitle>Felelősség megosztása</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            A százalékok összege legyen pontosan 100. Allokált összeg = alapösszeg × százalék / 100.
+          </Alert>
+          <Stack spacing={1}>
+            {allocDialog.parties.map((p, idx) => (
+              <Stack key={idx} direction="row" spacing={1} alignItems="center">
+                <TextField label="Név" size="small" sx={{ flex: 2 }}
+                  value={p.name}
+                  onChange={e => setAllocDialog(d => ({ ...d, parties: d.parties.map((x, i) => i === idx ? { ...x, name: e.target.value } : x) }))}
+                />
+                <TextField label="E-mail" size="small" sx={{ flex: 2 }}
+                  value={p.email || ''}
+                  onChange={e => setAllocDialog(d => ({ ...d, parties: d.parties.map((x, i) => i === idx ? { ...x, email: e.target.value } : x) }))}
+                />
+                <TextField label="%" size="small" type="number" sx={{ flex: 1 }}
+                  inputProps={{ min: 0, max: 100, step: 0.1 }}
+                  value={p.percentage}
+                  onChange={e => setAllocDialog(d => ({ ...d, parties: d.parties.map((x, i) => i === idx ? { ...x, percentage: e.target.value } : x) }))}
+                />
+                <IconButton size="small" color="error"
+                  onClick={() => setAllocDialog(d => ({ ...d, parties: d.parties.filter((_, i) => i !== idx) }))}
+                  disabled={allocDialog.parties.length <= 1}
+                ><DeleteIcon fontSize="small" /></IconButton>
+              </Stack>
+            ))}
+            <Button startIcon={<AddIcon />} size="small"
+              onClick={() => setAllocDialog(d => ({ ...d, parties: [...d.parties, { name: '', email: '', phone: '', percentage: 0 }] }))}
+            >
+              Fél hozzáadása
+            </Button>
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+            Jelenlegi összeg: {allocDialog.parties.reduce((s, p) => s + Number(p.percentage || 0), 0)}%
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAllocDialog({ open: false, parties: [] })}>Mégsem</Button>
+          <Button variant="contained" onClick={saveAllocation} disabled={busy}>Mentés</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dispute dialog */}
+      <Dialog open={disputeDialog.open} onClose={() => setDisputeDialog({ open: false, reason: '' })} maxWidth="sm" fullWidth>
+        <DialogTitle>Vitatás bejelentése</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            A vitatás beérkezése után a kártérítés állapota "Vitatott" lesz, és az eszkalációs ladder leáll a lezárásig.
+          </Alert>
+          <TextField
+            label="Vitatás indoklása *" fullWidth multiline rows={4} required autoFocus
+            value={disputeDialog.reason}
+            onChange={e => setDisputeDialog({ ...disputeDialog, reason: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDisputeDialog({ open: false, reason: '' })}>Mégsem</Button>
+          <Button variant="contained" color="warning" onClick={saveDispute} disabled={busy}>Vitatás</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Resolve dispute dialog */}
+      <Dialog open={resolveDialog.open} onClose={() => setResolveDialog({ open: false, outcome: 'upheld', notes: '', newAmount: '' })} maxWidth="sm" fullWidth>
+        <DialogTitle>Vitatás lezárása</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <FormControl fullWidth>
+              <InputLabel>Eredmény</InputLabel>
+              <Select
+                value={resolveDialog.outcome} label="Eredmény"
+                onChange={e => setResolveDialog({ ...resolveDialog, outcome: e.target.value })}
+              >
+                <MenuItem value="upheld">Helyt ad (teljes összeg marad)</MenuItem>
+                <MenuItem value="reduced">Csökkentett összeg</MenuItem>
+                <MenuItem value="dismissed">Elengedés (nem jogos)</MenuItem>
+              </Select>
+            </FormControl>
+            {resolveDialog.outcome === 'reduced' && (
+              <TextField
+                label="Új bruttó összeg" type="number" fullWidth
+                value={resolveDialog.newAmount}
+                onChange={e => setResolveDialog({ ...resolveDialog, newAmount: e.target.value })}
+              />
+            )}
+            <TextField
+              label="Jegyzet" fullWidth multiline rows={3}
+              value={resolveDialog.notes}
+              onChange={e => setResolveDialog({ ...resolveDialog, notes: e.target.value })}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResolveDialog({ open: false, outcome: 'upheld', notes: '', newAmount: '' })}>Mégsem</Button>
+          <Button variant="contained" onClick={saveResolve} disabled={busy}>Lezárás</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Salary deduction dialog */}
+      <Dialog open={deductDialog.open} onClose={() => setDeductDialog(d => ({ ...d, open: false }))} maxWidth="sm" fullWidth>
+        <DialogTitle>Bérlevonás ütemezése</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Alkalmazott neve *" fullWidth required
+              value={deductDialog.employee_name}
+              onChange={e => setDeductDialog(d => ({ ...d, employee_name: e.target.value }))}
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Havi összeg *" type="number" fullWidth required
+                value={deductDialog.amount_per_period}
+                onChange={e => setDeductDialog(d => ({ ...d, amount_per_period: e.target.value }))}
+              />
+              <TextField
+                label="Hónapok száma *" type="number" fullWidth required
+                value={deductDialog.periods_total}
+                onChange={e => setDeductDialog(d => ({ ...d, periods_total: e.target.value }))}
+              />
+            </Stack>
+            <TextField
+              label="Kezdés dátuma *" type="date" fullWidth required
+              InputLabelProps={{ shrink: true }}
+              value={deductDialog.start_date}
+              onChange={e => setDeductDialog(d => ({ ...d, start_date: e.target.value }))}
+            />
+            <TextField
+              label="Jegyzet" fullWidth multiline rows={2}
+              value={deductDialog.notes}
+              onChange={e => setDeductDialog(d => ({ ...d, notes: e.target.value }))}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Összesen: {fmtMoney(Number(deductDialog.amount_per_period || 0) * Number(deductDialog.periods_total || 0))}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeductDialog(d => ({ ...d, open: false }))}>Mégsem</Button>
+          <Button variant="contained" onClick={saveDeduction} disabled={busy}>Ütemezés</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Payment dialog */}
       <Dialog open={paymentDialog.open} onClose={() => setPaymentDialog(d => ({ ...d, open: false }))} maxWidth="sm" fullWidth>

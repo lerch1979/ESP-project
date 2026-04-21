@@ -1972,6 +1972,15 @@ export const inspectionsAPI = {
   downloadCompensationNotice: (id) =>
     api.get(`/compensations/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
 
+  // Advanced compensation ops (Day 3 Part C ext.)
+  allocateResponsibilities: async (id, parties) =>
+    (await api.post(`/compensations/${id}/responsibilities`, { parties })).data,
+  submitDispute:  async (id, reason) => (await api.post(`/compensations/${id}/dispute`, { reason })).data,
+  resolveDispute: async (id, payload) => (await api.post(`/compensations/${id}/resolve-dispute`, payload)).data,
+  scheduleSalaryDeduction: async (id, payload) =>
+    (await api.post(`/compensations/${id}/salary-deduction`, payload)).data,
+  sendCompensationNotice: async (id) => (await api.post(`/compensations/${id}/send-notice`)).data,
+
   // Templates: categories
   listCategories: async (params = {}) => {
     const response = await api.get('/inspection-templates/categories', { params });
