@@ -12,6 +12,7 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const compensationSvc = require('./compensation.service');
+const fineSvc = require('./fine.service');
 
 const FREQ_INTERVAL = {
   weekly: "7 days",
@@ -122,12 +123,23 @@ async function runDaily() {
     } catch (err) {
       logger.error('[inspectionAutomation] compensation escalations failed:', err.message);
     }
+
+    // Auto-convert overdue damage compensations to salary_deduction and mark
+    // expired deductions completed (refined Part C).
+    let conversions = { converted: 0, completed: 0, skipped: 0, errors: 0 };
+    try {
+      conversions = await fineSvc.runAutoConversions();
+    } catch (err) {
+      logger.error('[inspectionAutomation] fine auto-conversions failed:', err.message);
+    }
+
     logger.info(
       `[inspectionAutomation] daily run done in ${Date.now() - startedAt}ms — ` +
       `created=${created.length}, overdue=${overdue}, trends_refreshed=${trendsOk}, ` +
-      `escalations=${JSON.stringify(escalations)}`
+      `escalations=${JSON.stringify(escalations)}, ` +
+      `conversions=${JSON.stringify(conversions)}`
     );
-    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations };
+    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations, conversions };
   } catch (err) {
     logger.error('[inspectionAutomation] daily run error:', err);
     throw err;

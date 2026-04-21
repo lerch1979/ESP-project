@@ -69,6 +69,8 @@ const inspectionScheduleRoutes = require('./routes/inspectionSchedule.routes');
 const inspectionTaskRoutes = require('./routes/inspectionTask.routes');
 const roomsRoutes = require('./routes/rooms.routes');
 const compensationRoutes = require('./routes/compensation.routes');
+const fineRoutes = require('./routes/fine.routes');
+const fineTypeRoutes = require('./routes/fineType.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const gtdRoutes = require('./routes/gtd.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
@@ -262,6 +264,8 @@ app.use(`${API_PREFIX}/inspection-schedules`, inspectionScheduleRoutes);
 app.use(`${API_PREFIX}/inspection-tasks`, inspectionTaskRoutes);
 app.use(`${API_PREFIX}/rooms`, roomsRoutes);
 app.use(`${API_PREFIX}/compensations`, compensationRoutes);
+app.use(`${API_PREFIX}/fine-types`, fineTypeRoutes);
+app.use(`${API_PREFIX}/fines`, fineRoutes);
 // Top-level /translate alias — matches the documented contract { text, fromLang, toLang }
 const { authenticateToken } = require('./middleware/auth');
 app.post(`${API_PREFIX}/translate`, authenticateToken, translationRoutes.translateHandler);

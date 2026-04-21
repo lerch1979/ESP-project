@@ -66,7 +66,10 @@ WHERE issued_date IS NULL AND issued_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_compensations_type_new ON compensations(type);
 
--- Widen status CHECK to admit the new lifecycle values.
+-- Widen status column + CHECK to admit the new lifecycle values. The new
+-- values (salary_deduction_active/_completed/_pending) exceed the old
+-- varchar(20) cap, so expand to varchar(40) first.
+ALTER TABLE compensations ALTER COLUMN status TYPE VARCHAR(40);
 ALTER TABLE compensations DROP CONSTRAINT IF EXISTS compensations_status_check;
 ALTER TABLE compensations
   ADD CONSTRAINT compensations_status_check
@@ -172,6 +175,48 @@ DO $$ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_salary_deductions_compensation_resident ON salary_deductions(compensation_resident_id);
+
+-- ────────────────────────────────────────────────────────────────────
+-- 5b. Rebuild sync_compensation_on_payment with widened local var
+--     (old version had VARCHAR(20) which rejects 'salary_deduction_active'.)
+-- ────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION sync_compensation_on_payment() RETURNS TRIGGER AS $$
+DECLARE
+  total_paid NUMERIC(12,2);
+  gross      NUMERIC(12,2);
+  cur_status VARCHAR(40);
+BEGIN
+  SELECT COALESCE(SUM(amount), 0) INTO total_paid
+  FROM compensation_payments
+  WHERE compensation_id = COALESCE(NEW.compensation_id, OLD.compensation_id);
+
+  SELECT amount_gross, status INTO gross, cur_status
+  FROM compensations
+  WHERE id = COALESCE(NEW.compensation_id, OLD.compensation_id);
+
+  IF cur_status IN ('waived','closed','salary_deduction_active','salary_deduction_completed') THEN
+    UPDATE compensations
+       SET amount_paid = total_paid, updated_at = NOW()
+     WHERE id = COALESCE(NEW.compensation_id, OLD.compensation_id);
+    RETURN NEW;
+  END IF;
+
+  UPDATE compensations
+     SET amount_paid = total_paid,
+         status = CASE
+           WHEN total_paid >= gross AND gross > 0 THEN 'paid'
+           WHEN total_paid > 0                     THEN 'partial_paid'
+           ELSE status
+         END,
+         paid_at = CASE
+           WHEN total_paid >= gross AND gross > 0 AND paid_at IS NULL THEN NOW()
+           ELSE paid_at
+         END,
+         updated_at = NOW()
+   WHERE id = COALESCE(NEW.compensation_id, OLD.compensation_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ────────────────────────────────────────────────────────────────────
 -- 6. Per-resident sync trigger
