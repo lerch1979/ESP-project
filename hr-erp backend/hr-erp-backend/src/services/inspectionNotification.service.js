@@ -331,7 +331,7 @@ async function buildPdfAttachment(inspectionId, inspectionNumber) {
 /** Load + resize up to MAX_PHOTOS photos for this inspection. */
 async function buildPhotoAttachments(inspectionId) {
   const r = await query(
-    `SELECT id, file_path, original_name FROM inspection_photos
+    `SELECT id, file_path FROM inspection_photos
      WHERE inspection_id = $1 ORDER BY created_at LIMIT $2`,
     [inspectionId, MAX_PHOTOS]
   );
@@ -352,8 +352,9 @@ async function buildPhotoAttachments(inspectionId) {
         .toBuffer();
       if (totalBytes + buf.length > MAX_ATTACHMENT_BYTES) break; // gmail 25MB cap
       totalBytes += buf.length;
+      const baseName = path.basename(p.file_path).replace(/\.[^.]+$/, '');
       attachments.push({
-        filename: p.original_name || `photo-${attachments.length + 1}.jpg`,
+        filename: `${baseName || 'photo'}-${attachments.length + 1}.jpg`,
         content: buf,
         contentType: 'image/jpeg',
       });
