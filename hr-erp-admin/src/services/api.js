@@ -1957,6 +1957,14 @@ export const inspectionsAPI = {
   downloadOwnerReport:   (id)   => api.get(`/inspections/${id}/pdf/owner`,  { responseType: 'blob' }).then(r => r.data),
   downloadInspectionReport: (id) => api.get(`/inspections/${id}/pdf/report`, { responseType: 'blob' }).then(r => r.data),
 
+  // Resident completion emails
+  listEmailNotifications: async (id) =>
+    (await api.get(`/inspections/${id}/email-notifications`)).data,
+  triggerEmailNotifications: async (id) =>
+    (await api.post(`/inspections/${id}/email-notifications/trigger`)).data,
+  resendEmailNotification: async (id, notifId) =>
+    (await api.post(`/inspections/${id}/email-notifications/resend/${notifId}`)).data,
+
   // Compensations (Day 3 Part C) — all via inspectionsAPI for UI convenience;
   // they hit /compensations/* under the hood.
   listCompensations: async (params = {}) => (await api.get('/compensations', { params })).data,

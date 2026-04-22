@@ -11,7 +11,7 @@ import {
   PhotoCamera as PhotoCameraIcon, Refresh as RefreshIcon, Edit as EditIcon,
   TrendingUp as UpIcon, TrendingDown as DownIcon, TrendingFlat as FlatIcon,
   PictureAsPdf as PdfIcon, Gavel as GavelIcon, Home as HomeIcon, Assessment as AssessmentIcon,
-  MonetizationOn as CompIcon,
+  MonetizationOn as CompIcon, Email as EmailIcon, Send as SendIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
@@ -56,6 +56,10 @@ export default function InspectionDetail() {
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [scoreModal, setScoreModal] = useState({ open: false, room: null, scores: null, saving: false });
 
+  // Email notifications tab
+  const [emails, setEmails] = useState([]);
+  const [emailsBusy, setEmailsBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -93,7 +97,43 @@ export default function InspectionDetail() {
     }
   }, [id]);
 
-  useEffect(() => { load(); loadCategories(); loadRooms(); }, [load, loadCategories, loadRooms]);
+  const loadEmails = useCallback(async () => {
+    try {
+      const res = await inspectionsAPI.listEmailNotifications(id);
+      setEmails(res?.data || []);
+    } catch {
+      setEmails([]);
+    }
+  }, [id]);
+
+  const triggerEmails = async () => {
+    if (!window.confirm('Elindítod az értesítő emailek küldését a lakóknak?')) return;
+    setEmailsBusy(true);
+    try {
+      const res = await inspectionsAPI.triggerEmailNotifications(id);
+      const r = res?.data || {};
+      toast.success(`Sorban: ${r.queued}, Elküldve: ${r.sent}, Hiba: ${r.failed}, Kihagyva: ${r.skipped}`);
+      loadEmails();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Küldés sikertelen');
+    } finally { setEmailsBusy(false); }
+  };
+
+  const resendEmail = async (notifId) => {
+    setEmailsBusy(true);
+    try {
+      const res = await inspectionsAPI.resendEmailNotification(id, notifId);
+      const status = res?.data?.status;
+      if (status === 'sent') toast.success('Újraküldve');
+      else if (status === 'skipped') toast.warning('SMTP nincs beállítva');
+      else toast.error('Újraküldés sikertelen');
+      loadEmails();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Újraküldés sikertelen');
+    } finally { setEmailsBusy(false); }
+  };
+
+  useEffect(() => { load(); loadCategories(); loadRooms(); loadEmails(); }, [load, loadCategories, loadRooms, loadEmails]);
 
   const openScoreModal = (room) => {
     setScoreModal({
@@ -332,6 +372,7 @@ export default function InspectionDetail() {
           <Tab label={`Feladatok (${tasks.length})`} />
           <Tab label={`Kárigények (${damages.length})`} />
           <Tab label={`Szobánkénti pontozás (${roomRows.filter((r) => r.room_inspection_id).length}/${roomRows.length})`} />
+          <Tab label={`Email értesítések (${emails.length})`} />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -515,6 +556,78 @@ export default function InspectionDetail() {
                             <Tooltip title={r.room_inspection_id ? 'Újrapontozás' : 'Pontozás'}>
                               <IconButton size="small" onClick={() => openScoreModal(r)}><EditIcon fontSize="small" /></IconButton>
                             </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </Box>
+          )}
+
+          {tab === 6 && (
+            <Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  A befejezéskor a rendszer automatikusan emailt küld a lakóknak saját nyelvükön (PDF + fotók csatolva). A jogilag kötelező értesítő tartalmához hozzá lett rendelve egy hitelesítő hash.
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained" size="small" startIcon={<SendIcon />}
+                    onClick={triggerEmails} disabled={emailsBusy}
+                  >
+                    Újraküldés mindenkinek
+                  </Button>
+                  <IconButton onClick={loadEmails} disabled={emailsBusy}><RefreshIcon /></IconButton>
+                </Stack>
+              </Stack>
+              {emails.length === 0 ? (
+                <Alert severity="info">
+                  Még nem került email kiküldésre ennél az ellenőrzésnél. A befejezéskor automatikusan kiküldjük — vagy manuálisan az "Újraküldés mindenkinek" gombbal.
+                </Alert>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Címzett</TableCell>
+                      <TableCell>E-mail</TableCell>
+                      <TableCell>Nyelv</TableCell>
+                      <TableCell>Státusz</TableCell>
+                      <TableCell>Elküldve</TableCell>
+                      <TableCell>Próbálkozások</TableCell>
+                      <TableCell>Hash</TableCell>
+                      <TableCell>Hiba</TableCell>
+                      <TableCell align="right">Művelet</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {emails.map(e => {
+                      const chipColor =
+                        e.status === 'sent' || e.status === 'delivered' ? 'success'
+                      : e.status === 'failed' || e.status === 'bounced' ? 'error'
+                      : e.status === 'skipped' ? 'warning'
+                      : 'default';
+                      return (
+                        <TableRow key={e.id}>
+                          <TableCell>{e.resident_name || '—'}</TableCell>
+                          <TableCell>{e.email_address}</TableCell>
+                          <TableCell><Chip size="small" label={(e.language || 'hu').toUpperCase()} /></TableCell>
+                          <TableCell><Chip size="small" color={chipColor} label={e.status} /></TableCell>
+                          <TableCell>{e.sent_at ? fmt(e.sent_at) : '—'}</TableCell>
+                          <TableCell>{e.attempt_count ?? 0}</TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{e.content_hash || '—'}</TableCell>
+                          <TableCell sx={{ fontSize: 11, maxWidth: 220 }}>{e.failed_reason || '—'}</TableCell>
+                          <TableCell align="right">
+                            {(e.status === 'failed' || e.status === 'skipped' || e.status === 'bounced') && (
+                              <Tooltip title="Újraküldés">
+                                <span>
+                                  <IconButton size="small" onClick={() => resendEmail(e.id)} disabled={emailsBusy}>
+                                    <EmailIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
