@@ -1,0 +1,43 @@
+{
+  "subject": "Unterkunftsinspektion — {{date}} — {{propertyName}}",
+  "greeting": "Sehr geehrte(r) {{residentName}},",
+  "intro": "wir informieren Sie, dass am {{date}} um {{time}} eine Inspektion in {{propertyName}} durchgeführt wurde. Diese E-Mail stellt eine rechtsverbindliche Mitteilung dar; eine Kopie wird in unserem System archiviert.",
+  "inspection_number": "Inspektionsnummer",
+  "inspection_details": "Details der Inspektion",
+  "inspector": "Inspektor",
+  "type": "Typ",
+  "completed_at": "Abgeschlossen",
+  "your_room": "Ihr Zimmer",
+  "scores_header": "Bewertungen",
+  "scores": {
+    "technical": "Technischer Zustand",
+    "hygiene": "Hygiene",
+    "aesthetic": "Ästhetik",
+    "total": "Gesamt"
+  },
+  "grade": "Note",
+  "grades": {
+    "excellent": "Ausgezeichnet",
+    "good": "Gut",
+    "acceptable": "Akzeptabel",
+    "poor": "Schwach",
+    "bad": "Schlecht",
+    "critical": "Kritisch"
+  },
+  "observations": "Beobachtungen",
+  "findings_header": "Feststellungen",
+  "no_findings": "In Ihrem Zimmer wurden keine kritischen Mängel festgestellt. Vielen Dank!",
+  "fines_header": "Bußgeld vor Ort",
+  "fines_line": "{{reason}} — {{amount}} HUF (Frist: {{deadline}})",
+  "damages_header": "Schadensersatzforderung",
+  "damages_line": "{{description}} — fällig: {{amount}} HUF, Frist: {{deadline}} (30 Tage)",
+  "damages_warning": "Falls der Betrag nicht bis zur Frist beglichen wird, erfolgt automatisch ein Gehaltsabzug.",
+  "attachments_note": "Das vollständige Protokoll als PDF und die während der Inspektion aufgenommenen Fotos finden Sie im Anhang.",
+  "appeal_title": "Einspruch einlegen",
+  "appeal_info": "Falls Sie mit den Feststellungen nicht einverstanden sind, können Sie innerhalb von 7 Tagen einen schriftlichen Einspruch unter den untenstehenden Kontaktdaten einlegen. Zahlungsverpflichtungen werden während der Überprüfung des Einspruchs ausgesetzt.",
+  "contact_title": "Kontakt",
+  "contact": "{{email}} · {{phone}}",
+  "signature": "Mit freundlichen Grüßen,\nHousing Solutions Kft.",
+  "legal_notice": "Diese elektronische Mitteilung enthält ein Rechtsdokument. Die Feststellungen der Inspektion und daraus resultierende Zahlungsverpflichtungen werden durch das im Housing Solutions Kft.-System archivierte Originalprotokoll bestätigt. Der Inhalt kann über den QR-Code auf dem beigefügten PDF verifiziert werden.",
+  "verify_hint": "Verifikations-Hash: {{hash}}"
+}

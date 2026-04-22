@@ -1,0 +1,43 @@
+{
+  "subject": "Szállás ellenőrzés — {{date}} — {{propertyName}}",
+  "greeting": "Tisztelt {{residentName}}!",
+  "intro": "Tájékoztatjuk, hogy {{date}} napján, {{time}} órakor szállás-ellenőrzést végeztünk a(z) {{propertyName}} ingatlanban. Ez az e-mail jogilag kötelező érvényű értesítés, amelynek másolatát rendszerünk archiválja.",
+  "inspection_number": "Ellenőrzés száma",
+  "inspection_details": "Az ellenőrzés részletei",
+  "inspector": "Ellenőr",
+  "type": "Típus",
+  "completed_at": "Befejezve",
+  "your_room": "Az Ön szobája",
+  "scores_header": "Pontozás",
+  "scores": {
+    "technical": "Műszaki állapot",
+    "hygiene": "Higiénia",
+    "aesthetic": "Esztétika",
+    "total": "Összesen"
+  },
+  "grade": "Értékelés",
+  "grades": {
+    "excellent": "Kiváló",
+    "good": "Jó",
+    "acceptable": "Megfelelő",
+    "poor": "Gyenge",
+    "bad": "Rossz",
+    "critical": "Kritikus"
+  },
+  "observations": "Megfigyelések",
+  "findings_header": "Megállapítások",
+  "no_findings": "Az Ön szobájában nem került feljegyzésre kritikus hiányosság. Köszönjük!",
+  "fines_header": "Helyszíni bírság",
+  "fines_line": "{{reason}} — {{amount}} HUF (határidő: {{deadline}})",
+  "damages_header": "Kártérítési követelés",
+  "damages_line": "{{description}} — fizetendő: {{amount}} HUF, határidő: {{deadline}} (30 nap)",
+  "damages_warning": "Amennyiben a fenti összeg a határidőig nem kerül rendezésre, automatikus bérlevonásra kerül sor.",
+  "attachments_note": "Mellékelve a jegyzőkönyv PDF formátumban és a helyszínen készült fényképek.",
+  "appeal_title": "Kifogás benyújtása",
+  "appeal_info": "Ha nem ért egyet az ellenőrzés megállapításaival, 7 napon belül írásban kifogást nyújthat be az alábbi elérhetőségeken. A kifogás beérkeztéig az esetleges fizetési kötelezettség felfüggesztésre kerül.",
+  "contact_title": "Kapcsolat",
+  "contact": "{{email}} · {{phone}}",
+  "signature": "Üdvözlettel,\nHousing Solutions Kft.",
+  "legal_notice": "Ez az elektronikus levél jogi dokumentumot tartalmaz. Az ellenőrzés megállapításait és az esetleges fizetési kötelezettségeket a Housing Solutions Kft. rendszerében archivált eredeti jegyzőkönyv tanúsítja. Az értesítő tartalmát a mellékelt PDF QR-kódja hitelesíti.",
+  "verify_hint": "Hitelesítés: {{hash}}"
+}

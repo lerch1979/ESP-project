@@ -1,0 +1,43 @@
+{
+  "subject": "Inspeksyon ng Tuluyan — {{date}} — {{propertyName}}",
+  "greeting": "Mahal na {{residentName}},",
+  "intro": "Ipinapaalam po naming nagsagawa kami ng inspeksyon sa tuluyang {{propertyName}} noong {{date}} ng {{time}}. Ang email na ito ay isang legal na abiso, at may kopyang nakatago sa aming sistema.",
+  "inspection_number": "Numero ng inspeksyon",
+  "inspection_details": "Mga detalye ng inspeksyon",
+  "inspector": "Tagasuri",
+  "type": "Uri",
+  "completed_at": "Natapos",
+  "your_room": "Ang silid mo",
+  "scores_header": "Mga marka",
+  "scores": {
+    "technical": "Teknikal na kalagayan",
+    "hygiene": "Kalinisan",
+    "aesthetic": "Aesthetic",
+    "total": "Kabuuan"
+  },
+  "grade": "Antas",
+  "grades": {
+    "excellent": "Napakahusay",
+    "good": "Mahusay",
+    "acceptable": "Katanggap-tanggap",
+    "poor": "Mahina",
+    "bad": "Masama",
+    "critical": "Kritikal"
+  },
+  "observations": "Mga obserbasyon",
+  "findings_header": "Mga natuklasan",
+  "no_findings": "Walang seryosong problemang natuklasan sa silid mo. Salamat po!",
+  "fines_header": "Multang pinataw sa pook",
+  "fines_line": "{{reason}} — {{amount}} HUF (takdang petsa: {{deadline}})",
+  "damages_header": "Bayad-pinsala",
+  "damages_line": "{{description}} — halaga: {{amount}} HUF, takdang petsa: {{deadline}} (30 araw)",
+  "damages_warning": "Kung hindi mababayaran ang halaga bago ang takdang petsa, awtomatikong ibabawas sa iyong sahod.",
+  "attachments_note": "Nakalakip ang buong ulat (PDF) at mga larawang kinuha sa pook.",
+  "appeal_title": "Pag-aapela",
+  "appeal_info": "Kung hindi ka sang-ayon sa mga natuklasan, maaari kang magsumite ng pasulat na apela sa loob ng 7 araw gamit ang impormasyon sa ibaba. Sususpindihin muna ang anumang pagbabayad habang sinusuri ang apela.",
+  "contact_title": "Kontak",
+  "contact": "{{email}} · {{phone}}",
+  "signature": "Lubos na gumagalang,\nHousing Solutions Kft.",
+  "legal_notice": "Naglalaman ang mensaheng ito ng legal na dokumento. Ang mga natuklasan at bayarin ay pinatutunayan ng orihinal na protokolong nakaimbak sa sistema ng Housing Solutions Kft. Ang nilalaman ay mapapatunayan sa pamamagitan ng QR code sa nakalakip na PDF.",
+  "verify_hint": "Verification hash: {{hash}}"
+}

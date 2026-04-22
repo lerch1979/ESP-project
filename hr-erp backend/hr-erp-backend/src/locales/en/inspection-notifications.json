@@ -1,0 +1,43 @@
+{
+  "subject": "Property Inspection — {{date}} — {{propertyName}}",
+  "greeting": "Dear {{residentName}},",
+  "intro": "We are writing to inform you that a property inspection was conducted at {{propertyName}} on {{date}} at {{time}}. This email is a legally binding notification; a copy is archived in our system.",
+  "inspection_number": "Inspection number",
+  "inspection_details": "Inspection details",
+  "inspector": "Inspector",
+  "type": "Type",
+  "completed_at": "Completed at",
+  "your_room": "Your room",
+  "scores_header": "Scores",
+  "scores": {
+    "technical": "Technical condition",
+    "hygiene": "Hygiene",
+    "aesthetic": "Aesthetic",
+    "total": "Total"
+  },
+  "grade": "Grade",
+  "grades": {
+    "excellent": "Excellent",
+    "good": "Good",
+    "acceptable": "Acceptable",
+    "poor": "Poor",
+    "bad": "Bad",
+    "critical": "Critical"
+  },
+  "observations": "Observations",
+  "findings_header": "Findings",
+  "no_findings": "No critical issues were recorded in your room. Thank you!",
+  "fines_header": "On-site fine",
+  "fines_line": "{{reason}} — {{amount}} HUF (deadline: {{deadline}})",
+  "damages_header": "Damage compensation",
+  "damages_line": "{{description}} — amount due: {{amount}} HUF, deadline: {{deadline}} (30 days)",
+  "damages_warning": "If the amount is not settled by the deadline, it will be automatically deducted from your salary.",
+  "attachments_note": "Please find attached the full protocol PDF and the photos taken during the inspection.",
+  "appeal_title": "Filing an appeal",
+  "appeal_info": "If you disagree with the findings of this inspection, you may submit a written appeal within 7 days using the contact details below. Any payment obligations will be suspended while the appeal is being reviewed.",
+  "contact_title": "Contact",
+  "contact": "{{email}} · {{phone}}",
+  "signature": "Best regards,\nHousing Solutions Kft.",
+  "legal_notice": "This electronic message contains a legal document. The findings of the inspection and any resulting payment obligations are certified by the original protocol archived in the Housing Solutions Kft. system. The content of this notification is verified by the QR code on the attached PDF.",
+  "verify_hint": "Verification hash: {{hash}}"
+}

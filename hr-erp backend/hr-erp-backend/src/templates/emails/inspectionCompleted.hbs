@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{subject}}</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <tr><td style="background:#1e3a8a;color:#ffffff;padding:20px 28px;">
+          <div style="font-size:18px;font-weight:700;">Housing Solutions Kft.</div>
+          <div style="font-size:13px;opacity:0.85;">{{s.inspection_details}}</div>
+        </td></tr>
+
+        <tr><td style="padding:28px;">
+          <p style="margin:0 0 12px 0;font-size:14px;color:#4b5563;">{{s.inspection_number}}: <strong style="color:#111827;">{{inspectionNumber}}</strong></p>
+          <p style="margin:0 0 12px 0;">{{s.greeting}}</p>
+          <p style="margin:0 0 18px 0;line-height:1.55;">{{s.intro}}</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:6px;padding:14px;margin:0 0 18px 0;">
+            <tr><td style="padding:4px 0;"><strong>{{s.type}}:</strong> {{typeLabel}}</td></tr>
+            <tr><td style="padding:4px 0;"><strong>{{s.inspector}}:</strong> {{inspectorName}}</td></tr>
+            <tr><td style="padding:4px 0;"><strong>{{s.completed_at}}:</strong> {{completedAt}}</td></tr>
+          </table>
+
+          {{#if room}}
+          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#1e3a8a;">{{s.your_room}} — {{room.number}}</h3>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px 0;">
+            <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;">{{s.scores.technical}}</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:right;">{{room.technical}}/50</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;">{{s.scores.hygiene}}</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:right;">{{room.hygiene}}/30</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;">{{s.scores.aesthetic}}</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:right;">{{room.aesthetic}}/20</td></tr>
+            <tr><td style="padding:8px 10px;border:1px solid #e5e7eb;background:#eef2ff;font-weight:700;">{{s.scores.total}}</td><td style="padding:8px 10px;border:1px solid #e5e7eb;text-align:right;background:#eef2ff;font-weight:700;">{{room.total}}/100</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e5e7eb;">{{s.grade}}</td><td style="padding:6px 10px;border:1px solid #e5e7eb;text-align:right;">{{gradeLabel}}</td></tr>
+          </table>
+          {{#if room.notes}}
+          <p style="margin:0 0 12px 0;"><strong>{{s.observations}}:</strong> {{room.notes}}</p>
+          {{/if}}
+          {{/if}}
+
+          {{#if findings.length}}
+          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#b45309;">{{s.findings_header}}</h3>
+          <ul style="margin:0 0 18px 0;padding-left:20px;line-height:1.55;">
+          {{#each findings}}
+            <li>{{this}}</li>
+          {{/each}}
+          </ul>
+          {{else}}
+          <p style="margin:12px 0;padding:10px;background:#ecfdf5;border-radius:4px;color:#047857;">{{s.no_findings}}</p>
+          {{/if}}
+
+          {{#if fines.length}}
+          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#b91c1c;">{{s.fines_header}}</h3>
+          <ul style="margin:0 0 18px 0;padding-left:20px;line-height:1.55;">
+          {{#each fines}}
+            <li>{{this}}</li>
+          {{/each}}
+          </ul>
+          {{/if}}
+
+          {{#if damages.length}}
+          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#b91c1c;">{{s.damages_header}}</h3>
+          <ul style="margin:0 0 10px 0;padding-left:20px;line-height:1.55;">
+          {{#each damages}}
+            <li>{{this}}</li>
+          {{/each}}
+          </ul>
+          <p style="margin:0 0 18px 0;padding:10px;background:#fef2f2;border-left:3px solid #b91c1c;color:#7f1d1d;font-size:13px;">{{s.damages_warning}}</p>
+          {{/if}}
+
+          <div style="margin:20px 0;padding:14px;background:#f9fafb;border-radius:6px;border-left:3px solid #1e3a8a;">
+            <strong style="color:#1e3a8a;">{{s.appeal_title}}</strong>
+            <p style="margin:6px 0 0 0;font-size:13px;line-height:1.5;">{{s.appeal_info}}</p>
+          </div>
+
+          <p style="margin:0 0 6px 0;font-size:13px;color:#4b5563;">{{s.attachments_note}}</p>
+          <p style="margin:0 0 18px 0;font-size:13px;color:#4b5563;">{{s.contact_title}}: {{contact}}</p>
+
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">
+          <p style="margin:0 0 6px 0;white-space:pre-line;">{{s.signature}}</p>
+        </td></tr>
+
+        <tr><td style="background:#f9fafb;padding:16px 28px;border-top:1px solid #e5e7eb;font-size:11px;color:#6b7280;line-height:1.5;">
+          {{s.legal_notice}}<br>
+          <span style="font-family:monospace;">{{verifyHint}}</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
