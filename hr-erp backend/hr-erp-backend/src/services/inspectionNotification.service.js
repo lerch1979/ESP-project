@@ -140,28 +140,58 @@ async function resolveResidents(inspectionId) {
   for (const r of roomRows.rows) {
     const snap = Array.isArray(r.residents_snapshot) ? r.residents_snapshot : [];
     for (const s of snap) {
-      const userId = s.user_id || null;
-      let email = null;
+      // New-shape snapshots carry email + language + employee_id directly.
+      // Legacy rows only have { name, user_id (=actually employee.id), move_in_date }
+      // — handle both.
+      let email = s.email || null;
+      let language = s.language || null;
       let name = s.name || null;
-      let language = 'hu';
-      if (userId) {
-        const u = await query(
-          `SELECT email, preferred_language,
-                  COALESCE(NULLIF(CONCAT(first_name, ' ', last_name), ' '), email) AS name
-           FROM users WHERE id = $1`,
-          [userId]
-        );
-        if (u.rows[0]) {
-          email = u.rows[0].email || null;
-          language = u.rows[0].preferred_language || 'hu';
-          name = name || u.rows[0].name;
+      let resolvedUserId = s.user_id || null;  // may be users.id on new-shape, employees.id on legacy
+
+      if (!email || !language) {
+        // Fallback: try users lookup (only works for new-shape user_id)
+        if (resolvedUserId) {
+          const u = await query(
+            `SELECT email, preferred_language,
+                    COALESCE(NULLIF(CONCAT(first_name, ' ', last_name), ' '), email) AS name
+             FROM users WHERE id = $1`,
+            [resolvedUserId]
+          );
+          if (u.rows[0]) {
+            email = email || u.rows[0].email;
+            language = language || u.rows[0].preferred_language;
+            name = name || u.rows[0].name;
+          }
+        }
+        // Fallback #2: treat legacy user_id as employees.id and join through
+        // to users + personal_email
+        if ((!email || !language) && (s.employee_id || s.user_id)) {
+          const candidateEmpId = s.employee_id || s.user_id;
+          const e = await query(
+            `SELECT e.personal_email, u.email AS user_email, u.preferred_language, u.id AS uid
+             FROM employees e
+             LEFT JOIN users u ON u.id = e.user_id
+             WHERE e.id = $1`,
+            [candidateEmpId]
+          );
+          if (e.rows[0]) {
+            email = email || e.rows[0].personal_email || e.rows[0].user_email || null;
+            language = language || e.rows[0].preferred_language || 'hu';
+            // If legacy snapshot's user_id was actually an employee id, promote
+            // the real users.id if we found one
+            if (!s.user_id || s.user_id === candidateEmpId) {
+              resolvedUserId = e.rows[0].uid || null;
+            }
+          }
         }
       }
-      const key = userId || (email || '').toLowerCase();
+
+      language = language || 'hu';
+      const key = (resolvedUserId || (email || '').toLowerCase()) || null;
       if (!key) continue;
       if (!byKey.has(key)) {
         byKey.set(key, {
-          resident_id: userId,
+          resident_id: resolvedUserId,
           name: name || 'Lakó',
           email,
           language,

@@ -579,12 +579,25 @@ const scoreRoom = async (req, res) => {
       // filter by status here — snapshots are historical records, so
       // "who lived here at the time of the inspection" matters more than
       // their current employment state.
+      //
+      // Snapshot shape (stored as JSONB):
+      //   employee_id → employees.id  (tied to the physical resident)
+      //   user_id     → users.id or null (the system account, if any)
+      //   name, email, language, move_in_date → for later email rendering
+      //
+      // We capture email + language AT THE MOMENT of scoring so the record
+      // survives user deletions / language changes, and the email notifier
+      // doesn't need to re-join at send-time.
       const residentsRes = await client.query(
-        `SELECT id AS user_id,
-                first_name || ' ' || last_name AS name,
-                created_at AS move_in_date
-         FROM employees
-         WHERE room_id = $1`,
+        `SELECT e.id       AS employee_id,
+                e.user_id  AS user_id,
+                e.first_name || ' ' || e.last_name AS name,
+                COALESCE(NULLIF(e.personal_email, ''), u.email) AS email,
+                COALESCE(u.preferred_language, 'hu') AS language,
+                e.created_at AS move_in_date
+         FROM employees e
+         LEFT JOIN users u ON u.id = e.user_id
+         WHERE e.room_id = $1`,
         [roomId]
       );
 
