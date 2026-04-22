@@ -48,6 +48,11 @@ router.get('/:id/pdf/legal',   ctrl.pdfLegal);
 router.get('/:id/pdf/owner',   ctrl.pdfOwner);
 router.get('/:id/pdf/report',  ctrl.pdfReport);
 
+// Email notifications (legal resident notifications on completion)
+router.get('/:id/email-notifications',                       ctrl.listEmailNotifications);
+router.post('/:id/email-notifications/trigger',              checkPermission('settings.edit'), ctrl.triggerEmailNotifications);
+router.post('/:id/email-notifications/resend/:notifId',      checkPermission('settings.edit'), ctrl.resendEmailNotification);
+
 // Photo upload (inspector captures from mobile)
 router.get('/:id/photos',            photoCtrl.listInspectionPhotos);
 router.post('/:id/photos',           checkPermission('settings.edit'),

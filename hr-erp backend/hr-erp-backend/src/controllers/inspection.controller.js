@@ -16,6 +16,7 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const pdfService = require('../services/inspectionPDF.service');
 const notify = require('../services/inAppNotification.service');
+const notificationSvc = require('../services/inspectionNotification.service');
 
 const VALID_TYPES = ['weekly', 'monthly', 'quarterly', 'yearly', 'checkin', 'checkout', 'incident', 'complaint'];
 const VALID_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'reviewed'];
@@ -445,6 +446,15 @@ const complete = async (req, res) => {
       data: { inspection_id: data.inspection.id, tasks_created: data.tasksCreated.length },
     }).catch(() => {});
 
+    // Send legal completion email to every affected resident in their
+    // preferred language (PDF + photos attached). Fire-and-forget — we
+    // respond to the inspector immediately; delivery status is tracked
+    // in inspection_email_notifications and viewable in the admin UI.
+    setImmediate(() => {
+      notificationSvc.notifyResidents(data.inspection.id, { userId: req.user?.id })
+        .catch((err) => logger.error('[inspection.complete:notify]', err.message));
+    });
+
     res.json({ success: true, data });
   } catch (err) {
     if (err.message === 'NOT_FOUND') {
@@ -716,6 +726,47 @@ const pdfReport = (req, res) =>
   streamPDF(res, () => pdfService.generateInspectionReport(req.params.id),
             `ellenorzesi-riport-${req.params.id}.pdf`);
 
+// ─── Email notifications (Part E follow-up) ─────────────────────────
+
+/** GET /api/v1/inspections/:id/email-notifications — delivery trail */
+const listEmailNotifications = async (req, res) => {
+  try {
+    const rows = await notificationSvc.listForInspection(req.params.id);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    logger.error('[inspection.listEmailNotifications]', err);
+    res.status(500).json({ success: false, message: 'Értesítések lekérési hiba' });
+  }
+};
+
+/** POST /api/v1/inspections/:id/email-notifications/resend/:notifId */
+const resendEmailNotification = async (req, res) => {
+  try {
+    const result = await notificationSvc.resendOne(req.params.notifId, { userId: req.user?.id });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    if (err.message === 'NOTIFICATION_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Értesítés nem található' });
+    }
+    logger.error('[inspection.resendEmailNotification]', err);
+    res.status(500).json({ success: false, message: 'Újraküldés sikertelen' });
+  }
+};
+
+/** POST /api/v1/inspections/:id/email-notifications/trigger — manual fire */
+const triggerEmailNotifications = async (req, res) => {
+  try {
+    const result = await notificationSvc.notifyResidents(req.params.id, { userId: req.user?.id });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    if (err.message === 'INSPECTION_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Ellenőrzés nem található' });
+    }
+    logger.error('[inspection.triggerEmailNotifications]', err);
+    res.status(500).json({ success: false, message: 'Értesítés küldési hiba' });
+  }
+};
+
 /** DELETE /api/v1/inspections/:id — admin only, only scheduled/cancelled */
 const remove = async (req, res) => {
   try {
@@ -752,6 +803,9 @@ module.exports = {
   pdfLegal,
   pdfOwner,
   pdfReport,
+  listEmailNotifications,
+  resendEmailNotification,
+  triggerEmailNotifications,
   // exported helpers so the template/schedule controllers can reuse
   _helpers: { scoreToGrade, severityFromRatio, taskPriorityFromSeverity, dueOffsetDays, nextInspectionNumber },
 };

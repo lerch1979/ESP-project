@@ -13,6 +13,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const compensationSvc = require('./compensation.service');
 const fineSvc = require('./fine.service');
+const notificationSvc = require('./inspectionNotification.service');
 
 const FREQ_INTERVAL = {
   weekly: "7 days",
@@ -133,13 +134,22 @@ async function runDaily() {
       logger.error('[inspectionAutomation] fine auto-conversions failed:', err.message);
     }
 
+    // Retry previously-failed inspection completion emails.
+    let emailRetries = { retried: 0, sent: 0, failed: 0 };
+    try {
+      emailRetries = await notificationSvc.retryFailed();
+    } catch (err) {
+      logger.error('[inspectionAutomation] email retries failed:', err.message);
+    }
+
     logger.info(
       `[inspectionAutomation] daily run done in ${Date.now() - startedAt}ms — ` +
       `created=${created.length}, overdue=${overdue}, trends_refreshed=${trendsOk}, ` +
       `escalations=${JSON.stringify(escalations)}, ` +
-      `conversions=${JSON.stringify(conversions)}`
+      `conversions=${JSON.stringify(conversions)}, ` +
+      `email_retries=${JSON.stringify(emailRetries)}`
     );
-    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations, conversions };
+    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations, conversions, emailRetries };
   } catch (err) {
     logger.error('[inspectionAutomation] daily run error:', err);
     throw err;
