@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Grid, FormControl, InputLabel, Select, MenuItem,
@@ -33,6 +34,7 @@ const STATUS_OPTIONS = [
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('hu-HU') : '—';
 
 export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [task, setTask] = useState(null);
@@ -268,7 +270,26 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
               {task.related_employee_id && (
                 <Grid item xs={12}>
                   <Typography variant="caption" color="text.secondary">Kapcsolódó dolgozó (timeline)</Typography>
-                  <Typography variant="body2">{task.related_employee_id}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {[task.related_employee_first_name, task.related_employee_last_name].filter(Boolean).join(' ')
+                        || '— (név nem elérhető)'}
+                    </Typography>
+                    {task.related_employee_workplace && (
+                      <Chip size="small" label={task.related_employee_workplace}
+                        sx={{ height: 20, fontSize: '0.7rem' }} />
+                    )}
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        if (onClose) onClose();
+                        navigate(`/employees?highlight=${task.related_employee_id}`);
+                      }}
+                      sx={{ color: '#2563eb', textTransform: 'none', py: 0 }}
+                    >
+                      Profil megnyitása
+                    </Button>
+                  </Box>
                 </Grid>
               )}
             </Grid>

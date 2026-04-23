@@ -442,60 +442,109 @@ function TicketDetail() {
         {/* Jobb oldal */}
         <Grid item xs={12} md={4}>
           {/* Linked employee side panel */}
-          {ticket.linked_employee && (
-            <Paper sx={{ p: 2.5, mb: 2, border: '1px solid #e0e7ff' }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Kapcsolódó dolgozó
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, mt: 1.5, alignItems: 'center' }}>
-                <UserAvatar
-                  firstName={ticket.linked_employee.first_name}
-                  lastName={ticket.linked_employee.last_name}
-                  photoUrl={ticket.linked_employee.profile_photo_url}
-                  size={48}
-                />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
-                    {[ticket.linked_employee.first_name, ticket.linked_employee.last_name].filter(Boolean).join(' ')}
-                  </Typography>
-                  {ticket.linked_employee.workplace && (
-                    <Typography variant="caption" color="text.secondary" display="block" noWrap>
-                      {ticket.linked_employee.workplace}
+          {ticket.linked_employee && (() => {
+            const le = ticket.linked_employee;
+            // "Has meaningful data" = anything beyond the name row: contact,
+            // workplace, accommodation, room, or manager.
+            const hasData = !!(
+              le.email || le.phone || le.workplace ||
+              le.accommodation_name || le.room_number || le.manager_name
+            );
+            return (
+              <Paper sx={{ p: 2.5, mb: 2, border: '1px solid #e0e7ff' }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Kapcsolódó dolgozó
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, mt: 1.5, alignItems: 'center' }}>
+                  <UserAvatar
+                    firstName={le.first_name}
+                    lastName={le.last_name}
+                    photoUrl={le.profile_photo_url}
+                    size={48}
+                  />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                      {[le.first_name, le.last_name].filter(Boolean).join(' ')}
                     </Typography>
-                  )}
+                    {le.workplace && (
+                      <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                        {le.workplace}
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
-              </Box>
 
-              <Stack spacing={0.5} sx={{ mt: 2, fontSize: '0.85rem' }}>
-                {ticket.linked_employee.email && (
-                  <Typography variant="body2" noWrap>
-                    <strong>Email:</strong> {ticket.linked_employee.email}
-                  </Typography>
+                {hasData ? (
+                  <Stack spacing={0.5} sx={{ mt: 2, fontSize: '0.85rem' }}>
+                    {le.email && (
+                      <Typography variant="body2" noWrap>
+                        <strong>Email:</strong> {le.email}
+                      </Typography>
+                    )}
+                    {le.phone && (
+                      <Typography variant="body2" noWrap>
+                        <strong>Telefon:</strong> {le.phone}
+                      </Typography>
+                    )}
+                    {(le.accommodation_name || le.room_number) && (
+                      <Typography variant="body2" noWrap>
+                        <strong>Szállás:</strong> {le.accommodation_name || '-'}
+                        {le.room_number ? ` / szoba ${le.room_number}` : ''}
+                      </Typography>
+                    )}
+                    {le.workplace && (
+                      <Typography variant="body2" noWrap>
+                        <strong>Munkahely:</strong> {le.workplace}
+                      </Typography>
+                    )}
+                    {le.org_unit && (
+                      <Typography variant="body2" noWrap>
+                        <strong>Részleg:</strong> {le.org_unit}
+                      </Typography>
+                    )}
+                    {le.manager_name && (
+                      <Typography variant="body2" noWrap>
+                        <strong>Vezető:</strong> {le.manager_name}
+                      </Typography>
+                    )}
+                  </Stack>
+                ) : (
+                  <Box sx={{ mt: 2, p: 1.5, bgcolor: '#fef9c3', borderRadius: 1, border: '1px dashed #eab308' }}>
+                    <Typography variant="body2" sx={{ color: '#92400e', fontWeight: 500, mb: 0.5 }}>
+                      Nincs hozzárendelt adat
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      A profil csak nevet tartalmaz. Töltsd ki a munkahelyet, szállást,
+                      elérhetőségeket a részletes profilon.
+                    </Typography>
+                  </Box>
                 )}
-                {ticket.linked_employee.phone && (
-                  <Typography variant="body2" noWrap>
-                    <strong>Telefon:</strong> {ticket.linked_employee.phone}
-                  </Typography>
-                )}
-                {(ticket.linked_employee.accommodation_name || ticket.linked_employee.room_number) && (
-                  <Typography variant="body2" noWrap>
-                    <strong>Szállás:</strong> {ticket.linked_employee.accommodation_name || '-'}
-                    {ticket.linked_employee.room_number ? ` / szoba ${ticket.linked_employee.room_number}` : ''}
-                  </Typography>
-                )}
-              </Stack>
 
-              <Button
-                fullWidth
-                size="small"
-                variant="outlined"
-                sx={{ mt: 2, borderColor: '#2563eb', color: '#2563eb' }}
-                onClick={() => navigate(`/employees?highlight=${ticket.linked_employee.id}`)}
-              >
-                Profil megnyitása
-              </Button>
-            </Paper>
-          )}
+                <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                  <Button
+                    fullWidth
+                    size="small"
+                    variant="outlined"
+                    sx={{ borderColor: '#2563eb', color: '#2563eb' }}
+                    onClick={() => navigate(`/employees?highlight=${le.id}`)}
+                  >
+                    Profil megnyitása
+                  </Button>
+                  {!hasData && (
+                    <Button
+                      fullWidth
+                      size="small"
+                      variant="contained"
+                      sx={{ bgcolor: '#eab308', '&:hover': { bgcolor: '#ca8a04' } }}
+                      onClick={() => navigate(`/employees?highlight=${le.id}&edit=1`)}
+                    >
+                      Adatok kitöltése
+                    </Button>
+                  )}
+                </Stack>
+              </Paper>
+            );
+          })()}
 
           {/* Felelős */}
           <Paper sx={{ p: 2.5, mb: 2 }}>

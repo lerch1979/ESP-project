@@ -122,12 +122,16 @@ const getById = async (req, res) => {
         u_assigned.first_name as assigned_first_name, u_assigned.last_name as assigned_last_name, u_assigned.email as assigned_email,
         u_creator.first_name as creator_first_name, u_creator.last_name as creator_last_name,
         p.name as project_name, p.code as project_code,
-        cont.name as contractor_name
+        cont.name as contractor_name,
+        re.first_name as related_employee_first_name,
+        re.last_name  as related_employee_last_name,
+        re.workplace  as related_employee_workplace
        FROM tasks t
        LEFT JOIN users u_assigned ON t.assigned_to = u_assigned.id
        LEFT JOIN users u_creator ON t.created_by = u_creator.id
        LEFT JOIN projects p ON t.project_id = p.id
        LEFT JOIN contractors cont ON t.contractor_id = cont.id
+       LEFT JOIN employees re ON t.related_employee_id = re.id
        WHERE t.id = $1`,
       [id]
     );

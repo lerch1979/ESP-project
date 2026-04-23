@@ -225,7 +225,10 @@ const getTicketById = async (req, res) => {
         le.room_number    as linked_employee_room_number,
         le.accommodation_id as linked_employee_accommodation_id,
         le.profile_photo_url as linked_employee_photo,
-        acc.name           as linked_employee_accommodation_name
+        acc.name           as linked_employee_accommodation_name,
+        ou.name            as linked_employee_org_unit,
+        mgr.first_name     as linked_employee_manager_first_name,
+        mgr.last_name      as linked_employee_manager_last_name
       FROM tickets t
       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
@@ -236,6 +239,8 @@ const getTicketById = async (req, res) => {
       LEFT JOIN sla_policies sp ON t.sla_policy_id = sp.id
       LEFT JOIN employees le ON t.linked_employee_id = le.id
       LEFT JOIN accommodations acc ON le.accommodation_id = acc.id
+      LEFT JOIN organizational_units ou ON le.organizational_unit_id = ou.id
+      LEFT JOIN users mgr ON ou.manager_id = mgr.id
       WHERE t.id = $1
     `;
 
@@ -320,6 +325,10 @@ const getTicketById = async (req, res) => {
     // the UI can render the side panel without flat-field juggling.
     let linkedEmployee = null;
     if (translatedTicket.linked_employee_id_out) {
+      const managerName = [
+        translatedTicket.linked_employee_manager_first_name,
+        translatedTicket.linked_employee_manager_last_name,
+      ].filter(Boolean).join(' ') || null;
       linkedEmployee = {
         id: translatedTicket.linked_employee_id_out,
         first_name: translatedTicket.linked_employee_first_name,
@@ -331,6 +340,8 @@ const getTicketById = async (req, res) => {
         accommodation_id: translatedTicket.linked_employee_accommodation_id,
         accommodation_name: translatedTicket.linked_employee_accommodation_name,
         profile_photo_url: translatedTicket.linked_employee_photo,
+        org_unit: translatedTicket.linked_employee_org_unit,
+        manager_name: managerName,
       };
     }
     // Strip the flat helper fields that only existed for the join.
@@ -339,6 +350,8 @@ const getTicketById = async (req, res) => {
       'linked_employee_email', 'linked_employee_phone', 'linked_employee_workplace',
       'linked_employee_room_number', 'linked_employee_accommodation_id',
       'linked_employee_accommodation_name', 'linked_employee_photo',
+      'linked_employee_org_unit', 'linked_employee_manager_first_name',
+      'linked_employee_manager_last_name',
     ]) delete translatedTicket[k];
 
     res.json({
