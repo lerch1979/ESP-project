@@ -1228,6 +1228,12 @@ export const tasksAPI = {
     return response.data;
   },
 
+  // Superadmin-only: cross-cutting list + stats
+  getAllAdmin: async (params = {}) => {
+    const response = await api.get('/admin/tasks/all', { params });
+    return response.data;
+  },
+
   getById: async (id) => {
     const response = await api.get(`/tasks/${id}`);
     return response.data;

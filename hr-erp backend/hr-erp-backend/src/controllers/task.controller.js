@@ -923,11 +923,112 @@ const createStandalone = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/v1/admin/tasks/all
+ * Superadmin-only cross-cutting task view with filters and a stats block.
+ * Query: status, priority, assigned_to, created_by, category, overdue=true,
+ *        due_from, due_to, search, page, limit, sort_by, sort_dir
+ */
+const getAllTasksAdmin = async (req, res) => {
+  try {
+    if (!req.user.roles.includes('superadmin')) {
+      return res.status(403).json({ success: false, message: 'Csak superadmin számára elérhető' });
+    }
+
+    const {
+      status, priority, assigned_to, created_by, category,
+      overdue, due_from, due_to, search,
+      page = 1, limit = 50,
+      sort_by = 'created_at', sort_dir = 'desc',
+    } = req.query;
+
+    const where = [];
+    const params = [];
+    let i = 1;
+
+    if (status && status !== 'all') { where.push(`t.status = $${i++}`); params.push(status); }
+    if (priority && priority !== 'all') { where.push(`t.priority = $${i++}`); params.push(priority); }
+    if (assigned_to && assigned_to !== 'all') { where.push(`t.assigned_to = $${i++}`); params.push(assigned_to); }
+    if (created_by && created_by !== 'all') { where.push(`t.created_by = $${i++}`); params.push(created_by); }
+    if (category && category !== 'all') { where.push(`$${i++} = ANY(t.tags)`); params.push(category); }
+    if (overdue === 'true') { where.push(`t.due_date IS NOT NULL AND t.due_date < CURRENT_DATE AND t.status <> 'done'`); }
+    if (due_from) { where.push(`t.due_date >= $${i++}`); params.push(due_from); }
+    if (due_to)   { where.push(`t.due_date <= $${i++}`); params.push(due_to); }
+    if (search) {
+      where.push(`(t.title ILIKE $${i} OR t.description ILIKE $${i})`);
+      params.push(`%${search}%`);
+      i++;
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const safeSortCols = new Set(['created_at', 'due_date', 'priority', 'status', 'title']);
+    const sortCol = safeSortCols.has(sort_by) ? sort_by : 'created_at';
+    const sortDir = String(sort_dir).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+
+    // Totals + stats (independent of pagination)
+    const statsSql = `
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'todo')::int        AS count_todo,
+        COUNT(*) FILTER (WHERE status = 'in_progress')::int AS count_in_progress,
+        COUNT(*) FILTER (WHERE status = 'review')::int      AS count_review,
+        COUNT(*) FILTER (WHERE status = 'done')::int        AS count_done,
+        COUNT(*) FILTER (WHERE status = 'blocked')::int     AS count_blocked,
+        COUNT(*) FILTER (
+          WHERE due_date IS NOT NULL AND due_date < CURRENT_DATE AND status <> 'done'
+        )::int AS count_overdue
+      FROM tasks t
+      ${whereSql}
+    `;
+    const statsResult = await query(statsSql, params);
+
+    const rowsSql = `
+      SELECT
+        t.*,
+        ua.first_name  AS assignee_first_name,
+        ua.last_name   AS assignee_last_name,
+        uc.first_name  AS creator_first_name,
+        uc.last_name   AS creator_last_name,
+        p.name         AS project_name,
+        e.first_name   AS related_employee_first_name,
+        e.last_name    AS related_employee_last_name
+      FROM tasks t
+      LEFT JOIN users ua ON t.assigned_to = ua.id
+      LEFT JOIN users uc ON t.created_by  = uc.id
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN employees e ON t.related_employee_id = e.id
+      ${whereSql}
+      ORDER BY t.${sortCol} ${sortDir} NULLS LAST
+      LIMIT $${i++} OFFSET $${i++}
+    `;
+    const rowsResult = await query(rowsSql, [...params, parseInt(limit, 10), offset]);
+
+    res.json({
+      success: true,
+      data: {
+        tasks: rowsResult.rows,
+        stats: statsResult.rows[0],
+        pagination: {
+          page: parseInt(page, 10),
+          limit: parseInt(limit, 10),
+          total: statsResult.rows[0].total,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Admin összes feladat lekérési hiba:', error);
+    res.status(500).json({ success: false, message: 'Admin feladat lista hiba' });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   getMyTasks,
   getMyTasksStats,
+  getAllTasksAdmin,
   create,
   createStandalone,
   update,
