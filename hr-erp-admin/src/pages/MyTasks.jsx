@@ -35,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import { tasksAPI, ticketsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import TaskDetailModal from '../components/TaskDetailModal';
 
 // --- Status / priority maps ---
 
@@ -124,6 +125,7 @@ function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openTaskId, setOpenTaskId] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [sortBy, setSortBy] = useState('priority');
   const [viewMode, setViewMode] = useState(() => {
@@ -269,7 +271,13 @@ function MyTasks() {
         borderLeft: 4,
         borderLeftColor: item._type === 'ticket' ? 'warning.main' : 'primary.main',
       }}
-      onClick={() => navigate(item._link)}
+      onClick={() => {
+        if (item._type === 'task') {
+          setOpenTaskId(item.id);
+        } else {
+          navigate(item._link);
+        }
+      }}
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -332,7 +340,11 @@ function MyTasks() {
         </Box>
 
         <Tooltip title="Megnyitás">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(item._link); }}>
+          <IconButton size="small" onClick={(e) => {
+            e.stopPropagation();
+            if (item._type === 'task') setOpenTaskId(item.id);
+            else navigate(item._link);
+          }}>
             <OpenInNewIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -515,6 +527,13 @@ function MyTasks() {
             />
           </Box>
         )}
+
+        <TaskDetailModal
+          open={!!openTaskId}
+          taskId={openTaskId}
+          onClose={() => setOpenTaskId(null)}
+          onChange={() => { fetchData(); }}
+        />
       </Box>
   );
 }
