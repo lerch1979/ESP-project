@@ -91,8 +91,15 @@ const TRANSITION = 'width 0.3s ease, margin-left 0.3s ease';
 const buildMenuItems = (t) => [
   // ─── Main navigation ─────────────────────────────────
   { text: t('nav.dashboard'), icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
-  { text: t('nav.myTasks'), icon: <AssignmentIcon />, path: '/my-tasks', permission: 'dashboard.view' },
-  { text: 'GTD', icon: <ChecklistIcon />, path: '/gtd', permission: 'dashboard.view' },
+  // Unified Teendők — replaces the old "Feladataim" + "GTD" split. Legacy
+  // routes (/my-tasks, /gtd) still resolve for now, just no longer in the menu.
+  {
+    text: 'Teendők', icon: <ChecklistIcon />, permission: 'dashboard.view', children: [
+      { text: 'Kanban',     icon: <ChecklistIcon />,     path: '/teendok',           permission: 'dashboard.view' },
+      { text: 'Lista',      icon: <AssignmentIcon />,    path: '/my-tasks',          permission: 'dashboard.view' },
+      { text: 'Contextek',  icon: <CategoryIcon />,      path: '/teendok/contexts',  permission: 'dashboard.view' },
+    ],
+  },
   { text: t('nav.tickets'), icon: <TicketIcon />, path: '/tickets', permission: 'tickets.view' },
   { text: t('nav.calendar'), icon: <CalendarIcon />, path: '/calendar', permission: 'calendar.view' },
 
@@ -498,7 +505,7 @@ function Layout({ children }) {
             );
           }
 
-          const showBadge = item.path === '/my-tasks' && myTasksCount > 0;
+          const showBadge = (item.path === '/my-tasks' || item.path === '/teendok') && myTasksCount > 0;
 
           // Regular menu item — collapsed
           if (collapsed && !isMobile) {
