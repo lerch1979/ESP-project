@@ -59,6 +59,7 @@ import 'react-medium-image-zoom/dist/styles.css';
 import { employeesAPI, accommodationsAPI, roomsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 import UserAvatar from './common/UserAvatar';
+import PdfViewer from './PdfViewer';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
 const MARITAL_LABELS = { single: 'Egyedülálló', married: 'Házas', divorced: 'Elvált', widowed: 'Özvegy' };
@@ -1686,17 +1687,13 @@ function DocumentsTab({
                   }}
                 />
               ) : (
-                <iframe
-                  src={getDocUrl(selectedDocImage, 'original')}
-                  title={selectedDocImage.file_name}
-                  style={{
-                    width: '100%',
-                    height: '80vh',
-                    border: 'none',
-                    borderRadius: 4,
-                    bgcolor: '#fff',
-                  }}
-                />
+                <Box sx={{ width: '100%', height: '80vh', bgcolor: '#1a1a1a', borderRadius: 1 }}>
+                  <PdfViewer
+                    src={getDocUrl(selectedDocImage, 'original')}
+                    fileName={selectedDocImage.file_name}
+                    onDownload={() => handleDownload(selectedDocImage)}
+                  />
+                </Box>
               )}
             </DialogContent>
           </>
