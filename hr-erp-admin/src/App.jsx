@@ -37,6 +37,7 @@ const InvoiceReports = lazy(() => import('./pages/invoices/InvoiceReports'));
 const InvoiceListPage = lazy(() => import('./pages/invoices/InvoiceListPage'));
 const MyTasks = lazy(() => import('./pages/MyTasks'));
 const UnifiedTasks = lazy(() => import('./pages/Tasks/UnifiedTasks'));
+const TaskContexts = lazy(() => import('./pages/Tasks/Contexts'));
 const Projects = lazy(() => import('./pages/Projects'));
 const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
 const SalaryTransparency = lazy(() => import('./pages/SalaryTransparency'));
@@ -141,6 +142,7 @@ function App() {
               <Route path="my-tasks" element={<PermissionGuard permission="dashboard.view"><MyTasks /></PermissionGuard>} />
               {/* Unified tasks + GTD kanban view */}
               <Route path="teendok" element={<PermissionGuard permission="dashboard.view"><UnifiedTasks /></PermissionGuard>} />
+              <Route path="teendok/contexts" element={<PermissionGuard permission="dashboard.view"><TaskContexts /></PermissionGuard>} />
               <Route path="tickets" element={<PermissionGuard permission="tickets.view"><Tickets /></PermissionGuard>} />
               <Route path="tickets/:id" element={<PermissionGuard permission="tickets.view"><TicketDetail /></PermissionGuard>} />
               <Route path="users" element={<PermissionGuard permission="users.view"><Users /></PermissionGuard>} />
