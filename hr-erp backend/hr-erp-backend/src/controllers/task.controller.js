@@ -2,6 +2,7 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
 const autoAssignService = require('../services/autoAssign.service');
+const inApp = require('../services/inAppNotification.service');
 const path = require('path');
 const fs = require('fs');
 
@@ -857,12 +858,80 @@ const getMyTasksStats = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/v1/tasks
+ * Project-less task creation (e.g. from the employee timeline).
+ * tasks.project_id is nullable; contractor_id defaults to the caller's.
+ * Also writes an in-app notification to the assignee.
+ */
+const createStandalone = async (req, res) => {
+  try {
+    const {
+      title, description, priority, assigned_to,
+      start_date, due_date, estimated_hours, tags,
+      contractor_id, related_employee_id,
+    } = req.body || {};
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Feladat cím megadása kötelező' });
+    }
+
+    const effectiveContractorId = contractor_id || req.user?.contractorId || null;
+    const metadata = related_employee_id
+      ? JSON.stringify({ source: 'employee_timeline', related_employee_id })
+      : null;
+
+    const result = await query(
+      `INSERT INTO tasks
+         (project_id, parent_task_id, title, description, status, priority,
+          assigned_to, start_date, due_date, estimated_hours, tags,
+          contractor_id, created_by)
+       VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        title.trim(), description || null, priority || 'medium',
+        assigned_to || null, start_date || null, due_date || null,
+        estimated_hours || null, tags || null,
+        effectiveContractorId, req.user.id,
+      ]
+    );
+    const task = result.rows[0];
+
+    await logActivity({
+      userId: req.user.id,
+      entityType: 'task',
+      entityId: task.id,
+      action: 'create',
+      metadata: { title: task.title, source: 'standalone', related_employee_id: related_employee_id || null },
+    });
+
+    // Notify the assignee (best-effort — failures don't fail the request).
+    if (task.assigned_to && task.assigned_to !== req.user.id) {
+      await inApp.notify({
+        userId: task.assigned_to,
+        contractorId: effectiveContractorId,
+        type: 'task_assigned',
+        title: 'Új feladatot kaptál',
+        message: task.title,
+        link: `/tasks/${task.id}`,
+        data: { task_id: task.id, due_date: task.due_date, priority: task.priority },
+      });
+    }
+
+    res.status(201).json({ success: true, message: 'Feladat létrehozva', data: { task } });
+  } catch (error) {
+    logger.error('Standalone feladat létrehozási hiba:', error);
+    res.status(500).json({ success: false, message: 'Feladat létrehozási hiba' });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   getMyTasks,
   getMyTasksStats,
   create,
+  createStandalone,
   update,
   remove,
   updateStatus,

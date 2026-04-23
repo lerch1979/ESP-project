@@ -1207,6 +1207,12 @@ export const tasksAPI = {
     return response.data;
   },
 
+  // Standalone (no-project) task creation — used by the employee timeline.
+  createStandalone: async (data) => {
+    const response = await api.post('/tasks', data);
+    return response.data;
+  },
+
   update: async (id, data) => {
     const response = await api.put(`/tasks/${id}`, data);
     return response.data;

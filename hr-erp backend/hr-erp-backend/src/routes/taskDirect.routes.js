@@ -35,6 +35,13 @@ const attachmentUpload = multer({
 // All routes require authentication
 router.use(authenticateToken);
 
+/**
+ * POST /api/v1/tasks
+ * Standalone task creation (no project) — used by the employee timeline
+ * "Create Task" flow. Notifies the assignee via in-app notifications.
+ */
+router.post('/', checkPermission('tasks.edit'), taskController.createStandalone);
+
 // ============================================
 // Direct task routes (mounted on /api/v1/tasks)
 // ============================================

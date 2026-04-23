@@ -60,6 +60,7 @@ import { employeesAPI, accommodationsAPI, roomsAPI, UPLOADS_BASE_URL } from '../
 import { toast } from 'react-toastify';
 import UserAvatar from './common/UserAvatar';
 import PdfViewer from './PdfViewer';
+import TaskCreationModal from './TaskCreationModal';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
 const MARITAL_LABELS = { single: 'Egyedülálló', married: 'Házas', divorced: 'Elvált', widowed: 'Özvegy' };
@@ -139,6 +140,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteData, setNoteData] = useState({ note_type: 'general', title: '', content: '' });
   const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
 
   // Documents state
   const [documents, setDocuments] = useState([]);
@@ -564,15 +566,26 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                     Szűrők
                   </Button>
                 </Box>
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setShowNoteForm(!showNoteForm)}
-                  sx={{ bgcolor: '#06b6d4', '&:hover': { bgcolor: '#0891b2' } }}
-                >
-                  Jegyzet hozzáadása
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => setTaskModalOpen(true)}
+                    sx={{ color: '#2563eb', borderColor: '#2563eb' }}
+                  >
+                    Új feladat
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setShowNoteForm(!showNoteForm)}
+                    sx={{ bgcolor: '#06b6d4', '&:hover': { bgcolor: '#0891b2' } }}
+                  >
+                    Jegyzet hozzáadása
+                  </Button>
+                </Box>
               </Box>
 
               {/* Filter checkboxes */}
@@ -893,6 +906,22 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           </>
         )}
       </DialogActions>
+
+      <TaskCreationModal
+        open={taskModalOpen}
+        onClose={() => setTaskModalOpen(false)}
+        relatedEmployeeId={employeeId}
+        prefillTitle={
+          employee
+            ? `${[employee.first_name, employee.last_name].filter(Boolean).join(' ')} — `
+            : ''
+        }
+        onSuccess={() => {
+          // Refresh the timeline so the freshly-created task shows up there
+          // (task-activity flows through activity_logs → timeline).
+          if (typeof loadTimeline === 'function') loadTimeline();
+        }}
+      />
     </Dialog>
   );
 }
