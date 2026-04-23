@@ -30,6 +30,7 @@ import {
   Person as PersonIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   FilterList as FilterIcon,
   Login as CheckInIcon,
   Logout as CheckOutIcon,
@@ -141,6 +142,9 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [noteData, setNoteData] = useState({ note_type: 'general', title: '', content: '' });
   const [noteSubmitting, setNoteSubmitting] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  // Edit-note dialog state: null = closed; { noteId, note_type, title, content }
+  const [editingNote, setEditingNote] = useState(null);
+  const [editNoteSubmitting, setEditNoteSubmitting] = useState(false);
 
   // Documents state
   const [documents, setDocuments] = useState([]);
@@ -393,6 +397,39 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
       toast.error(error.response?.data?.message || 'Hiba a jegyzet hozzáadásakor');
     } finally {
       setNoteSubmitting(false);
+    }
+  };
+
+  const openEditNote = (event) => {
+    setEditingNote({
+      noteId: event.metadata.note_id,
+      note_type: event.metadata.note_type || 'general',
+      title: event.title || '',
+      content: event.description || '',
+    });
+  };
+
+  const handleSaveEditedNote = async () => {
+    if (!editingNote || !editingNote.title.trim()) {
+      toast.error('A cím megadása kötelező');
+      return;
+    }
+    setEditNoteSubmitting(true);
+    try {
+      const response = await employeesAPI.updateNote(employeeId, editingNote.noteId, {
+        title: editingNote.title,
+        content: editingNote.content,
+        note_type: editingNote.note_type,
+      });
+      if (response.success) {
+        toast.success('Jegyzet frissítve');
+        setEditingNote(null);
+        loadTimeline();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Hiba a jegyzet frissítésekor');
+    } finally {
+      setEditNoteSubmitting(false);
     }
   };
 
@@ -826,17 +863,43 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                               )}
                             </Box>
 
-                            {/* Delete button for notes */}
+                            {/* Edit + delete buttons for notes */}
                             {event.type === 'note' && event.metadata?.note_id && (
-                              <Tooltip title="Jegyzet törlése">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteNote(event.metadata.note_id)}
-                                  sx={{ color: '#ef4444', opacity: 0.6, '&:hover': { opacity: 1 } }}
-                                >
-                                  <DeleteIcon sx={{ fontSize: 16 }} />
-                                </IconButton>
-                              </Tooltip>
+                              <Box sx={{ display: 'flex', gap: 0.25 }}>
+                                {event.metadata?.edited && (
+                                  <Tooltip
+                                    title={
+                                      event.metadata.edited_by_name
+                                        ? `Szerkesztve: ${event.metadata.edited_by_name} (${new Date(event.metadata.updated_at).toLocaleString('hu-HU')})`
+                                        : `Szerkesztve: ${new Date(event.metadata.updated_at).toLocaleString('hu-HU')}`
+                                    }
+                                  >
+                                    <Chip
+                                      label="szerkesztve"
+                                      size="small"
+                                      sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#fef3c7', color: '#92400e', mr: 0.5 }}
+                                    />
+                                  </Tooltip>
+                                )}
+                                <Tooltip title="Jegyzet szerkesztése">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => openEditNote(event)}
+                                    sx={{ color: '#2563eb', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                  >
+                                    <EditIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Jegyzet törlése">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDeleteNote(event.metadata.note_id)}
+                                    sx={{ color: '#ef4444', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                  >
+                                    <DeleteIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
                             )}
                           </Box>
                         );
@@ -922,6 +985,56 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           if (typeof loadTimeline === 'function') loadTimeline();
         }}
       />
+
+      {/* Edit-note dialog */}
+      <Dialog open={!!editingNote} onClose={() => editNoteSubmitting ? null : setEditingNote(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Jegyzet szerkesztése</DialogTitle>
+        <DialogContent>
+          {editingNote && (
+            <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Típus</InputLabel>
+                  <Select
+                    value={editingNote.note_type}
+                    onChange={(e) => setEditingNote(prev => ({ ...prev, note_type: e.target.value }))}
+                    label="Típus"
+                  >
+                    {NOTE_TYPE_OPTIONS.map(opt => (
+                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextField
+                  fullWidth size="small" label="Cím *"
+                  value={editingNote.title}
+                  onChange={(e) => setEditingNote(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth size="small" multiline rows={3} label="Tartalom"
+                  value={editingNote.content}
+                  onChange={(e) => setEditingNote(prev => ({ ...prev, content: e.target.value }))}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingNote(null)} disabled={editNoteSubmitting}>Mégse</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveEditedNote}
+            disabled={editNoteSubmitting || !editingNote?.title?.trim()}
+            sx={{ bgcolor: '#06b6d4', '&:hover': { bgcolor: '#0891b2' } }}
+          >
+            {editNoteSubmitting ? <CircularProgress size={18} /> : 'Mentés'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }

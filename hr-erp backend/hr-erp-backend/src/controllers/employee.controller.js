@@ -1234,9 +1234,18 @@ const getEmployeeTimeline = async (req, res) => {
           en.title AS title,
           en.content AS description,
           en.note_type AS status,
-          json_build_object('note_id', en.id, 'note_type', en.note_type, 'created_by_name', COALESCE(u.last_name || ' ' || u.first_name, 'Rendszer'))::text AS metadata
+          json_build_object(
+            'note_id', en.id,
+            'note_type', en.note_type,
+            'created_by_name', COALESCE(u.last_name || ' ' || u.first_name, 'Rendszer'),
+            'created_at', en.created_at,
+            'updated_at', en.updated_at,
+            'edited', (en.updated_by IS NOT NULL),
+            'edited_by_name', COALESCE(eu.last_name || ' ' || eu.first_name, NULL)
+          )::text AS metadata
         FROM employee_notes en
-        LEFT JOIN users u ON en.created_by = u.id
+        LEFT JOIN users u  ON en.created_by = u.id
+        LEFT JOIN users eu ON en.updated_by = eu.id
         WHERE en.employee_id = $1
       `);
     }
@@ -1284,6 +1293,45 @@ const createEmployeeNote = async (req, res) => {
   } catch (error) {
     logger.error('Jegyzet létrehozási hiba:', error);
     res.status(500).json({ success: false, message: 'Jegyzet létrehozási hiba' });
+  }
+};
+
+const updateEmployeeNote = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    const { title, content, note_type } = req.body;
+
+    if (title !== undefined && !title.trim()) {
+      return res.status(400).json({ success: false, message: 'A cím nem lehet üres' });
+    }
+
+    const fields = [];
+    const values = [];
+    let i = 1;
+    if (title !== undefined)     { fields.push(`title = $${i++}`);     values.push(title.trim()); }
+    if (content !== undefined)   { fields.push(`content = $${i++}`);   values.push(content || null); }
+    if (note_type !== undefined) { fields.push(`note_type = $${i++}`); values.push(note_type); }
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'Nincs módosítandó mező' });
+    }
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
+    fields.push(`updated_by = $${i++}`); values.push(req.user.id);
+
+    values.push(noteId); values.push(id);
+    const result = await query(
+      `UPDATE employee_notes
+         SET ${fields.join(', ')}
+       WHERE id = $${i++} AND employee_id = $${i}
+       RETURNING *`,
+      values
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Jegyzet nem található' });
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('Jegyzet frissítési hiba:', error);
+    res.status(500).json({ success: false, message: 'Jegyzet frissítési hiba' });
   }
 };
 
@@ -1639,6 +1687,7 @@ module.exports = {
   bulkImportEmployees,
   getEmployeeTimeline,
   createEmployeeNote,
+  updateEmployeeNote,
   deleteEmployeeNote,
   uploadPhoto,
   deletePhoto,

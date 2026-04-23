@@ -152,6 +152,12 @@ router.get('/:id/timeline', checkPermission('employees.view'), employeeControlle
 router.post('/:id/notes', checkPermission('employees.edit'), employeeController.createEmployeeNote);
 
 /**
+ * PATCH /api/v1/employees/:id/notes/:noteId
+ * Jegyzet szerkesztése — updated_at + updated_by mezőket állítja.
+ */
+router.patch('/:id/notes/:noteId', checkPermission('employees.edit'), employeeController.updateEmployeeNote);
+
+/**
  * DELETE /api/v1/employees/:id/notes/:noteId
  * Jegyzet törlése
  */

@@ -352,6 +352,11 @@ export const employeesAPI = {
     return response.data;
   },
 
+  updateNote: async (id, noteId, data) => {
+    const response = await api.patch(`/employees/${id}/notes/${noteId}`, data);
+    return response.data;
+  },
+
   deleteNote: async (id, noteId) => {
     const response = await api.delete(`/employees/${id}/notes/${noteId}`);
     return response.data;
