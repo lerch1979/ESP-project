@@ -289,7 +289,7 @@ const getTicketById = async (req, res) => {
       FROM ticket_history th
       LEFT JOIN users u ON th.user_id = u.id
       WHERE th.ticket_id = $1
-      ORDER BY th.created_at DESC
+      ORDER BY th.created_at ASC
       LIMIT 50
     `;
 
