@@ -24,7 +24,9 @@ const getReportFilterOptions = async (req, res) => {
       contractors,
     ] = await Promise.all([
       query(`SELECT id, name FROM employee_status_types ORDER BY name`),
-      query(`SELECT DISTINCT workplace FROM employees WHERE workplace IS NOT NULL AND workplace != '' ORDER BY workplace`),
+      // Read from workplaces table (admin-managed canonical list), falling
+      // back to DISTINCT employees.workplace on migration failure.
+      query(`SELECT name AS workplace FROM workplaces WHERE is_active = TRUE ORDER BY name`),
       query(`SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position`),
       query(`SELECT DISTINCT permanent_address_country FROM employees WHERE permanent_address_country IS NOT NULL AND permanent_address_country != '' ORDER BY permanent_address_country`),
       query(`SELECT id, name FROM accommodations WHERE is_active = true ORDER BY name`),

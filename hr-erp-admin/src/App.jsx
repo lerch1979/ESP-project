@@ -100,6 +100,7 @@ const CompensationsList = lazy(() => import('./pages/compensations/Compensations
 const CompensationDetail = lazy(() => import('./pages/compensations/CompensationDetail'));
 const CreateCompensation = lazy(() => import('./pages/compensations/CreateCompensation'));
 const FineTypesManagement = lazy(() => import('./pages/compensations/FineTypesManagement'));
+const WorkplacesAdmin = lazy(() => import('./pages/admin/Workplaces'));
 const CreateFineFromInspection = lazy(() => import('./pages/compensations/CreateFineFromInspection'));
 const SalaryDeductionsList = lazy(() => import('./pages/compensations/SalaryDeductionsList'));
 
@@ -223,6 +224,9 @@ function App() {
               <Route path="compensations/fine-types" element={<PermissionGuard permission="settings.edit"><FineTypesManagement /></PermissionGuard>} />
               <Route path="compensations/salary-deductions" element={<PermissionGuard permission="settings.edit"><SalaryDeductionsList /></PermissionGuard>} />
               <Route path="compensations/:id" element={<PermissionGuard permission="settings.edit"><CompensationDetail /></PermissionGuard>} />
+
+              {/* Admin — catalog management */}
+              <Route path="admin/workplaces" element={<PermissionGuard permission="settings.edit"><WorkplacesAdmin /></PermissionGuard>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

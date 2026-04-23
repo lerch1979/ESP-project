@@ -260,6 +260,26 @@ export const roomsAPI = {
   },
 };
 
+// Workplaces API (admin-managed canonical workplace list)
+export const workplacesAPI = {
+  list: async (params = {}) => {
+    const response = await api.get('/workplaces', { params });
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/workplaces', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/workplaces/${id}`, data);
+    return response.data;
+  },
+  remove: async (id) => {
+    const response = await api.delete(`/workplaces/${id}`);
+    return response.data;
+  },
+};
+
 // Employees API
 export const employeesAPI = {
   getAll: async (params = {}) => {
