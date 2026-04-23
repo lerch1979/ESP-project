@@ -206,6 +206,77 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Health check — detailed (for dashboards / uptime monitors).
+// More expensive than /health/ready; intended for dashboards / on-call,
+// not k8s probes. Returns 200 even when DEGRADED (dashboards want the
+// full payload); use /health/ready for binary up/down checks.
+app.get('/health/detailed', async (req, res) => {
+  const os = require('os');
+  const mem = process.memoryUsage();
+  const out = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    runtime: {
+      node: process.version,
+      platform: `${process.platform}-${process.arch}`,
+      environment: process.env.NODE_ENV || 'development',
+      uptime_seconds: Math.round(process.uptime()),
+      pid: process.pid,
+    },
+    memory_mb: {
+      rss:        Math.round(mem.rss / 1024 / 1024),
+      heap_used:  Math.round(mem.heapUsed / 1024 / 1024),
+      heap_total: Math.round(mem.heapTotal / 1024 / 1024),
+      external:   Math.round(mem.external / 1024 / 1024),
+    },
+    cpu: {
+      loadavg_1m:  os.loadavg()[0].toFixed(2),
+      loadavg_5m:  os.loadavg()[1].toFixed(2),
+      loadavg_15m: os.loadavg()[2].toFixed(2),
+      cores:       os.cpus().length,
+    },
+    integrations: {
+      sentry:     sentry.isEnabled() ? 'enabled' : 'disabled',
+      redis:      require('./config/redis').isConnected() ? 'connected' : 'unavailable',
+      smtp:       !!(process.env.EMAIL_USER || process.env.SMTP_USER) && !!(process.env.EMAIL_PASSWORD || process.env.SMTP_PASS) ? 'configured' : 'unconfigured',
+      anthropic:  process.env.ANTHROPIC_API_KEY ? 'configured' : 'unconfigured',
+      gmail_oauth: process.env.GMAIL_REFRESH_TOKEN ? 'configured' : 'unconfigured',
+    },
+    database: {
+      connected: false,
+      latency_ms: null,
+      pool: db.getPoolStats(),
+    },
+  };
+
+  try {
+    const start = Date.now();
+    await db.query('SELECT 1');
+    out.database.connected = true;
+    out.database.latency_ms = Date.now() - start;
+
+    // Lightweight counts for dashboard context — cached at DB level so
+    // they're fast even on large tables.
+    // reltuples is -1 on tables that have never been ANALYZEd (fresh,
+    // or empty). GREATEST(0, …) clamps those to 0 for a cleaner payload.
+    const counts = await db.query(`
+      SELECT
+        GREATEST(0, (SELECT reltuples::bigint FROM pg_class WHERE relname = 'inspections'))   AS inspections,
+        GREATEST(0, (SELECT reltuples::bigint FROM pg_class WHERE relname = 'compensations')) AS compensations,
+        GREATEST(0, (SELECT reltuples::bigint FROM pg_class WHERE relname = 'inspection_email_notifications')) AS emails,
+        (SELECT COUNT(*)::int FROM schema_migrations)                               AS migrations_applied,
+        (SELECT COUNT(*)::int FROM pg_stat_activity
+         WHERE datname = current_database() AND state = 'active')                   AS active_connections
+    `);
+    out.database.stats = counts.rows[0];
+  } catch (err) {
+    out.status = 'DEGRADED';
+    out.database.error = err.message;
+  }
+
+  res.json(out);
+});
+
 // API Routes
 const API_PREFIX = `/api/${process.env.API_VERSION || 'v1'}`;
 
