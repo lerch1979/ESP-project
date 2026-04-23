@@ -422,6 +422,62 @@ function TicketDetail() {
 
         {/* Jobb oldal */}
         <Grid item xs={12} md={4}>
+          {/* Linked employee side panel */}
+          {ticket.linked_employee && (
+            <Paper sx={{ p: 2.5, mb: 2, border: '1px solid #e0e7ff' }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Kapcsolódó dolgozó
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 1.5, alignItems: 'center' }}>
+                <UserAvatar
+                  firstName={ticket.linked_employee.first_name}
+                  lastName={ticket.linked_employee.last_name}
+                  photoUrl={ticket.linked_employee.profile_photo_url}
+                  size={48}
+                />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                    {[ticket.linked_employee.first_name, ticket.linked_employee.last_name].filter(Boolean).join(' ')}
+                  </Typography>
+                  {ticket.linked_employee.workplace && (
+                    <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                      {ticket.linked_employee.workplace}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              <Stack spacing={0.5} sx={{ mt: 2, fontSize: '0.85rem' }}>
+                {ticket.linked_employee.email && (
+                  <Typography variant="body2" noWrap>
+                    <strong>Email:</strong> {ticket.linked_employee.email}
+                  </Typography>
+                )}
+                {ticket.linked_employee.phone && (
+                  <Typography variant="body2" noWrap>
+                    <strong>Telefon:</strong> {ticket.linked_employee.phone}
+                  </Typography>
+                )}
+                {(ticket.linked_employee.accommodation_name || ticket.linked_employee.room_number) && (
+                  <Typography variant="body2" noWrap>
+                    <strong>Szállás:</strong> {ticket.linked_employee.accommodation_name || '-'}
+                    {ticket.linked_employee.room_number ? ` / szoba ${ticket.linked_employee.room_number}` : ''}
+                  </Typography>
+                )}
+              </Stack>
+
+              <Button
+                fullWidth
+                size="small"
+                variant="outlined"
+                sx={{ mt: 2, borderColor: '#2563eb', color: '#2563eb' }}
+                onClick={() => navigate(`/employees?highlight=${ticket.linked_employee.id}`)}
+              >
+                Profil megnyitása
+              </Button>
+            </Paper>
+          )}
+
           {/* Felelős */}
           <Paper sx={{ p: 2.5, mb: 2 }}>
             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
