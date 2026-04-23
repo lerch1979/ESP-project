@@ -286,6 +286,26 @@ export const roomsAPI = {
   },
 };
 
+// GTD context catalog (per-user + system contexts)
+export const gtdAPI = {
+  listContexts: async () => {
+    const response = await api.get('/gtd/contexts');
+    return response.data;
+  },
+  createContext: async (data) => {
+    const response = await api.post('/gtd/contexts', data);
+    return response.data;
+  },
+  updateContext: async (id, data) => {
+    const response = await api.patch(`/gtd/contexts/${id}`, data);
+    return response.data;
+  },
+  deleteContext: async (id) => {
+    const response = await api.delete(`/gtd/contexts/${id}`);
+    return response.data;
+  },
+};
+
 // Workplaces API (admin-managed canonical workplace list)
 export const workplacesAPI = {
   list: async (params = {}) => {
@@ -1231,6 +1251,17 @@ export const tasksAPI = {
   // Superadmin-only: cross-cutting list + stats
   getAllAdmin: async (params = {}) => {
     const response = await api.get('/admin/tasks/all', { params });
+    return response.data;
+  },
+
+  // GTD-unified kanban view
+  getGtdView: async (params = {}) => {
+    const response = await api.get('/tasks/gtd-view', { params });
+    return response.data;
+  },
+
+  updateGtdStatus: async (id, gtd_status) => {
+    const response = await api.patch(`/tasks/${id}/gtd-status`, { gtd_status });
     return response.data;
   },
 
