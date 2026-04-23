@@ -19,13 +19,11 @@ import {
 import {
   Search as SearchIcon,
   Add as AddIcon,
-  CloudUpload as UploadIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';
 import { accommodationsAPI, exportAPI, reportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateAccommodationModal from '../components/CreateAccommodationModal';
-import AccommodationBulkImportModal from '../components/AccommodationBulkImportModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
 import FilterBuilder from '../components/FilterBuilder';
 import ResponsiveTable from '../components/ResponsiveTable';
@@ -81,7 +79,6 @@ function Accommodations() {
   const [activeFilters, setActiveFilters] = useState([]);
   const [filterOptions, setFilterOptions] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedAccommodationId, setSelectedAccommodationId] = useState(null);
   const [exporting, setExporting] = useState(false);
@@ -210,18 +207,6 @@ function Accommodations() {
             }}
           >
             Export
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<UploadIcon />}
-            onClick={() => setBulkModalOpen(true)}
-            sx={{
-              borderColor: '#2563eb',
-              color: '#2563eb',
-              '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
-            }}
-          >
-            Tömeges feltöltés
           </Button>
           <Button
             variant="contained"
@@ -374,14 +359,6 @@ function Accommodations() {
         }}
       />
 
-      <AccommodationBulkImportModal
-        open={bulkModalOpen}
-        onClose={() => setBulkModalOpen(false)}
-        onSuccess={() => {
-          loadAccommodations();
-          setPage(0);
-        }}
-      />
 
       <AccommodationDetailModal
         open={detailModalOpen}
