@@ -35,6 +35,7 @@ import {
   Login as CheckInIcon,
   Logout as CheckOutIcon,
   Assignment as TicketIcon,
+  AssignmentTurnedIn as TaskIcon,
   Email as EmailIcon,
   Work as ShiftIcon,
   LocalHospital as MedicalIcon,
@@ -89,6 +90,7 @@ const EVENT_TYPE_CONFIG = {
   medical_appointment: { label: 'Orvosi vizsgálat', color: '#ec4899', icon: MedicalIcon },
   personal_event: { label: 'Személyes esemény', color: '#8b5cf6', icon: PersonalEventIcon },
   note: { label: 'Jegyzet', color: '#f59e0b', icon: NoteIcon },
+  task: { label: 'Feladat', color: '#2563eb', icon: TaskIcon },
 };
 
 const NOTE_TYPE_OPTIONS = [
@@ -857,9 +859,38 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                                 </Typography>
                               )}
                               {event.metadata?.created_by_name && (
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                                   Hozzáadta: {event.metadata.created_by_name}
                                 </Typography>
+                              )}
+                              {event.type === 'task' && (
+                                <Box sx={{ mt: 0.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                  {event.metadata?.assignee_name && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      Felelős: <strong>{event.metadata.assignee_name}</strong>
+                                    </Typography>
+                                  )}
+                                  {event.metadata?.due_date && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      Határidő: {new Date(event.metadata.due_date).toLocaleDateString('hu-HU')}
+                                    </Typography>
+                                  )}
+                                  {event.metadata?.priority && (
+                                    <Chip
+                                      label={event.metadata.priority}
+                                      size="small"
+                                      sx={{
+                                        height: 18,
+                                        fontSize: '0.65rem',
+                                        bgcolor: event.metadata.priority === 'critical' ? '#fee2e2'
+                                               : event.metadata.priority === 'high'     ? '#fef3c7'
+                                               : event.metadata.priority === 'low'      ? '#e0f2fe'
+                                               : '#e5e7eb',
+                                        color: '#1f2937',
+                                      }}
+                                    />
+                                  )}
+                                </Box>
                               )}
                             </Box>
 

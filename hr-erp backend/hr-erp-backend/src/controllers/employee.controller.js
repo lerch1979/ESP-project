@@ -1061,6 +1061,7 @@ const getEmployeeTimeline = async (req, res) => {
     const allTypes = [
       'checkin', 'checkout', 'contract_start', 'contract_end', 'visa_expiry',
       'ticket', 'email', 'shift', 'medical_appointment', 'personal_event', 'note',
+      'task',
     ];
     const selectedTypes = types
       ? types.split(',').filter(t => allTypes.includes(t.trim()))
@@ -1222,6 +1223,30 @@ const getEmployeeTimeline = async (req, res) => {
           NULL AS metadata
         FROM personal_events pe
         WHERE pe.employee_id = $1
+      `);
+    }
+
+    // Tasks (those created with related_employee_id — i.e. from this employee's timeline)
+    if (selectedTypes.includes('task')) {
+      subQueries.push(`
+        SELECT
+          COALESCE(t.due_date, t.created_at::date) AS event_date,
+          'task' AS type,
+          t.title AS title,
+          t.description AS description,
+          t.status AS status,
+          json_build_object(
+            'task_id', t.id,
+            'priority', t.priority,
+            'due_date', t.due_date,
+            'assignee_name', COALESCE(ua.last_name || ' ' || ua.first_name, NULL),
+            'creator_name', COALESCE(uc.last_name || ' ' || uc.first_name, 'Rendszer'),
+            'created_at', t.created_at
+          )::text AS metadata
+        FROM tasks t
+        LEFT JOIN users ua ON t.assigned_to = ua.id
+        LEFT JOIN users uc ON t.created_by  = uc.id
+        WHERE t.related_employee_id = $1
       `);
     }
 

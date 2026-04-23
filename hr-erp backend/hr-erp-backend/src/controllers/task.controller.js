@@ -877,22 +877,19 @@ const createStandalone = async (req, res) => {
     }
 
     const effectiveContractorId = contractor_id || req.user?.contractorId || null;
-    const metadata = related_employee_id
-      ? JSON.stringify({ source: 'employee_timeline', related_employee_id })
-      : null;
 
     const result = await query(
       `INSERT INTO tasks
          (project_id, parent_task_id, title, description, status, priority,
           assigned_to, start_date, due_date, estimated_hours, tags,
-          contractor_id, created_by)
-       VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10)
+          contractor_id, created_by, related_employee_id)
+       VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         title.trim(), description || null, priority || 'medium',
         assigned_to || null, start_date || null, due_date || null,
         estimated_hours || null, tags || null,
-        effectiveContractorId, req.user.id,
+        effectiveContractorId, req.user.id, related_employee_id || null,
       ]
     );
     const task = result.rows[0];
