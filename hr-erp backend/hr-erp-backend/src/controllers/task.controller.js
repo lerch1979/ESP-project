@@ -875,6 +875,8 @@ const createStandalone = async (req, res) => {
       title, description, priority, assigned_to,
       start_date, due_date, estimated_hours, tags,
       contractor_id, related_employee_id,
+      gtd_status, gtd_context_id, energy_level, time_estimate_minutes,
+      waiting_for, is_project,
     } = req.body || {};
 
     if (!title || !title.trim()) {
@@ -887,14 +889,20 @@ const createStandalone = async (req, res) => {
       `INSERT INTO tasks
          (project_id, parent_task_id, title, description, status, priority,
           assigned_to, start_date, due_date, estimated_hours, tags,
-          contractor_id, created_by, related_employee_id)
-       VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          contractor_id, created_by, related_employee_id,
+          gtd_status, gtd_context_id, energy_level, time_estimate_minutes,
+          waiting_for, is_project)
+       VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10, $11,
+               $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         title.trim(), description || null, priority || 'medium',
         assigned_to || null, start_date || null, due_date || null,
         estimated_hours || null, tags || null,
         effectiveContractorId, req.user.id, related_employee_id || null,
+        gtd_status || 'next_action', gtd_context_id || null,
+        energy_level || null, time_estimate_minutes || null,
+        waiting_for || null, !!is_project,
       ]
     );
     const task = result.rows[0];
@@ -1027,12 +1035,128 @@ const getAllTasksAdmin = async (req, res) => {
   }
 };
 
+// ============================================================
+// GTD / Unified task view
+// ============================================================
+
+const GTD_STATUSES = ['inbox', 'next_action', 'project', 'waiting', 'someday', 'done'];
+
+/**
+ * GET /api/v1/tasks/gtd-view
+ * Returns the caller's tasks grouped by gtd_status, with context info.
+ * Query: include_assigned=true (default true) includes tasks where the user
+ *        is the assignee OR the creator (both count as "my tasks")
+ */
+const getGtdView = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { context_id, energy, max_minutes } = req.query;
+
+    const filters = ['(t.assigned_to = $1 OR t.created_by = $1)'];
+    const params = [userId];
+    let i = 2;
+    if (context_id) { filters.push(`t.gtd_context_id = $${i++}`); params.push(context_id); }
+    if (energy)     { filters.push(`t.energy_level   = $${i++}`); params.push(energy); }
+    if (max_minutes) {
+      filters.push(`(t.time_estimate_minutes IS NULL OR t.time_estimate_minutes <= $${i++})`);
+      params.push(parseInt(max_minutes, 10));
+    }
+
+    const result = await query(
+      `SELECT
+          t.id, t.title, t.description, t.status, t.priority,
+          t.gtd_status, t.gtd_context_id, t.energy_level, t.time_estimate_minutes,
+          t.waiting_for, t.is_project, t.parent_task_id, t.due_date, t.tags,
+          t.assigned_to, t.created_by, t.related_employee_id,
+          t.created_at, t.updated_at, t.completed_at,
+          gc.name AS context_name, gc.icon AS context_icon, gc.color AS context_color,
+          ua.first_name || ' ' || ua.last_name AS assignee_name,
+          uc.first_name || ' ' || uc.last_name AS creator_name
+         FROM tasks t
+         LEFT JOIN gtd_contexts gc ON t.gtd_context_id = gc.id
+         LEFT JOIN users ua ON t.assigned_to = ua.id
+         LEFT JOIN users uc ON t.created_by  = uc.id
+         WHERE ${filters.join(' AND ')}
+         ORDER BY
+           CASE t.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
+           t.due_date NULLS LAST,
+           t.created_at DESC`,
+      params
+    );
+
+    const buckets = { inbox: [], next_action: [], project: [], waiting: [], someday: [], done: [] };
+    for (const row of result.rows) {
+      const key = GTD_STATUSES.includes(row.gtd_status) ? row.gtd_status : 'next_action';
+      buckets[key].push(row);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        buckets,
+        counts: Object.fromEntries(GTD_STATUSES.map(s => [s, buckets[s].length])),
+      },
+    });
+  } catch (error) {
+    logger.error('GTD nézet hiba:', error);
+    res.status(500).json({ success: false, message: 'GTD nézet betöltési hiba' });
+  }
+};
+
+/**
+ * PATCH /api/v1/tasks/:id/gtd-status
+ * Quick status update for drag-and-drop. Also syncs tasks.status where the
+ * transition is meaningful (done <-> status='done').
+ */
+const updateGtdStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { gtd_status } = req.body;
+    if (!GTD_STATUSES.includes(gtd_status)) {
+      return res.status(400).json({ success: false, message: `Érvénytelen gtd_status. Lehetséges: ${GTD_STATUSES.join(', ')}` });
+    }
+
+    const current = await query('SELECT status, assigned_to, created_by FROM tasks WHERE id = $1', [id]);
+    if (current.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Feladat nem található' });
+    }
+    // Caller must be assignee or creator (or superadmin)
+    const t = current.rows[0];
+    if (!req.user.roles.includes('superadmin') &&
+        t.assigned_to !== req.user.id && t.created_by !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Nincs jogosultságod ehhez a feladathoz' });
+    }
+
+    // Keep tasks.status loosely in sync so legacy views don't lie
+    let newStatus = t.status;
+    if (gtd_status === 'done') newStatus = 'done';
+    else if (t.status === 'done' && gtd_status !== 'done') newStatus = 'todo';
+
+    const result = await query(
+      `UPDATE tasks
+         SET gtd_status = $1::varchar,
+             status = $2::varchar,
+             completed_at = CASE WHEN $1::varchar = 'done' THEN NOW() ELSE NULL END,
+             updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [gtd_status, newStatus, id]
+    );
+    res.json({ success: true, data: { task: result.rows[0] } });
+  } catch (error) {
+    logger.error('GTD status frissítési hiba:', error);
+    res.status(500).json({ success: false, message: 'GTD státusz frissítés hiba' });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   getMyTasks,
   getMyTasksStats,
   getAllTasksAdmin,
+  getGtdView,
+  updateGtdStatus,
   create,
   createStandalone,
   update,

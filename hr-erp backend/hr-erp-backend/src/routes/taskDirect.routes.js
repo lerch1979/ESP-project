@@ -59,6 +59,19 @@ router.get('/my/stats', checkPermission('tasks.view'), taskController.getMyTasks
 router.get('/my', checkPermission('tasks.view'), taskController.getMyTasks);
 
 /**
+ * GET /api/v1/tasks/gtd-view
+ * Unified "Teendők" kanban data (buckets + counts). Must be above :id
+ * to avoid being caught as an id lookup.
+ */
+router.get('/gtd-view', checkPermission('tasks.view'), taskController.getGtdView);
+
+/**
+ * PATCH /api/v1/tasks/:id/gtd-status
+ * Drag-and-drop friendly status change. Body: { gtd_status }
+ */
+router.patch('/:id/gtd-status', checkPermission('tasks.edit'), taskController.updateGtdStatus);
+
+/**
  * GET /api/v1/tasks/:id
  * Egyedi feladat lekérdezése
  */

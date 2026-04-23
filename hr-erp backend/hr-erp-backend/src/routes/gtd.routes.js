@@ -384,6 +384,71 @@ router.post('/contexts', async (req, res) => {
   }
 });
 
+// PATCH /contexts/:id — edit name/icon/color. System contexts and other
+// users' contexts are read-only (except superadmin).
+router.patch('/contexts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const current = await query(`SELECT user_id, is_system FROM gtd_contexts WHERE id = $1`, [id]);
+    if (current.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Context not found' });
+    }
+    const row = current.rows[0];
+    const isAdmin = req.user.roles.includes('superadmin');
+    if (row.is_system && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'System context is read-only' });
+    }
+    if (row.user_id && row.user_id !== req.user.id && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not your context' });
+    }
+    const allowed = ['name', 'icon', 'color'];
+    const fields = [];
+    const values = [];
+    let i = 1;
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) {
+        fields.push(`${k} = $${i++}`);
+        values.push(k === 'name' ? String(req.body[k]).trim() : (req.body[k] || null));
+      }
+    }
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+    values.push(id);
+    const result = await query(
+      `UPDATE gtd_contexts SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      values
+    );
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    logger.error('GTD context update error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update context' });
+  }
+});
+
+// DELETE /contexts/:id — user-owned contexts only. System contexts cannot
+// be deleted. FK on tasks.gtd_context_id is ON DELETE SET NULL.
+router.delete('/contexts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const current = await query(`SELECT user_id, is_system FROM gtd_contexts WHERE id = $1`, [id]);
+    if (current.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Context not found' });
+    }
+    if (current.rows[0].is_system) {
+      return res.status(403).json({ success: false, message: 'System context cannot be deleted' });
+    }
+    if (current.rows[0].user_id !== req.user.id && !req.user.roles.includes('superadmin')) {
+      return res.status(403).json({ success: false, message: 'Not your context' });
+    }
+    await query(`DELETE FROM gtd_contexts WHERE id = $1`, [id]);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('GTD context delete error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete context' });
+  }
+});
+
 // ─── WEEKLY REVIEW ──────────────────────────────────────────────────
 
 // GET /review/current - get or create this week's review
