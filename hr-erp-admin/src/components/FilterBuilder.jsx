@@ -26,24 +26,35 @@ export default function FilterBuilder({
   presetValues = {},
   dynamicOptions = {},
   onFilter,
+  onFiltersChange,
   resultCount = null,
   loading = false,
   maxFilters = MAX_FILTERS_DEFAULT,
 }) {
   const [filters, setFilters] = useState([emptyFilter()]);
 
+  const notifyChange = (next) => {
+    if (onFiltersChange) onFiltersChange(next);
+  };
+
   const addFilter = () => {
     if (filters.length < maxFilters) {
-      setFilters(prev => [...prev, emptyFilter()]);
+      setFilters(prev => {
+        const next = [...prev, emptyFilter()];
+        notifyChange(next);
+        return next;
+      });
     }
   };
 
   const removeFilter = (index) => {
-    setFilters(prev =>
-      prev.length > 1
+    setFilters(prev => {
+      const next = prev.length > 1
         ? prev.filter((_, i) => i !== index)
-        : [emptyFilter()]
-    );
+        : [emptyFilter()];
+      notifyChange(next);
+      return next;
+    });
   };
 
   const updateFilter = (index, key, val) => {
@@ -51,6 +62,7 @@ export default function FilterBuilder({
       const updated = [...prev];
       updated[index] = { ...updated[index], [key]: val };
       if (key === 'field') updated[index].value = '';
+      notifyChange(updated);
       return updated;
     });
   };

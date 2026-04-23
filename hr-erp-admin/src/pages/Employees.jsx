@@ -35,7 +35,7 @@ import {
   SwapHoriz as StatusIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { employeesAPI, exportAPI, reportsAPI, UPLOADS_BASE_URL } from '../services/api';
+import { employeesAPI, exportAPI, reportsAPI, roomsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateEmployeeModal from '../components/CreateEmployeeModal';
 import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
@@ -112,6 +112,9 @@ function Employees() {
   const [bulkStatusId, setBulkStatusId] = useState('');
   const [statuses, setStatuses] = useState([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  // Smart room filter: rooms scoped to the currently-selected accommodation.
+  const [selectedAccommodationName, setSelectedAccommodationName] = useState('');
+  const [accommodationRooms, setAccommodationRooms] = useState([]);
 
   useEffect(() => {
     loadFilterOptions();
@@ -140,14 +143,55 @@ function Employees() {
 
   const buildDynamicOptions = () => {
     if (!filterOptions) return {};
+    // When an accommodation is selected, scope room_number to only that
+    // accommodation's rooms. Otherwise the room filter is hidden entirely
+    // (see EMPLOYEE_FILTER_FIELDS filtering below), so the empty array is
+    // fine as a default.
+    const roomOptions = selectedAccommodationName
+      ? accommodationRooms.map(r => ({ value: r, label: r }))
+      : [];
     return {
       status: (filterOptions.employees?.statuses || []).map(s => ({ value: s.name, label: s.name })),
       workplace: (filterOptions.employees?.workplaces || []).map(w => ({ value: w, label: w })),
       position: (filterOptions.employees?.positions || []).map(p => ({ value: p, label: p })),
       country: (filterOptions.employees?.countries || []).map(c => ({ value: c, label: c })),
       accommodation: (filterOptions.employees?.accommodations || []).map(a => ({ value: a.name, label: a.name })),
-      room_number: (filterOptions.employees?.room_numbers || []).map(r => ({ value: r, label: r })),
+      room_number: roomOptions,
     };
+  };
+
+  // Room filter shows up only after an accommodation is picked.
+  const visibleFilterFields = selectedAccommodationName
+    ? EMPLOYEE_FILTER_FIELDS
+    : EMPLOYEE_FILTER_FIELDS.filter(f => f.key !== 'room_number');
+
+  // Called by FilterBuilder on every selection change. Watches the
+  // accommodation row and refetches rooms when it changes.
+  const handlePendingFiltersChange = async (filters) => {
+    const accFilter = filters.find(f => f.field === 'accommodation');
+    const accName = accFilter?.value || '';
+    if (accName === selectedAccommodationName) return;
+    setSelectedAccommodationName(accName);
+    if (!accName) {
+      setAccommodationRooms([]);
+      return;
+    }
+    const acc = (filterOptions?.employees?.accommodations || []).find(a => a.name === accName);
+    if (!acc) {
+      setAccommodationRooms([]);
+      return;
+    }
+    try {
+      const response = await roomsAPI.getByAccommodation(acc.id);
+      const rooms = response?.data?.rooms || response?.rooms || response?.data || [];
+      const numbers = rooms
+        .map(r => r.room_number ?? r.number ?? r.name)
+        .filter(Boolean);
+      setAccommodationRooms(numbers);
+    } catch (error) {
+      console.error('Szobák betöltési hiba:', error);
+      setAccommodationRooms([]);
+    }
   };
 
   const loadEmployees = async () => {
@@ -396,10 +440,11 @@ function Employees() {
 
       {/* FilterBuilder */}
       <FilterBuilder
-        fields={EMPLOYEE_FILTER_FIELDS}
+        fields={visibleFilterFields}
         presetValues={EMPLOYEE_PRESET_VALUES}
         dynamicOptions={buildDynamicOptions()}
         onFilter={handleFilterChange}
+        onFiltersChange={handlePendingFiltersChange}
         resultCount={totalCount}
         loading={loading}
       />
