@@ -103,10 +103,31 @@ app.use(createSecurityHeaders());
 app.use(additionalHeaders);
 
 // 2. CORS - never fall back to wildcard '*' with credentials
+// Exact-match allowlist from CORS_ORIGIN env, plus tunnel hostname patterns
+// (ngrok / cloudflared / localtunnel). Tunnel support is gated behind
+// ALLOW_TUNNEL_ORIGINS=true so prod deployments stay strict by default.
+const corsAllowlist = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
+  : ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:8081'];
+
+const TUNNEL_HOST_RE = /\.(ngrok-free\.(dev|app)|ngrok\.(app|io)|trycloudflare\.com|loca\.lt)$/i;
+const allowTunnels = process.env.ALLOW_TUNNEL_ORIGINS === 'true'
+  || process.env.NODE_ENV !== 'production';
+
+function isOriginAllowed(origin) {
+  if (!origin) return true; // same-origin / curl / server-to-server
+  if (corsAllowlist.includes(origin)) return true;
+  if (allowTunnels) {
+    try {
+      const { hostname } = new URL(origin);
+      if (TUNNEL_HOST_RE.test(hostname)) return true;
+    } catch { /* malformed Origin header, deny */ }
+  }
+  return false;
+}
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-    : ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:8081'],
+  origin: (origin, cb) => cb(null, isOriginAllowed(origin)),
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -114,6 +135,9 @@ const corsOptions = {
 };
 if (!process.env.CORS_ORIGIN) {
   logger.warn('CORS_ORIGIN not set — using localhost defaults only');
+}
+if (allowTunnels) {
+  logger.info('CORS: tunnel hosts allowed (ngrok / cloudflared / localtunnel) — set ALLOW_TUNNEL_ORIGINS=false to disable');
 }
 app.use(cors(corsOptions));
 

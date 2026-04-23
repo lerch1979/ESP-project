@@ -1,6 +1,27 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+// Resolve the backend base URL based on runtime origin so the same build
+// works on localhost, LAN IP, and ngrok tunnels.
+//
+// Rules:
+//   1. On ngrok / cloudflare / localtunnel hosts: use same-origin `/api/v1`.
+//      Vite's dev proxy forwards /api/* to the local backend (and in
+//      production the same nginx config would do the equivalent), so there's
+//      no CORS step and no separate backend URL to configure.
+//   2. If VITE_API_URL is set to an absolute URL: honor it (useful in paid
+//      ngrok/Cloudflare setups where backend has its own reserved domain).
+//   3. Otherwise: fall back to same-origin `/api/v1`.
+function resolveApiBase() {
+  const host = (typeof window !== 'undefined' && window.location?.hostname) || '';
+  const tunnelHost = /(\.ngrok-free\.(dev|app)|\.ngrok\.(app|io)|\.trycloudflare\.com|\.loca\.lt)$/i.test(host);
+  if (tunnelHost) return '/api/v1';
+
+  const env = import.meta.env.VITE_API_URL;
+  if (env && /^https?:\/\//i.test(env)) return env;
+  return '/api/v1';
+}
+
+const API_BASE_URL = resolveApiBase();
 
 // Base URL for static files (uploads) - strip /api/v1 suffix
 export const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api\/v\d+$/, '');

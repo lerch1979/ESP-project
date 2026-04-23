@@ -1,0 +1,24 @@
+# Copy into ~/Library/Application Support/ngrok/ngrok.yml (macOS)
+# or ~/.config/ngrok/ngrok.yml (Linux).
+# Replace <YOUR_NGROK_TOKEN> and <YOUR_RESERVED_DOMAIN>.
+version: "3"
+agent:
+    authtoken: <YOUR_NGROK_TOKEN>
+
+tunnels:
+    admin:
+        proto: http
+        addr: 5173
+        # Free tier: keep this line — ngrok pins the static domain to this tunnel.
+        # Paid tier: any reserved domain works here.
+        domain: <YOUR_RESERVED_DOMAIN>
+
+    backend:
+        proto: http
+        addr: 3001
+        # domain: <second-reserved-domain>  # paid tier only
+
+    mobile:
+        proto: http
+        addr: 8082
+        # domain: <third-reserved-domain>   # paid tier only

@@ -2,15 +2,19 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import { getItem, setItem, deleteItem } from './storage';
 
-// Ngrok public URL for mobile access
-const NGROK_URL = 'https://blinker-bronze-evasion.ngrok-free.dev/api/v1';
+// Resolve the backend URL from env. This value is baked in at Expo build
+// time, so the mobile .env (EXPO_PUBLIC_API_URL) must match the live
+// backend origin — localhost for simulator, ngrok URL for device testing.
+// Fallback points at the current free-tier static domain so builds don't
+// silently break when .env is missing; overwrite it by setting
+// EXPO_PUBLIC_API_URL before `expo start`.
+const FALLBACK_URL = 'https://blinker-bronze-evasion.ngrok-free.dev/api/v1';
 
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-
-  return NGROK_URL;
+  return FALLBACK_URL;
 };
 
 const API_BASE_URL = getApiBaseUrl();

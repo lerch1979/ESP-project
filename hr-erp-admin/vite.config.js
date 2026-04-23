@@ -63,6 +63,16 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Allow ngrok + localtunnel hostnames so external testers can hit the
+    // dev server. Vite blocks unknown Host headers by default since 5.x.
+    allowedHosts: [
+      'localhost',
+      '.ngrok-free.dev',
+      '.ngrok-free.app',
+      '.ngrok.app',
+      '.ngrok.io',
+      '.trycloudflare.com',
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
