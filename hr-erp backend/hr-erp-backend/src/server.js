@@ -80,6 +80,9 @@ const slackBotService = require('./services/slack/slackBot.service');
 const cron = require('node-cron');
 const gmailUniversalPoller = require('./services/gmailUniversalPoller.service');
 
+const sentry = require('./config/sentry');
+sentry.init(); // must run BEFORE any express middleware for auto-instrumentation
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -284,6 +287,10 @@ app.use((req, res) => {
     message: 'Endpoint nem található'
   });
 });
+
+// Sentry must see the error BEFORE our own handler swallows it into a
+// sanitised 500 response. No-op if SENTRY_DSN isn't set.
+sentry.setupErrorHandler(app);
 
 // Error handler — never leak stack traces or internal details
 app.use((err, req, res, next) => {

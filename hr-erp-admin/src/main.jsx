@@ -7,6 +7,10 @@ import theme from './theme'
 import './index.css'
 import './i18n' // Initialize i18n
 import { registerSW } from 'virtual:pwa-register'
+import { initSentry, Sentry } from './config/sentry'
+import ErrorFallback from './components/ErrorFallback'
+
+initSentry();
 
 // Register service worker for PWA
 const updateSW = registerSW({
@@ -28,9 +32,15 @@ const updateSW = registerSW({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
+    <Sentry.ErrorBoundary
+      fallback={({ error, resetError, eventId }) => (
+        <ErrorFallback error={error} resetError={resetError} eventId={eventId} />
+      )}
+    >
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    </Sentry.ErrorBoundary>
   </React.StrictMode>,
 )
