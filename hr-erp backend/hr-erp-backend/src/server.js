@@ -125,6 +125,12 @@ const etagMiddleware = require('./middleware/etag');
 app.use(responseTime);
 app.use(etagMiddleware);
 
+// 3c. Request ID — generate or honor incoming X-Request-Id, expose via req.id
+// and the response header. Must run before the first logger middleware so
+// every log line for this request picks up the ID via AsyncLocalStorage.
+const requestId = require('./middleware/requestId');
+app.use(requestId.middleware);
+
 // 4. Cookie parser (required for CSRF double-submit cookie)
 app.use(cookieParser());
 
@@ -141,11 +147,20 @@ app.use(csrfProtection({
   exemptPaths: ['/auth/google/callback', '/api/health', '/health', '/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/reset-password'],
 }));
 
-// 7. Request logging
+// 7. Request logging — log completion with status + duration so a single
+// line per request covers both "who hit what" and "how it went".
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent')
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const durationMs = Number((process.hrtime.bigint() - start) / 1000000n);
+    logger.info(`${req.method} ${req.path} ${res.statusCode} ${durationMs}ms`, {
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      duration_ms: durationMs,
+      ip: req.ip,
+      user_agent: req.get('user-agent'),
+    });
   });
   next();
 });
