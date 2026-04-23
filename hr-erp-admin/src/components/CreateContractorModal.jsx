@@ -17,15 +17,20 @@ import {
 import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
-function CreateContractorModal({ open, onClose, onSuccess }) {
+function CreateContractorModal({ open, onClose, onSuccess, defaultType, lockType = false }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     address: '',
-    type: 'service_provider',
+    type: defaultType || 'service_provider',
   });
+
+  // Keep form type in sync if parent changes defaultType while modal is mounted
+  React.useEffect(() => {
+    if (defaultType) setFormData(prev => ({ ...prev, type: defaultType }));
+  }, [defaultType]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -48,7 +53,9 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
 
       if (response.success) {
         toast.success('Alvállalkozó sikeresen létrehozva!');
-        onSuccess();
+        // Forward the created row so callers (e.g. accommodation forms) can
+        // auto-select it without an extra roundtrip.
+        onSuccess(response.data);
         handleClose();
       }
     } catch (error) {
@@ -60,7 +67,7 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
   };
 
   const handleClose = () => {
-    setFormData({ name: '', email: '', phone: '', address: '', type: 'service_provider' });
+    setFormData({ name: '', email: '', phone: '', address: '', type: defaultType || 'service_provider' });
     onClose();
   };
 
@@ -68,7 +75,9 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Új alvállalkozó létrehozása
+          {lockType && formData.type === 'property_owner'
+            ? 'Új ingatlan tulajdonos'
+            : 'Új alvállalkozó létrehozása'}
         </Typography>
       </DialogTitle>
 
@@ -85,19 +94,21 @@ function CreateContractorModal({ open, onClose, onSuccess }) {
             />
           </Grid>
 
-          <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel>Típus</InputLabel>
-              <Select
-                value={formData.type}
-                onChange={(e) => handleChange('type', e.target.value)}
-                label="Típus"
-              >
-                <MenuItem value="property_owner">Ingatlan tulajdonos</MenuItem>
-                <MenuItem value="service_provider">Szolgáltató</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
+          {!lockType && (
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Típus</InputLabel>
+                <Select
+                  value={formData.type}
+                  onChange={(e) => handleChange('type', e.target.value)}
+                  label="Típus"
+                >
+                  <MenuItem value="property_owner">Ingatlan tulajdonos</MenuItem>
+                  <MenuItem value="service_provider">Szolgáltató</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          )}
 
           <Grid item xs={12}>
             <TextField

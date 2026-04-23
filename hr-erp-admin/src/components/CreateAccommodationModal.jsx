@@ -13,13 +13,17 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Stack,
 } from '@mui/material';
+import { Add as AddIcon } from '@mui/icons-material';
 import { accommodationsAPI, contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import CreateContractorModal from './CreateContractorModal';
 
 function CreateAccommodationModal({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [contractors, setContractors] = useState([]);
+  const [ownerModalOpen, setOwnerModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -184,19 +188,29 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
           </Grid>
 
           <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel>Ingatlan tulajdonos</InputLabel>
-              <Select
-                value={formData.current_contractor_id}
-                onChange={(e) => handleChange('current_contractor_id', e.target.value)}
-                label="Ingatlan tulajdonos"
+            <Stack direction="row" spacing={1} alignItems="stretch">
+              <FormControl fullWidth>
+                <InputLabel>Ingatlan tulajdonos</InputLabel>
+                <Select
+                  value={formData.current_contractor_id}
+                  onChange={(e) => handleChange('current_contractor_id', e.target.value)}
+                  label="Ingatlan tulajdonos"
+                >
+                  <MenuItem value="">Nincs</MenuItem>
+                  {contractors.map((t) => (
+                    <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setOwnerModalOpen(true)}
+                sx={{ whiteSpace: 'nowrap', borderColor: '#2563eb', color: '#2563eb' }}
               >
-                <MenuItem value="">Nincs</MenuItem>
-                {contractors.map((t) => (
-                  <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                Új
+              </Button>
+            </Stack>
           </Grid>
 
           <Grid item xs={12}>
@@ -228,6 +242,19 @@ function CreateAccommodationModal({ open, onClose, onSuccess }) {
           {loading ? <CircularProgress size={24} /> : 'Létrehozás'}
         </Button>
       </DialogActions>
+
+      <CreateContractorModal
+        open={ownerModalOpen}
+        onClose={() => setOwnerModalOpen(false)}
+        onSuccess={async (created) => {
+          await loadContractors();
+          if (created?.id) {
+            handleChange('current_contractor_id', created.id);
+          }
+        }}
+        defaultType="property_owner"
+        lockType
+      />
     </Dialog>
   );
 }
