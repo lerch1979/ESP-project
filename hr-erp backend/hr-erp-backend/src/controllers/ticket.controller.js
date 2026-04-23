@@ -201,7 +201,7 @@ const getTicketById = async (req, res) => {
     }
 
     const ticketQuery = `
-      SELECT 
+      SELECT
         t.*,
         ts.name as status_name,
         ts.slug as status_slug,
@@ -215,7 +215,17 @@ const getTicketById = async (req, res) => {
         creator.first_name || ' ' || creator.last_name as created_by_name,
         assignee.first_name || ' ' || assignee.last_name as assigned_to_name,
         tn.name as contractor_name,
-        sp.name as sla_policy_name
+        sp.name as sla_policy_name,
+        le.id         as linked_employee_id_out,
+        le.first_name as linked_employee_first_name,
+        le.last_name  as linked_employee_last_name,
+        le.personal_email as linked_employee_email,
+        le.personal_phone as linked_employee_phone,
+        le.workplace      as linked_employee_workplace,
+        le.room_number    as linked_employee_room_number,
+        le.accommodation_id as linked_employee_accommodation_id,
+        le.profile_photo_url as linked_employee_photo,
+        acc.name           as linked_employee_accommodation_name
       FROM tickets t
       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
@@ -224,6 +234,8 @@ const getTicketById = async (req, res) => {
       LEFT JOIN users assignee ON t.assigned_to = assignee.id
       LEFT JOIN contractors tn ON t.contractor_id = tn.id
       LEFT JOIN sla_policies sp ON t.sla_policy_id = sp.id
+      LEFT JOIN employees le ON t.linked_employee_id = le.id
+      LEFT JOIN accommodations acc ON le.accommodation_id = acc.id
       WHERE t.id = $1
     `;
 
@@ -304,11 +316,37 @@ const getTicketById = async (req, res) => {
       ['comment']
     );
 
+    // Nest linked employee details into a single linked_employee object so
+    // the UI can render the side panel without flat-field juggling.
+    let linkedEmployee = null;
+    if (translatedTicket.linked_employee_id_out) {
+      linkedEmployee = {
+        id: translatedTicket.linked_employee_id_out,
+        first_name: translatedTicket.linked_employee_first_name,
+        last_name: translatedTicket.linked_employee_last_name,
+        email: translatedTicket.linked_employee_email,
+        phone: translatedTicket.linked_employee_phone,
+        workplace: translatedTicket.linked_employee_workplace,
+        room_number: translatedTicket.linked_employee_room_number,
+        accommodation_id: translatedTicket.linked_employee_accommodation_id,
+        accommodation_name: translatedTicket.linked_employee_accommodation_name,
+        profile_photo_url: translatedTicket.linked_employee_photo,
+      };
+    }
+    // Strip the flat helper fields that only existed for the join.
+    for (const k of [
+      'linked_employee_id_out', 'linked_employee_first_name', 'linked_employee_last_name',
+      'linked_employee_email', 'linked_employee_phone', 'linked_employee_workplace',
+      'linked_employee_room_number', 'linked_employee_accommodation_id',
+      'linked_employee_accommodation_name', 'linked_employee_photo',
+    ]) delete translatedTicket[k];
+
     res.json({
       success: true,
       data: {
         ticket: {
           ...translatedTicket,
+          linked_employee: linkedEmployee,
           comments: translatedComments,
           attachments: attachmentsResult.rows,
           history: historyResult.rows
@@ -330,7 +368,7 @@ const getTicketById = async (req, res) => {
  */
 const createTicket = async (req, res) => {
   try {
-    const { title, description, category_id, priority_id, assigned_to } = req.body;
+    const { title, description, category_id, priority_id, assigned_to, linked_employee_id } = req.body;
 
     // Validáció
     if (!title || (typeof title === 'string' && !title.trim())) {
@@ -363,8 +401,9 @@ const createTicket = async (req, res) => {
       const insertQuery = `
         INSERT INTO tickets (
           contractor_id, ticket_number, title, description, language,
-          category_id, status_id, priority_id, created_by, assigned_to
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          category_id, status_id, priority_id, created_by, assigned_to,
+          linked_employee_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `;
 
@@ -378,7 +417,8 @@ const createTicket = async (req, res) => {
         statusResult.rows[0].id,
         priority_id || null,
         req.user.id,
-        assigned_to || null
+        assigned_to || null,
+        linked_employee_id || null
       ]);
 
       const ticketId = result.rows[0].id;

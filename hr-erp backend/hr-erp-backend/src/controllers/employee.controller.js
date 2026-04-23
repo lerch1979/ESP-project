@@ -1144,7 +1144,8 @@ const getEmployeeTimeline = async (req, res) => {
       `);
     }
 
-    // Tickets (linked through employee's user_id)
+    // Tickets — linked via linked_employee_id, or via the employee's user_id
+    // when they're the creator/assignee of a ticket.
     if (selectedTypes.includes('ticket')) {
       subQueries.push(`
         SELECT
@@ -1156,7 +1157,8 @@ const getEmployeeTimeline = async (req, res) => {
           json_build_object('ticket_id', t.id, 'ticket_number', t.ticket_number)::text AS metadata
         FROM tickets t
         LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
-        WHERE t.created_by = (SELECT user_id FROM employees WHERE id = $1)
+        WHERE t.linked_employee_id = $1
+           OR t.created_by  = (SELECT user_id FROM employees WHERE id = $1)
            OR t.assigned_to = (SELECT user_id FROM employees WHERE id = $1)
       `);
     }

@@ -13,8 +13,9 @@ import {
   Grid,
   CircularProgress,
   Typography,
+  Autocomplete,
 } from '@mui/material';
-import { ticketsAPI } from '../services/api';
+import { ticketsAPI, employeesAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
@@ -23,6 +24,8 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -30,6 +33,7 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
     category_id: '',
     priority_id: '',
     assigned_to: '',
+    linked_employee_id: '',
   });
 
   useEffect(() => {
@@ -57,6 +61,18 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
       if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
         setPriorities(prioritiesRes.value.data.priorities || []);
       }
+
+      // Employees for the "linked employee" autocomplete — large list so
+      // we pull a bounded page; the Autocomplete does client-side search.
+      setEmployeesLoading(true);
+      try {
+        const empRes = await employeesAPI.getAll({ limit: 1000 });
+        if (empRes?.success) {
+          setEmployees(empRes.data?.employees || []);
+        }
+      } finally {
+        setEmployeesLoading(false);
+      }
     } catch (error) {
       console.error('Form adatok betöltési hiba:', error);
       toast.error('Hiba az űrlap adatok betöltésekor');
@@ -76,9 +92,10 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       const payload = { title: formData.title, description: formData.description };
-      if (formData.category_id) payload.category_id = formData.category_id;
-      if (formData.priority_id) payload.priority_id = formData.priority_id;
-      if (formData.assigned_to) payload.assigned_to = formData.assigned_to;
+      if (formData.category_id)       payload.category_id = formData.category_id;
+      if (formData.priority_id)       payload.priority_id = formData.priority_id;
+      if (formData.assigned_to)       payload.assigned_to = formData.assigned_to;
+      if (formData.linked_employee_id) payload.linked_employee_id = formData.linked_employee_id;
 
       const response = await ticketsAPI.create(payload);
 
@@ -102,6 +119,7 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
       category_id: '',
       priority_id: '',
       assigned_to: '',
+      linked_employee_id: '',
     });
     onClose();
   };
@@ -202,6 +220,31 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
                 ))}
               </Select>
             </FormControl>
+          </Grid>
+
+          {/* Linked employee (autocomplete) */}
+          <Grid item xs={12}>
+            <Autocomplete
+              options={employees}
+              loading={employeesLoading}
+              value={employees.find(e => e.id === formData.linked_employee_id) || null}
+              onChange={(_, val) => handleChange('linked_employee_id', val?.id || '')}
+              getOptionLabel={(e) => {
+                const name = [e.first_name, e.last_name].filter(Boolean).join(' ');
+                const extras = [e.personal_email, e.workplace].filter(Boolean).join(' · ');
+                return extras ? `${name} (${extras})` : name;
+              }}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Kapcsolódó dolgozó (opcionális)"
+                  placeholder="Keress név, email vagy munkahely alapján"
+                />
+              )}
+              noOptionsText="Nincs találat"
+              clearText="Törlés"
+            />
           </Grid>
         </Grid>
       </DialogContent>
