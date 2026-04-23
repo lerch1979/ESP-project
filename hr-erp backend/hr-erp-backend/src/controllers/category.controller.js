@@ -1,13 +1,17 @@
 const pool = require('../database/connection');
 const { logger } = require('../utils/logger');
 
-// Összes kategória lekérése
+// Ticket category list. Defaults to active-only + ordered by curated
+// sort_order (falling back to name when sort_order is 0).
 const getCategories = async (req, res) => {
   try {
+    const includeInactive = req.query.active === 'false';
+    const where = includeInactive ? '' : 'WHERE is_active = TRUE';
     const result = await pool.query(
-      `SELECT id, name, slug, icon, description, created_at
-       FROM ticket_categories
-       ORDER BY name ASC`
+      `SELECT id, name, slug, icon, color, description, sort_order, is_active, created_at
+         FROM ticket_categories
+         ${where}
+         ORDER BY sort_order ASC, name ASC`
     );
 
     res.json({
