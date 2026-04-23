@@ -147,7 +147,12 @@ export const ticketsAPI = {
     const response = await api.post('/tickets', ticketData);
     return response.data;
   },
-  
+
+  update: async (id, patch) => {
+    const response = await api.patch(`/tickets/${id}`, patch);
+    return response.data;
+  },
+
   updateStatus: async (id, statusData) => {
     const response = await api.patch(`/tickets/${id}/status`, statusData);
     return response.data;

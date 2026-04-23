@@ -29,6 +29,14 @@ router.get('/:id', checkPermission('tickets.view'), ticketController.getTicketBy
 router.post('/', checkPermission('tickets.create'), ticketController.createTicket);
 
 /**
+ * PATCH /api/v1/tickets/:id
+ * Ticket általános szerkesztése (cím, leírás, kategória, prioritás,
+ * felelős, kapcsolódó dolgozó). Minden változás ticket_history sorként.
+ * Body: { title?, description?, category_id?, priority_id?, assigned_to?, linked_employee_id? }
+ */
+router.patch('/:id', checkPermission('tickets.edit'), ticketController.updateTicket);
+
+/**
  * PATCH /api/v1/tickets/:id/status
  * Ticket státusz frissítése
  * Body: { status_id, comment }

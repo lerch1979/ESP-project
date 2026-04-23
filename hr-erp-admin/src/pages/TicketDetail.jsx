@@ -28,11 +28,13 @@ import {
   AccessTime as ClockIcon,
   CheckCircle as CheckIcon,
   Gavel as GavelIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { ticketsAPI, damageReportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import UserAvatar from '../components/common/UserAvatar';
 import { LanguageBadge, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '../utils/languageBadges';
+import EditTicketModal from '../components/EditTicketModal';
 
 function TicketDetail() {
   const { id } = useParams();
@@ -45,6 +47,7 @@ function TicketDetail() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statuses, setStatuses] = useState([]);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     loadStatuses();
@@ -276,27 +279,43 @@ function TicketDetail() {
             </Typography>
           </Box>
 
-          {/* Státusz dropdown */}
-          <FormControl sx={{ minWidth: { xs: '100%', md: 200 } }}>
-            <Select
-              value={selectedStatus}
-              onChange={(e) => handleStatusChange(e.target.value)}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
               size="small"
-              disabled={updatingStatus}
-              sx={{
-                bgcolor: 'white',
-                fontWeight: 600,
-              }}
+              startIcon={<EditIcon />}
+              onClick={() => setEditOpen(true)}
+              sx={{ color: '#2563eb', borderColor: '#2563eb' }}
             >
-              {statuses.map((status) => (
-                <MenuItem key={status.id} value={status.id}>
-                  {status.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              Szerkesztés
+            </Button>
+
+            {/* Státusz dropdown */}
+            <FormControl sx={{ minWidth: { xs: '100%', md: 200 } }}>
+              <Select
+                value={selectedStatus}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                size="small"
+                disabled={updatingStatus}
+                sx={{ bgcolor: 'white', fontWeight: 600 }}
+              >
+                {statuses.map((status) => (
+                  <MenuItem key={status.id} value={status.id}>
+                    {status.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Box>
+
+      <EditTicketModal
+        open={editOpen}
+        ticket={ticket}
+        onClose={() => setEditOpen(false)}
+        onSuccess={() => { loadTicket(); }}
+      />
 
       {/* Fordítási értesítő */}
       {ticket.language && ticket.language !== 'hu' && (

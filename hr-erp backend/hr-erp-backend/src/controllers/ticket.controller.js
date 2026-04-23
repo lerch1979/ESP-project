@@ -489,6 +489,124 @@ const createTicket = async (req, res) => {
 /**
  * Ticket státusz frissítése
  */
+/**
+ * PATCH /api/v1/tickets/:id
+ * Update an arbitrary subset of ticket fields. Each changed field is logged
+ * to ticket_history (field_name, old_value, new_value) for audit.
+ *
+ * Accepted fields: title, description, category_id, priority_id, assigned_to,
+ * linked_employee_id. Status uses its own PATCH /:id/status endpoint.
+ */
+const updateTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
+
+    const allowed = ['title', 'description', 'category_id', 'priority_id', 'assigned_to', 'linked_employee_id'];
+    const patch = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) patch[k] = req.body[k] === '' ? null : req.body[k];
+    }
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ success: false, message: 'Nincs módosítandó mező' });
+    }
+    if (patch.title !== undefined && (!patch.title || !String(patch.title).trim())) {
+      return res.status(400).json({ success: false, message: 'A cím nem lehet üres' });
+    }
+
+    const result = await transaction(async (client) => {
+      const currentResult = await client.query(
+        `SELECT t.*,
+                tc.name AS category_name, p.name AS priority_name,
+                u.first_name || ' ' || u.last_name AS assigned_to_name,
+                e.first_name || ' ' || e.last_name AS linked_employee_name
+           FROM tickets t
+           LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+           LEFT JOIN priorities p ON t.priority_id = p.id
+           LEFT JOIN users u ON t.assigned_to = u.id
+           LEFT JOIN employees e ON t.linked_employee_id = e.id
+          WHERE t.id = $1`,
+        [id]
+      );
+      if (currentResult.rows.length === 0) throw new Error('Ticket nem található');
+      const current = currentResult.rows[0];
+
+      if (!req.user.roles.includes('superadmin') &&
+          !req.user.roles.includes('admin') &&
+          current.created_by !== req.user.id &&
+          current.assigned_to !== req.user.id) {
+        throw new Error('Nincs jogosultságod a ticket szerkesztéséhez');
+      }
+
+      // Build SET clause dynamically
+      const setParts = [];
+      const values = [];
+      let i = 1;
+      for (const k of Object.keys(patch)) {
+        setParts.push(`${k} = $${i++}`);
+        values.push(patch[k]);
+      }
+      setParts.push(`updated_at = CURRENT_TIMESTAMP`);
+      values.push(id);
+      await client.query(
+        `UPDATE tickets SET ${setParts.join(', ')} WHERE id = $${i}`,
+        values
+      );
+
+      // For FK columns, resolve display names for history readability.
+      const humanizeMap = {
+        category_id:        { table: 'ticket_categories', col: 'name', currentName: current.category_name },
+        priority_id:        { table: 'priorities',        col: 'name', currentName: current.priority_name },
+        assigned_to:        { table: 'users',             expr: "first_name || ' ' || last_name", currentName: current.assigned_to_name },
+        linked_employee_id: { table: 'employees',         expr: "first_name || ' ' || last_name", currentName: current.linked_employee_name },
+      };
+
+      for (const field of Object.keys(patch)) {
+        const oldValue = current[field];
+        const newValue = patch[field];
+        if (String(oldValue ?? '') === String(newValue ?? '')) continue;
+
+        let oldDisplay = oldValue;
+        let newDisplay = newValue;
+        if (humanizeMap[field]) {
+          const { table, col, expr, currentName } = humanizeMap[field];
+          oldDisplay = currentName || null;
+          if (newValue) {
+            const r = await client.query(
+              `SELECT ${expr || col} AS label FROM ${table} WHERE id = $1`, [newValue]
+            );
+            newDisplay = r.rows[0]?.label || newValue;
+          } else {
+            newDisplay = null;
+          }
+        }
+
+        await client.query(
+          `INSERT INTO ticket_history (ticket_id, user_id, action, field_name, old_value, new_value)
+           VALUES ($1, $2, 'updated', $3, $4, $5)`,
+          [id, req.user.id, field, oldDisplay ? String(oldDisplay) : null, newDisplay ? String(newDisplay) : null]
+        );
+      }
+
+      const finalResult = await client.query('SELECT * FROM tickets WHERE id = $1', [id]);
+      return finalResult.rows[0];
+    });
+
+    res.json({ success: true, data: { ticket: result } });
+  } catch (error) {
+    if (error.message === 'Ticket nem található') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    if (/jogosultság/i.test(error.message)) {
+      return res.status(403).json({ success: false, message: error.message });
+    }
+    logger.error('Ticket frissítési hiba:', error);
+    res.status(500).json({ success: false, message: 'Ticket frissítési hiba' });
+  }
+};
+
 const updateTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -684,6 +802,7 @@ module.exports = {
   getTickets,
   getTicketById,
   createTicket,
+  updateTicket,
   updateTicketStatus,
   addComment
 };
