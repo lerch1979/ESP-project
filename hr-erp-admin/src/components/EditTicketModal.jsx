@@ -19,6 +19,10 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
   const [priorities, setPriorities] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
+  // optionsReady gates form population so we never assign a category_id /
+  // priority_id / assigned_to to a Select before its MenuItem children exist
+  // (which would trigger MUI's "out-of-range value" warning).
+  const [optionsReady, setOptionsReady] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -29,8 +33,53 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
     linked_employee_id: '',
   });
 
+  // Step 1: when dialog opens, load lookups and flip optionsReady when done.
+  // Reset optionsReady on close so reopening triggers a fresh load.
   useEffect(() => {
-    if (!open || !ticket) return;
+    if (!open) {
+      setOptionsReady(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [usersRes, categoriesRes, prioritiesRes] = await Promise.allSettled([
+          api.get('/users'),
+          ticketsAPI.getCategories(),
+          ticketsAPI.getPriorities(),
+        ]);
+        if (cancelled) return;
+        if (usersRes.status === 'fulfilled' && usersRes.value.data.success) {
+          setUsers(usersRes.value.data.data.users || []);
+        }
+        if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
+          const data = categoriesRes.value.data;
+          setCategories(data.tree?.length ? data.tree : (data.categories || []));
+        }
+        if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
+          setPriorities(prioritiesRes.value.data.priorities || []);
+        }
+        setEmployeesLoading(true);
+        try {
+          const empRes = await employeesAPI.getAll({ limit: 1000 });
+          if (!cancelled && empRes?.success) setEmployees(empRes.data?.employees || []);
+        } finally {
+          if (!cancelled) setEmployeesLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) toast.error('Hiba az űrlap adatok betöltésekor');
+      } finally {
+        if (!cancelled) setOptionsReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  // Step 2: once options are loaded AND we have a ticket, hydrate the form.
+  // Until then, form stays at its empty defaults so Selects show the "Nincs"
+  // placeholder cleanly.
+  useEffect(() => {
+    if (!optionsReady || !ticket) return;
     setForm({
       title: ticket.title || '',
       description: ticket.description || '',
@@ -39,37 +88,7 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
       assigned_to: ticket.assigned_to || '',
       linked_employee_id: ticket.linked_employee?.id || ticket.linked_employee_id || '',
     });
-    loadLookups();
-  }, [open, ticket]);
-
-  const loadLookups = async () => {
-    try {
-      const [usersRes, categoriesRes, prioritiesRes] = await Promise.allSettled([
-        api.get('/users'),
-        ticketsAPI.getCategories(),
-        ticketsAPI.getPriorities(),
-      ]);
-      if (usersRes.status === 'fulfilled' && usersRes.value.data.success) {
-        setUsers(usersRes.value.data.data.users || []);
-      }
-      if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
-        const data = categoriesRes.value.data;
-        setCategories(data.tree?.length ? data.tree : (data.categories || []));
-      }
-      if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
-        setPriorities(prioritiesRes.value.data.priorities || []);
-      }
-      setEmployeesLoading(true);
-      try {
-        const empRes = await employeesAPI.getAll({ limit: 1000 });
-        if (empRes?.success) setEmployees(empRes.data?.employees || []);
-      } finally {
-        setEmployeesLoading(false);
-      }
-    } catch (err) {
-      toast.error('Hiba az űrlap adatok betöltésekor');
-    }
-  };
+  }, [optionsReady, ticket]);
 
   const submit = async () => {
     if (!form.title.trim()) return toast.warn('A cím kötelező');
