@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, FormControl, InputLabel, Select, MenuItem,
+  ListSubheader,
   Grid, CircularProgress, Typography, Autocomplete,
 } from '@mui/material';
 import { ticketsAPI, employeesAPI } from '../services/api';
@@ -53,7 +54,8 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
         setUsers(usersRes.value.data.data.users || []);
       }
       if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
-        setCategories(categoriesRes.value.data.categories || []);
+        const data = categoriesRes.value.data;
+        setCategories(data.tree?.length ? data.tree : (data.categories || []));
       }
       if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
         setPriorities(prioritiesRes.value.data.priorities || []);
@@ -134,9 +136,25 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
                 label="Kategória"
               >
                 <MenuItem value=""><em>Nincs</em></MenuItem>
-                {categories.map(c => (
-                  <MenuItem key={c.id} value={c.id}>{c.icon} {c.name}</MenuItem>
-                ))}
+                {categories.flatMap((cat) => {
+                  if (Array.isArray(cat.children) && cat.children.length > 0) {
+                    return [
+                      <ListSubheader key={`p-${cat.id}`} sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>
+                        {cat.icon} {cat.name}
+                      </ListSubheader>,
+                      ...cat.children.map((c) => (
+                        <MenuItem key={c.id} value={c.id} sx={{ pl: 4 }}>
+                          {c.icon} {c.name}
+                        </MenuItem>
+                      )),
+                    ];
+                  }
+                  return [
+                    <MenuItem key={cat.id} value={cat.id}>
+                      {cat.icon} {cat.name}
+                    </MenuItem>,
+                  ];
+                })}
               </Select>
             </FormControl>
           </Grid>

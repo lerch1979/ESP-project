@@ -10,6 +10,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  ListSubheader,
   Grid,
   CircularProgress,
   Typography,
@@ -55,7 +56,10 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
       }
 
       if (categoriesRes.status === 'fulfilled' && categoriesRes.value.success) {
-        setCategories(categoriesRes.value.data.categories || []);
+        // Prefer hierarchical tree when present (post-migration 102),
+        // otherwise fall back to the flat list for back-compat.
+        const data = categoriesRes.value.data;
+        setCategories(data.tree?.length ? data.tree : (data.categories || []));
       }
 
       if (prioritiesRes.status === 'fulfilled' && prioritiesRes.value.success) {
@@ -159,7 +163,9 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
             />
           </Grid>
 
-          {/* Kategória */}
+          {/* Kategória — 2-szintű, ListSubheader-rel csoportosítva.
+              A tree-re fallback: ha a categories[0].children létezik, hierarchikusan
+              renderelünk; egyébként sima lista (régi, lapos válasz). */}
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel>Kategória</InputLabel>
@@ -171,11 +177,27 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
                 <MenuItem value="">
                   <em>Válassz kategóriát...</em>
                 </MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>
-                    {cat.icon} {cat.name}
-                  </MenuItem>
-                ))}
+                {categories.flatMap((cat) => {
+                  if (Array.isArray(cat.children) && cat.children.length > 0) {
+                    return [
+                      <ListSubheader key={`p-${cat.id}`} sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>
+                        {cat.icon} {cat.name}
+                      </ListSubheader>,
+                      ...cat.children.map((c) => (
+                        <MenuItem key={c.id} value={c.id} sx={{ pl: 4 }}>
+                          {c.icon} {c.name}
+                        </MenuItem>
+                      )),
+                    ];
+                  }
+                  // Legacy flat row — still selectable (parent has no children
+                  // in the data, e.g. someone added an isolated category).
+                  return [
+                    <MenuItem key={cat.id} value={cat.id}>
+                      {cat.icon} {cat.name}
+                    </MenuItem>,
+                  ];
+                })}
               </Select>
             </FormControl>
           </Grid>
