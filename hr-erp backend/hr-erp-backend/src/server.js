@@ -108,9 +108,21 @@ app.use(additionalHeaders);
 // Exact-match allowlist from CORS_ORIGIN env, plus tunnel hostname patterns
 // (ngrok / cloudflared / localtunnel). Tunnel support is gated behind
 // ALLOW_TUNNEL_ORIGINS=true so prod deployments stay strict by default.
+// Default fallback covers the dev ports for backend (3001, 3000), admin Vite
+// (5173), expo web (8082, 8081), expo metro (19006). Both localhost and
+// 127.0.0.1 variants are listed because some browsers / OS configs resolve
+// "localhost" to ::1 vs 127.0.0.1 inconsistently, and the Origin header sent
+// by the page reflects whatever URL the user typed.
 const corsAllowlist = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
-  : ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:8081'];
+  : [
+      'http://localhost:3001', 'http://127.0.0.1:3001',
+      'http://localhost:3000', 'http://127.0.0.1:3000',
+      'http://localhost:5173', 'http://127.0.0.1:5173',
+      'http://localhost:8081', 'http://127.0.0.1:8081',
+      'http://localhost:8082', 'http://127.0.0.1:8082',
+      'http://localhost:19006', 'http://127.0.0.1:19006',
+    ];
 
 const TUNNEL_HOST_RE = /\.(ngrok-free\.(dev|app)|ngrok\.(app|io)|trycloudflare\.com|loca\.lt)$/i;
 const allowTunnels = process.env.ALLOW_TUNNEL_ORIGINS === 'true'

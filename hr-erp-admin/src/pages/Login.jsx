@@ -43,7 +43,20 @@ function Login() {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || t('invalidCredentials'));
+      // Distinguish auth failure from network / rate-limit / generic failures.
+      // Previously every error mapped to "Hibás email vagy jelszó", which hid
+      // CORS and "backend down" issues behind a misleading credentials error.
+      if (err.response?.status === 401) {
+        setError(err.response?.data?.message || t('invalidCredentials'));
+      } else if (err.response?.status === 429) {
+        setError('Túl sok bejelentkezési kísérlet. Várj néhány percet, és próbáld újra.');
+      } else if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError('Hálózati hiba — a szerver nem elérhető (CORS, kapcsolat, vagy a backend nem fut).');
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError(`Hiba: ${err.message || 'ismeretlen'}`);
+      }
     } finally {
       setLoading(false);
     }
