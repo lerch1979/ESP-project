@@ -20,40 +20,53 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const inApp = require('./inAppNotification.service');
 
-// Map AI category string -> ticket_categories.slug (defined in migration 098)
-const CATEGORY_SLUG_MAP = {
-  general:        'general',
-  accommodation:  'accommodation',
-  cleaning:       'cleaning',
-  moving:         'moving',
-  workplace:      'workplace',
-  administration: 'administration',
-  medical:        'medical',
-  other:          'other',
-};
-
 async function _resolveCategoryId(slug) {
-  const fallback = CATEGORY_SLUG_MAP[slug] ? slug : 'general';
-  const r = await query(
-    `SELECT id FROM ticket_categories WHERE slug = $1 AND is_active = TRUE LIMIT 1`,
-    [fallback]
+  // Post-migration 102 the categories table holds both legacy leaf slugs
+  // (general/accommodation/...) and new hierarchical sub-slugs (tech_plumbing,
+  // hyg_pests, ...). We resolve directly by slug and fall back to 'general'.
+  if (slug) {
+    const r = await query(
+      `SELECT id FROM ticket_categories WHERE slug = $1 AND is_active = TRUE LIMIT 1`,
+      [slug]
+    );
+    if (r.rows[0]?.id) return r.rows[0].id;
+  }
+  const fb = await query(
+    `SELECT id FROM ticket_categories WHERE slug = 'general' AND is_active = TRUE LIMIT 1`
   );
-  return r.rows[0]?.id || null;
+  return fb.rows[0]?.id || null;
 }
 
 async function _resolvePriorityId(severity) {
-  // Map severity -> priorities table. Priorities differ per-deployment, so
-  // we look them up by slug; fall back to medium-level numeric search.
-  const slugMap = {
-    low: 'low', medium: 'medium', normal: 'medium',
-    high: 'high', critical: 'critical', urgent: 'urgent',
+  // Map AI severity -> priorities table. This deployment seeds only
+  // {low, normal, urgent, critical}; "high" and "medium" don't exist as
+  // slugs, so we map to the nearest available level. Each entry is an
+  // ordered fallback list — we use the first slug that resolves.
+  const slugChain = {
+    emergency: ['critical', 'urgent'],
+    critical:  ['critical', 'urgent'],
+    high:      ['urgent', 'high', 'critical'],
+    medium:    ['normal', 'medium'],
+    normal:    ['normal', 'medium'],
+    low:       ['low'],
+    urgent:    ['urgent', 'critical'],
   };
-  const slug = slugMap[severity] || 'medium';
-  const r = await query(
-    `SELECT id FROM priorities WHERE slug = $1 OR name ILIKE $1 LIMIT 1`,
-    [slug]
+  const candidates = slugChain[severity] || ['normal', 'medium'];
+
+  for (const slug of candidates) {
+    const r = await query(
+      `SELECT id FROM priorities WHERE slug = $1 LIMIT 1`,
+      [slug]
+    );
+    if (r.rows[0]?.id) return r.rows[0].id;
+  }
+
+  // Final safety net: fall back to whatever 'normal' / lowest-numeric priority
+  // exists, so we never write a NULL priority for an AI-classified ticket.
+  const fb = await query(
+    `SELECT id FROM priorities ORDER BY (slug = 'normal') DESC, name LIMIT 1`
   );
-  return r.rows[0]?.id || null;
+  return fb.rows[0]?.id || null;
 }
 
 async function _findEmployeeForUser(userId) {

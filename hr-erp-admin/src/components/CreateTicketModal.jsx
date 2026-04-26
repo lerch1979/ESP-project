@@ -10,10 +10,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  ListSubheader,
   Grid,
   CircularProgress,
-  Typography,
   Autocomplete,
 } from '@mui/material';
 import { ticketsAPI, employeesAPI } from '../services/api';
@@ -84,7 +82,10 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Coerce undefined → '' so MUI Select stays "controlled" — without this,
+    // a value transitioning to undefined triggers the controlled/uncontrolled
+    // console warning.
+    setFormData(prev => ({ ...prev, [field]: value ?? '' }));
   };
 
   const handleSubmit = async () => {
@@ -130,10 +131,8 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Új hibajegy létrehozása
-        </Typography>
+      <DialogTitle sx={{ fontWeight: 600, fontSize: '1.5rem' }}>
+        Új hibajegy létrehozása
       </DialogTitle>
 
       <DialogContent>
@@ -180,9 +179,20 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
                 {categories.flatMap((cat) => {
                   if (Array.isArray(cat.children) && cat.children.length > 0) {
                     return [
-                      <ListSubheader key={`p-${cat.id}`} sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>
+                      // Parent rendered as a disabled MenuItem so MUI sets
+                      // aria-disabled and screen readers announce it as a
+                      // non-selectable group header. The explicit value (parent
+                      // id) is required so MUI's Select doesn't see a child
+                      // with value=undefined and complain about controlled →
+                      // uncontrolled transitions.
+                      <MenuItem
+                        key={`p-${cat.id}`}
+                        value={`__parent_${cat.id}`}
+                        disabled
+                        sx={{ bgcolor: '#f8fafc', fontWeight: 700, opacity: '1 !important' }}
+                      >
                         {cat.icon} {cat.name}
-                      </ListSubheader>,
+                      </MenuItem>,
                       ...cat.children.map((c) => (
                         <MenuItem key={c.id} value={c.id} sx={{ pl: 4 }}>
                           {c.icon} {c.name}

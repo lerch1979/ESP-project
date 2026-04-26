@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Grid, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress, Typography,
+  CircularProgress,
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import { tasksAPI, usersAPI } from '../services/api';
@@ -111,9 +111,7 @@ export default function TaskCreationModal({
 
   return (
     <Dialog open={open} onClose={close} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>Új feladat</Typography>
-      </DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700 }}>Új feladat</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
           <Grid item xs={12}>

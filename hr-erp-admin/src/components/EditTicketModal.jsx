@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, FormControl, InputLabel, Select, MenuItem,
-  ListSubheader,
-  Grid, CircularProgress, Typography, Autocomplete,
+  Grid, CircularProgress, Autocomplete,
 } from '@mui/material';
 import { ticketsAPI, employeesAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -108,9 +107,7 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
 
   return (
     <Dialog open={open} onClose={loading ? null : onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>Hibajegy szerkesztése</Typography>
-      </DialogTitle>
+      <DialogTitle sx={{ fontWeight: 600, fontSize: '1.5rem' }}>Hibajegy szerkesztése</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid item xs={12}>
@@ -139,9 +136,14 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
                 {categories.flatMap((cat) => {
                   if (Array.isArray(cat.children) && cat.children.length > 0) {
                     return [
-                      <ListSubheader key={`p-${cat.id}`} sx={{ bgcolor: '#f8fafc', fontWeight: 700 }}>
+                      <MenuItem
+                        key={`p-${cat.id}`}
+                        value={`__parent_${cat.id}`}
+                        disabled
+                        sx={{ bgcolor: '#f8fafc', fontWeight: 700, opacity: '1 !important' }}
+                      >
                         {cat.icon} {cat.name}
-                      </ListSubheader>,
+                      </MenuItem>,
                       ...cat.children.map((c) => (
                         <MenuItem key={c.id} value={c.id} sx={{ pl: 4 }}>
                           {c.icon} {c.name}
