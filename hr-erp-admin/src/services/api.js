@@ -286,6 +286,28 @@ export const roomsAPI = {
   },
 };
 
+// AI Assistant — admin observability + per-user history/chat
+export const aiAssistantAPI = {
+  // Per-user
+  chat: async (data) => {
+    const response = await api.post('/ai-assistant/chat', data);
+    return response.data;
+  },
+  history: async (params = {}) => {
+    const response = await api.get('/ai-assistant/history', { params });
+    return response.data;
+  },
+  feedback: async (messageId, body) => {
+    const response = await api.post(`/ai-assistant/feedback/${messageId}`, body);
+    return response.data;
+  },
+  // Superadmin observability
+  adminLogs: async (params = {}) => {
+    const response = await api.get('/admin/ai-assistant/logs', { params });
+    return response.data;
+  },
+};
+
 // GTD context catalog (per-user + system contexts)
 export const gtdAPI = {
   listContexts: async () => {

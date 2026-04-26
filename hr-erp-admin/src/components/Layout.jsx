@@ -213,6 +213,7 @@ const buildMenuItems = (t) => [
     text: t('nav.administration'), icon: <AdminPanelSettingsIcon />, permission: 'users.manage_permissions', children: [
       { text: t('nav.adminUsers'), icon: <ManageAccountsIcon />, path: '/admin/users', permission: 'users.manage_permissions' },
       { text: t('nav.adminRoles'), icon: <ShieldIcon />, path: '/admin/roles', permission: 'users.manage_permissions' },
+      { text: 'AI Asszisztens Logok', icon: <AdminPanelSettingsIcon />, path: '/admin/ai-assistant-logs', permission: 'settings.edit' },
     ],
   },
 ];
