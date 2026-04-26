@@ -73,6 +73,7 @@ const fineRoutes = require('./routes/fine.routes');
 const fineTypeRoutes = require('./routes/fineType.routes');
 const workplaceRoutes = require('./routes/workplace.routes');
 const adminRoutes = require('./routes/admin.routes');
+const aiAssistantRoutes = require('./routes/aiAssistant.routes');
 const inspectionExportRoutes = require('./routes/inspectionExport.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const gtdRoutes = require('./routes/gtd.routes');
@@ -383,6 +384,7 @@ app.use(`${API_PREFIX}/compensations`, compensationRoutes);
 app.use(`${API_PREFIX}/fine-types`, fineTypeRoutes);
 app.use(`${API_PREFIX}/workplaces`, workplaceRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
+app.use(`${API_PREFIX}/ai-assistant`, aiAssistantRoutes);
 app.use(`${API_PREFIX}/fines`, fineRoutes);
 app.use(`${API_PREFIX}/inspection-exports`, inspectionExportRoutes);
 // Top-level /translate alias — matches the documented contract { text, fromLang, toLang }
