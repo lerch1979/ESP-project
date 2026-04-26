@@ -308,26 +308,6 @@ export const aiAssistantAPI = {
   },
 };
 
-// GTD context catalog (per-user + system contexts)
-export const gtdAPI = {
-  listContexts: async () => {
-    const response = await api.get('/gtd/contexts');
-    return response.data;
-  },
-  createContext: async (data) => {
-    const response = await api.post('/gtd/contexts', data);
-    return response.data;
-  },
-  updateContext: async (id, data) => {
-    const response = await api.patch(`/gtd/contexts/${id}`, data);
-    return response.data;
-  },
-  deleteContext: async (id) => {
-    const response = await api.delete(`/gtd/contexts/${id}`);
-    return response.data;
-  },
-};
-
 // Workplaces API (admin-managed canonical workplace list)
 export const workplacesAPI = {
   list: async (params = {}) => {
@@ -2283,8 +2263,21 @@ export const gtdAPI = {
     const response = await api.get('/gtd/contexts');
     return response.data;
   },
+  // Alias used by the unified Teendők page (Phase 4 of T10).
+  listContexts: async () => {
+    const response = await api.get('/gtd/contexts');
+    return response.data;
+  },
   createContext: async (data) => {
     const response = await api.post('/gtd/contexts', data);
+    return response.data;
+  },
+  updateContext: async (id, data) => {
+    const response = await api.patch(`/gtd/contexts/${id}`, data);
+    return response.data;
+  },
+  deleteContext: async (id) => {
+    const response = await api.delete(`/gtd/contexts/${id}`);
     return response.data;
   },
 
