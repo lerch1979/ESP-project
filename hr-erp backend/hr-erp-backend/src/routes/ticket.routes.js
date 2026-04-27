@@ -50,4 +50,10 @@ router.patch('/:id/status', checkPermission('tickets.change_status'), ticketCont
  */
 router.post('/:id/comments', checkPermission('tickets.view'), ticketController.addComment);
 
+/**
+ * GET /api/v1/tickets/:id/tasks
+ * Tasks linked to this ticket (tasks.linked_ticket_id = id).
+ */
+router.get('/:id/tasks', checkPermission('tickets.view'), ticketController.getRelatedTasks);
+
 module.exports = router;

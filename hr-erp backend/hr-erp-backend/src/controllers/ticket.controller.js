@@ -824,11 +824,40 @@ const addComment = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/v1/tickets/:id/tasks
+ * Lists tasks linked to this ticket (the "Kapcsolódó feladatok" panel on
+ * the ticket detail). Returns assignee names so the UI doesn't need a
+ * second roundtrip for each row.
+ */
+const getRelatedTasks = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await query(
+      `SELECT
+         t.id, t.title, t.description, t.status, t.priority,
+         t.assigned_to, t.due_date, t.created_at, t.completed_at,
+         a.first_name AS assignee_first_name, a.last_name AS assignee_last_name,
+         a.email AS assignee_email
+       FROM tasks t
+       LEFT JOIN users a ON a.id = t.assigned_to
+       WHERE t.linked_ticket_id = $1
+       ORDER BY t.created_at ASC`,
+      [id]
+    );
+    res.json({ success: true, data: { tasks: r.rows } });
+  } catch (error) {
+    logger.error('Kapcsolódó feladatok lekérési hiba:', error);
+    res.status(500).json({ success: false, message: 'Lekérési hiba' });
+  }
+};
+
 module.exports = {
   getTickets,
   getTicketById,
   createTicket,
   updateTicket,
   updateTicketStatus,
-  addComment
+  addComment,
+  getRelatedTasks,
 };

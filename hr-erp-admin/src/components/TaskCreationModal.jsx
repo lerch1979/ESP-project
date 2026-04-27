@@ -41,6 +41,11 @@ export default function TaskCreationModal({
   onSuccess,
   relatedEmployeeId,
   prefillTitle,
+  // When opened from a ticket detail's "Kapcsolódó feladatok" panel:
+  // links the new task back to the ticket via tasks.linked_ticket_id and
+  // (if provided) prefixes the title so it's recognizable in task lists.
+  linkedTicketId,
+  ticketNumberPrefix,
 }) {
   const [saving, setSaving] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -49,9 +54,12 @@ export default function TaskCreationModal({
 
   useEffect(() => {
     if (!open) return;
-    setForm({ ...emptyForm, title: prefillTitle || '' });
+    // If opened from a ticket, pre-pend the ticket number to the title so
+    // the task carries its origin in plain sight.
+    const prefix = ticketNumberPrefix ? `[Hibajegy ${ticketNumberPrefix}] ` : '';
+    setForm({ ...emptyForm, title: `${prefix}${prefillTitle || ''}` });
     loadUsers();
-  }, [open, prefillTitle]);
+  }, [open, prefillTitle, ticketNumberPrefix]);
 
   const loadUsers = async () => {
     setLoadingUsers(true);
@@ -90,6 +98,7 @@ export default function TaskCreationModal({
         due_date: dueDate,
         tags: [form.category],
         related_employee_id: relatedEmployeeId || null,
+        linked_ticket_id: linkedTicketId || null,
       });
       if (res.success) {
         toast.success('Feladat létrehozva');

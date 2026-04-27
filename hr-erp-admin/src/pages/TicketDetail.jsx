@@ -35,6 +35,7 @@ import { toast } from 'react-toastify';
 import UserAvatar from '../components/common/UserAvatar';
 import { LanguageBadge, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '../utils/languageBadges';
 import EditTicketModal from '../components/EditTicketModal';
+import RelatedTasksList from '../components/RelatedTasksList';
 
 function TicketDetail() {
   const { id } = useParams();
@@ -439,6 +440,13 @@ function TicketDetail() {
               {sendingComment ? 'Küldés...' : 'Megjegyzés hozzáadása'}
             </Button>
           </Paper>
+
+          {/* Related tasks (sub-tasks of this ticket assigned to other workers) */}
+          <RelatedTasksList
+            ticketId={ticket.id}
+            ticketNumber={ticket.ticket_number}
+            relatedEmployeeId={ticket.linked_employee?.id || ticket.linked_employee_id || null}
+          />
         </Grid>
 
         {/* Jobb oldal */}

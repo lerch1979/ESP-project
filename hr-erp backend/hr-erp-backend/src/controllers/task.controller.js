@@ -877,6 +877,7 @@ const createStandalone = async (req, res) => {
       contractor_id, related_employee_id,
       gtd_status, gtd_context_id, energy_level, time_estimate_minutes,
       waiting_for, is_project,
+      linked_ticket_id,
     } = req.body || {};
 
     if (!title || !title.trim()) {
@@ -891,9 +892,9 @@ const createStandalone = async (req, res) => {
           assigned_to, start_date, due_date, estimated_hours, tags,
           contractor_id, created_by, related_employee_id,
           gtd_status, gtd_context_id, energy_level, time_estimate_minutes,
-          waiting_for, is_project)
+          waiting_for, is_project, linked_ticket_id)
        VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10, $11,
-               $12, $13, $14, $15, $16, $17)
+               $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         title.trim(), description || null, priority || 'medium',
@@ -902,7 +903,7 @@ const createStandalone = async (req, res) => {
         effectiveContractorId, req.user.id, related_employee_id || null,
         gtd_status || 'next_action', gtd_context_id || null,
         energy_level || null, time_estimate_minutes || null,
-        waiting_for || null, !!is_project,
+        waiting_for || null, !!is_project, linked_ticket_id || null,
       ]
     );
     const task = result.rows[0];

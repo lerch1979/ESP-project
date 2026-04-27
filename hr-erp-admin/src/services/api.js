@@ -163,6 +163,14 @@ export const ticketsAPI = {
     return response.data;
   },
 
+  // GET /tickets/:id/tasks — list tasks linked to this ticket via
+  // tasks.linked_ticket_id (migration 103). Used by the "Kapcsolódó
+  // feladatok" panel on TicketDetail.
+  getRelatedTasks: async (id) => {
+    const response = await api.get(`/tickets/${id}/tasks`);
+    return response.data;
+  },
+
   getStatuses: async () => {
     const response = await api.get('/statuses');
     return response.data;
