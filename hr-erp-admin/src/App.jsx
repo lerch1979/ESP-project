@@ -105,6 +105,7 @@ const FineTypesManagement = lazy(() => import('./pages/compensations/FineTypesMa
 const WorkplacesAdmin = lazy(() => import('./pages/admin/Workplaces'));
 const AllTasksAdmin = lazy(() => import('./pages/admin/AllTasks'));
 const AIAssistantLogs = lazy(() => import('./pages/admin/AIAssistantLogs'));
+const EmailAssistantLogs = lazy(() => import('./pages/admin/EmailAssistantLogs'));
 const WorkerSpecializations = lazy(() => import('./pages/admin/WorkerSpecializations'));
 const CreateFineFromInspection = lazy(() => import('./pages/compensations/CreateFineFromInspection'));
 const SalaryDeductionsList = lazy(() => import('./pages/compensations/SalaryDeductionsList'));
@@ -238,6 +239,7 @@ function App() {
               <Route path="admin/workplaces" element={<PermissionGuard permission="settings.edit"><WorkplacesAdmin /></PermissionGuard>} />
               <Route path="admin/all-tasks" element={<PermissionGuard permission="settings.edit"><AllTasksAdmin /></PermissionGuard>} />
               <Route path="admin/ai-assistant-logs" element={<PermissionGuard permission="settings.edit"><AIAssistantLogs /></PermissionGuard>} />
+              <Route path="admin/email-assistant" element={<PermissionGuard permission="settings.edit"><EmailAssistantLogs /></PermissionGuard>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

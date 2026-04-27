@@ -316,6 +316,23 @@ export const aiAssistantAPI = {
   },
 };
 
+// Email assistant admin observability — read-only view of the
+// email_assistant_interactions audit trail + current feature-flag state.
+export const emailAssistantAdminAPI = {
+  status: async () => {
+    const response = await api.get('/admin/email-assistant/status');
+    return response.data;
+  },
+  stats: async (days = 7) => {
+    const response = await api.get('/admin/email-assistant/stats', { params: { days } });
+    return response.data;
+  },
+  logs: async (params = {}) => {
+    const response = await api.get('/admin/email-assistant/logs', { params });
+    return response.data;
+  },
+};
+
 // Workplaces API (admin-managed canonical workplace list)
 export const workerSpecializationsAPI = {
   // GET /worker-specializations[?specialization=&user_id=&is_active=]
