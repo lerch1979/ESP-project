@@ -94,22 +94,26 @@ const markAsRead = async (req, res) => {
 };
 
 /**
- * Osszes ertesites olvasottnak jelolese
+ * Osszes ertesites olvasottnak jelolese.
+ * Returns the number of rows that were flipped (so a UI can show
+ * "Marked N as read"). NotificationBell ignores extras — safe to add.
  */
 const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    await query(
+    const result = await query(
       `UPDATE notifications
        SET is_read = true, read_at = NOW()
-       WHERE (user_id = $1 OR user_id IS NULL) AND is_read = false`,
+       WHERE (user_id = $1 OR user_id IS NULL) AND is_read = false
+       RETURNING id`,
       [userId]
     );
 
     res.json({
       success: true,
-      message: 'Minden ertesites olvasottnak jelolve'
+      message: 'Minden ertesites olvasottnak jelolve',
+      count: result.rows.length
     });
   } catch (error) {
     logger.error('Osszes ertesites olvasottnak jelolesi hiba:', error);
