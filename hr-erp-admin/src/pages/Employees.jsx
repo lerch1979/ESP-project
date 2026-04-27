@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -104,6 +105,11 @@ function Employees() {
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  // ?highlight=<id>[&edit=1] — opens the detail modal directly. Used by
+  // links from the ticket detail page ("Profil megnyitása") so that
+  // jumping from a ticket → linked employee actually shows their profile,
+  // not just the bare list.
+  const [searchParams, setSearchParams] = useSearchParams();
   const [exporting, setExporting] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -237,6 +243,16 @@ function Employees() {
     setSelectedEmployeeId(id);
     setDetailModalOpen(true);
   };
+
+  // Auto-open detail modal when arriving with ?highlight=<id>. Runs once
+  // per highlight-id change (typically after navigation from a ticket).
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (highlight) {
+      setSelectedEmployeeId(highlight);
+      setDetailModalOpen(true);
+    }
+  }, [searchParams]);
 
   const handleFilterChange = (newFilters) => {
     setActiveFilters(newFilters);
