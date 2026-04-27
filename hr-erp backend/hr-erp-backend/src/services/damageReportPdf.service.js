@@ -43,6 +43,53 @@ function buildHTML(report, lang = 'hu') {
   const plan = report.payment_plan || [];
   const photoText = (t.photoText || '').replace('{{count}}', photoCount || '___');
 
+  // ── Section 6 cost table ──────────────────────────────────────────
+  // Renders a compact 2-column grid only when at least one cost-related
+  // field is populated. Falls back to the original boilerplate text
+  // otherwise so legacy reports keep printing as they always did.
+  const num = (n) => (n === null || n === undefined || n === '') ? null : Number(n);
+  const cur = t.currency || 'HUF';
+  const fmtMoney = (n) => n == null ? '—' : `${new Intl.NumberFormat('hu-HU').format(n)} ${cur}`;
+  const fmtPct   = (n) => n == null ? '—' : `${n}%`;
+  const liabilityText = report.liability_type
+    ? (t[`liability_${report.liability_type}`] || report.liability_type)
+    : '—';
+  const totalCost = num(report.total_cost);
+  const faultPct  = num(report.fault_percentage);
+  const empSalary = num(report.employee_salary);
+  const hasCostData = totalCost != null || faultPct != null || empSalary != null
+    || (report.liability_type && report.liability_type !== '');
+
+  const costSection = hasCostData ? `
+    <div style="display:flex;gap:8px;margin:3px 0;font-size:7.5pt;flex-wrap:wrap;">
+      <div style="flex:1 1 45%;min-width:140px;border:0.5px solid #ddd;padding:3px 5px;">
+        <b>${esc(t.totalCost || 'Total cost')}:</b> ${esc(fmtMoney(totalCost))}
+      </div>
+      <div style="flex:1 1 45%;min-width:140px;border:0.5px solid #ddd;padding:3px 5px;">
+        <b>${esc(t.faultPercentage || 'Fault %')}:</b> ${esc(fmtPct(faultPct))}
+      </div>
+      <div style="flex:1 1 45%;min-width:140px;border:0.5px solid #ddd;padding:3px 5px;">
+        <b>${esc(t.liabilityType || 'Liability')}:</b> ${esc(liabilityText)}
+      </div>
+      <div style="flex:1 1 45%;min-width:140px;border:0.5px solid #ddd;padding:3px 5px;">
+        <b>${esc(t.employeeSalary || 'Salary')}:</b> ${esc(fmtMoney(empSalary))}
+      </div>
+    </div>
+  ` : `<div style="font-size:7.5pt;margin:4px 0 8px 0;">${esc(t.settlementText)}</div>`;
+
+  // Status pill for the header (small, only if we have a translation key
+  // for this status — otherwise omit so we don't print raw slugs).
+  const statusLabel = report.status ? (t[`status_${report.status}`] || '') : '';
+  const statusPill = statusLabel
+    ? ` &nbsp;|&nbsp; ${esc(t.statusLabel || 'Status')}: <strong>${esc(statusLabel)}</strong>`
+    : '';
+
+  // Notes block — only render if there's actual content.
+  const notesBlock = (report.notes && String(report.notes).trim()) ? `
+    <div class="st">${esc(t.notesLabel || 'Notes')}</div>
+    <div class="db" style="white-space:pre-wrap;">${esc(report.notes)}</div>
+  ` : '';
+
   return `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -77,7 +124,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 
 <div class="hdr">
   <h1>${esc(t.title)}</h1>
-  <div class="m">${esc(t.docNumber)}: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; ${esc(t.date)}: <strong>${formatDate(report.created_at)}</strong></div>
+  <div class="m">${esc(t.docNumber)}: <strong>${esc(report.report_number)}</strong> &nbsp;|&nbsp; ${esc(t.date)}: <strong>${formatDate(report.created_at)}</strong>${statusPill}</div>
 </div>
 <div class="dv"></div>
 
@@ -116,7 +163,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 <div class="td"></div>
 
 <div class="st">6. ${esc(t.s6)}</div>
-<div style="font-size:7.5pt;margin:4px 0 8px 0;">${esc(t.settlementText)}</div>
+${costSection}
 <div class="td"></div>
 
 <div class="st">7. ${esc(t.s7)}</div>
@@ -129,6 +176,7 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
   <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigWitness)}</div><div class="sn">${esc(t.sigName)}: ${esc(report.witness_name) || '____________________'}</div></div>
 </div>
 
+${notesBlock}
 <div class="jog"><b>9. ${esc(t.s9)}:</b> ${esc(t.legalText)}</div>
 <div class="ft">${esc(t.generatedBy)} · ${new Date().toISOString().replace('T', ' ').substring(0, 19)}</div>
 

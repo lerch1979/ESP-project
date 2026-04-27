@@ -177,6 +177,7 @@ async function updateReport(id, data) {
     'description', 'damage_items', 'liability_type', 'fault_percentage',
     'total_cost', 'employee_salary', 'payment_plan', 'photo_urls',
     'notes', 'status', 'witness_name',
+    'employee_acknowledged',
   ];
 
   for (const [key, value] of Object.entries(data)) {
