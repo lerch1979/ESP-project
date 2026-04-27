@@ -209,6 +209,31 @@ class GmailUniversalPollerService {
     const decision = this.shouldProcessEmail(subject, from, attachmentParts);
     if (!decision.should) {
       logger.info(`FILTER SKIP: "${subject.slice(0, 60)}" — ${decision.reason}`);
+
+      // Email assistant bridge: any "no-signal" reject (no financial
+      // keyword + no doc attachment) is candidate for AI handling.
+      // Negative-keyword rejects (newsletters, security alerts, password
+      // resets) stay on the floor — they're noise, never user intent.
+      // Gated by EMAIL_ASSISTANT_ENABLED so the feature is opt-in.
+      const isNegativeKeyword = (decision.reason || '').toLowerCase().includes('negatív kulcsszó');
+      if (process.env.EMAIL_ASSISTANT_ENABLED === 'true' && !isNegativeKeyword) {
+        try {
+          const emailAssistant = require('./emailAssistant.service');
+          const bodyText = this.extractBodyText(message.data.payload);
+          const receivedHeader = headers.find(h => h.name === 'Date')?.value;
+          const receivedAt = receivedHeader ? new Date(receivedHeader) : null;
+          const result = await emailAssistant.processEmail({
+            messageId, from, subject, bodyText, receivedAt,
+          });
+          if (result?.handled) {
+            logger.info(`EMAIL ASSISTANT: "${subject.slice(0, 60)}" → ${result.intent || result.reason}`);
+          }
+        } catch (err) {
+          // Never let assistant failure block the poll loop
+          logger.error('[gmailPoller→emailAssistant] error:', err.message);
+        }
+      }
+
       await this.markAsRead(messageId);
       return 'skipped';
     }

@@ -87,4 +87,44 @@ async function sendInvoiceEmail(invoiceId, { to, cc, subject, body }) {
   }
 }
 
-module.exports = { sendInvoiceEmail };
+/**
+ * Generic SMTP send. Used by the email assistant for response and
+ * unknown-sender rejection mails. Does NOT attach any PDFs (that's
+ * sendInvoiceEmail's job).
+ *
+ * Returns { data: { messageId, to } } on success, { error, status } on
+ * failure — same shape as sendInvoiceEmail so callers can branch
+ * uniformly.
+ */
+async function sendMail({ to, subject, text, html, cc, inReplyTo, references } = {}) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return { error: 'Email konfiguracio nincs beallitva (SMTP_USER/SMTP_PASS)', status: 503 };
+  }
+  if (!to)      return { error: 'Cimzett megadasa kotelezo', status: 400 };
+  if (!subject) return { error: 'Targy megadasa kotelezo', status: 400 };
+  if (!text && !html) return { error: 'Tartalom (text vagy html) megadasa kotelezo', status: 400 };
+
+  // Use threading headers when replying so Gmail/Outlook keep the
+  // assistant's reply in the original conversation.
+  const mailOptions = {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    cc: cc || undefined,
+    subject,
+    text: text || undefined,
+    html: html || undefined,
+    inReplyTo: inReplyTo || undefined,
+    references: references || (inReplyTo ? inReplyTo : undefined),
+  };
+
+  try {
+    const info = await getTransporter().sendMail(mailOptions);
+    logger.info(`sendMail: ${subject} → ${to}`, { messageId: info.messageId });
+    return { data: { messageId: info.messageId, to } };
+  } catch (error) {
+    logger.error('sendMail failed:', error);
+    return { error: `Email kuldesi hiba: ${error.message}`, status: 500 };
+  }
+}
+
+module.exports = { sendInvoiceEmail, sendMail };
