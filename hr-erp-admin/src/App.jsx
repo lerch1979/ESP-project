@@ -105,6 +105,7 @@ const FineTypesManagement = lazy(() => import('./pages/compensations/FineTypesMa
 const WorkplacesAdmin = lazy(() => import('./pages/admin/Workplaces'));
 const AllTasksAdmin = lazy(() => import('./pages/admin/AllTasks'));
 const AIAssistantLogs = lazy(() => import('./pages/admin/AIAssistantLogs'));
+const WorkerSpecializations = lazy(() => import('./pages/admin/WorkerSpecializations'));
 const CreateFineFromInspection = lazy(() => import('./pages/compensations/CreateFineFromInspection'));
 const SalaryDeductionsList = lazy(() => import('./pages/compensations/SalaryDeductionsList'));
 
@@ -173,6 +174,7 @@ function App() {
               <Route path="projects" element={<PermissionGuard permission="projects.view"><Projects /></PermissionGuard>} />
               <Route path="projects/:id" element={<PermissionGuard permission="projects.view"><ProjectDetail /></PermissionGuard>} />
               <Route path="admin/auto-assign" element={<PermissionGuard permission="settings.view"><AutoAssign /></PermissionGuard>} />
+              <Route path="admin/worker-specializations" element={<PermissionGuard permission="settings.view"><WorkerSpecializations /></PermissionGuard>} />
               <Route path="email-inbox" element={<PermissionGuard permission="settings.edit"><EmailInbox /></PermissionGuard>} />
               <Route path="finance/email-inbox" element={<Navigate to="/email-inbox?tab=1" replace />} />
               <Route path="finance/classification-rules" element={<PermissionGuard permission="settings.edit"><ClassificationRules /></PermissionGuard>} />

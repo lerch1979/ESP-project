@@ -19,6 +19,7 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const inApp = require('./inAppNotification.service');
+const workerAssignment = require('./workerAssignment.service');
 
 async function _resolveCategoryId(slug) {
   // Post-migration 102 the categories table holds both legacy leaf slugs
@@ -120,11 +121,25 @@ async function handleTicket({ user, profile, entities, message }) {
     [ticket.id, user.id, `[AI assistant] ${title}`]
   );
 
+  // Auto-assign by specialization. Failures are non-fatal — the ticket is
+  // already created and the worker can be assigned later from the admin UI.
+  let assignedWorker = null;
+  try {
+    assignedWorker = await workerAssignment.autoAssignTicket(ticket.id);
+  } catch (err) {
+    logger.error('[aiAssistantHandlers] auto-assign failed:', err.message);
+  }
+
   return {
     success: true,
     action_type: 'create_ticket',
     action_params: { title, category: entities.category, severity: entities.severity },
-    action_result: { ticket_id: ticket.id, ticket_number: ticket.ticket_number },
+    action_result: {
+      ticket_id: ticket.id,
+      ticket_number: ticket.ticket_number,
+      assigned_to: assignedWorker?.id || null,
+      assigned_specialization: assignedWorker?.specialization || null,
+    },
     created_ticket_id: ticket.id,
   };
 }

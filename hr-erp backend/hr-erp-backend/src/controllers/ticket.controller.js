@@ -2,6 +2,7 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
 const autoAssignService = require('../services/autoAssign.service');
+const workerAssignmentService = require('../services/workerAssignment.service');
 const slaService = require('../services/sla.service');
 const translation = require('../services/translation.service');
 const { isValidUUID, sanitizeString, parsePagination, sanitizeSearch } = require('../utils/validation');
@@ -465,7 +466,19 @@ const createTicket = async (req, res) => {
     const { ticket: createdTicket, prioritySlug } = ticketData;
 
     if (!assigned_to) {
-      const autoAssigned = await autoAssignService.assignTicket(createdTicket.id);
+      // Try the new specialization-based assignment first (uses
+      // worker_specializations + ticket_categories.default_specialization).
+      // If no spec match exists in this contractor's data, fall back to the
+      // legacy assignment_rules path so existing setups keep working.
+      let autoAssigned = null;
+      const specWorker = await workerAssignmentService.autoAssignTicket(createdTicket.id);
+      if (specWorker) {
+        // Re-read so we get the assigned_to + updated_at from the latest row
+        const reread = await query('SELECT * FROM tickets WHERE id = $1', [createdTicket.id]);
+        autoAssigned = reread.rows[0] || null;
+      } else {
+        autoAssigned = await autoAssignService.assignTicket(createdTicket.id);
+      }
       if (autoAssigned) {
         ticketData = { ...ticketData, ticket: autoAssigned };
       }

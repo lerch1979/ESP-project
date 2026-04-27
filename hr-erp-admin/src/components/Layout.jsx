@@ -203,6 +203,7 @@ const buildMenuItems = (t) => [
   { text: t('nav.users'), icon: <PeopleIcon />, path: '/users', permission: 'users.view' },
   { text: t('nav.settings'), icon: <SettingsIcon />, path: '/settings', permission: 'settings.view' },
   { text: t('nav.autoAssign'), icon: <AutoAssignIcon />, path: '/admin/auto-assign', permission: 'settings.view' },
+  { text: 'Munkavállalók szakértelme', icon: <AutoAssignIcon />, path: '/admin/worker-specializations', permission: 'settings.view' },
   {
     text: t('nav.faqManagement'), icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [
       { text: t('nav.faqCategories'), icon: <CategoryIcon />, path: '/admin/faq-categories', permission: 'faq.edit' },

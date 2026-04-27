@@ -309,6 +309,31 @@ export const aiAssistantAPI = {
 };
 
 // Workplaces API (admin-managed canonical workplace list)
+export const workerSpecializationsAPI = {
+  // GET /worker-specializations[?specialization=&user_id=&is_active=]
+  list: async (params = {}) => {
+    const response = await api.get('/worker-specializations', { params });
+    return response.data;
+  },
+  // GET /worker-specializations/types — canonical list for dropdowns
+  listTypes: async () => {
+    const response = await api.get('/worker-specializations/types');
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/worker-specializations', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.patch(`/worker-specializations/${id}`, data);
+    return response.data;
+  },
+  remove: async (id) => {
+    const response = await api.delete(`/worker-specializations/${id}`);
+    return response.data;
+  },
+};
+
 export const workplacesAPI = {
   list: async (params = {}) => {
     const response = await api.get('/workplaces', { params });

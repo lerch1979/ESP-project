@@ -46,6 +46,7 @@ const taskRoutes = require('./routes/task.routes');
 const taskDirectRoutes = require('./routes/taskDirect.routes');
 const timesheetRoutes = require('./routes/timesheet.routes');
 const assignmentRuleRoutes = require('./routes/assignmentRule.routes');
+const workerSpecializationRoutes = require('./routes/workerSpecialization.routes');
 const userWorkloadRoutes = require('./routes/userWorkload.routes');
 const slaPolicyRoutes = require('./routes/sla.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
@@ -370,6 +371,7 @@ app.use(`${API_PREFIX}/projects/:projectId/tasks`, taskRoutes); // /projects/:pr
 app.use(`${API_PREFIX}/tasks`, taskDirectRoutes); // /tasks/:id (direct)
 app.use(`${API_PREFIX}/timesheets`, timesheetRoutes);
 app.use(`${API_PREFIX}/assignment-rules`, assignmentRuleRoutes);
+app.use(`${API_PREFIX}/worker-specializations`, workerSpecializationRoutes);
 app.use(`${API_PREFIX}/user-workload`, userWorkloadRoutes);
 app.use(`${API_PREFIX}/sla-policies`, slaPolicyRoutes);
 app.use(`${API_PREFIX}/invoices`, invoiceRoutes);
