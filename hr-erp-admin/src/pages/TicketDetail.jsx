@@ -189,7 +189,9 @@ function TicketDetail() {
       });
     }
 
-    items.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Newest first — matches social-media style and the user's current
+    // preference (reverts the earlier ascending sort).
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
     return items;
   };
 
