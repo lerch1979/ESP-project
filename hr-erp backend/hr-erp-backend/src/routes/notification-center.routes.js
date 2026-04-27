@@ -25,6 +25,14 @@ router.get('/unread-count', notificationCenterController.getUnreadCount);
 router.post('/mark-all-read', notificationCenterController.markAllAsRead);
 
 /**
+ * PATCH /api/v1/notification-center/mark-all-read
+ * Alias for POST /mark-all-read — same handler, lets PATCH-style clients
+ * issue the bulk update without breaking the existing POST consumer
+ * (NotificationBell).
+ */
+router.patch('/mark-all-read', notificationCenterController.markAllAsRead);
+
+/**
  * PUT /api/v1/notification-center/:id/read
  * Egy ertesites olvasottnak jelolese
  */
