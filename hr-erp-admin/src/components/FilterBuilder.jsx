@@ -132,7 +132,17 @@ export default function FilterBuilder({
               >
                 <MenuItem value=""><em>Válasszon...</em></MenuItem>
                 {valueOptions.map(opt => (
-                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  // Per-option `disabled` + `sx` lets callers render grouped
+                  // dropdowns (e.g. ticket categories: parent header disabled,
+                  // sub-categories indented + selectable).
+                  <MenuItem
+                    key={opt.value}
+                    value={opt.value}
+                    disabled={!!opt.disabled}
+                    sx={opt.sx}
+                  >
+                    {opt.label}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>

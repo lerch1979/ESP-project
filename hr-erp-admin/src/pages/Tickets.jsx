@@ -60,9 +60,15 @@ function Tickets() {
   const [filterOptions, setFilterOptions] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Hierarchical category tree for the filter dropdown. Loaded separately
+  // from reportsAPI.getFilterOptions because that endpoint only returns
+  // {id,name} — no slug, no parent_id. ticketsAPI.getCategories already
+  // exposes the parent → children tree post-migration 102.
+  const [categoryTree, setCategoryTree] = useState([]);
 
   useEffect(() => {
     loadFilterOptions();
+    loadCategoryTree();
   }, []);
 
   useEffect(() => {
@@ -80,11 +86,55 @@ function Tickets() {
     }
   };
 
+  const loadCategoryTree = async () => {
+    try {
+      const res = await ticketsAPI.getCategories();
+      if (res?.success) {
+        const data = res.data || {};
+        setCategoryTree(data.tree?.length ? data.tree : (data.categories || []));
+      }
+    } catch (err) {
+      console.error('Kategória fa betöltési hiba:', err);
+    }
+  };
+
+  // Render the category tree as a flat option list with disabled parent
+  // headers and indented selectable sub-categories. The backend
+  // TICKET_FILTER_FIELD_MAP.category is `tc.slug`, so values must be slugs.
+  const buildCategoryOptions = () => {
+    const opts = [];
+    for (const parent of categoryTree) {
+      const children = Array.isArray(parent.children) ? parent.children : [];
+      if (children.length > 0) {
+        opts.push({
+          value: `__parent_${parent.id}`,
+          label: `${parent.icon || ''} ${parent.name}`.trim(),
+          disabled: true,
+          sx: { bgcolor: '#f8fafc', fontWeight: 700, opacity: '1 !important' },
+        });
+        for (const c of children) {
+          opts.push({
+            value: c.slug,
+            label: `${c.icon || ''} ${c.name}`.trim(),
+            sx: { pl: 4 },
+          });
+        }
+      } else {
+        // Lone leaf without children — still selectable.
+        opts.push({
+          value: parent.slug,
+          label: `${parent.icon || ''} ${parent.name}`.trim(),
+        });
+      }
+    }
+    return opts;
+  };
+
   const buildDynamicOptions = () => {
     if (!filterOptions) return {};
     return {
       status: (filterOptions.tickets?.statuses || []).map(s => ({ value: s.slug, label: s.name })),
-      category: (filterOptions.tickets?.categories || []).map(c => ({ value: c.name, label: c.name })),
+      category: buildCategoryOptions(),
       priority: (filterOptions.tickets?.priorities || []).map(p => ({ value: p.slug, label: p.name })),
       contractor: (filterOptions.tickets?.contractors || []).map(c => ({ value: String(c.id), label: c.name })),
     };

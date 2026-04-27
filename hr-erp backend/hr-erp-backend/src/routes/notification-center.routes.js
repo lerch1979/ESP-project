@@ -30,4 +30,18 @@ router.post('/mark-all-read', notificationCenterController.markAllAsRead);
  */
 router.put('/:id/read', notificationCenterController.markAsRead);
 
+/**
+ * PATCH /api/v1/notification-center/:id/read
+ * Alias for PUT /:id/read — same handler, lets PATCH-style clients work
+ * without breaking existing PUT consumers (e.g. NotificationBell).
+ */
+router.patch('/:id/read', notificationCenterController.markAsRead);
+
+/**
+ * DELETE /api/v1/notification-center/:id
+ * Owner-only delete. Broadcast notifications (user_id IS NULL) are NOT
+ * deletable through this endpoint — see controller.
+ */
+router.delete('/:id', notificationCenterController.deleteNotification);
+
 module.exports = router;

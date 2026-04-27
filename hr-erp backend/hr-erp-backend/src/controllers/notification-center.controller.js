@@ -147,9 +147,47 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
+/**
+ * Ertesites torlese — csak a sajat (user_id = self) ertesiteset torolheti.
+ * Broadcast (user_id IS NULL) ertesitest senki nem tud torolni a UI-rol;
+ * azokat csak admin script tudja kezelni.
+ */
+const deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const result = await query(
+      `DELETE FROM notifications
+       WHERE id = $1 AND user_id = $2
+       RETURNING id`,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ertesites nem talalhato vagy nincs jogosultsag'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Ertesites torolve'
+    });
+  } catch (error) {
+    logger.error('Ertesites torlesi hiba:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ertesites torlesi hiba'
+    });
+  }
+};
+
 module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
   getUnreadCount,
+  deleteNotification,
 };
