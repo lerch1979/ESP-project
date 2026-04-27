@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { damageReportsAPI, usersAPI, accommodationsAPI } from '../services/api';
+import DamageReportEditModal from '../components/DamageReportEditModal';
 
 const STATUS_COLORS = {
   draft: 'default',
@@ -60,6 +61,7 @@ export default function DamageReportDetail() {
   const isNew = id === 'new';
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(isNew ? false : true);
+  const [editOpen, setEditOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newForm, setNewForm] = useState({
@@ -130,15 +132,15 @@ export default function DamageReportDetail() {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (lang = 'hu') => {
     // Open window immediately in user gesture context to avoid popup blocker
     const newTab = window.open('', '_blank');
     try {
-      const blob = await damageReportsAPI.downloadPDF(id);
+      const blob = await damageReportsAPI.downloadPDF(id, lang);
       const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       newTab.location.href = url;
       setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-      toast.success('PDF letöltve');
+      toast.success(lang === 'en' ? 'PDF downloaded' : 'PDF letöltve');
     } catch {
       if (newTab) newTab.close();
       toast.error(t('errorOccurred'));
@@ -270,6 +272,11 @@ export default function DamageReportDetail() {
     );
   }
 
+  // Lock editing once the report has been formally acknowledged or moved
+  // through the payment workflow — at that point it's a binding document.
+  const FINALIZED_STATUSES = new Set(['acknowledged', 'in_payment', 'paid', 'cancelled']);
+  const isLocked = FINALIZED_STATUSES.has(report.status);
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header */}
@@ -296,9 +303,21 @@ export default function DamageReportDetail() {
             )}
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" startIcon={<PdfIcon />} onClick={handleDownloadPDF}>
-            PDF
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={() => setEditOpen(true)}
+            disabled={isLocked}
+            title={isLocked ? 'A jegyzőkönyv véglegesítve — nem módosítható' : ''}
+          >
+            Szerkesztés
+          </Button>
+          <Button variant="outlined" startIcon={<PdfIcon />} onClick={() => handleDownloadPDF('hu')}>
+            📄 Magyar PDF
+          </Button>
+          <Button variant="outlined" startIcon={<PdfIcon />} onClick={() => handleDownloadPDF('en')}>
+            📄 English PDF
           </Button>
         </Box>
       </Box>
@@ -548,6 +567,15 @@ export default function DamageReportDetail() {
           )}
         </Grid>
       </Grid>
+
+      <DamageReportEditModal
+        open={editOpen}
+        report={report}
+        onClose={() => setEditOpen(false)}
+        onSaved={(updated) => {
+          if (updated) setReport(prev => ({ ...prev, ...updated }));
+        }}
+      />
     </Box>
   );
 }
