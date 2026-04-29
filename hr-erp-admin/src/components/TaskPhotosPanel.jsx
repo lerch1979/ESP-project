@@ -3,7 +3,7 @@ import {
   Box, Stack, Typography, Button, IconButton, Tooltip, Chip,
   CircularProgress, Tabs, Tab, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, MenuItem, ImageList, ImageListItem,
-  ImageListItemBar, Backdrop,
+  ImageListItemBar, Backdrop, Alert,
 } from '@mui/material';
 import {
   Add as AddIcon, Close as CloseIcon, Delete as DeleteIcon,
@@ -248,6 +248,22 @@ export default function TaskPhotosPanel({ taskId, currentUser }) {
           {pickedFiles.length} fotó feltöltése
         </DialogTitle>
         <DialogContent>
+          {/* GDPR / privacy warning. Always visible above the file
+              previews so users see it before they confirm the upload. */}
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              ⚠️ Figyelem — Adatvédelem!
+            </Typography>
+            <Typography variant="body2">
+              NE töltsetek fel személyazonosító dokumentumokat
+              (igazolvány, útlevél, lakcímkártya, bankkártya)!
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              Ezeket a következő frissítésben elérhető biztonságos
+              dokumentumtárba kell tenni.
+            </Typography>
+          </Alert>
+
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
             {pickedPreviews.map((src, i) => (
               <img
