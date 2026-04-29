@@ -41,6 +41,7 @@ import {
 import { toast } from 'react-toastify';
 import { damageReportsAPI, usersAPI, accommodationsAPI } from '../services/api';
 import DamageReportEditModal from '../components/DamageReportEditModal';
+import DamageReportPdfPreviewModal from '../components/DamageReportPdfPreviewModal';
 
 const STATUS_COLORS = {
   draft: 'default',
@@ -62,6 +63,7 @@ export default function DamageReportDetail() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(isNew ? false : true);
   const [editOpen, setEditOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newForm, setNewForm] = useState({
@@ -312,6 +314,9 @@ export default function DamageReportDetail() {
             title={isLocked ? 'A jegyzőkönyv véglegesítve — nem módosítható' : ''}
           >
             Szerkesztés
+          </Button>
+          <Button variant="outlined" startIcon={<PdfIcon />} onClick={() => setPreviewOpen(true)}>
+            👁 PDF előnézet
           </Button>
           <Button variant="outlined" startIcon={<PdfIcon />} onClick={() => handleDownloadPDF('hu')}>
             📄 Magyar PDF
@@ -575,6 +580,12 @@ export default function DamageReportDetail() {
         onSaved={(updated) => {
           if (updated) setReport(prev => ({ ...prev, ...updated }));
         }}
+      />
+
+      <DamageReportPdfPreviewModal
+        open={previewOpen}
+        reportId={id}
+        onClose={() => setPreviewOpen(false)}
       />
     </Box>
   );
