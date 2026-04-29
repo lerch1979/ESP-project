@@ -262,16 +262,19 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
               value={employees.find(e => e.id === formData.linked_employee_id) || null}
               onChange={(_, val) => handleChange('linked_employee_id', val?.id || '')}
               getOptionLabel={(e) => {
+                // For ticket flow we care WHERE THE PERSON LIVES, not where
+                // they work — that's where the maintenance / fault actually is.
                 const name = [e.first_name, e.last_name].filter(Boolean).join(' ');
-                const extras = [e.personal_email, e.workplace].filter(Boolean).join(' · ');
-                return extras ? `${name} (${extras})` : name;
+                const room = e.room_number ? `${e.room_number}. szoba` : null;
+                const where = [e.accommodation_name, room].filter(Boolean).join(', ');
+                return where ? `${name} (${where})` : name;
               }}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Kapcsolódó dolgozó (opcionális)"
-                  placeholder="Keress név, email vagy munkahely alapján"
+                  placeholder="Keress név vagy szállás alapján"
                 />
               )}
               noOptionsText="Nincs találat"

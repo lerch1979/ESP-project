@@ -219,12 +219,13 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
               onChange={(_, val) => setForm(s => ({ ...s, linked_employee_id: val?.id || '' }))}
               getOptionLabel={(e) => {
                 const name = [e.first_name, e.last_name].filter(Boolean).join(' ');
-                const extras = [e.personal_email, e.workplace].filter(Boolean).join(' · ');
-                return extras ? `${name} (${extras})` : name;
+                const room = e.room_number ? `${e.room_number}. szoba` : null;
+                const where = [e.accommodation_name, room].filter(Boolean).join(', ');
+                return where ? `${name} (${where})` : name;
               }}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               renderInput={(params) => (
-                <TextField {...params} label="Kapcsolódó dolgozó" placeholder="Keress név / email / munkahely alapján" />
+                <TextField {...params} label="Kapcsolódó dolgozó" placeholder="Keress név vagy szállás alapján" />
               )}
               noOptionsText="Nincs találat"
               clearText="Törlés"
