@@ -26,16 +26,35 @@ const URGENCY = {
   none:       { color: '#6b7280', label: 'Nincs határidő' },
 };
 
+// Border color classifier — visual urgency. Past-now is always red even
+// if the deadline was earlier today (the work is genuinely late).
 function classifyDeadline(deadlineStr, dueDateStr) {
   const target = deadlineStr || dueDateStr;
   if (!target) return 'none';
   const d = new Date(target);
   const now = new Date();
   if (d.getTime() < now.getTime()) return 'overdue';
-  // Same calendar day = "today"
   if (d.toDateString() === now.toDateString()) return 'today';
   const oneWeek = 7 * 24 * 3600 * 1000;
   if (d.getTime() - now.getTime() < oneWeek) return 'this_week';
+  return 'future';
+}
+
+// Header-chip classifier — uses CALENDAR-DAY semantics so "Ma 14:00" and
+// "Ma 18:00" both count as 'today' even when the time has already passed.
+// "Lejárt" therefore means "deadline before today's start" (yesterday or
+// earlier), not just "any past-now". This keeps the inline 'Ma HH:MM'
+// label honest and the two header chips disjoint.
+function classifyForBadge(deadlineStr, dueDateStr) {
+  const target = deadlineStr || dueDateStr;
+  if (!target) return 'none';
+  const d = new Date(target);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  if (d.getTime() < startOfToday.getTime()) return 'overdue';
+  if (d.getTime() < startOfTomorrow.getTime()) return 'today';
   return 'future';
 }
 
@@ -155,10 +174,12 @@ export default function MyActiveTasksWidget() {
   };
 
   // Sort already done by the backend; group counts go in the header chip.
+  // Use the calendar-day classifier so "Ma 14:00" past noon still counts
+  // as 'today' (the inline label says "Ma HH:MM" — the chip should agree).
   const counts = useMemo(() => {
     const c = { overdue: 0, today: 0 };
     for (const t of tasks) {
-      const u = classifyDeadline(t.deadline, t.due_date);
+      const u = classifyForBadge(t.deadline, t.due_date);
       if (u === 'overdue') c.overdue++;
       else if (u === 'today') c.today++;
     }

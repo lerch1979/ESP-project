@@ -78,6 +78,14 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // Static uploads are served by the backend (express.static at
+      // server.js:213). Stored URLs are root-relative ('/uploads/...')
+      // so they round-trip cleanly between dev and any future production
+      // host without a code change — Vite forwards through to :3001.
+      '/uploads': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   build: {
