@@ -164,14 +164,20 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
   if (!form) return null;
 
   // ── Render helpers ────────────────────────────────────────────────────
-  const TabPanel = ({ value, children }) => (
-    <Box hidden={tab !== value} sx={{ pt: 2 }}>{children}</Box>
-  );
-
-  const ChangedChip = ({ field }) =>
+  // CRITICAL: these MUST stay as plain functions / inlined JSX. If we wrap
+  // tab content in a `const TabPanel = ({...}) => <Box hidden=.../>` defined
+  // in this scope, every parent re-render creates a NEW TabPanel reference
+  // and React unmounts + remounts the whole tab subtree on every keystroke
+  // — which is exactly what BUG 1+2 reported (only one character typeable,
+  // Selects unclickable). Same hazard for ChangedChip: rendered as
+  // <ChangedChip /> it gets the same treatment, so we expose it as a
+  // function returning JSX instead.
+  const changedChip = (field) =>
     dirty[field] ? (
       <Chip size="small" label="módosítva" color="warning" sx={{ ml: 1, height: 18, fontSize: 10 }} />
     ) : null;
+
+  const tabPanelSx = (i) => ({ pt: 2, display: tab === i ? 'block' : 'none' });
 
   return (
     <Dialog open={open} onClose={saving ? null : onClose} maxWidth="md" fullWidth>
@@ -196,12 +202,12 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
         </Tabs>
 
         {/* ── Alapadatok ──────────────────────────────────────────── */}
-        <TabPanel value={0}>
+        <Box sx={tabPanelSx(0)}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 fullWidth multiline rows={4} required
-                label={<>Leírás <ChangedChip field="description" /></>}
+                label={<>Leírás {changedChip("description")}</>}
                 value={form.description}
                 onChange={e => setField('description', e.target.value)}
                 error={!!errors.description}
@@ -212,7 +218,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth type="date" required
-                label={<>Esemény napja <ChangedChip field="incident_date" /></>}
+                label={<>Esemény napja {changedChip("incident_date")}</>}
                 InputLabelProps={{ shrink: true }}
                 value={form.incident_date}
                 onChange={e => setField('incident_date', e.target.value)}
@@ -224,7 +230,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth type="date"
-                label={<>Felfedezés napja <ChangedChip field="discovery_date" /></>}
+                label={<>Felfedezés napja {changedChip("discovery_date")}</>}
                 InputLabelProps={{ shrink: true }}
                 value={form.discovery_date}
                 onChange={e => setField('discovery_date', e.target.value)}
@@ -248,17 +254,17 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label={<>Tanú neve <ChangedChip field="witness_name" /></>}
+                label={<>Tanú neve {changedChip("witness_name")}</>}
                 value={form.witness_name}
                 onChange={e => setField('witness_name', e.target.value)}
                 sx={highlightSx(dirty.witness_name)}
               />
             </Grid>
           </Grid>
-        </TabPanel>
+        </Box>
 
         {/* ── Helyszín ────────────────────────────────────────────── */}
-        <TabPanel value={1}>
+        <Box sx={tabPanelSx(1)}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={8}>
               <Autocomplete
@@ -270,7 +276,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label={<>Szálláshely <ChangedChip field="accommodation_id" /></>}
+                    label={<>Szálláshely {changedChip("accommodation_id")}</>}
                     sx={highlightSx(dirty.accommodation_id)}
                   />
                 )}
@@ -279,17 +285,17 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                label={<>Szoba <ChangedChip field="room_id" /></>}
+                label={<>Szoba {changedChip("room_id")}</>}
                 value={form.room_id}
                 onChange={e => setField('room_id', e.target.value)}
                 sx={highlightSx(dirty.room_id)}
               />
             </Grid>
           </Grid>
-        </TabPanel>
+        </Box>
 
         {/* ── Kár & költség ───────────────────────────────────────── */}
-        <TabPanel value={2}>
+        <Box sx={tabPanelSx(2)}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth sx={highlightSx(dirty.liability_type)}>
@@ -309,7 +315,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth type="number"
-                label={<>Felróhatóság % <ChangedChip field="fault_percentage" /></>}
+                label={<>Felróhatóság % {changedChip("fault_percentage")}</>}
                 value={form.fault_percentage}
                 onChange={e => setField('fault_percentage', e.target.value)}
                 error={!!errors.fault_percentage}
@@ -322,7 +328,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth type="number"
-                label={<>Teljes költség <ChangedChip field="total_cost" /></>}
+                label={<>Teljes költség {changedChip("total_cost")}</>}
                 value={form.total_cost}
                 onChange={e => setField('total_cost', e.target.value)}
                 error={!!errors.total_cost}
@@ -335,7 +341,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth type="number"
-                label={<>Havi munkabér <ChangedChip field="employee_salary" /></>}
+                label={<>Havi munkabér {changedChip("employee_salary")}</>}
                 value={form.employee_salary}
                 onChange={e => setField('employee_salary', e.target.value)}
                 error={!!errors.employee_salary}
@@ -353,22 +359,22 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
                     onChange={e => setField('employee_acknowledged', e.target.checked)}
                   />
                 }
-                label={<>A lakó elismeri a felelősséget <ChangedChip field="employee_acknowledged" /></>}
+                label={<>A lakó elismeri a felelősséget {changedChip("employee_acknowledged")}</>}
               />
             </Grid>
           </Grid>
-        </TabPanel>
+        </Box>
 
         {/* ── Megjegyzés ──────────────────────────────────────────── */}
-        <TabPanel value={3}>
+        <Box sx={tabPanelSx(3)}>
           <TextField
             fullWidth multiline rows={6}
-            label={<>Megjegyzések <ChangedChip field="notes" /></>}
+            label={<>Megjegyzések {changedChip("notes")}</>}
             value={form.notes}
             onChange={e => setField('notes', e.target.value)}
             sx={highlightSx(dirty.notes)}
           />
-        </TabPanel>
+        </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
