@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
+const ticketMessages = require('../controllers/ticketMessages.controller');
 const { authenticateToken, checkContractorAccess } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -55,5 +56,20 @@ router.post('/:id/comments', checkPermission('tickets.view'), ticketController.a
  * Tasks linked to this ticket (tasks.linked_ticket_id = id).
  */
 router.get('/:id/tasks', checkPermission('tickets.view'), ticketController.getRelatedTasks);
+
+/**
+ * Ticket chat thread (migration 106). Anyone with tickets.view can
+ * read; only authenticated parties on the ticket can post (the
+ * controller's _detectSenderRole is the gate). All routes use :ticketId
+ * as the path param to match the controller's expectations.
+ */
+router.get('/:ticketId/messages',
+  checkPermission('tickets.view'), ticketMessages.list);
+router.post('/:ticketId/messages',
+  checkPermission('tickets.view'), ticketMessages.send);
+router.patch('/:ticketId/messages/:messageId/read',
+  checkPermission('tickets.view'), ticketMessages.markRead);
+router.delete('/:ticketId/messages/:messageId',
+  checkPermission('tickets.view'), ticketMessages.remove);
 
 module.exports = router;

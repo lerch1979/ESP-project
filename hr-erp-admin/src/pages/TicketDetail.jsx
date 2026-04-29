@@ -36,10 +36,13 @@ import UserAvatar from '../components/common/UserAvatar';
 import { LanguageBadge, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '../utils/languageBadges';
 import EditTicketModal from '../components/EditTicketModal';
 import RelatedTasksList from '../components/RelatedTasksList';
+import TicketChat from '../components/TicketChat';
+import { useAuth } from '../contexts/AuthContext';
 
 function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [ticket, setTicket] = useState(null);
   const [newComment, setNewComment] = useState('');
@@ -460,6 +463,9 @@ function TicketDetail() {
             ticketNumber={ticket.ticket_number}
             relatedEmployeeId={ticket.linked_employee?.id || ticket.linked_employee_id || null}
           />
+
+          {/* Direct chat thread (admin ↔ assigned worker ↔ linked employee) */}
+          <TicketChat ticketId={ticket.id} currentUser={user} />
         </Grid>
 
         {/* Jobb oldal */}

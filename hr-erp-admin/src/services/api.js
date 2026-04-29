@@ -171,6 +171,24 @@ export const ticketsAPI = {
     return response.data;
   },
 
+  // ── Ticket message thread (migration 106) ─────────────────────────
+  listMessages: async (ticketId) => {
+    const response = await api.get(`/tickets/${ticketId}/messages`);
+    return response.data;
+  },
+  sendMessage: async (ticketId, body) => {
+    const response = await api.post(`/tickets/${ticketId}/messages`, body);
+    return response.data;
+  },
+  markMessageRead: async (ticketId, messageId) => {
+    const response = await api.patch(`/tickets/${ticketId}/messages/${messageId}/read`);
+    return response.data;
+  },
+  deleteMessage: async (ticketId, messageId) => {
+    const response = await api.delete(`/tickets/${ticketId}/messages/${messageId}`);
+    return response.data;
+  },
+
   getStatuses: async () => {
     const response = await api.get('/statuses');
     return response.data;
