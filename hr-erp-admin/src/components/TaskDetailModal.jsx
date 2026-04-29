@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 import { tasksAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import TaskAssigneesPanel from './TaskAssigneesPanel';
+import TaskPhotosPanel from './TaskPhotosPanel';
 
 const PRIORITY_OPTIONS = [
   { value: 'low',      label: 'Alacsony' },
@@ -305,6 +306,9 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
               taskAssignedTo={task.assigned_to}
               onTaskUpdated={onChange}
             />
+
+            {/* Photo gallery + upload (max 10) */}
+            <TaskPhotosPanel taskId={taskId} currentUser={currentUser} />
 
             {/* Status actions */}
             <Box sx={{ mt: 3 }}>

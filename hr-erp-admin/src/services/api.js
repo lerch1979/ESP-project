@@ -1395,6 +1395,26 @@ export const tasksAPI = {
     return response.data;
   },
 
+  // ── task_photos (migration 107 + 108) ──────────────────────────────
+  listPhotos: async (taskId) => {
+    const response = await api.get(`/tasks/${taskId}/photos`);
+    return response.data;
+  },
+  uploadPhotos: async (taskId, files, { photo_type = 'general', caption = '' } = {}) => {
+    const fd = new FormData();
+    for (const f of files) fd.append('photos', f);
+    fd.append('photo_type', photo_type);
+    if (caption) fd.append('caption', caption);
+    const response = await api.post(`/tasks/${taskId}/photos`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  deletePhoto: async (taskId, photoId) => {
+    const response = await api.delete(`/tasks/${taskId}/photos/${photoId}`);
+    return response.data;
+  },
+
   addComment: async (id, data) => {
     const response = await api.post(`/tasks/${id}/comments`, data);
     return response.data;

@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const taskController = require('../controllers/task.controller');
 const taskAssignees = require('../controllers/taskAssignees.controller');
+const taskPhotos = require('../controllers/taskPhotos.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -144,5 +145,17 @@ router.patch('/:taskId/assignees/:userId/visit',
   checkPermission('tasks.view'), taskAssignees.markVisited);
 router.patch('/:taskId/assignees/:userId/complete',
   checkPermission('tasks.view'), taskAssignees.markCompleted);
+
+/**
+ * Task photos (migration 107). multer middleware runs before the
+ * controller so the buffers are validated + size-checked before we
+ * touch sharp / disk.
+ */
+router.get('/:taskId/photos',
+  checkPermission('tasks.view'), taskPhotos.list);
+router.post('/:taskId/photos',
+  checkPermission('tasks.edit'), taskPhotos.uploadMw, taskPhotos.upload);
+router.delete('/:taskId/photos/:photoId',
+  checkPermission('tasks.edit'), taskPhotos.remove);
 
 module.exports = router;
