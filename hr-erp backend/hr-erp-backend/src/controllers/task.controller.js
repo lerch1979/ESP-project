@@ -1190,11 +1190,81 @@ const updateGtdStatus = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/v1/tasks/my-active
+ * "Elvégzendő feladataim" widget feed.
+ *
+ * Returns every task where the caller is involved AND still has work to
+ * do. Two paths, UNION-merged:
+ *   1. Main responsible (tasks.assigned_to = me) — task itself isn't
+ *      'done' / 'cancelled'.
+ *   2. Helper (task_assignees.user_id = me) — that helper's row is
+ *      'pending' or 'visited'.
+ *
+ * Each row is annotated with `role` ('main' | 'helper'), the helper's
+ * own status when applicable, and the linked ticket (number / id) for
+ * the badge in the widget.
+ *
+ * Sorted by deadline ASC NULLS LAST so the most-pressing items rise.
+ * Capped at 20 — anything past that is paginated for later.
+ */
+const getMyActiveTasks = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const r = await query(
+      `WITH mine AS (
+         -- Path 1: I'm the main responsible
+         SELECT t.id, t.title, t.priority, t.status, t.deadline, t.due_date,
+                t.completion_status, t.linked_ticket_id, t.created_at,
+                'main'::text AS role,
+                NULL::varchar AS helper_status,
+                NULL::timestamp AS helper_visited_at,
+                NULL::timestamp AS helper_completed_at
+           FROM tasks t
+          WHERE t.assigned_to = $1
+            AND t.status NOT IN ('done', 'cancelled')
+            AND COALESCE(t.completion_status, 'pending') <> 'completed'
+
+         UNION
+
+         -- Path 2: I'm a helper. Join driven by task_assignees so we
+         -- only surface tasks where MY personal status isn't done.
+         SELECT t.id, t.title, t.priority, t.status, t.deadline, t.due_date,
+                t.completion_status, t.linked_ticket_id, t.created_at,
+                'helper'::text AS role,
+                ta.status AS helper_status,
+                ta.visited_at, ta.completed_at
+           FROM task_assignees ta
+           JOIN tasks t ON t.id = ta.task_id
+          WHERE ta.user_id = $1
+            AND ta.status IN ('pending', 'visited')
+       )
+       SELECT m.*,
+              tk.ticket_number,
+              tk.title AS ticket_title,
+              a.first_name AS main_first_name,
+              a.last_name  AS main_last_name
+         FROM mine m
+         LEFT JOIN tickets tk ON tk.id = m.linked_ticket_id
+         LEFT JOIN tasks t2 ON t2.id = m.id
+         LEFT JOIN users a ON a.id = t2.assigned_to
+        ORDER BY m.deadline ASC NULLS LAST, m.due_date ASC NULLS LAST, m.created_at ASC
+        LIMIT 20`,
+      [userId]
+    );
+    res.json({ success: true, data: { tasks: r.rows } });
+  } catch (error) {
+    logger.error('[getMyActiveTasks]', error);
+    res.status(500).json({ success: false, message: 'Aktív feladatok lekérdezési hiba' });
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   getMyTasks,
   getMyTasksStats,
+  getMyActiveTasks,
   getAllTasksAdmin,
   getGtdView,
   updateGtdStatus,

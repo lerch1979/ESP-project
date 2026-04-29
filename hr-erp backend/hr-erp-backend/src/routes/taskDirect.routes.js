@@ -60,6 +60,15 @@ router.get('/my/stats', checkPermission('tasks.view'), taskController.getMyTasks
 router.get('/my', checkPermission('tasks.view'), taskController.getMyTasks);
 
 /**
+ * GET /api/v1/tasks/my-active
+ * "Elvégzendő feladataim" widget feed — non-completed tasks where the
+ * caller is either the main responsible or a helper (with their own
+ * assignee row not yet completed). Must be declared BEFORE :id routes
+ * so 'my-active' isn't treated as a UUID lookup.
+ */
+router.get('/my-active', checkPermission('tasks.view'), taskController.getMyActiveTasks);
+
+/**
  * GET /api/v1/tasks/gtd-view
  * Unified "Teendők" kanban data (buckets + counts). Must be above :id
  * to avoid being caught as an id lookup.

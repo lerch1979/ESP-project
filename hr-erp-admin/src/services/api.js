@@ -1366,6 +1366,13 @@ export const tasksAPI = {
     return response.data;
   },
 
+  // GET /tasks/my-active — feed for the homepage widget. Returns tasks
+  // where I'm the main responsible OR a still-working helper.
+  myActive: async () => {
+    const response = await api.get('/tasks/my-active');
+    return response.data;
+  },
+
   // ── task_assignees (migration 107) ─────────────────────────────────
   listAssignees: async (taskId) => {
     const response = await api.get(`/tasks/${taskId}/assignees`);
