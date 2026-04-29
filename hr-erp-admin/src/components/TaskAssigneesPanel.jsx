@@ -30,7 +30,14 @@ const fmtDateTime = (s) => s ? new Date(s).toLocaleString('hu-HU', {
  * admins. Backend does the auth gating; this UI mostly hides irrelevant
  * buttons to keep the panel uncluttered.
  */
-export default function TaskAssigneesPanel({ taskId, currentUser, onTaskUpdated }) {
+export default function TaskAssigneesPanel({
+  taskId, currentUser, onTaskUpdated,
+  // Optional: when provided, the task creator and the main responsible
+  // (Felelős) can also act on any helper row. The panel falls back to
+  // self-or-admin when these aren't passed.
+  taskCreatorId,
+  taskAssignedTo,
+}) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState(null); // user_id currently mid-action
@@ -40,7 +47,13 @@ export default function TaskAssigneesPanel({ taskId, currentUser, onTaskUpdated 
   const [completeNotes, setCompleteNotes] = useState('');
 
   const myId = currentUser?.id;
-  const isAdmin = !!(currentUser?.roles || []).find(r => r === 'admin' || r === 'superadmin');
+  // BUG: previously checked currentUser.roles which holds DISPLAY NAMES
+  // ("Szuperadmin"). The slug array lives on roleSlugs. Both fall back to
+  // empty array so the check stays safe if AuthContext shape ever shifts.
+  const slugs = currentUser?.roleSlugs || currentUser?.roles || [];
+  const isAdmin = slugs.includes('admin') || slugs.includes('superadmin');
+  const isCreator = !!taskCreatorId && taskCreatorId === myId;
+  const isMainAssignee = !!taskAssignedTo && taskAssignedTo === myId;
 
   const load = useCallback(async () => {
     if (!taskId) return;
@@ -129,7 +142,10 @@ export default function TaskAssigneesPanel({ taskId, currentUser, onTaskUpdated 
           const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email;
           const status = STATUS_LABEL[a.status] || { label: a.status, color: 'default' };
           const canActSelf = a.user_id === myId;
-          const canModify = canActSelf || isAdmin;
+          // Self / admin / creator / main responsible can act on a helper
+          // row. (Backend re-checks the auth on visit/complete, so this is
+          // just a UI affordance.)
+          const canModify = canActSelf || isAdmin || isCreator || isMainAssignee;
           const isWorking = acting === a.user_id;
           return (
             <Box key={a.id} sx={{

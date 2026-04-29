@@ -100,15 +100,31 @@ const remove = async (req, res) => {
   }
 };
 
-// ── Mark visited ──────────────────────────────────────────────────────
-// The actor must be the assignee themselves OR an admin/superadmin.
+// ── Auth helper for visit/complete actions ────────────────────────────
+// The actor can act on an assignee row if they are:
+//   - the assignee themselves
+//   - an admin / superadmin
+//   - the task's creator (created_by)
+//   - the task's main responsible (assigned_to / Felelős)
 function _isAdmin(req) { return (req.user.roles || []).some(r => r === 'admin' || r === 'superadmin'); }
+
+async function _canActOnAssignee(req, taskId, targetUserId) {
+  if (req.user.id === targetUserId) return true;
+  if (_isAdmin(req)) return true;
+  const r = await query(
+    `SELECT created_by, assigned_to FROM tasks WHERE id = $1`,
+    [taskId]
+  );
+  const t = r.rows[0];
+  if (!t) return false;
+  return t.created_by === req.user.id || t.assigned_to === req.user.id;
+}
 
 const markVisited = async (req, res) => {
   try {
     const { taskId, userId } = req.params;
-    if (req.user.id !== userId && !_isAdmin(req)) {
-      return res.status(403).json({ success: false, message: 'Csak a hozzárendelt vagy admin végezhet ilyen módosítást' });
+    if (!(await _canActOnAssignee(req, taskId, userId))) {
+      return res.status(403).json({ success: false, message: 'Csak a hozzárendelt, admin, főfelelős vagy létrehozó végezhet ilyen módosítást' });
     }
     const r = await query(
       `UPDATE task_assignees
@@ -132,8 +148,8 @@ const markCompleted = async (req, res) => {
   try {
     const { taskId, userId } = req.params;
     const { notes } = req.body || {};
-    if (req.user.id !== userId && !_isAdmin(req)) {
-      return res.status(403).json({ success: false, message: 'Csak a hozzárendelt vagy admin végezhet ilyen módosítást' });
+    if (!(await _canActOnAssignee(req, taskId, userId))) {
+      return res.status(403).json({ success: false, message: 'Csak a hozzárendelt, admin, főfelelős vagy létrehozó végezhet ilyen módosítást' });
     }
     const r = await query(
       `UPDATE task_assignees

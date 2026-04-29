@@ -833,12 +833,31 @@ const addComment = async (req, res) => {
 const getRelatedTasks = async (req, res) => {
   try {
     const { id } = req.params;
+    // Helpers (migration 107) joined as a JSON array per task. Aggregating
+    // in SQL keeps the response shape "one row per task" — the UI can
+    // render an avatar group without a second roundtrip.
     const r = await query(
       `SELECT
          t.id, t.title, t.description, t.status, t.priority,
-         t.assigned_to, t.due_date, t.created_at, t.completed_at,
-         a.first_name AS assignee_first_name, a.last_name AS assignee_last_name,
-         a.email AS assignee_email
+         t.assigned_to, t.due_date, t.deadline,
+         t.completion_status, t.created_at, t.completed_at,
+         a.first_name AS assignee_first_name,
+         a.last_name  AS assignee_last_name,
+         a.email      AS assignee_email,
+         COALESCE(
+           (SELECT json_agg(json_build_object(
+              'user_id',   ta.user_id,
+              'role',      ta.role,
+              'status',    ta.status,
+              'first_name', hu.first_name,
+              'last_name',  hu.last_name,
+              'email',      hu.email
+            ) ORDER BY ta.created_at)
+            FROM task_assignees ta
+            JOIN users hu ON hu.id = ta.user_id
+            WHERE ta.task_id = t.id),
+           '[]'::json
+         ) AS helpers
        FROM tasks t
        LEFT JOIN users a ON a.id = t.assigned_to
        WHERE t.linked_ticket_id = $1

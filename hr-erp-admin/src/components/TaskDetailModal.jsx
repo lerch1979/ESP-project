@@ -301,6 +301,8 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
             <TaskAssigneesPanel
               taskId={taskId}
               currentUser={currentUser}
+              taskCreatorId={task.created_by}
+              taskAssignedTo={task.assigned_to}
               onTaskUpdated={onChange}
             />
 

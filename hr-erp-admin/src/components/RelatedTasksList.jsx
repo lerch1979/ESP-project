@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Paper, Box, Typography, Button, Stack, Chip, IconButton, Tooltip,
-  CircularProgress,
+  CircularProgress, Avatar, AvatarGroup,
 } from '@mui/material';
 import {
   Add as AddIcon, CheckCircleOutline as DoneIcon,
@@ -89,7 +89,13 @@ export default function RelatedTasksList({ ticketId, ticketNumber, relatedEmploy
             const s = STATUS[t.status] || { label: t.status, color: 'default' };
             const assignee = [t.assignee_first_name, t.assignee_last_name].filter(Boolean).join(' ')
               || t.assignee_email || '—';
+            const helpers = Array.isArray(t.helpers) ? t.helpers : [];
             const isDone = t.status === 'done';
+            const helperLabel = helpers.length === 0
+              ? null
+              : helpers.length === 1
+                ? `+1 segítő (${[helpers[0].first_name, helpers[0].last_name].filter(Boolean).join(' ')})`
+                : `+${helpers.length} segítő`;
             return (
               <Box
                 key={t.id}
@@ -106,7 +112,32 @@ export default function RelatedTasksList({ ticketId, ticketNumber, relatedEmploy
                     </Typography>
                     <Stack direction="row" spacing={1.5} sx={{ mt: 0.5 }} alignItems="center" flexWrap="wrap">
                       <Typography variant="caption" color="text.secondary">👤 {assignee}</Typography>
-                      <Typography variant="caption" color="text.secondary">⏰ {fmtDate(t.due_date)}</Typography>
+                      {helpers.length > 0 && (
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <AvatarGroup
+                            max={4}
+                            sx={{
+                              '& .MuiAvatar-root': {
+                                width: 22, height: 22, fontSize: 10,
+                                border: '1.5px solid white',
+                              },
+                            }}
+                          >
+                            {helpers.map((h, i) => {
+                              const name = [h.first_name, h.last_name].filter(Boolean).join(' ') || h.email;
+                              const initial = (name || '?').charAt(0).toUpperCase();
+                              const done = h.status === 'completed';
+                              return (
+                                <Tooltip key={h.user_id || i} title={`${name} — ${h.status}`}>
+                                  <Avatar sx={{ bgcolor: done ? '#16a34a' : '#6b7280' }}>{initial}</Avatar>
+                                </Tooltip>
+                              );
+                            })}
+                          </AvatarGroup>
+                          <Typography variant="caption" color="text.secondary">{helperLabel}</Typography>
+                        </Stack>
+                      )}
+                      <Typography variant="caption" color="text.secondary">⏰ {fmtDate(t.deadline || t.due_date)}</Typography>
                       <Chip size="small" label={s.label} color={s.color} variant="outlined" />
                     </Stack>
                   </Box>
