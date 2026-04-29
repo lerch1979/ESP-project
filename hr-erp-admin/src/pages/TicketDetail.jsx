@@ -348,11 +348,24 @@ function TicketDetail() {
       <Grid container spacing={3}>
         {/* Bal oldal */}
         <Grid item xs={12} md={8}>
-          {/* Leírás */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Leírás
-            </Typography>
+          {/* Leírás — click anywhere on the panel to open the edit modal.
+              Header "Szerkesztés" button still works; this is just a more
+              discoverable affordance for users who expected inline editing. */}
+          <Paper
+            sx={{
+              p: 3, mb: 3, cursor: 'pointer',
+              transition: 'background-color 0.15s',
+              '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
+            }}
+            onClick={() => setEditOpen(true)}
+            title="Kattints a szerkesztéshez"
+          >
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Leírás
+              </Typography>
+              <EditIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+            </Stack>
             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
               {ticket.description || 'Nincs leírás megadva.'}
             </Typography>
