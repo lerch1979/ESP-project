@@ -15,10 +15,23 @@ async function generateReportNumber() {
 // ─── Create from Ticket ─────────────────────────────────────────────
 
 async function createFromTicket(ticketId, createdBy, contractorId, creatorLang = null) {
+  // Resolve the actual damage-causer:
+  //   1) tickets.linked_employee_id → employees.user_id (preferred — this is
+  //      the worker the ticket was filed about).
+  //   2) fall back to the ticket creator. This is a safety net only; the
+  //      admin should fix the report afterwards via the edit modal because
+  //      the creator is usually the admin filing on behalf of the worker.
+  // The previous implementation joined on tickets.created_by directly, which
+  // made every damage report show "Admin User" as the damage causer.
   const ticketResult = await query(
-    `SELECT t.*, u.first_name, u.last_name, u.id AS emp_id
+    `SELECT
+       t.*,
+       le_user.id AS linked_employee_user_id,
+       creator.id AS creator_user_id
      FROM tickets t
-     LEFT JOIN users u ON t.created_by = u.id
+     LEFT JOIN employees le ON le.id = t.linked_employee_id
+     LEFT JOIN users le_user ON le_user.id = le.user_id
+     LEFT JOIN users creator ON creator.id = t.created_by
      WHERE t.id = $1`,
     [ticketId]
   );
@@ -26,10 +39,9 @@ async function createFromTicket(ticketId, createdBy, contractorId, creatorLang =
 
   const ticket = ticketResult.rows[0];
   const reportNumber = await generateReportNumber();
-
-  // Inherit language from the source ticket if the creator's language wasn't
-  // passed in (e.g. the ticket was originally filed by a non-HU employee).
   const lang = creatorLang || ticket.language || 'hu';
+
+  const employeeUserId = ticket.linked_employee_user_id || ticket.creator_user_id || createdBy;
 
   const result = await query(
     `INSERT INTO damage_reports
@@ -37,7 +49,7 @@ async function createFromTicket(ticketId, createdBy, contractorId, creatorLang =
        description, created_by, status, language)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8)
      RETURNING *`,
-    [reportNumber, ticketId, ticket.emp_id || createdBy, contractorId,
+    [reportNumber, ticketId, employeeUserId, contractorId,
      ticket.created_at || new Date(), ticket.description || ticket.title, createdBy, lang]
   );
   return result.rows[0];
@@ -93,15 +105,32 @@ function calculatePaymentPlan(totalCost, monthlySalary, faultPercentage = 100) {
 // ─── CRUD Operations ────────────────────────────────────────────────
 
 async function getById(id) {
+  // BUG 3: damage_reports.employee_id FKs to users(id), but the actual
+  // workforce lives in `employees` with no user_id link (0/286 in current
+  // data). When a report was created from a ticket that has a
+  // linked_employee, those employee details are the correct damage causer.
+  // We expose them as linked_employee_* fields and the PDF/UI prefer them
+  // over the user-derived employee_* fields. A future schema migration
+  // (responsible_employee_id FK employees.id) would be the proper fix.
   const result = await query(
     `SELECT dr.*,
             u.first_name AS employee_first_name, u.last_name AS employee_last_name, u.email AS employee_email,
             c.name AS contractor_name,
-            creator.first_name AS creator_first_name, creator.last_name AS creator_last_name
+            creator.first_name AS creator_first_name, creator.last_name AS creator_last_name,
+            le.first_name AS linked_employee_first_name,
+            le.last_name  AS linked_employee_last_name,
+            le.workplace  AS linked_employee_workplace,
+            le.room_number AS linked_employee_room,
+            la.name       AS linked_employee_accommodation,
+            ra.name       AS accommodation_name
      FROM damage_reports dr
      JOIN users u ON dr.employee_id = u.id
      JOIN contractors c ON dr.contractor_id = c.id
      LEFT JOIN users creator ON dr.created_by = creator.id
+     LEFT JOIN tickets t ON t.id = dr.ticket_id
+     LEFT JOIN employees le ON le.id = t.linked_employee_id
+     LEFT JOIN accommodations la ON la.id = le.accommodation_id
+     LEFT JOIN accommodations ra ON ra.id = dr.accommodation_id
      WHERE dr.id = $1`,
     [id]
   );
@@ -178,6 +207,7 @@ async function updateReport(id, data) {
     'total_cost', 'employee_salary', 'payment_plan', 'photo_urls',
     'notes', 'status', 'witness_name',
     'employee_acknowledged',
+    'employee_id', // lets admins correct mis-set damage causers (BUG 3)
   ];
 
   for (const [key, value] of Object.entries(data)) {
