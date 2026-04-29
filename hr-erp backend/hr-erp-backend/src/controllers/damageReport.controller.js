@@ -42,9 +42,15 @@ const createFromTicket = async (req, res) => {
 
 const createManual = async (req, res) => {
   try {
-    const { employee_id, incident_date, description } = req.body;
-    if (!employee_id || !incident_date || !description) {
-      return res.status(400).json({ success: false, message: 'employee_id, incident_date, description kötelező' });
+    const { employee_id, responsible_employee_id, incident_date, description } = req.body;
+    // Either responsible_employee_id (proper FK to employees) or the legacy
+    // users.id `employee_id` is acceptable. createManual will translate the
+    // legacy field through employees.user_id when possible.
+    if ((!employee_id && !responsible_employee_id) || !incident_date || !description) {
+      return res.status(400).json({
+        success: false,
+        message: 'responsible_employee_id (vagy legacy employee_id), incident_date, description kötelező',
+      });
     }
 
     // Resolve contractor_id: use user's contractor, or look up from employee

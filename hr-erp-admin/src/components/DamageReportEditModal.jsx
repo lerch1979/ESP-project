@@ -6,7 +6,7 @@ import {
   Autocomplete, Chip, InputAdornment,
 } from '@mui/material';
 import { toast } from 'react-toastify';
-import { damageReportsAPI, accommodationsAPI } from '../services/api';
+import { damageReportsAPI, accommodationsAPI, employeesAPI } from '../services/api';
 
 // Status set mirrors STATUS_COLORS in DamageReportDetail. Only statuses
 // that are pre-finalization are allowed as edit targets — we cannot
@@ -34,19 +34,20 @@ const eq = (a, b) => (a == null ? '' : String(a)) === (b == null ? '' : String(b
 function buildInitialForm(r) {
   if (!r) return null;
   return {
-    description:           r.description || '',
-    incident_date:         dateOnly(r.incident_date),
-    discovery_date:        dateOnly(r.discovery_date),
-    status:                r.status || 'draft',
-    accommodation_id:      r.accommodation_id || '',
-    room_id:               r.room_id || '',
-    liability_type:        r.liability_type || '',
-    fault_percentage:      r.fault_percentage ?? '',
-    total_cost:            r.total_cost ?? '',
-    employee_salary:       r.employee_salary ?? '',
-    employee_acknowledged: !!r.employee_acknowledged,
-    witness_name:          r.witness_name || '',
-    notes:                 r.notes || '',
+    description:             r.description || '',
+    incident_date:           dateOnly(r.incident_date),
+    discovery_date:          dateOnly(r.discovery_date),
+    status:                  r.status || 'draft',
+    responsible_employee_id: r.responsible_employee_id || '',
+    accommodation_id:        r.accommodation_id || '',
+    room_id:                 r.room_id || '',
+    liability_type:          r.liability_type || '',
+    fault_percentage:        r.fault_percentage ?? '',
+    total_cost:              r.total_cost ?? '',
+    employee_salary:         r.employee_salary ?? '',
+    employee_acknowledged:   !!r.employee_acknowledged,
+    witness_name:            r.witness_name || '',
+    notes:                   r.notes || '',
   };
 }
 
@@ -59,6 +60,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState(0);
   const [accommodations, setAccommodations] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState(() => buildInitialForm(report));
 
   const original = useMemo(() => buildInitialForm(report), [report]);
@@ -70,17 +72,30 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
     setTab(0);
   }, [open, report]);
 
-  // Lazy-load accommodations the first time the modal opens.
+  // Lazy-load accommodations + employees the first time the modal opens.
+  // Employees are needed for the responsible-employee picker on the
+  // Alapadatok tab. employeesAPI.getAll already joins accommodations and
+  // returns accommodation_name + room_number per row.
   useEffect(() => {
-    if (!open || accommodations.length) return;
-    (async () => {
-      try {
-        const res = await accommodationsAPI.getAll({ limit: 500 });
-        const list = res?.data?.accommodations || res?.data || [];
-        setAccommodations(Array.isArray(list) ? list : []);
-      } catch { /* non-fatal */ }
-    })();
-  }, [open, accommodations.length]);
+    if (!open) return;
+    if (!accommodations.length) {
+      (async () => {
+        try {
+          const res = await accommodationsAPI.getAll({ limit: 500 });
+          const list = res?.data?.accommodations || res?.data || [];
+          setAccommodations(Array.isArray(list) ? list : []);
+        } catch { /* non-fatal */ }
+      })();
+    }
+    if (!employees.length) {
+      (async () => {
+        try {
+          const res = await employeesAPI.getAll({ limit: 1000 });
+          if (res?.success) setEmployees(res.data?.employees || []);
+        } catch { /* non-fatal */ }
+      })();
+    }
+  }, [open, accommodations.length, employees.length]);
 
   const setField = (k, v) => setForm(s => ({ ...s, [k]: v }));
 
@@ -204,6 +219,30 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
         {/* ── Alapadatok ──────────────────────────────────────────── */}
         <Box sx={tabPanelSx(0)}>
           <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Autocomplete
+                options={employees}
+                value={employees.find(e => e.id === form.responsible_employee_id) || null}
+                onChange={(_, val) => setField('responsible_employee_id', val?.id || '')}
+                getOptionLabel={(e) => {
+                  const name = [e.first_name, e.last_name].filter(Boolean).join(' ');
+                  const room = e.room_number ? `${e.room_number}. szoba` : null;
+                  const where = [e.accommodation_name, room].filter(Boolean).join(', ');
+                  return where ? `${name} (${where})` : name;
+                }}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={<>Kárt okozó munkavállaló {changedChip('responsible_employee_id')}</>}
+                    placeholder="Keress név vagy szállás alapján"
+                    sx={highlightSx(dirty.responsible_employee_id)}
+                    helperText="Az a lakó, aki a kárt okozta"
+                  />
+                )}
+                noOptionsText="Nincs találat"
+              />
+            </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth multiline rows={4} required

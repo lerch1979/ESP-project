@@ -15,24 +15,15 @@ async function generateReportNumber() {
 // ─── Create from Ticket ─────────────────────────────────────────────
 
 async function createFromTicket(ticketId, createdBy, contractorId, creatorLang = null) {
-  // Resolve the actual damage-causer:
-  //   1) tickets.linked_employee_id → employees.user_id (preferred — this is
-  //      the worker the ticket was filed about).
-  //   2) fall back to the ticket creator. This is a safety net only; the
-  //      admin should fix the report afterwards via the edit modal because
-  //      the creator is usually the admin filing on behalf of the worker.
-  // The previous implementation joined on tickets.created_by directly, which
-  // made every damage report show "Admin User" as the damage causer.
+  // Migration 105: damage_reports.responsible_employee_id is the canonical
+  // FK to employees(id). The legacy employee_id column (FK users.id) is
+  // now nullable and intentionally left unset for new rows — the workforce
+  // doesn't live in users, so populating it would just write the admin's
+  // id, which is what caused Bug 3.
   const ticketResult = await query(
-    `SELECT
-       t.*,
-       le_user.id AS linked_employee_user_id,
-       creator.id AS creator_user_id
-     FROM tickets t
-     LEFT JOIN employees le ON le.id = t.linked_employee_id
-     LEFT JOIN users le_user ON le_user.id = le.user_id
-     LEFT JOIN users creator ON creator.id = t.created_by
-     WHERE t.id = $1`,
+    `SELECT id, language, created_at, description, title,
+            linked_employee_id
+     FROM tickets WHERE id = $1`,
     [ticketId]
   );
   if (ticketResult.rows.length === 0) throw new Error('Ticket not found');
@@ -41,15 +32,13 @@ async function createFromTicket(ticketId, createdBy, contractorId, creatorLang =
   const reportNumber = await generateReportNumber();
   const lang = creatorLang || ticket.language || 'hu';
 
-  const employeeUserId = ticket.linked_employee_user_id || ticket.creator_user_id || createdBy;
-
   const result = await query(
     `INSERT INTO damage_reports
-      (report_number, ticket_id, employee_id, contractor_id, incident_date,
-       description, created_by, status, language)
+      (report_number, ticket_id, responsible_employee_id, contractor_id,
+       incident_date, description, created_by, status, language)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8)
      RETURNING *`,
-    [reportNumber, ticketId, employeeUserId, contractorId,
+    [reportNumber, ticketId, ticket.linked_employee_id || null, contractorId,
      ticket.created_at || new Date(), ticket.description || ticket.title, createdBy, lang]
   );
   return result.rows[0];
@@ -59,15 +48,32 @@ async function createFromTicket(ticketId, createdBy, contractorId, creatorLang =
 
 async function createManual(data, createdBy, creatorLang = 'hu') {
   const reportNumber = await generateReportNumber();
+
+  // Accept either form for backward compat with the existing create UI:
+  //   - data.responsible_employee_id (preferred) — direct employees.id
+  //   - data.employee_id (legacy) — a users.id; we try to translate it
+  //     through employees.user_id, and only fall through to the legacy
+  //     column when no employee record exists for that user.
+  let responsibleEmployeeId = data.responsible_employee_id || null;
+  if (!responsibleEmployeeId && data.employee_id) {
+    const m = await query(
+      `SELECT id FROM employees WHERE user_id = $1 LIMIT 1`,
+      [data.employee_id]
+    );
+    if (m.rows[0]) responsibleEmployeeId = m.rows[0].id;
+  }
+
   const result = await query(
     `INSERT INTO damage_reports
-      (report_number, employee_id, contractor_id, accommodation_id, room_id,
+      (report_number, responsible_employee_id, employee_id,
+       contractor_id, accommodation_id, room_id,
        incident_date, discovery_date, description, damage_items,
        liability_type, fault_percentage, total_cost, employee_salary,
        photo_urls, notes, created_by, status, language)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'draft',$17)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'draft',$18)
      RETURNING *`,
-    [reportNumber, data.employee_id, data.contractor_id,
+    [reportNumber, responsibleEmployeeId, data.employee_id || null,
+     data.contractor_id,
      data.accommodation_id || null, data.room_id || null,
      data.incident_date, data.discovery_date || new Date(),
      data.description, JSON.stringify(data.damage_items || []),
@@ -105,26 +111,37 @@ function calculatePaymentPlan(totalCost, monthlySalary, faultPercentage = 100) {
 // ─── CRUD Operations ────────────────────────────────────────────────
 
 async function getById(id) {
-  // BUG 3: damage_reports.employee_id FKs to users(id), but the actual
-  // workforce lives in `employees` with no user_id link (0/286 in current
-  // data). When a report was created from a ticket that has a
-  // linked_employee, those employee details are the correct damage causer.
-  // We expose them as linked_employee_* fields and the PDF/UI prefer them
-  // over the user-derived employee_* fields. A future schema migration
-  // (responsible_employee_id FK employees.id) would be the proper fix.
+  // Migration 105 added responsible_employee_id (FK employees.id) as the
+  // canonical damage-causer reference. Read paths prefer it; legacy
+  // joins on employee_id (FK users.id) and the indirect ticket-linked
+  // path remain as fallbacks for old rows that haven't been edited.
   const result = await query(
     `SELECT dr.*,
+            -- Canonical (preferred): direct FK to employees
+            re.first_name  AS responsible_employee_first_name,
+            re.last_name   AS responsible_employee_last_name,
+            re.workplace   AS responsible_employee_workplace,
+            re.room_number AS responsible_employee_room,
+            ra2.name       AS responsible_employee_accommodation,
+
+            -- Legacy fallback A: users (rarely populated for residents)
             u.first_name AS employee_first_name, u.last_name AS employee_last_name, u.email AS employee_email,
-            c.name AS contractor_name,
-            creator.first_name AS creator_first_name, creator.last_name AS creator_last_name,
+
+            -- Legacy fallback B: ticket's linked_employee — used by old
+            -- rows that didn't get backfilled by migration 105.
             le.first_name AS linked_employee_first_name,
             le.last_name  AS linked_employee_last_name,
             le.workplace  AS linked_employee_workplace,
             le.room_number AS linked_employee_room,
             la.name       AS linked_employee_accommodation,
+
+            c.name AS contractor_name,
+            creator.first_name AS creator_first_name, creator.last_name AS creator_last_name,
             ra.name       AS accommodation_name
      FROM damage_reports dr
-     JOIN users u ON dr.employee_id = u.id
+     LEFT JOIN employees re ON re.id = dr.responsible_employee_id
+     LEFT JOIN accommodations ra2 ON ra2.id = re.accommodation_id
+     LEFT JOIN users u ON dr.employee_id = u.id
      JOIN contractors c ON dr.contractor_id = c.id
      LEFT JOIN users creator ON dr.created_by = creator.id
      LEFT JOIN tickets t ON t.id = dr.ticket_id
@@ -207,7 +224,8 @@ async function updateReport(id, data) {
     'total_cost', 'employee_salary', 'payment_plan', 'photo_urls',
     'notes', 'status', 'witness_name',
     'employee_acknowledged',
-    'employee_id', // lets admins correct mis-set damage causers (BUG 3)
+    'responsible_employee_id', // canonical (migration 105) — FK employees.id
+    'employee_id',             // legacy — kept editable for back-compat
   ];
 
   for (const [key, value] of Object.entries(data)) {

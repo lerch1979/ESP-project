@@ -38,14 +38,25 @@ function esc(text) {
 
 function buildHTML(report, lang = 'hu') {
   const t = loadTranslations(lang);
-  // BUG 3: prefer the ticket's linked employee (the actual damage causer)
-  // over the report's user-derived employee fields. damage_reports.employee_id
-  // FKs to users which are mostly admins/staff; the real worker is in
-  // `employees` reachable via tickets.linked_employee_id.
-  const useLinked = !!(report.linked_employee_first_name || report.linked_employee_last_name);
-  const empFirst = useLinked ? report.linked_employee_first_name : report.employee_first_name;
-  const empLast  = useLinked ? report.linked_employee_last_name  : report.employee_last_name;
+  // Damage-causer name resolution priority (migration 105):
+  //   1) responsible_employee_* — direct FK to employees(id), the canonical column
+  //   2) linked_employee_*      — old reports that came from a ticket but
+  //                               weren't backfilled before edit
+  //   3) employee_*             — legacy users(id) join, mostly admin/staff
+  // Whichever path provides the name also implies the email + accommodation
+  // are sourced from the same population (or blanked out).
+  let useResp = !!(report.responsible_employee_first_name || report.responsible_employee_last_name);
+  let useLinked = !useResp && !!(report.linked_employee_first_name || report.linked_employee_last_name);
+  const empFirst = useResp   ? report.responsible_employee_first_name
+                  : useLinked ? report.linked_employee_first_name
+                  : report.employee_first_name;
+  const empLast  = useResp   ? report.responsible_employee_last_name
+                  : useLinked ? report.linked_employee_last_name
+                  : report.employee_last_name;
   const empName = `${esc(empFirst || '')} ${esc(empLast || '')}`.trim() || 'N/A';
+  // Treat any employees-table sourcing as "no sensible email row" — the
+  // employees table doesn't carry one for residents.
+  const useLinked_or_resp = useResp || useLinked;
   const photoCount = (report.photo_urls || []).length;
   const plan = report.payment_plan || [];
   const photoText = (t.photoText || '').replace('{{count}}', photoCount || '___');
@@ -139,15 +150,15 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
   <div class="c">
     <div class="st">1. ${esc(t.s1)}</div>
     <div class="f"><b>${esc(t.employee)}:</b> ${empName}</div>
-    <div class="f"><b>${esc(t.email)}:</b> ${esc(useLinked ? '—' : (report.employee_email || 'N/A'))}</div>
+    <div class="f"><b>${esc(t.email)}:</b> ${esc(useLinked_or_resp ? '—' : (report.employee_email || 'N/A'))}</div>
     <div class="f"><b>${esc(t.employer)}:</b> ${esc(report.contractor_name || 'N/A')}</div>
     <div class="f"><b>${esc(t.incidentDate)}:</b> ${formatDate(report.incident_date)}</div>
     <div class="f"><b>${esc(t.discoveryDate)}:</b> ${formatDate(report.discovery_date)}</div>
   </div>
   <div class="c">
     <div class="st">2. ${esc(t.s2)}</div>
-    <div class="f"><b>${esc(t.accommodation)}:</b> ${esc(report.accommodation_name || report.linked_employee_accommodation || 'N/A')}</div>
-    <div class="f"><b>${esc(t.room)}:</b> ${esc(report.room_id || report.linked_employee_room || 'N/A')}</div>
+    <div class="f"><b>${esc(t.accommodation)}:</b> ${esc(report.accommodation_name || report.responsible_employee_accommodation || report.linked_employee_accommodation || 'N/A')}</div>
+    <div class="f"><b>${esc(t.room)}:</b> ${esc(report.room_id || report.responsible_employee_room || report.linked_employee_room || 'N/A')}</div>
     ${report.ticket_id ? `<div class="f"><b>${esc(t.ticket)}:</b> #${esc(String(report.ticket_id).substring(0, 8))}</div>` : ''}
   </div>
 </div>
