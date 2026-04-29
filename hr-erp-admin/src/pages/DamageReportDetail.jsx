@@ -279,6 +279,22 @@ export default function DamageReportDetail() {
   const FINALIZED_STATUSES = new Set(['acknowledged', 'in_payment', 'paid', 'cancelled']);
   const isLocked = FINALIZED_STATUSES.has(report.status);
 
+  // Resolution chain for the damage causer's display fields, mirrors the
+  // PDF's priority (migration 105 → linked-from-ticket → legacy users join).
+  const empFirst = report.responsible_employee_first_name
+                || report.linked_employee_first_name
+                || report.employee_first_name;
+  const empLast  = report.responsible_employee_last_name
+                || report.linked_employee_last_name
+                || report.employee_last_name;
+  const empName  = [empFirst, empLast].filter(Boolean).join(' ');
+  const empAccommodation = report.accommodation_name
+                        || report.responsible_employee_accommodation
+                        || report.linked_employee_accommodation;
+  const empRoom = report.room_id
+               || report.responsible_employee_room
+               || report.linked_employee_room;
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header */}
@@ -340,7 +356,7 @@ export default function DamageReportDetail() {
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary">Munkavállaló</Typography>
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  {report.employee_name || '-'}
+                  {empName || '-'}
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -352,13 +368,13 @@ export default function DamageReportDetail() {
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary">Szálláshely</Typography>
                 <Typography variant="body1">
-                  {report.accommodation_name || '-'}
+                  {empAccommodation || '-'}
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary">Szoba</Typography>
                 <Typography variant="body1">
-                  {report.room_number || '-'}
+                  {empRoom || '-'}
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
