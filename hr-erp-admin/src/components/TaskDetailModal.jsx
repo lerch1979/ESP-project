@@ -15,6 +15,8 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { tasksAPI, usersAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import TaskAssigneesPanel from './TaskAssigneesPanel';
 
 const PRIORITY_OPTIONS = [
   { value: 'low',      label: 'Alacsony' },
@@ -34,6 +36,7 @@ const STATUS_OPTIONS = [
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('hu-HU') : '—';
 
 export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
+  const { user: currentUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -293,6 +296,13 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
                 </Grid>
               )}
             </Grid>
+
+            {/* Helpers (multi-assignees) — hidden when there are none */}
+            <TaskAssigneesPanel
+              taskId={taskId}
+              currentUser={currentUser}
+              onTaskUpdated={onChange}
+            />
 
             {/* Status actions */}
             <Box sx={{ mt: 3 }}>

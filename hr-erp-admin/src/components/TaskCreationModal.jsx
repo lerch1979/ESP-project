@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Grid, FormControl, InputLabel, Select, MenuItem,
-  CircularProgress,
+  CircularProgress, Autocomplete, Chip,
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import { tasksAPI, usersAPI } from '../services/api';
@@ -26,7 +26,8 @@ const CATEGORY_OPTIONS = [
 ];
 
 const emptyForm = {
-  assigned_to: '',
+  assigned_to: '',         // single — main responsible (Felelős)
+  helper_ids: [],          // array of user_ids — additional assignees
   title: '',
   description: '',
   due_date: '',
@@ -81,24 +82,32 @@ export default function TaskCreationModal({
     if (!form.title.trim()) return toast.warn('A cím kötelező');
     if (!form.assigned_to) return toast.warn('Válassz felelőst');
 
-    // Combine date + time into a due_date the backend can store; column is
-    // `date`, so we only send the date portion — the time lives in the
-    // description when provided, keeping the wire format simple.
-    let dueDate = form.due_date || null;
-    let descSuffix = '';
-    if (form.due_time) descSuffix = `\n\n⏰ Időpont: ${form.due_time}`;
+    // due_date stays date-only (existing column). deadline carries the
+    // full timestamp when both date and time are supplied — added by
+    // migration 107.
+    const dueDate = form.due_date || null;
+    let deadline = null;
+    if (form.due_date && form.due_time) {
+      deadline = new Date(`${form.due_date}T${form.due_time}:00`).toISOString();
+    }
+    // Filter out anyone already set as the main responsible.
+    const helpers = (form.helper_ids || [])
+      .filter(id => id && id !== form.assigned_to)
+      .map(id => ({ user_id: id, role: 'helper' }));
 
     setSaving(true);
     try {
       const res = await tasksAPI.createStandalone({
         title: form.title.trim(),
-        description: (form.description || '') + descSuffix,
+        description: form.description || null,
         priority: form.priority,
         assigned_to: form.assigned_to,
         due_date: dueDate,
+        deadline,
         tags: [form.category],
         related_employee_id: relatedEmployeeId || null,
         linked_ticket_id: linkedTicketId || null,
+        assignees: helpers,
       });
       if (res.success) {
         toast.success('Feladat létrehozva');
@@ -142,6 +151,40 @@ export default function TaskCreationModal({
                 )}
               </Select>
             </FormControl>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Autocomplete
+              multiple
+              size="small"
+              loading={loadingUsers}
+              options={users.filter(u => u.id !== form.assigned_to)}
+              value={users.filter(u => form.helper_ids.includes(u.id))}
+              onChange={(_, newValue) => setField('helper_ids', newValue.map(u => u.id))}
+              getOptionLabel={(u) => [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              renderTags={(selected, getTagProps) =>
+                selected.map((u, i) => {
+                  const { key, ...chipProps } = getTagProps({ index: i });
+                  return (
+                    <Chip
+                      key={key}
+                      {...chipProps}
+                      size="small"
+                      label={[u.first_name, u.last_name].filter(Boolean).join(' ') || u.email}
+                    />
+                  );
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="További személyek (segítők)"
+                  placeholder="Karbantartó, gondnok, kollégák…"
+                  helperText="A főfelelős mellett további személyek is dolgozhatnak a feladaton"
+                />
+              )}
+            />
           </Grid>
 
           <Grid item xs={12}>

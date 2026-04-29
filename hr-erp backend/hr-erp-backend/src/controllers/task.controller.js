@@ -878,6 +878,13 @@ const createStandalone = async (req, res) => {
       gtd_status, gtd_context_id, energy_level, time_estimate_minutes,
       waiting_for, is_project,
       linked_ticket_id,
+      // Migration 107: deadline (timestamp) replaces date-only due_date
+      // for finer scheduling. due_date stays for back-compat.
+      deadline,
+      // Additional helpers (besides the main `assigned_to`). Each entry
+      // is { user_id, role? }. Distinct from assigned_to to keep the
+      // existing single-Felelős semantics on tasks.assigned_to.
+      assignees,
     } = req.body || {};
 
     if (!title || !title.trim()) {
@@ -892,9 +899,9 @@ const createStandalone = async (req, res) => {
           assigned_to, start_date, due_date, estimated_hours, tags,
           contractor_id, created_by, related_employee_id,
           gtd_status, gtd_context_id, energy_level, time_estimate_minutes,
-          waiting_for, is_project, linked_ticket_id)
+          waiting_for, is_project, linked_ticket_id, deadline)
        VALUES (NULL, NULL, $1, $2, 'todo', $3, $4, $5, $6, $7, $8, $9, $10, $11,
-               $12, $13, $14, $15, $16, $17, $18)
+               $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING *`,
       [
         title.trim(), description || null, priority || 'medium',
@@ -904,29 +911,62 @@ const createStandalone = async (req, res) => {
         gtd_status || 'next_action', gtd_context_id || null,
         energy_level || null, time_estimate_minutes || null,
         waiting_for || null, !!is_project, linked_ticket_id || null,
+        deadline || null,
       ]
     );
     const task = result.rows[0];
+
+    // Insert task_assignees rows for additional helpers. The main
+    // assignee (tasks.assigned_to) is intentionally NOT duplicated
+    // here — it has its own dedicated column. Idempotent via the
+    // UNIQUE(task_id, user_id) constraint.
+    const assigneeIds = [];
+    if (Array.isArray(assignees) && assignees.length > 0) {
+      for (const a of assignees) {
+        const userId = typeof a === 'string' ? a : a?.user_id;
+        const role   = typeof a === 'string' ? 'helper' : (a?.role || 'helper');
+        if (!userId) continue;
+        if (userId === task.assigned_to) continue; // skip the main assignee
+        try {
+          await query(
+            `INSERT INTO task_assignees (task_id, user_id, role, notified_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (task_id, user_id) DO NOTHING`,
+            [task.id, userId, role]
+          );
+          assigneeIds.push(userId);
+        } catch (err) {
+          logger.warn('[createStandalone.assignee] insert failed:', err.message);
+        }
+      }
+    }
 
     await logActivity({
       userId: req.user.id,
       entityType: 'task',
       entityId: task.id,
       action: 'create',
-      metadata: { title: task.title, source: 'standalone', related_employee_id: related_employee_id || null },
+      metadata: {
+        title: task.title, source: 'standalone',
+        related_employee_id: related_employee_id || null,
+        helper_count: assigneeIds.length,
+      },
     });
 
-    // Notify the assignee (best-effort — failures don't fail the request).
-    if (task.assigned_to && task.assigned_to !== req.user.id) {
+    // Notify the main assignee + each helper (best-effort, no await fail).
+    const notifyTargets = new Set();
+    if (task.assigned_to && task.assigned_to !== req.user.id) notifyTargets.add(task.assigned_to);
+    for (const id of assigneeIds) if (id !== req.user.id) notifyTargets.add(id);
+    for (const userId of notifyTargets) {
       await inApp.notify({
-        userId: task.assigned_to,
+        userId,
         contractorId: effectiveContractorId,
         type: 'task_assigned',
         title: 'Új feladatot kaptál',
         message: task.title,
         link: `/tasks/${task.id}`,
-        data: { task_id: task.id, due_date: task.due_date, priority: task.priority },
-      });
+        data: { task_id: task.id, deadline: task.deadline, due_date: task.due_date, priority: task.priority },
+      }).catch(e => logger.warn('[createStandalone.notify]', e.message));
     }
 
     res.status(201).json({ success: true, message: 'Feladat létrehozva', data: { task } });

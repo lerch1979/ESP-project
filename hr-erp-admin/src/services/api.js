@@ -1366,6 +1366,28 @@ export const tasksAPI = {
     return response.data;
   },
 
+  // ── task_assignees (migration 107) ─────────────────────────────────
+  listAssignees: async (taskId) => {
+    const response = await api.get(`/tasks/${taskId}/assignees`);
+    return response.data;
+  },
+  addAssignee: async (taskId, body) => {
+    const response = await api.post(`/tasks/${taskId}/assignees`, body);
+    return response.data;
+  },
+  removeAssignee: async (taskId, userId) => {
+    const response = await api.delete(`/tasks/${taskId}/assignees/${userId}`);
+    return response.data;
+  },
+  markAssigneeVisited: async (taskId, userId) => {
+    const response = await api.patch(`/tasks/${taskId}/assignees/${userId}/visit`);
+    return response.data;
+  },
+  markAssigneeCompleted: async (taskId, userId, body = {}) => {
+    const response = await api.patch(`/tasks/${taskId}/assignees/${userId}/complete`, body);
+    return response.data;
+  },
+
   addComment: async (id, data) => {
     const response = await api.post(`/tasks/${id}/comments`, data);
     return response.data;

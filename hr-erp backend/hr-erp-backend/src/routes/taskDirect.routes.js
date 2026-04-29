@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const taskController = require('../controllers/task.controller');
+const taskAssignees = require('../controllers/taskAssignees.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -118,5 +119,21 @@ router.post('/:id/attachments', checkPermission('tasks.edit'), attachmentUpload.
  * Függőség hozzáadása
  */
 router.post('/:id/dependencies', checkPermission('tasks.edit'), taskController.addDependency);
+
+/**
+ * Multi-assignee endpoints (migration 107). The assignee list lives in
+ * task_assignees; the main responsible (tasks.assigned_to) is managed
+ * via the existing PUT /:id route.
+ */
+router.get('/:taskId/assignees',
+  checkPermission('tasks.view'), taskAssignees.list);
+router.post('/:taskId/assignees',
+  checkPermission('tasks.edit'), taskAssignees.add);
+router.delete('/:taskId/assignees/:userId',
+  checkPermission('tasks.edit'), taskAssignees.remove);
+router.patch('/:taskId/assignees/:userId/visit',
+  checkPermission('tasks.view'), taskAssignees.markVisited);
+router.patch('/:taskId/assignees/:userId/complete',
+  checkPermission('tasks.view'), taskAssignees.markCompleted);
 
 module.exports = router;
