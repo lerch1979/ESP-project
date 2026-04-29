@@ -32,6 +32,10 @@ const { logger } = require('../utils/logger');
 const aiAssistant = require('./aiAssistant.service');
 const aiHandlers = require('./aiAssistantHandlers.service');
 const emailService = require('./email.service');
+const inApp = require('./inAppNotification.service');
+const {
+  parseToken, stripQuotedReply, detectAutoReply,
+} = require('../utils/ticketEmailToken');
 
 // ── Feature flags ─────────────────────────────────────────────────────
 // Default OFF: master switch must be on for ANY processing to happen.
@@ -136,6 +140,121 @@ async function sendReply(originalEmail, body, subject) {
   });
 }
 
+// ── Inbound ticket-reply handler ─────────────────────────────────────
+// Entry: emailAssistant.processEmail when a [#TICKET-N] token is in the
+// subject. Saves a chat row on the matching ticket and notifies the
+// other parties — never falls into the AI classification path.
+//
+// Per-ticket rate limit: max 50 inbound email rows in any 24h window.
+// Past that we drop + log so an out-of-control mailing list doesn't
+// spam the chat.
+const TICKET_INBOUND_DAILY_LIMIT = 50;
+
+async function _findTicketByNumber(ticketNumber) {
+  const r = await query(
+    `SELECT id, ticket_number, contractor_id, title FROM tickets WHERE ticket_number = $1 LIMIT 1`,
+    [ticketNumber]
+  );
+  return r.rows[0] || null;
+}
+
+async function _checkInboundRateLimit(ticketId) {
+  const r = await query(
+    `SELECT COUNT(*)::int AS n
+       FROM ticket_messages
+      WHERE ticket_id = $1
+        AND source = 'email_inbound'
+        AND created_at > NOW() - INTERVAL '24 hours'`,
+    [ticketId]
+  );
+  return r.rows[0].n < TICKET_INBOUND_DAILY_LIMIT;
+}
+
+async function handleEmailReply({ ticket, fromUser, subject, bodyText, messageId, headers }) {
+  // Strip quoted history so the chat row carries only what the user typed
+  const cleanBody = stripQuotedReply(bodyText) || (bodyText || '').slice(0, 4000);
+
+  if (!cleanBody.trim()) {
+    return { dropped: true, reason: 'empty after strip' };
+  }
+  if (!(await _checkInboundRateLimit(ticket.id))) {
+    return { dropped: true, reason: 'per-ticket rate limit (50/24h) exceeded' };
+  }
+
+  const role = await _detectChatSenderRole(ticket.id, fromUser.id);
+
+  const ins = await query(
+    `INSERT INTO ticket_messages
+       (ticket_id, sender_id, sender_role, message, source, source_id)
+     VALUES ($1, $2, $3, $4, 'email_inbound', $5)
+     RETURNING id`,
+    [ticket.id, fromUser.id, role, cleanBody.slice(0, 16000), messageId || null]
+  );
+  const messageRowId = ins.rows[0].id;
+
+  // Best-effort fan-out to the other parties via in-app notifications.
+  // We deliberately DON'T re-trigger the outbound email here — chat.send
+  // already emailed when the original outbound left, and re-sending on
+  // every inbound reply would create a copy-storm.
+  try {
+    const recipients = await query(
+      `SELECT DISTINCT u.id
+         FROM tickets t
+         LEFT JOIN employees e ON e.id = t.linked_employee_id
+         LEFT JOIN users le_user ON le_user.id = e.user_id
+         LEFT JOIN users assignee ON assignee.id = t.assigned_to
+         LEFT JOIN users creator ON creator.id = t.created_by
+         JOIN users u ON u.id IN (assignee.id, le_user.id, creator.id)
+        WHERE t.id = $1 AND u.id <> $2 AND u.is_active = TRUE`,
+      [ticket.id, fromUser.id]
+    );
+    for (const row of recipients.rows) {
+      await inApp.notify({
+        userId: row.id,
+        contractorId: ticket.contractor_id,
+        type: 'ticket_message',
+        title: `Új email-válasz: hibajegy ${ticket.ticket_number}`,
+        message: `${fromUser.first_name || fromUser.email}: ${cleanBody.slice(0, 80)}`,
+        link: `/tickets/${ticket.id}`,
+        data: { ticket_id: ticket.id, message_id: messageRowId, source: 'email_inbound' },
+      }).catch(e => logger.warn('[handleEmailReply.notify]', e.message));
+    }
+  } catch (err) {
+    logger.warn('[handleEmailReply.fanout]', err.message);
+  }
+
+  return {
+    dropped: false,
+    ticket_message_id: messageRowId,
+    ticket_id: ticket.id,
+  };
+}
+
+// Local copy of ticketMessages.controller's _detectSenderRole (it's
+// private there). Kept inline to avoid a controller-imports-controller
+// dependency that would surprise during tests.
+async function _detectChatSenderRole(ticketId, userId) {
+  const r = await query(
+    `SELECT
+       t.created_by, t.assigned_to,
+       e.user_id AS linked_employee_user_id,
+       EXISTS (
+         SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+          WHERE ur.user_id = $1 AND r.slug IN ('admin', 'superadmin')
+       ) AS is_admin
+     FROM tickets t
+     LEFT JOIN employees e ON e.id = t.linked_employee_id
+     WHERE t.id = $2 LIMIT 1`,
+    [userId, ticketId]
+  );
+  if (r.rowCount === 0) return 'other';
+  const row = r.rows[0];
+  if (row.is_admin) return 'admin';
+  if (row.assigned_to === userId) return 'assigned_worker';
+  if (row.linked_employee_user_id === userId) return 'related_employee';
+  return 'other';
+}
+
 // ── Main entry point ─────────────────────────────────────────────────
 
 /**
@@ -143,12 +262,17 @@ async function sendReply(originalEmail, body, subject) {
  * caller (gmailUniversalPoller) can log; never throws.
  *
  * Input shape (built by the poller from Gmail's full message):
- *   { messageId, from, subject, bodyText, receivedAt? }
+ *   { messageId, from, subject, bodyText, receivedAt?, headers? }
+ *
+ * Routing:
+ *   1. Auto-reply / loop check (headers + From == ourselves) → drop.
+ *   2. [#TICKET-N] in subject → handleEmailReply (skip AI).
+ *   3. Else existing AI classify + log path.
  */
 async function processEmail(input) {
   if (!ENABLED) return { handled: false, reason: 'EMAIL_ASSISTANT_ENABLED=false' };
 
-  const { messageId, from, subject, bodyText, receivedAt } = input || {};
+  const { messageId, from, subject, bodyText, receivedAt, headers } = input || {};
   if (!messageId || !from) {
     logger.warn('[emailAssistant] processEmail: missing messageId or from, skipping');
     return { handled: false, reason: 'invalid_input' };
@@ -169,7 +293,54 @@ async function processEmail(input) {
       email_received_at: receivedAt || null,
     };
 
-    // 2. Identify sender
+    // 1.5 Loop / auto-reply guard. Drops bulk mail, vacation responders,
+    // and self-loops before we burn any further work.
+    const ourFrom = (process.env.SMTP_FROM || process.env.SMTP_USER || '').toLowerCase();
+    const auto = detectAutoReply(headers || [], senderAddr, ourFrom);
+    if (auto.drop) {
+      await logInteraction({
+        ...baseRow,
+        action_type: 'auto_reply_dropped',
+        notes: auto.reason,
+      });
+      return { handled: true, reason: 'auto_reply', detail: auto.reason };
+    }
+
+    // 1.7 Ticket-reply token routing — must come BEFORE the unknown-sender
+    // gate so a registered ticket party gets the chat append even if
+    // we somehow mis-classify their email later.
+    const token = parseToken(subject);
+    if (token) {
+      const ticket = await _findTicketByNumber(token);
+      const user = senderAddr ? await findUserByEmail(senderAddr) : null;
+      if (!ticket) {
+        await logInteraction({
+          ...baseRow, user_id: user?.id || null,
+          action_type: 'ticket_token_not_found',
+          notes: `Subject token ${token} did not match any ticket`,
+        });
+        return { handled: true, reason: 'ticket_not_found' };
+      }
+      if (!user) {
+        await logInteraction({
+          ...baseRow, action_type: 'ticket_reply_unknown_sender',
+          notes: `Token ${token} matched ticket ${ticket.id}, but sender ${senderAddr} not in users`,
+        });
+        return { handled: true, reason: 'ticket_reply_unknown_sender' };
+      }
+      const result = await handleEmailReply({
+        ticket, fromUser: user, subject, bodyText, messageId, headers,
+      });
+      await logInteraction({
+        ...baseRow, user_id: user.id,
+        action_type: result.dropped ? 'ticket_reply_dropped' : 'ticket_reply',
+        action_success: !result.dropped,
+        notes: result.dropped ? result.reason : `Appended to ${ticket.ticket_number} as message ${result.ticket_message_id}`,
+      });
+      return { handled: true, reason: 'ticket_reply', ticket_id: ticket.id, dropped: !!result.dropped };
+    }
+
+    // 2. Identify sender (regular AI path from here on)
     const user = senderAddr ? await findUserByEmail(senderAddr) : null;
     if (!user) {
       // Polite rejection (only if reply enabled — otherwise just log)

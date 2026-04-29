@@ -211,7 +211,8 @@ class GmailUniversalPollerService {
       logger.info(`FILTER SKIP: "${subject.slice(0, 60)}" — ${decision.reason}`);
 
       // Email assistant bridge: any "no-signal" reject (no financial
-      // keyword + no doc attachment) is candidate for AI handling.
+      // keyword + no doc attachment) is candidate for AI handling OR
+      // ticket-reply routing if the subject carries a [#TICKET-N] token.
       // Negative-keyword rejects (newsletters, security alerts, password
       // resets) stay on the floor — they're noise, never user intent.
       // Gated by EMAIL_ASSISTANT_ENABLED so the feature is opt-in.
@@ -222,8 +223,23 @@ class GmailUniversalPollerService {
           const bodyText = this.extractBodyText(message.data.payload);
           const receivedHeader = headers.find(h => h.name === 'Date')?.value;
           const receivedAt = receivedHeader ? new Date(receivedHeader) : null;
+          // Forward a small headers map so the assistant can do
+          // auto-reply / loop detection (Auto-Submitted, Precedence,
+          // X-Auto-Response-Suppress) and email threading
+          // (Message-ID, In-Reply-To, References).
+          const interesting = [
+            'Message-ID', 'Message-Id', 'In-Reply-To', 'References',
+            'Auto-Submitted', 'Precedence',
+            'X-Auto-Response-Suppress', 'X-Autoreply', 'X-Autorespond',
+          ];
+          const headersMap = {};
+          for (const h of headers) {
+            if (interesting.some(i => i.toLowerCase() === h.name.toLowerCase())) {
+              headersMap[h.name] = h.value;
+            }
+          }
           const result = await emailAssistant.processEmail({
-            messageId, from, subject, bodyText, receivedAt,
+            messageId, from, subject, bodyText, receivedAt, headers: headersMap,
           });
           if (result?.handled) {
             logger.info(`EMAIL ASSISTANT: "${subject.slice(0, 60)}" → ${result.intent || result.reason}`);
