@@ -143,7 +143,7 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
   return (
     <Dialog open={open} onClose={saving ? null : onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>Feladat részletei</Typography>
+        <Typography component="span" variant="h6" sx={{ fontWeight: 700 }}>Feladat részletei</Typography>
         <Box>
           {task && !editing && (
             <Tooltip title="Szerkesztés">
