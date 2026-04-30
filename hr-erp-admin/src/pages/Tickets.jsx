@@ -179,21 +179,10 @@ function Tickets() {
     setPage(0);
   };
 
-  const getStatusColor = (slug) => {
-    const colors = {
-      new: 'info',
-      in_progress: 'warning',
-      completed: 'success',
-      rejected: 'error',
-      waiting: 'default',
-      waiting_material: 'warning',
-      invoicing: 'info',
-      payment_pending: 'warning',
-      transferred: 'info',
-      not_feasible: 'default',
-    };
-    return colors[slug] || 'default';
-  };
+  // Slugs that mean the ticket is in a terminal state. Kept in sync with
+  // ticket_statuses.is_final = true. Used by the deadline chip (greys out
+  // the SLA timer) and by the Active/Closed tab filter.
+  const FINAL_STATUS_SLUGS = ['completed', 'rejected', 'not_feasible', 'resolved', 'closed_unsuccessful'];
 
   const getPriorityColor = (slug) => {
     const colors = {
@@ -208,7 +197,7 @@ function Tickets() {
   const getDeadlineChip = (ticket) => {
     if (!ticket.sla_resolution_deadline) return null;
 
-    const isFinal = ['completed', 'rejected', 'not_feasible'].includes(ticket.status_slug);
+    const isFinal = FINAL_STATUS_SLUGS.includes(ticket.status_slug);
     if (isFinal) {
       return { label: new Date(ticket.sla_resolution_deadline).toLocaleDateString('hu-HU'), color: '#9e9e9e', bg: '#f5f5f5' };
     }
@@ -399,7 +388,11 @@ function Tickets() {
                         <Chip
                           label={ticket.status_name}
                           size="small"
-                          color={getStatusColor(ticket.status_slug)}
+                          sx={{
+                            bgcolor: ticket.status_color || '#94a3b8',
+                            color: '#fff',
+                            fontWeight: 600,
+                          }}
                         />
                       </TableCell>
                       <TableCell>

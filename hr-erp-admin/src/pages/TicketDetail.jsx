@@ -285,7 +285,7 @@ function TicketDetail() {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             <Button
               variant="outlined"
               size="small"
@@ -295,25 +295,71 @@ function TicketDetail() {
             >
               Szerkesztés
             </Button>
-
-            {/* Státusz dropdown */}
-            <FormControl sx={{ minWidth: { xs: '100%', md: 200 } }}>
-              <Select
-                value={selectedStatus}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                size="small"
-                disabled={updatingStatus}
-                sx={{ bgcolor: 'white', fontWeight: 600 }}
-              >
-                {statuses.map((status) => (
-                  <MenuItem key={status.id} value={status.id}>
-                    {status.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
           </Box>
         </Box>
+
+        {/* Státusz váltó — színkódos legördülő, középre/balra a hibajegy alatt
+            elhelyezve, hogy az operátor a fő művelet felé essen először a tekintet. */}
+        <Paper
+          variant="outlined"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 1.25,
+            mt: 1,
+            bgcolor: '#f8fafc',
+            borderColor: '#e5e7eb',
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, ml: 0.5 }}>
+            Státusz
+          </Typography>
+          <FormControl sx={{ minWidth: 280 }} disabled={updatingStatus}>
+            <Select
+              value={selectedStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              size="small"
+              sx={{
+                bgcolor: 'white',
+                fontWeight: 600,
+                '& .MuiSelect-select': { py: 0.75, display: 'flex', alignItems: 'center' },
+              }}
+              renderValue={(selectedId) => {
+                const s = statuses.find(st => st.id === selectedId);
+                if (!s) return '';
+                return (
+                  <Chip
+                    label={s.name}
+                    size="small"
+                    sx={{
+                      bgcolor: s.color || '#94a3b8',
+                      color: '#fff',
+                      fontWeight: 600,
+                      height: 24,
+                    }}
+                  />
+                );
+              }}
+            >
+              {statuses.map((status) => (
+                <MenuItem key={status.id} value={status.id}>
+                  <Chip
+                    label={status.name}
+                    size="small"
+                    sx={{
+                      bgcolor: status.color || '#94a3b8',
+                      color: '#fff',
+                      fontWeight: 600,
+                      height: 22,
+                    }}
+                  />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {updatingStatus && <CircularProgress size={18} />}
+        </Paper>
       </Box>
 
       <EditTicketModal
@@ -649,7 +695,7 @@ function TicketDetail() {
 
               {/* Resolution deadline */}
               {ticket.sla_resolution_deadline && (() => {
-                const isFinal = ticket.status_slug === 'completed' || ticket.status_slug === 'rejected' || ticket.status_slug === 'not_feasible';
+                const isFinal = ['completed', 'rejected', 'not_feasible', 'resolved', 'closed_unsuccessful'].includes(ticket.status_slug);
                 const status = getSlaStatus(ticket.sla_resolution_deadline, isFinal ? (ticket.resolved_at || ticket.closed_at) : null);
                 return (
                   <Box>
