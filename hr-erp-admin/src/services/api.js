@@ -492,6 +492,49 @@ export const employeesAPI = {
     return response.data;
   },
 
+  // ── New GDPR-graded document store (migration 109) ────────────────
+  // The legacy helpers above call the legacy controller. These call the
+  // new permission-gated + audit-logged controller. Both are kept while
+  // any old callers exist; the new EmployeeDocumentsPanel uses these.
+  docs: {
+    list: async (employeeId, params = {}) => {
+      const response = await api.get(`/employees/${employeeId}/documents`, { params });
+      return response.data;
+    },
+    getOne: async (employeeId, docId) => {
+      const response = await api.get(`/employees/${employeeId}/documents/${docId}`);
+      return response.data;
+    },
+    upload: async (employeeId, file, fields = {}) => {
+      const fd = new FormData();
+      fd.append('document', file);
+      for (const [k, v] of Object.entries(fields)) {
+        if (v !== null && v !== undefined && v !== '') fd.append(k, v);
+      }
+      const response = await api.post(`/employees/${employeeId}/documents`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    },
+    // GET download as a blob — caller produces an object URL for inline
+    // preview or a download trigger. The route writes an audit row each
+    // call, so don't call this in a loop.
+    downloadBlob: async (employeeId, docId) => {
+      const response = await api.get(`/employees/${employeeId}/documents/${docId}/download`, {
+        responseType: 'blob',
+      });
+      return response.data;
+    },
+    patch: async (employeeId, docId, body) => {
+      const response = await api.patch(`/employees/${employeeId}/documents/${docId}`, body);
+      return response.data;
+    },
+    softDelete: async (employeeId, docId, body = {}) => {
+      const response = await api.delete(`/employees/${employeeId}/documents/${docId}`, { data: body });
+      return response.data;
+    },
+  },
+
   bulkUpdateStatus: async (data) => {
     const response = await api.post('/employees/bulk-update', data);
     return response.data;

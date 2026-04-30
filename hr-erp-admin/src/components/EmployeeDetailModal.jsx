@@ -63,6 +63,7 @@ import { toast } from 'react-toastify';
 import UserAvatar from './common/UserAvatar';
 import PdfViewer from './PdfViewer';
 import TaskCreationModal from './TaskCreationModal';
+import EmployeeDocumentsPanel from './EmployeeDocumentsPanel';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
 const MARITAL_LABELS = { single: 'Egyedülálló', married: 'Házas', divorced: 'Elvált', widowed: 'Özvegy' };
@@ -573,18 +574,17 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
               photoUploading={photoUploading}
             />
           ) : activeTab === 2 ? (
-            /* Dokumentumok tab */
-            <DocumentsTab
-              documents={documents}
-              documentsLoading={documentsLoading}
-              docUploading={docUploading}
-              onUpload={handleDocUpload}
-              onDelete={handleDocDelete}
-              selectedDocImage={selectedDocImage}
-              setSelectedDocImage={setSelectedDocImage}
-              showOriginalInViewer={showOriginalInViewer}
-              setShowOriginalInViewer={setShowOriginalInViewer}
-            />
+            /* Dokumentumok tab — new GDPR-graded panel (migration 109).
+               Self-contained: own load, own upload + view modals,
+               own permission checks. The legacy DocumentsTab component
+               below is kept in this file for reference but no longer
+               rendered. */
+            <Box sx={{ mt: 1 }}>
+              <EmployeeDocumentsPanel
+                employeeId={employeeId}
+                employeeUserId={employee?.user_id}
+              />
+            </Box>
           ) : (
             /* Idővonal tab */
             <Box sx={{ mt: 1 }}>
