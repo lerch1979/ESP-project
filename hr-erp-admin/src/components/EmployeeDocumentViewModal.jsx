@@ -67,6 +67,11 @@ export default function EmployeeDocumentViewModal({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [didChange, setDidChange] = useState(false);
+  // Delete-confirm sub-dialog state. window.prompt was blocking the
+  // renderer when invoked from inside a Dialog (test report's TÖRLÉS
+  // freeze) — use a proper MUI Dialog instead.
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // Fetch metadata + blob on open. Skip when modal not open or no doc id.
   useEffect(() => {
@@ -134,9 +139,19 @@ export default function EmployeeDocumentViewModal({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Diff form vs doc. Dates need normalization because editForm
+      // stores 'YYYY-MM-DD' (HTML date input) while the API returns the
+      // full ISO timestamp ('YYYY-MM-DDTHH:mm:ss.sssZ'). Without this,
+      // every save produced a fake patch on date fields and burned an
+      // audit row even when nothing actually changed.
+      const dateOnly = (v) => v ? String(v).slice(0, 10) : '';
+      const norm = (k, v) => {
+        if (k === 'issued_date' || k === 'expiry_date') return dateOnly(v);
+        return v == null ? '' : String(v);
+      };
       const patch = {};
       for (const k of Object.keys(editForm)) {
-        if ((editForm[k] || '') !== ((doc && doc[k]) || '')) {
+        if (norm(k, editForm[k]) !== norm(k, doc?.[k])) {
           patch[k] = editForm[k] || null;
         }
       }
@@ -159,14 +174,22 @@ export default function EmployeeDocumentViewModal({
     }
   };
 
-  const handleDelete = async () => {
-    const reason = window.prompt('Törlés oka (audit naplóhoz):');
-    if (reason === null) return;
+  const handleDelete = () => {
+    // Open the inline confirm dialog. The actual delete fires from the
+    // dialog's "Törlés" button → confirmDelete() below.
+    setDeleteReason('');
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
     setDeleting(true);
     try {
-      const r = await employeesAPI.docs.softDelete(employeeId, docId, { reason: reason || null });
+      const r = await employeesAPI.docs.softDelete(employeeId, docId, {
+        reason: deleteReason.trim() || null,
+      });
       if (r?.success) {
         toast.success('Dokumentum törölve');
+        setDeleteOpen(false);
         onClose?.(true);
       }
     } catch (err) {
@@ -181,6 +204,7 @@ export default function EmployeeDocumentViewModal({
   const isPdf   = doc?.mime_type === 'application/pdf';
 
   return (
+    <>
     <Dialog open={open} onClose={() => onClose?.(didChange)} maxWidth="lg" fullWidth>
       <DialogTitle sx={{ fontWeight: 600, pr: 6 }}>
         {doc?.document_name || doc?.file_name || 'Dokumentum'}
@@ -384,16 +408,50 @@ export default function EmployeeDocumentViewModal({
         )}
       </DialogActions>
     </Dialog>
+
+    {/* Delete confirm — sub-dialog. Replaces window.prompt which was
+        freezing the renderer when invoked from inside the parent Dialog. */}
+    <Dialog open={deleteOpen} onClose={deleting ? undefined : () => setDeleteOpen(false)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontWeight: 600 }}>Dokumentum törlése</DialogTitle>
+      <DialogContent>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          A dokumentum eltávolításra kerül a listából, de a fájl és az
+          audit napló megmarad.
+        </Alert>
+        <TextField
+          autoFocus fullWidth multiline rows={2} label="Törlés oka"
+          placeholder='Pl. „téves feltöltés", „helyettesítve új verzióval"'
+          value={deleteReason}
+          onChange={e => setDeleteReason(e.target.value)}
+          inputProps={{ maxLength: 1000 }}
+          helperText="Az ok megjelenik az audit naplóban."
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setDeleteOpen(false)} disabled={deleting}>Mégse</Button>
+        <Button
+          color="error" variant="contained"
+          onClick={confirmDelete} disabled={deleting}
+          startIcon={<DeleteIcon />}
+        >
+          {deleting ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Törlés'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }
 
 function MetaCell({ label, children }) {
+  // Render the value as a <div>-styled body2 (component="div") so callers
+  // can drop a Chip in without React's validateDOMNesting warning fires
+  // about <div> inside <p>.
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {label}
       </Typography>
-      <Typography variant="body2" sx={{ mt: 0.25 }}>
+      <Typography variant="body2" component="div" sx={{ mt: 0.25 }}>
         {children}
       </Typography>
     </Box>
