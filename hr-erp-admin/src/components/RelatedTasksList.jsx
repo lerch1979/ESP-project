@@ -7,10 +7,10 @@ import {
   Add as AddIcon, CheckCircleOutline as DoneIcon,
   OpenInNew as OpenIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ticketsAPI, tasksAPI } from '../services/api';
 import TaskCreationModal from './TaskCreationModal';
+import TaskDetailModal from './TaskDetailModal';
 
 // Mirrors the status colors used elsewhere in the admin UI for tasks.
 const STATUS = {
@@ -30,10 +30,13 @@ const fmtDate = (s) => s ? new Date(s).toLocaleDateString('hu-HU') : '—';
  * obvious in any task list.
  */
 export default function RelatedTasksList({ ticketId, ticketNumber, relatedEmployeeId }) {
-  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
+  // Megnyitás used to navigate('/tasks/:id') — that route doesn't exist
+  // (tasks have no detail page; admin uses the modal). Reuse the same
+  // TaskDetailModal pattern MyActiveTasksWidget already uses.
+  const [openTaskId, setOpenTaskId] = useState(null);
 
   const load = useCallback(async () => {
     if (!ticketId) return;
@@ -150,7 +153,7 @@ export default function RelatedTasksList({ ticketId, ticketNumber, relatedEmploy
                       </Tooltip>
                     )}
                     <Tooltip title="Megnyitás">
-                      <IconButton size="small" onClick={() => navigate(`/tasks/${t.id}`)}>
+                      <IconButton size="small" onClick={() => setOpenTaskId(t.id)}>
                         <OpenIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -169,6 +172,13 @@ export default function RelatedTasksList({ ticketId, ticketNumber, relatedEmploy
         linkedTicketId={ticketId}
         ticketNumberPrefix={ticketNumber}
         relatedEmployeeId={relatedEmployeeId || null}
+      />
+
+      <TaskDetailModal
+        open={!!openTaskId}
+        taskId={openTaskId}
+        onClose={() => setOpenTaskId(null)}
+        onChange={load}
       />
     </Paper>
   );
