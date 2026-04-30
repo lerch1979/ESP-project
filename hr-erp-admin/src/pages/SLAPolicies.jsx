@@ -124,7 +124,7 @@ function SLAPolicies() {
       const res = await slaPoliciesAPI.getAll(params);
       setPolicies(res.data?.policies || []);
     } catch (error) {
-      toast.error('Hiba az SLA szabályzatok betöltésekor');
+      toast.error('Hiba a megoldási határidő szabályzatok betöltésekor');
     } finally {
       setLoading(false);
     }
@@ -196,10 +196,10 @@ function SLAPolicies() {
 
       if (editingItem) {
         await slaPoliciesAPI.update(editingItem.id, payload);
-        toast.success('SLA szabályzat sikeresen frissítve');
+        toast.success('Megoldási határidő szabályzat sikeresen frissítve');
       } else {
         await slaPoliciesAPI.create(payload);
-        toast.success('SLA szabályzat sikeresen létrehozva');
+        toast.success('Megoldási határidő szabályzat sikeresen létrehozva');
       }
       handleClose();
       loadPolicies();
@@ -215,7 +215,7 @@ function SLAPolicies() {
     try {
       setDeleteLoading(true);
       await slaPoliciesAPI.delete(id);
-      toast.success('SLA szabályzat sikeresen törölve');
+      toast.success('Megoldási határidő szabályzat sikeresen törölve');
       setDeleteConfirm(null);
       loadPolicies();
     } catch (error) {
@@ -285,7 +285,7 @@ function SLAPolicies() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TimerIcon sx={{ fontSize: 28, color: '#2563eb' }} />
             <Typography variant="h5" fontWeight={700}>
-              SLA Szabályzatok
+              Megoldási határidő szabályzatok
             </Typography>
           </Box>
           {canEdit && (
@@ -302,7 +302,7 @@ function SLAPolicies() {
 
         {/* Info alert */}
         <Alert severity="info" sx={{ mb: 3 }}>
-          Az SLA (Service Level Agreement) szabályzatok meghatározzák a válasz- és megoldási időket prioritás szintenként.
+          A megoldási határidő szabályzatok (régi nevén SLA) meghatározzák a válasz- és megoldási időket prioritás szintenként.
           Segítségükkel biztosítható, hogy a hibajegyek időben kezelésre kerüljenek.
         </Alert>
 
@@ -355,10 +355,10 @@ function SLAPolicies() {
                   <TableCell colSpan={canEdit ? 7 : 6} align="center" sx={{ py: 5 }}>
                     <TimerIcon sx={{ fontSize: 48, color: '#cbd5e1', mb: 1 }} />
                     <Typography variant="body1" color="text.secondary">
-                      Nincsenek SLA szabályzatok
+                      Nincsenek megoldási határidő szabályzatok
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {filterActive !== '' ? 'Próbálj más szűrési feltételt.' : 'Hozz létre egy új SLA szabályzatot.'}
+                      {filterActive !== '' ? 'Próbálj más szűrési feltételt.' : 'Hozz létre egy új megoldási határidő szabályzatot.'}
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -458,7 +458,7 @@ function SLAPolicies() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <TimerIcon sx={{ color: '#2563eb' }} />
               <Typography variant="h6" fontWeight={600}>
-                {editingItem ? 'SLA szabályzat szerkesztése' : 'Új SLA szabályzat'}
+                {editingItem ? 'Megoldási határidő szabályzat szerkesztése' : 'Új megoldási határidő szabályzat'}
               </Typography>
             </Box>
             <IconButton onClick={handleClose} size="small">
@@ -481,7 +481,7 @@ function SLAPolicies() {
                   required
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="pl. Standard SLA"
+                  placeholder="pl. Standard megoldási határidő"
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -505,7 +505,7 @@ function SLAPolicies() {
                   rows={2}
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="pl. Alapértelmezett SLA szabályzat"
+                  placeholder="pl. Alapértelmezett megoldási határidő szabályzat"
                 />
               </Grid>
             </Grid>
@@ -639,7 +639,7 @@ function SLAPolicies() {
                       value={form.escalation_after_percentage}
                       onChange={(e) => setForm(prev => ({ ...prev, escalation_after_percentage: parseInt(e.target.value) || 80 }))}
                       inputProps={{ min: 1, max: 100 }}
-                      helperText="Az SLA idő ennyi %-a után"
+                      helperText="A megoldási határidő ennyi %-a után"
                     />
                   </Grid>
                   <Grid item xs={6} sm={4}>
@@ -714,7 +714,7 @@ function SLAPolicies() {
           <DialogTitle>Törlés</DialogTitle>
           <DialogContent>
             <Typography>
-              Biztosan törölni szeretnéd a <strong>{deleteConfirm?.name}</strong> SLA szabályzatot?
+              Biztosan törölni szeretnéd a <strong>{deleteConfirm?.name}</strong> megoldási határidő szabályzatot?
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Ez a művelet nem vonható vissza.

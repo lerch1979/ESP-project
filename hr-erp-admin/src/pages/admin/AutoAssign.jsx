@@ -30,7 +30,7 @@ const tabs = [
   { label: 'Felhasználói képességek', icon: <PsychologyIcon /> },
   { label: 'Munkaterhelés', icon: <AssessmentIcon /> },
   { label: 'Teszt & Debug', icon: <BugReportIcon /> },
-  { label: 'SLA szabályok', icon: <TimerIcon /> },
+  { label: 'Megoldási határidő', icon: <TimerIcon /> },
 ];
 
 export default function AutoAssign() {
@@ -48,7 +48,7 @@ export default function AutoAssign() {
         Automatikus kiosztás
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Szabályok, képességek, munkaterhelés és SLA kezelése
+        Szabályok, képességek, munkaterhelés és megoldási határidő kezelése
       </Typography>
 
       <Tabs

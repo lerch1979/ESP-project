@@ -595,15 +595,15 @@ function TicketDetail() {
             </Typography>
           </Paper>
 
-          {/* SLA */}
+          {/* Megoldási határidő */}
           {ticket.sla_policy_id && (
             <Paper sx={{ p: 2.5, mb: 2 }}>
               <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, mb: 2, display: 'block' }}>
-                SLA
+                Megoldási határidő
               </Typography>
 
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 2 }}>
-                {ticket.sla_policy_name || 'SLA szabályzat'}
+                {ticket.sla_policy_name || 'Megoldási határidő szabályzat'}
               </Typography>
 
               {/* Response deadline */}
