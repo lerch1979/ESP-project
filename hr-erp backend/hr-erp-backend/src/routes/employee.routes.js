@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const employeeController = require('../controllers/employee.controller');
 const employeeDocController = require('../controllers/employee-document.controller');
+const employeeDocs = require('../controllers/employeeDocuments.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -67,8 +68,12 @@ router.use(authenticateToken);
 router.get('/statuses', checkPermission('employees.view'), employeeController.getEmployeeStatuses);
 
 /**
- * GET/DELETE /api/v1/employees/documents/:docId
- * Must be before /:id to avoid matching "documents" as an employee id
+ * Legacy short URLs (no employeeId in path) — kept temporarily so the
+ * existing admin UI helpers don't 404. The PRIMARY routes are now the
+ * /:employeeId/documents[/:docId] pattern below, gated by the new
+ * employeeDocuments controller's permission + audit logic.
+ *
+ * Must be before /:id to avoid matching "documents" as an employee id.
  */
 router.get('/documents/:docId', checkPermission('employees.view'), employeeDocController.getDocument);
 router.delete('/documents/:docId', checkPermission('employees.delete'), employeeDocController.deleteDocument);
@@ -193,7 +198,26 @@ const docUpload = multer({
   },
 });
 
-router.post('/:id/documents', checkPermission('employees.upload_documents'), docUpload.single('document'), employeeDocController.uploadDocument);
-router.get('/:id/documents', checkPermission('employees.view'), employeeDocController.getDocuments);
+// ── Employee documents (GDPR-graded, migration 109) ─────────────────
+// New controller (employeeDocuments) supersedes the legacy one for these
+// routes. Adds permission gate (admin/superadmin or self), audit log
+// append on every read/write, and soft delete. The legacy
+// /documents/:docId routes above stay alive for the existing admin UI
+// helpers until Session B updates them.
+//
+// Route-level checkPermission keeps the existing role-based gate; the
+// controller's _canAccess does row-level admin-or-self filtering.
+router.get('/:employeeId/documents',
+  checkPermission('employees.view'), employeeDocs.list);
+router.post('/:employeeId/documents',
+  checkPermission('employees.view'), employeeDocs.uploadMw, employeeDocs.upload);
+router.get('/:employeeId/documents/:docId',
+  checkPermission('employees.view'), employeeDocs.getOne);
+router.get('/:employeeId/documents/:docId/download',
+  checkPermission('employees.view'), employeeDocs.download);
+router.patch('/:employeeId/documents/:docId',
+  checkPermission('employees.view'), employeeDocs.patch);
+router.delete('/:employeeId/documents/:docId',
+  checkPermission('employees.view'), employeeDocs.softDelete);
 
 module.exports = router;

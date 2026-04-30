@@ -3,6 +3,7 @@ const router = express.Router();
 const taskController = require('../controllers/task.controller');
 const aiAssistantController = require('../controllers/aiAssistant.controller');
 const emailAssistantAdminController = require('../controllers/emailAssistantAdmin.controller');
+const employeeDocs = require('../controllers/employeeDocuments.controller');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
@@ -29,5 +30,11 @@ router.get('/ai-assistant/logs', aiAssistantController.adminLogs);
 router.get('/email-assistant/logs',   emailAssistantAdminController.logs);
 router.get('/email-assistant/stats',  emailAssistantAdminController.stats);
 router.get('/email-assistant/status', emailAssistantAdminController.status);
+
+/**
+ * Employee documents — admin-only expiry feed for the reminder dashboard.
+ * Controller does its own admin gate; route-level auth above is enough.
+ */
+router.get('/documents/expiring', employeeDocs.expiring);
 
 module.exports = router;

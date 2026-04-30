@@ -210,6 +210,13 @@ app.use((req, res, next) => {
 // ============================================
 
 const path = require('path');
+// Block sensitive subtrees from the public static mount BEFORE express.static
+// gets a chance. orphans/ holds files whose parent record was deleted —
+// they're for offline triage, never API-served. employee-documents/ is
+// gated by the employeeDocuments controller's permission check (no static
+// access by URL — must go through the audited download endpoint).
+app.use('/uploads/orphans', (req, res) => res.status(404).end());
+app.use('/uploads/employee-documents', (req, res) => res.status(404).end());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // ============================================
