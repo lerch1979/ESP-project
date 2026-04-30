@@ -16,6 +16,8 @@ import {
   Button,
   Stack,
   CircularProgress,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -60,6 +62,10 @@ function Tickets() {
   const [filterOptions, setFilterOptions] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Active / Closed / All tab — maps to ?is_final= on the list endpoint.
+  // Default 'active' so operators land on the working set, not on a wall
+  // of historical tickets.
+  const [statusTab, setStatusTab] = useState('active');
   // Hierarchical category tree for the filter dropdown. Loaded separately
   // from reportsAPI.getFilterOptions because that endpoint only returns
   // {id,name} — no slug, no parent_id. ticketsAPI.getCategories already
@@ -73,7 +79,7 @@ function Tickets() {
 
   useEffect(() => {
     loadTickets();
-  }, [page, rowsPerPage, search, activeFilters]);
+  }, [page, rowsPerPage, search, activeFilters, statusTab]);
 
   const loadFilterOptions = async () => {
     try {
@@ -150,6 +156,9 @@ function Tickets() {
 
       if (search) params.search = search;
       if (activeFilters.length > 0) params.filters = JSON.stringify(activeFilters);
+      if (statusTab === 'active') params.is_final = 'false';
+      else if (statusTab === 'closed') params.is_final = 'true';
+      // 'all' → don't set is_final, backend returns everything
 
       const response = await ticketsAPI.getAll(params);
 
@@ -282,6 +291,25 @@ function Tickets() {
           </Button>
         </Stack>
       </Box>
+
+      {/* Aktív / Lezárt / Mind tabok — operátorok 90%-ban csak az aktív
+          jegyeket akarják látni, a lezártak külön nézetben kapnak helyet. */}
+      <Paper sx={{ mb: 2, borderRadius: 2 }}>
+        <Tabs
+          value={statusTab}
+          onChange={(_, v) => { setStatusTab(v); setPage(0); }}
+          sx={{
+            px: 2,
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 44 },
+          }}
+        >
+          <Tab value="active" label="Aktív" />
+          <Tab value="closed" label="Lezárt" />
+          <Tab value="all"    label="Mind" />
+        </Tabs>
+      </Paper>
 
       {/* Keresés */}
       <Paper sx={{ p: 2, mb: 3 }}>

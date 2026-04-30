@@ -32,7 +32,7 @@ const TICKET_FILTER_FIELD_MAP = {
  */
 const getTickets = async (req, res) => {
   try {
-    const { status, category, priority, assigned_to } = req.query;
+    const { status, category, priority, assigned_to, is_final } = req.query;
     const { page, limit, offset } = parsePagination(req.query, { page: 1, limit: 20, maxLimit: 200 });
     const search = sanitizeSearch(req.query.search);
 
@@ -58,6 +58,15 @@ const getTickets = async (req, res) => {
     if (status) {
       whereConditions.push(`ts.slug = $${paramIndex}`);
       params.push(status);
+      paramIndex++;
+    }
+
+    // Aktív/Lezárt szűrő (B2 — drives the Active/Closed tabs on the list page).
+    // Accepts 'true' / 'false' as strings since query strings have no native bool.
+    // Only applied when explicitly passed; absent = Mind.
+    if (is_final === 'true' || is_final === 'false') {
+      whereConditions.push(`ts.is_final = $${paramIndex}`);
+      params.push(is_final === 'true');
       paramIndex++;
     }
 
