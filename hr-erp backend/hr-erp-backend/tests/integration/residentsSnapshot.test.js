@@ -93,7 +93,10 @@ describe('scoreRoom builds residents_snapshot with email + language', () => {
   });
 
   it('falls back to users.email when personal_email is empty', async () => {
-    if (!employeeId) return;
+    // Same guard as the first it() above — fresh CI DBs have no
+    // admin@hr-erp.com seed, so authToken is null and the inspections
+    // POST returns 401 instead of 201. Skip cleanly when login failed.
+    if (!authToken || !accommodationId || !roomId || !employeeId) return;
     // Blank out personal_email so the COALESCE must fall through.
     await query(`UPDATE employees SET personal_email = '' WHERE id = $1`, [employeeId]);
 

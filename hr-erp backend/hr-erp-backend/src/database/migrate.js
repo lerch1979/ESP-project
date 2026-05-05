@@ -15,9 +15,28 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
-// ─── Ordered migration manifest ───────────────────────────────────────
-// Files are relative to the project root (hr-erp-backend/)
-const MIGRATIONS = [
+// ─── Migration manifest ───────────────────────────────────────────────
+//
+// Two-tier strategy:
+//   1. LEGACY_MIGRATIONS — the early files (001-041) whose filenames
+//      have no numeric prefix (add_*.sql, rename_*.sql, etc.). Their
+//      ids are assigned by hand and the order is fixed; this list
+//      stays explicit because the filenames don't carry the ordering.
+//   2. Numbered migrations from migrations/NNN[a-z]?_*.sql are
+//      discovered automatically below — sorted alphabetically so the
+//      natural file order matches application order (050 < ... <
+//      091 < 091a < 092 < ... < 111 < anything new added later).
+//
+// Why auto-discovery for the numbered tier:
+//   The hand-maintained manifest fell ~42 entries behind reality. Out
+//   of those, two-thirds were running fine against dev/prod (someone
+//   applied them by hand) but CI's fresh DB never saw them. Result:
+//   CI was silently broken for weeks. Auto-discovery makes "add a
+//   numbered migration file" the only step needed — no second commit
+//   to remember.
+//
+// Files are relative to the project root (hr-erp-backend/).
+const LEGACY_MIGRATIONS = [
   { id: '001', name: 'initial_schema',              file: 'database_schema.sql' },
   { id: '002', name: 'rename_tenants_to_contractors', file: 'migrations/rename_tenants_to_contractors.sql' },
   { id: '003', name: 'add_role_to_users',            file: 'migrations/add_role_to_users.sql' },
@@ -57,35 +76,32 @@ const MIGRATIONS = [
   { id: '037', name: 'salary_transparency',          file: 'migrations/salary_transparency.sql' },
   { id: '040', name: 'encrypt_pii_data',             file: 'migrations/encrypt_pii_data.sql' },
   { id: '041', name: 'audit_triggers',               file: 'migrations/audit_triggers.sql' },
-  { id: '050', name: 'chatbot_system_enhancements',  file: 'migrations/050_chatbot_system.sql' },
-  { id: '052', name: 'chatbot_quality_faqs',         file: 'migrations/052_chatbot_quality_faqs.sql' },
-  { id: '053', name: 'chatbot_ai_context',           file: 'migrations/053_chatbot_ai_context.sql' },
-  { id: '054', name: 'complete_pii_encryption',     file: 'migrations/054_complete_pii_encryption.sql' },
-  { id: '055', name: 'complete_audit_triggers',      file: 'migrations/055_complete_audit_triggers.sql' },
-  { id: '056', name: 'password_policies',            file: 'migrations/056_password_policies.sql' },
-  { id: '057', name: 'row_level_security',           file: 'migrations/057_row_level_security.sql' },
-  { id: '058', name: 'blue_colibri_schema',          file: 'migrations/058_blue_colibri_schema.sql' },
-  { id: '059', name: 'eap_schema',                  file: 'migrations/059_eap_schema.sql' },
-  { id: '060', name: 'wellbeing_integration',        file: 'migrations/060_wellbeing_integration_schema.sql' },
-  { id: '061', name: 'comprehensive_seed_data',      file: 'migrations/061_comprehensive_seed_data.sql' },
-  { id: '062', name: 'rename_wellmind_carepath',     file: 'migrations/062_rename_wellmind_carepath.sql' },
-  // NOTE: migrations 063–085 exist on disk but are NOT in this manifest
-  // because a clean chain from 001→085 currently breaks at 072 (missing
-  // dep on `carepath_bookings`). Dev DB has them applied manually; CI runs
-  // 001–062 and the pre-existing test suite passes against that baseline.
-  // Registering 086 here because it is SELF-CONTAINED (depends only on
-  // `accommodations`, `users`, `damage_reports` — all present by 062 era
-  // plus damage_reports which 086 references via ON DELETE SET NULL and
-  // tolerates the table being absent in CI since our new inspection tests
-  // won't hit that FK path yet).
-  { id: '086', name: 'property_inspection_system',   file: 'migrations/086_property_inspection_system.sql' },
-  { id: '087', name: 'room_inspections',             file: 'migrations/087_room_inspections.sql' },
-  { id: '088', name: 'compensation_system',          file: 'migrations/088_compensation_system.sql' },
-  { id: '089', name: 'compensation_extended',        file: 'migrations/089_compensation_extended.sql' },
-  { id: '090', name: 'fines_and_residents',          file: 'migrations/090_fines_and_residents.sql' },
-  { id: '091', name: 'inspection_email_notifications', file: 'migrations/091_inspection_email_notifications.sql' },
-  { id: '092', name: 'backfill_residents_snapshot',  file: 'migrations/092_backfill_residents_snapshot.sql' },
 ];
+
+// Strict regex: at least one digit, optionally followed by a single
+// lowercase letter for sub-numbered migrations (e.g. "091a"), then
+// underscore + slug + .sql. Excludes seed_*.sql, baseline.sql, and
+// any utility scripts that happen to live in migrations/.
+const NUMBERED_MIGRATION_RE = /^([0-9]+[a-z]?)_(.+)\.sql$/;
+
+function discoverNumberedMigrations() {
+  const dir = path.join(ROOT, 'migrations');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => NUMBERED_MIGRATION_RE.test(f))
+    // Plain alphabetical sort works here: zero-padded ids ("050"
+    // through "111") sort numerically, and "091a" sorts after "091"
+    // and before "092" exactly as intended.
+    .sort()
+    .map(f => {
+      const [, id, name] = f.match(NUMBERED_MIGRATION_RE);
+      return { id, name, file: `migrations/${f}` };
+    });
+}
+
+function getMigrations() {
+  return [...LEGACY_MIGRATIONS, ...discoverNumberedMigrations()];
+}
 
 // Seed data (run after all migrations with `npm run db:migrate seed`)
 const SEEDS = [
@@ -142,7 +158,8 @@ async function runMigrations(includeSeed) {
     await ensureMigrationsTable(client);
     const applied = await getApplied(client);
 
-    const list = includeSeed ? [...MIGRATIONS, ...SEEDS] : MIGRATIONS;
+    const migrations = getMigrations();
+    const list = includeSeed ? [...migrations, ...SEEDS] : migrations;
     let count = 0;
 
     for (const m of list) {
@@ -198,12 +215,13 @@ async function showStatus() {
     console.log('\n  Migration Status:');
     console.log('  ' + '─'.repeat(60));
 
-    for (const m of [...MIGRATIONS, ...SEEDS]) {
+    const migrations = getMigrations();
+    for (const m of [...migrations, ...SEEDS]) {
       const status = applied.has(m.id) ? '✓' : '○';
       console.log(`  ${status} [${m.id}] ${m.name}`);
     }
     console.log('  ' + '─'.repeat(60));
-    console.log(`  Applied: ${applied.size} / ${MIGRATIONS.length + SEEDS.length}\n`);
+    console.log(`  Applied: ${applied.size} / ${migrations.length + SEEDS.length}\n`);
   } finally {
     client.release();
     await pool.end();
@@ -227,7 +245,7 @@ async function rollbackLast() {
     console.log(`  Rolling back [${last.id}] ${last.name}...`);
 
     // Check for a rollback file
-    const allMigrations = [...MIGRATIONS, ...SEEDS];
+    const allMigrations = [...getMigrations(), ...SEEDS];
     const migration = allMigrations.find(m => m.id === last.id);
     if (!migration) {
       console.error(`  ✗ Migration ${last.id} not found in manifest.`);
@@ -269,7 +287,7 @@ async function baseline() {
     const applied = await getApplied(client);
     let count = 0;
 
-    for (const m of MIGRATIONS) {
+    for (const m of getMigrations()) {
       if (applied.has(m.id)) continue;
       await client.query(
         'INSERT INTO schema_migrations (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',

@@ -433,10 +433,20 @@ describe('Security: Complete Checklist', () => {
   });
 
   test('migration manifest includes all security migrations', () => {
-    const migrate = fs.readFileSync(path.join(root, 'src/database/migrate.js'), 'utf8');
-    expect(migrate).toContain('054');
-    expect(migrate).toContain('055');
-    expect(migrate).toContain('056');
-    expect(migrate).toContain('057');
+    // Original test grepped migrate.js for hard-coded ids "054".."057".
+    // After the auto-discovery refactor those literal strings no longer
+    // appear in the runner — numbered migrations are picked up from the
+    // filesystem at runtime. Assert against the files instead, which is
+    // closer to what the test actually wants to verify (security
+    // migrations are present and discoverable).
+    const securityMigrations = [
+      '054_complete_pii_encryption.sql',
+      '055_complete_audit_triggers.sql',
+      '056_password_policies.sql',
+      '057_row_level_security.sql',
+    ];
+    for (const file of securityMigrations) {
+      expect(fs.existsSync(path.join(root, 'migrations', file))).toBe(true);
+    }
   });
 });
