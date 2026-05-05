@@ -87,8 +87,33 @@ describe('Damage Report PDF', () => {
       expect(html).toContain('2'); // 2 photos
     });
 
-    it('should include Section 6 settlement text', () => {
+    it('should include Section 6 settlement details when cost data is present', () => {
+      // mockReport has total_cost / fault_percentage / liability_type set,
+      // so the builder takes the cost-grid branch (not the placeholder).
+      // Assert against the rendered grid. We mirror the builder's own
+      // Intl.NumberFormat call so the test stays correct regardless of
+      // whether ICU emits a regular space, NBSP, or NNBSP between the
+      // thousands group — that detail varies by Node/ICU version.
       const html = buildHTML(mockReport, 'hu');
+      const formattedAmount = new Intl.NumberFormat('hu-HU').format(60000);
+      expect(html).toContain('Becsült kár összege');
+      expect(html).toContain(formattedAmount);
+      expect(html).toContain('Felróhatóság mértéke');
+      expect(html).toContain('100%');
+      expect(html).toContain('Gondatlanság');
+    });
+
+    it('should fall back to settlement placeholder text when no cost data', () => {
+      // hasCostData = false branch in damageReportPdf.service.js — guards
+      // legacy reports that pre-date the expanded cost grid.
+      const minimal = {
+        ...mockReport,
+        total_cost: null,
+        fault_percentage: null,
+        employee_salary: null,
+        liability_type: null,
+      };
+      const html = buildHTML(minimal, 'hu');
       expect(html).toContain('később kerül megállapításra');
     });
 
