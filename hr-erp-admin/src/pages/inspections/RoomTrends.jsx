@@ -34,7 +34,10 @@ export default function RoomTrends() {
     (async () => {
       try {
         const res = await accommodationsAPI.getAll();
-        const list = res?.data || [];
+        // Backend returns { success, data: { accommodations, pagination } }
+        // — accommodationsAPI.getAll already unwraps the outer envelope, so
+        // res.data is the inner { accommodations, pagination } object.
+        const list = res?.data?.accommodations || [];
         setAccommodations(list);
         if (list.length > 0) setSelectedAccommodation(list[0].id);
       } catch (e) {
@@ -47,8 +50,10 @@ export default function RoomTrends() {
     if (!selectedAccommodation) return;
     setLoading(true);
     try {
-      const res = await roomsAPI.getAll(selectedAccommodation);
-      const roomList = res?.data || [];
+      // roomsAPI exposes getByAccommodation, not getAll. Backend returns
+      // { success, data: { rooms } } — same envelope pattern as accommodations.
+      const res = await roomsAPI.getByAccommodation(selectedAccommodation);
+      const roomList = res?.data?.rooms || [];
       setRooms(roomList);
 
       // Fetch each room's trend summary in parallel.
