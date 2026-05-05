@@ -80,7 +80,8 @@ export default function InspectionsList() {
   const loadAccommodations = useCallback(async () => {
     try {
       const res = await accommodationsAPI.getAll({ limit: 500 });
-      setAccommodations(res?.data || []);
+      // Backend wraps the list in { data: { accommodations, pagination } }
+      setAccommodations(res?.data?.accommodations || []);
     } catch {
       setAccommodations([]);
     }

@@ -50,7 +50,8 @@ export default function InspectionReports() {
         accommodationsAPI.getAll({ limit: 500 }).catch(() => ({ data: [] })),
         usersAPI.getAll().catch(() => ({ data: [] })),
       ]);
-      setAccommodations(accs?.data || []);
+      // accommodationsAPI returns { data: { accommodations, pagination } }
+      setAccommodations(accs?.data?.accommodations || []);
       setUsers(us?.data || []);
     } catch {}
   }, []);

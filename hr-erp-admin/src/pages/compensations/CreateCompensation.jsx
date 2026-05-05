@@ -54,7 +54,8 @@ export default function CreateCompensation() {
           accommodationsAPI.getAll(),
           employeesAPI.getAll().catch(() => ({ data: [] })),
         ]);
-        setAccommodations(accRes?.data || []);
+        // accommodationsAPI.getAll returns { data: { accommodations, pagination } }
+        setAccommodations(accRes?.data?.accommodations || []);
         setEmployees(empRes?.data || []);
       } catch {
         toast.error('Adatok betöltése sikertelen');

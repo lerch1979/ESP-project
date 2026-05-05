@@ -59,7 +59,8 @@ export default function InspectionSchedules() {
       ]);
       setRows(schedules?.data || []);
       setUpcoming(up?.data || []);
-      setAccommodations(accs?.data || []);
+      // accommodationsAPI returns { data: { accommodations, pagination } }
+      setAccommodations(accs?.data?.accommodations || []);
       setUsers(us?.data || []);
     } catch (e) {
       toast.error('Nem sikerült betölteni az ütemezéseket');
