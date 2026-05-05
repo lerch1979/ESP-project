@@ -56,7 +56,14 @@ export default function CreateCompensation() {
         ]);
         // accommodationsAPI.getAll returns { data: { accommodations, pagination } }
         setAccommodations(accRes?.data?.accommodations || []);
-        setEmployees(empRes?.data || []);
+        // employeesAPI.getAll returns { data: { employees, pagination } } — but the
+        // .catch() fallback above is { data: [] }, so we accept both shapes.
+        // The Array.isArray guard is the last line of defence: if the server
+        // ever returns a plain string error body, we still set [] not garbage.
+        const empList = Array.isArray(empRes?.data)
+          ? empRes.data
+          : (empRes?.data?.employees || []);
+        setEmployees(Array.isArray(empList) ? empList : []);
       } catch {
         toast.error('Adatok betöltése sikertelen');
       }

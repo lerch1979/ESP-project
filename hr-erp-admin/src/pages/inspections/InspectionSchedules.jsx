@@ -61,7 +61,12 @@ export default function InspectionSchedules() {
       setUpcoming(up?.data || []);
       // accommodationsAPI returns { data: { accommodations, pagination } }
       setAccommodations(accs?.data?.accommodations || []);
-      setUsers(us?.data || []);
+      // usersAPI.getAll returns { data: { users, count, page, limit } } on success,
+      // but the .catch() fallback above is { data: [] } — accept both shapes.
+      const userList = Array.isArray(us?.data)
+        ? us.data
+        : (us?.data?.users || []);
+      setUsers(Array.isArray(userList) ? userList : []);
     } catch (e) {
       toast.error('Nem sikerült betölteni az ütemezéseket');
     } finally {
