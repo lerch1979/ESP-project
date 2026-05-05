@@ -29,7 +29,11 @@ CREATE INDEX IF NOT EXISTS idx_cases_user ON carepath_cases(user_id, opened_at D
 CREATE INDEX IF NOT EXISTS idx_cases_status ON carepath_cases(status);
 
 -- Bookings
-CREATE INDEX IF NOT EXISTS idx_bookings_user ON carepath_bookings(user_id, appointment_datetime DESC);
+-- Table is `carepath_provider_bookings` (renamed from eap_provider_bookings
+-- by 062). The original 072 had a typo — `carepath_bookings` — which made
+-- the chain non-runnable on a fresh DB and is why 063-085 sat outside the
+-- manifest for so long.
+CREATE INDEX IF NOT EXISTS idx_bookings_user ON carepath_provider_bookings(user_id, appointment_datetime DESC);
 
 -- Notifications (frequent reads)
 CREATE INDEX IF NOT EXISTS idx_notif_user_unread ON wellbeing_notifications(user_id, status) WHERE status = 'pending';
@@ -43,8 +47,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_date ON wellbeing_audit_log(created_at DESC
 CREATE INDEX IF NOT EXISTS idx_referrals_user ON wellbeing_referrals(user_id, status);
 
 -- Gamification
-CREATE INDEX IF NOT EXISTS idx_gam_points_user ON wellbeing_points(user_id);
-CREATE INDEX IF NOT EXISTS idx_gam_badges_user ON wellbeing_badges(user_id);
+-- Both of these were redundant / wrong-table:
+--   * wellbeing_points already has idx_points_user (user_id) created by 069.
+--   * wellbeing_badges is a catalog table (badge types), not a user-link
+--     table — it has no user_id column. The user-side join lives in
+--     user_badges, which already has its own idx_user_badges_user.
+-- Leaving these out of the 072 chain so it can run end-to-end on a
+-- fresh DB. The lookups they were trying to optimise are already
+-- covered by the indexes named above.
 
 -- Tickets (used in conflict correlation)
 CREATE INDEX IF NOT EXISTS idx_tickets_contractor_date ON tickets(contractor_id, created_at DESC);

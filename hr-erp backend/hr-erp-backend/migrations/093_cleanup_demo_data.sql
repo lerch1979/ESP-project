@@ -205,11 +205,21 @@ DELETE FROM wellmind_pulse_surveys WHERE contractor_id IN (SELECT id FROM __demo
 DELETE FROM contractors WHERE id IN (SELECT id FROM __demo_contractor_ids);
 
 -- ── Post-cleanup sanity checks ─────────────────────────────────
+-- These asserts pin the prod post-cleanup shape (1 admin user, 16
+-- accommodations preserved). They only fire when admin@hr-erp.com
+-- actually exists — i.e. when this migration is run as the one-off
+-- prod cleanup it was designed for. On a fresh CI DB that user has
+-- never been seeded, so the migration's deletes were all no-ops and
+-- pinning to magic numbers would be meaningless.
 DO $$
 DECLARE
   emp_count int; contractor_count int; inspection_count int;
   ticket_count int; user_count int; accommodation_count int;
+  is_prod_cleanup boolean;
 BEGIN
+  SELECT EXISTS (SELECT 1 FROM users WHERE email = 'admin@hr-erp.com')
+    INTO is_prod_cleanup;
+
   SELECT COUNT(*) INTO emp_count FROM employees;
   SELECT COUNT(*) INTO contractor_count FROM contractors;
   SELECT COUNT(*) INTO inspection_count FROM inspections;
@@ -218,11 +228,16 @@ BEGIN
   SELECT COUNT(*) INTO accommodation_count FROM accommodations;
   RAISE NOTICE 'post-cleanup: employees=%, contractors=%, inspections=%, tickets=%, users=%, accommodations=%',
     emp_count, contractor_count, inspection_count, ticket_count, user_count, accommodation_count;
-  IF user_count != 1 THEN
-    RAISE EXCEPTION 'expected exactly 1 user (admin@hr-erp.com), got %', user_count;
-  END IF;
-  IF accommodation_count != 16 THEN
-    RAISE EXCEPTION 'expected 16 accommodations preserved, got %', accommodation_count;
+
+  IF is_prod_cleanup THEN
+    IF user_count != 1 THEN
+      RAISE EXCEPTION 'expected exactly 1 user (admin@hr-erp.com), got %', user_count;
+    END IF;
+    IF accommodation_count != 16 THEN
+      RAISE EXCEPTION 'expected 16 accommodations preserved, got %', accommodation_count;
+    END IF;
+  ELSE
+    RAISE NOTICE '093 cleanup_demo_data: fresh DB (no admin@hr-erp.com) — sanity checks skipped';
   END IF;
 END $$;
 

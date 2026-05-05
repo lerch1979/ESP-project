@@ -1,0 +1,24 @@
+-- 091a: Add employees.personal_email column.
+--
+-- Why this exists as a standalone migration:
+--   The 092 backfill_residents_snapshot migration references
+--   e.personal_email when materialising the residents snapshot, but no
+--   prior migration ever creates the column. Production / dev databases
+--   acquired it out-of-band (manual ALTER, ad-hoc seed script), so it
+--   never showed up in CI until we ran the suite against a fresh
+--   hr_erp_test database — at which point 092 fails with
+--     "column e.personal_email does not exist"
+--   and the entire pipeline halts before any test runs.
+--
+-- Why TEXT (not VARCHAR):
+--   054_complete_pii_encryption widened every PII column on `employees`
+--   to TEXT so encrypted payloads fit. Keeping personal_email TEXT from
+--   the start matches that policy and avoids a follow-up ALTER.
+--
+-- Why ADD COLUMN IF NOT EXISTS:
+--   Idempotent — safe to re-run on any environment that already has the
+--   column (every running system today, since this is a backfill).
+--   The migration runner records it in schema_migrations, so it executes
+--   exactly once anyway, but defence in depth.
+
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS personal_email TEXT;
