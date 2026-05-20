@@ -493,6 +493,29 @@ async function startServer() {
     // in config/cronSchedule.js — this call wires them into node-cron.
     require('./config/cronSchedule').initializeWellbeingCronJobs();
 
+    // Daily database backup at 02:00. Shell script handles env loading,
+    // docker-vs-local pg_dump selection, gzip, and 30-day retention.
+    // Destination defaults to $HOME/Backups/HR-ERP (outside repo tree); set
+    // HR_ERP_BACKUP_DIR to override (e.g. an S3-synced or NAS mount).
+    {
+      const { execFile } = require('child_process');
+      const path = require('path');
+      const backupScript = path.resolve(__dirname, '..', 'scripts', 'backup-database.sh');
+      cron.schedule('0 2 * * *', () => {
+        execFile('bash', [backupScript], { timeout: 10 * 60 * 1000 }, (err, stdout, stderr) => {
+          if (err) {
+            logger.error('[cron:backup] failed:', err.message, stderr);
+            sentry.captureException(err, { stderr });
+            return;
+          }
+          // Last line of script output contains size + retention summary
+          const summary = stdout.trim().split('\n').slice(-2).join(' | ');
+          logger.info(`[cron:backup] ${summary}`);
+        });
+      });
+      logger.info('💾 Database backup cron scheduled (daily at 02:00)');
+    }
+
     // Szerver indítása
     const server = app.listen(PORT, async () => {
       logger.info(`🚀 Szerver fut: http://localhost:${PORT} (PID: ${process.pid})`);
