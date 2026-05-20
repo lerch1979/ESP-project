@@ -488,6 +488,11 @@ async function startServer() {
     });
     logger.info('📋 Inspection automation cron scheduled (daily at 03:00)');
 
+    // Wellbeing cron jobs (9 jobs: pulse reminders, assessments, alerts, Slack
+    // check-ins, materialized view refresh). All schedules + handlers defined
+    // in config/cronSchedule.js — this call wires them into node-cron.
+    require('./config/cronSchedule').initializeWellbeingCronJobs();
+
     // Szerver indítása
     const server = app.listen(PORT, async () => {
       logger.info(`🚀 Szerver fut: http://localhost:${PORT} (PID: ${process.pid})`);
