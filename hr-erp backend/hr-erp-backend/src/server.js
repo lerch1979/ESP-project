@@ -516,6 +516,18 @@ async function startServer() {
       logger.info('💾 Database backup cron scheduled (daily at 02:00)');
     }
 
+    // Daily occupancy snapshot at 00:30 — captures the day that just ended.
+    // Idempotent (ON CONFLICT upsert), so a re-run after late history-row
+    // edits will refresh the snapshot to the latest known state.
+    cron.schedule('30 0 * * *', () => {
+      const occupancy = require('./services/occupancyTracking.service');
+      occupancy.recordDailySnapshot().catch((err) => {
+        logger.error('[cron:occupancySnapshot] failed:', err.message);
+        sentry.captureException(err);
+      });
+    });
+    logger.info('🛏️  Daily occupancy snapshot cron scheduled (00:30, captures yesterday)');
+
     // Monthly payroll deductions — 01:00 on the 1st of every month.
     // Idempotent: processMonthlyDeductions skips periods already recorded
     // (compensation_payments uniq on resident_id + payroll_period), so
