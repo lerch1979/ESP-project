@@ -84,6 +84,31 @@ class LocalStorageAdapter {
     return fs.readFile(absPath);
   }
 
+  /**
+   * Save a buffer at an arbitrary relative path (path-traversal guarded).
+   * The expense-specific save() above enforces the uploads/expenses/YYYY/MM/
+   * layout. This is the generic primitive — used by the accountant package
+   * service to write ZIPs under uploads/accountant_packages/YYYY-MM/.
+   *
+   * Returns { path (relative), size, saved_at }.
+   */
+  async saveAtPath({ relPath, buffer }) {
+    if (typeof relPath !== 'string' || !relPath) {
+      throw new Error('storage: relPath required');
+    }
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+      throw new Error('storage: buffer required');
+    }
+    const absPath = this._absolute(relPath);
+    await fs.mkdir(path.dirname(absPath), { recursive: true });
+    await fs.writeFile(absPath, buffer);
+    return {
+      path: relPath,
+      size: buffer.length,
+      saved_at: new Date().toISOString(),
+    };
+  }
+
   async delete(relPath) {
     const absPath = this._absolute(relPath);
     try {

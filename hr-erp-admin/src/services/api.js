@@ -2522,6 +2522,24 @@ export const expensesAPI = {
   },
 };
 
+// ─── Accountant share links (Day 4 — migration 117) ───
+// Admin generates a tokenised public URL the accountant opens without
+// login. Server-side render, on-demand ZIP. See `Tab 5` in Billing.jsx.
+export const accountantSharesAPI = {
+  list: async (params = {}) => {
+    const response = await api.get('/accountant-links', { params });
+    return response.data;
+  },
+  create: async ({ year, month, expires_in_days, notes }) => {
+    const response = await api.post('/accountant-links', { year, month, expires_in_days, notes });
+    return response.data;
+  },
+  revoke: async (id) => {
+    const response = await api.delete(`/accountant-links/${id}`);
+    return response.data;
+  },
+};
+
 // ─── Profit dashboard (occupancy billing — migration 112) ───
 export const profitAPI = {
   byAccommodation: async (params = {}) => {

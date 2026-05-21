@@ -23,7 +23,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'react-toastify';
-import { expensesAPI, profitAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI } from '../services/api';
+import { expensesAPI, profitAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
 // Constants — match backend CHECK constraint on accommodation_expenses.category
@@ -36,8 +36,11 @@ const CATEGORIES = [
   { value: 'egyeb',        label: 'Egyéb',        color: 'default' },
 ];
 
-const TABS = ['expenses', 'drafts', 'runs', 'billings', 'profit'];
-const TAB_LABELS = ['Költségek', 'Beérkezett számlák', 'Számlázási futások', 'Számlázások', 'Profit dashboard'];
+const TABS = ['expenses', 'drafts', 'runs', 'billings', 'shares', 'profit'];
+const TAB_LABELS = [
+  'Költségek', 'Beérkezett számlák', 'Számlázási futások',
+  'Számlázások', 'Könyvelői hozzáférés', 'Profit dashboard',
+];
 
 // ────────────────────────────────────────────────────────────────────────
 // Formatters
@@ -1590,6 +1593,260 @@ function DraftsTab() {
   );
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Tab 5: Könyvelői hozzáférés (Day 4 — share-link rewrite, 2026-05-21)
+//
+// Admin issues a tokenised public URL for a given month. The accountant
+// opens it without logging in and downloads the bundled ZIP on demand.
+// Default expiry 14 days. Revocable any time. Tokens shown truncated in
+// logs only; full URL stays in admin clipboard until accountant has it.
+// ────────────────────────────────────────────────────────────────────────
+
+const HU_MONTHS = [
+  'Január', 'Február', 'Március', 'Április', 'Május', 'Június',
+  'Július', 'Augusztus', 'Szeptember', 'Október', 'November', 'December',
+];
+
+function AccountantShareTab() {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [expiresInDays, setExpiresInDays] = useState(14);
+
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createNotice, setCreateNotice] = useState(null); // { public_url, preview }
+  const [revokeId, setRevokeId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await accountantSharesAPI.list();
+      const arr = res?.data?.links || [];
+      setList(Array.isArray(arr) ? arr : []);
+    } catch (e) {
+      toast.error('Linkek betöltése sikertelen');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const r = await accountantSharesAPI.create({ year, month, expires_in_days: expiresInDays });
+      setCreateNotice({
+        public_url: r.data.public_url,
+        preview: r.preview,
+        expires_at: r.data.expires_at,
+        period: `${year}. ${HU_MONTHS[month - 1]}`,
+      });
+      toast.success('Link létrehozva');
+      await load();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Link létrehozása sikertelen');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCopy = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link a vágólapra másolva');
+    } catch (e) {
+      toast.error('Másolás sikertelen — másold ki kézzel');
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (!revokeId) return;
+    try {
+      await accountantSharesAPI.revoke(revokeId);
+      toast.success('Link visszavonva');
+      setRevokeId(null);
+      await load();
+    } catch (e) {
+      toast.error('Visszavonás sikertelen');
+    }
+  };
+
+  const expiryColor = (expiresAt) => {
+    const days = (new Date(expiresAt) - new Date()) / (1000 * 60 * 60 * 24);
+    if (days < 1) return 'error';
+    if (days < 3) return 'warning';
+    return 'default';
+  };
+
+  return (
+    <Box>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+          <TextField
+            select size="small" label="Év"
+            value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))}
+            sx={{ minWidth: 110 }}
+          >
+            {Array.from({ length: 6 }).map((_, i) => {
+              const y = now.getFullYear() - 4 + i;
+              return <MenuItem key={y} value={y}>{y}</MenuItem>;
+            })}
+          </TextField>
+          <TextField
+            select size="small" label="Hónap"
+            value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))}
+            sx={{ minWidth: 160 }}
+          >
+            {HU_MONTHS.map((label, i) => (
+              <MenuItem key={i + 1} value={i + 1}>{label}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            type="number" size="small" label="Lejárat (nap)"
+            value={expiresInDays}
+            onChange={(e) => setExpiresInDays(parseInt(e.target.value, 10) || 14)}
+            inputProps={{ min: 1, max: 365 }}
+            sx={{ minWidth: 130 }}
+          />
+          <Tooltip title="Frissítés">
+            <IconButton onClick={load}><RefreshIcon /></IconButton>
+          </Tooltip>
+          <Box sx={{ flexGrow: 1 }} />
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} disabled={creating}>
+            {creating ? <CircularProgress size={20} /> : 'Új hozzáférés generálása'}
+          </Button>
+        </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          A könyvelő bejelentkezés nélkül megnyithatja a generált linket. A link
+          alapértelmezetten <strong>14 napig</strong> él, bármikor visszavonható.
+          Csak <strong>jóváhagyott</strong> költségek jelennek meg.
+        </Typography>
+      </Paper>
+
+      {/* Just-created link banner with copy-to-clipboard */}
+      {createNotice && (
+        <Alert
+          severity="success" sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => setCreateNotice(null)}>Bezárás</Button>
+          }
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Új link létrehozva — {createNotice.period}
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
+            <Box sx={{
+              flexGrow: 1, p: 0.5, bgcolor: 'background.paper',
+              border: 1, borderColor: 'divider', borderRadius: 0.5,
+              fontFamily: 'monospace', fontSize: '0.75rem',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {createNotice.public_url}
+            </Box>
+            <Button size="small" variant="outlined" onClick={() => handleCopy(createNotice.public_url)}>
+              Másolás
+            </Button>
+          </Stack>
+          {createNotice.preview && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              {createNotice.preview.expense_count} jóváhagyott költség
+              {createNotice.preview.pending_review_count > 0 && (
+                <span style={{ color: '#b54708' }}>
+                  {' '}· ⚠ {createNotice.preview.pending_review_count} jóváhagyásra vár (nem lesz látható a könyvelőnek)
+                </span>
+              )}
+            </Typography>
+          )}
+        </Alert>
+      )}
+
+      <Paper>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Időszak</TableCell>
+                <TableCell>Létrehozva</TableCell>
+                <TableCell>Lejár</TableCell>
+                <TableCell align="right">Megnyitások</TableCell>
+                <TableCell>Utolsó hozzáférés</TableCell>
+                <TableCell>Publikus link</TableCell>
+                <TableCell align="right">Műveletek</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && (
+                <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4 }}><CircularProgress size={28} /></TableCell></TableRow>
+              )}
+              {!loading && list.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    Nincs aktív megosztás. Generálj egy új linket a fenti űrlappal.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && list.map((l) => (
+                <TableRow key={l.id} hover>
+                  <TableCell>{l.year}. {HU_MONTHS[l.month - 1]}</TableCell>
+                  <TableCell>{fmtDate(l.created_at)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small" variant="outlined" color={expiryColor(l.expires_at)}
+                      label={fmtDate(l.expires_at)}
+                    />
+                  </TableCell>
+                  <TableCell align="right">{l.accessed_count}</TableCell>
+                  <TableCell>{l.last_accessed_at ? fmtDate(l.last_accessed_at) : '—'}</TableCell>
+                  <TableCell sx={{ maxWidth: 280 }}>
+                    <Box sx={{
+                      fontFamily: 'monospace', fontSize: '0.72rem',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {l.public_url}
+                    </Box>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Link másolása">
+                      <IconButton size="small" onClick={() => handleCopy(l.public_url)}>
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Megnyitás új ablakban">
+                      <IconButton size="small" component="a" href={l.public_url} target="_blank" rel="noopener">
+                        <AttachFileIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Visszavonás">
+                      <IconButton size="small" color="error" onClick={() => setRevokeId(l.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      {/* Revoke confirm */}
+      <Dialog open={!!revokeId} onClose={() => setRevokeId(null)}>
+        <DialogTitle>Link visszavonása</DialogTitle>
+        <DialogContent>
+          <Typography>Visszavonod a hozzáférést? A könyvelő ezután már nem nyithatja meg a linket.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevokeId(null)}>Mégse</Button>
+          <Button color="error" variant="contained" onClick={handleRevoke}>Visszavonás</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 function SummaryCard({ title, value, color, icon, subtitle }) {
   return (
     <Card sx={{ height: '100%' }}>
@@ -1902,7 +2159,8 @@ export default function Billing() {
       {tabIdx === 1 && <DraftsTab />}
       {tabIdx === 2 && <PlaceholderTab title="Számlázási futások" />}
       {tabIdx === 3 && <PlaceholderTab title="Számlázások" />}
-      {tabIdx === 4 && <ProfitTab />}
+      {tabIdx === 4 && <AccountantShareTab />}
+      {tabIdx === 5 && <ProfitTab />}
     </Box>
   );
 }

@@ -86,6 +86,14 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      // Public token-gated share endpoints (accountant flow, Day 4).
+      // Mounted at /public/accountant on the backend; needed here so a
+      // single ngrok/cloudflared tunnel pointed at Vite can serve both
+      // the admin SPA and the accountant's no-login link from one host.
+      '/public': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   build: {
