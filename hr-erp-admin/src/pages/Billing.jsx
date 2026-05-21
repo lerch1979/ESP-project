@@ -7,6 +7,7 @@ import {
   DialogTitle, DialogContent, DialogActions, Alert,
   Card, CardContent, Grid, Autocomplete,
   Accordion, AccordionSummary, AccordionDetails, Badge, Divider,
+  Checkbox, FormControlLabel,
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -75,6 +76,36 @@ const deriveBillingMonth = (perfDate) => {
 const ALLOWED_UPLOAD_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
+// Client-side mirror of server-side VAT defaults + math. Must stay in
+// sync with src/models/expense.model.js — if you change the rates or
+// the formula, change both sides.
+const DEFAULT_VAT_RATE_BY_CATEGORY = {
+  rezsi: 27,
+  karbantartas: 27,
+  takaritas: 27,
+  egyeb: null,
+};
+const computeNetVat = (gross, rate) => {
+  const amt = Number(gross);
+  const r = Number(rate);
+  if (Number.isNaN(amt) || Number.isNaN(r)) return null;
+  if (r < 0 || r > 100) return null;
+  if (r === 0) return { net: Math.round(amt), vat: 0 };
+  const net = Math.round(amt / (1 + r / 100));
+  return { net, vat: Math.round(amt - net) };
+};
+
+const VAT_OPTIONS = [
+  { value: '',           label: '— Nincs megadva —', group: 'none'    },
+  { value: '27',         label: '27% (standard)',   group: 'rate'    },
+  { value: '18',         label: '18%',              group: 'rate'    },
+  { value: '5',          label: '5%',               group: 'rate'    },
+  { value: '0',          label: '0% (export, EU)',  group: 'rate'    },
+  { value: 'aam',        label: 'AAM (alanyi adómentes)', group: 'exempt' },
+  { value: 'targy_mentes', label: 'Tárgyi mentes',  group: 'exempt' },
+  { value: 'custom',     label: 'Egyéb (egyedi %)', group: 'custom'  },
+];
+
 const SectionLabel = ({ children, sx }) => (
   <Typography
     variant="overline"
@@ -100,6 +131,12 @@ const EMPTY_FORM = {
   invoice_number: '',
   cost_center_id: '',
   notes: '',
+  // VAT (migration 114)
+  vat_rate: '',              // empty string = "not set"; service stores NULL
+  net_amount: '',
+  vat_amount: '',
+  vat_exemption_reason: '',  // 'aam' | 'targy_mentes' | ''
+  is_reverse_vat: false,
 };
 
 function ExpensesTab() {
@@ -124,6 +161,12 @@ function ExpensesTab() {
   const [editing, setEditing] = useState(null); // null = create, object = edit
   const [form, setForm] = useState(EMPTY_FORM);
   const [billingMonthManual, setBillingMonthManual] = useState(false);
+  // VAT sticky-override flags. When false, category change auto-fills the
+  // rate from DEFAULT_VAT_RATE_BY_CATEGORY, and amount/rate change recomputes
+  // net+vat. Once the user manually edits the corresponding field, the flag
+  // flips to true and auto-fill stops fighting their input.
+  const [vatRateManual, setVatRateManual] = useState(false);
+  const [vatAmountsManual, setVatAmountsManual] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -200,13 +243,18 @@ function ExpensesTab() {
   // ─── Form handlers ────────────────────────────────────────────────
   const openCreate = () => {
     setEditing(null);
+    const seedCategory = filters.category || 'rezsi';
+    const seedRate = DEFAULT_VAT_RATE_BY_CATEGORY[seedCategory];
     setForm({
       ...EMPTY_FORM,
       accommodation_id: filters.accommodation_id || '',
       billing_month: filters.billing_month || '',
-      category: filters.category || 'rezsi',
+      category: seedCategory,
+      vat_rate: seedRate != null ? String(seedRate) : '',
     });
     setBillingMonthManual(!!filters.billing_month);
+    setVatRateManual(false);
+    setVatAmountsManual(false);
     setStagedFiles([]);
     setExistingFiles([]);
     setShowAdvanced(false);
@@ -230,11 +278,18 @@ function ExpensesTab() {
       invoice_number: row.invoice_number || '',
       cost_center_id: row.cost_center_id || '',
       notes: row.notes || '',
+      vat_rate: row.vat_rate != null ? String(row.vat_rate) : '',
+      net_amount: row.net_amount != null ? String(row.net_amount) : '',
+      vat_amount: row.vat_amount != null ? String(row.vat_amount) : '',
+      vat_exemption_reason: row.vat_exemption_reason || '',
+      is_reverse_vat: !!row.is_reverse_vat,
     });
     setBillingMonthManual(true);
+    setVatRateManual(true);     // existing row's VAT setup is intentional
+    setVatAmountsManual(true);  // ditto for net/vat
     setStagedFiles([]);
     setExistingFiles(row.file_attachments || []);
-    setShowAdvanced(!!row.cost_center_id);
+    setShowAdvanced(!!row.cost_center_id || !!row.is_reverse_vat);
     setDedupWarning(null);
     setOverrideNote('');
     setFormError('');
@@ -252,6 +307,118 @@ function ExpensesTab() {
   const setBillingMonth = (value) => {
     setForm((f) => ({ ...f, billing_month: value }));
     setBillingMonthManual(true);
+  };
+
+  // ─── VAT field handlers ───────────────────────────────────────────
+  // Auto-fill net/vat from gross + rate. Returns patch object to merge
+  // into form state. Pass the EFFECTIVE amount + rate (i.e. what the
+  // user is about to commit), not the current state values, because
+  // React's setForm batches the update.
+  const autoSplit = (amountStr, rateStr) => {
+    const r = computeNetVat(amountStr, rateStr);
+    if (!r) return { net_amount: '', vat_amount: '' };
+    return { net_amount: String(r.net), vat_amount: String(r.vat) };
+  };
+
+  const setCategory = (cat) => {
+    setForm((f) => {
+      const next = { ...f, category: cat };
+      // Suggest default rate ONLY if user hasn't manually set one.
+      if (!vatRateManual) {
+        const def = DEFAULT_VAT_RATE_BY_CATEGORY[cat];
+        next.vat_rate = def != null ? String(def) : '';
+        next.vat_exemption_reason = '';
+        if (!vatAmountsManual && next.vat_rate !== '') {
+          Object.assign(next, autoSplit(f.amount, next.vat_rate));
+        } else if (!vatAmountsManual) {
+          next.net_amount = '';
+          next.vat_amount = '';
+        }
+      }
+      return next;
+    });
+  };
+
+  const setAmount = (value) => {
+    setForm((f) => {
+      const next = { ...f, amount: value };
+      if (!vatAmountsManual && f.vat_rate !== '') {
+        Object.assign(next, autoSplit(value, f.vat_rate));
+      }
+      return next;
+    });
+  };
+
+  // Derive the single-select dropdown value from form state.
+  const vatSelectValue = () => {
+    if (form.vat_exemption_reason === 'aam') return 'aam';
+    if (form.vat_exemption_reason === 'targy_mentes') return 'targy_mentes';
+    if (form.vat_rate === '' || form.vat_rate == null) return '';
+    if (['27', '18', '5', '0'].includes(String(form.vat_rate))) return String(form.vat_rate);
+    return 'custom';
+  };
+
+  const onVatSelectChange = (selectValue) => {
+    setVatRateManual(true);
+    setForm((f) => {
+      const next = { ...f };
+      if (selectValue === 'aam' || selectValue === 'targy_mentes') {
+        next.vat_rate = '';
+        next.vat_exemption_reason = selectValue;
+        next.net_amount = '';
+        next.vat_amount = '';
+      } else if (selectValue === '') {
+        next.vat_rate = '';
+        next.vat_exemption_reason = '';
+        next.net_amount = '';
+        next.vat_amount = '';
+      } else if (selectValue === 'custom') {
+        // keep current rate (so the user can type), clear exemption
+        next.vat_exemption_reason = '';
+      } else {
+        // numeric rate
+        next.vat_rate = selectValue;
+        next.vat_exemption_reason = '';
+        if (!vatAmountsManual) {
+          Object.assign(next, autoSplit(f.amount, selectValue));
+        }
+      }
+      return next;
+    });
+  };
+
+  const setCustomVatRate = (value) => {
+    setVatRateManual(true);
+    setForm((f) => {
+      const next = { ...f, vat_rate: value };
+      if (!vatAmountsManual) Object.assign(next, autoSplit(f.amount, value));
+      return next;
+    });
+  };
+
+  const setNetAmount = (value) => {
+    setVatAmountsManual(true);
+    setForm((f) => ({ ...f, net_amount: value }));
+  };
+  const setVatAmount = (value) => {
+    setVatAmountsManual(true);
+    setForm((f) => ({ ...f, vat_amount: value }));
+  };
+
+  const setIsReverseVat = (checked) => {
+    setForm((f) => {
+      const next = { ...f, is_reverse_vat: checked };
+      if (checked) {
+        // Reverse-charge invoices show 0% on the invoice line — the buyer
+        // accounts for the VAT. Pre-fill rate=0 and exemption clear, but
+        // user can still override.
+        next.vat_rate = '0';
+        next.vat_exemption_reason = '';
+        if (!vatAmountsManual) Object.assign(next, autoSplit(f.amount, 0));
+        setVatRateManual(true);
+      }
+      return next;
+    });
   };
 
   // ─── File staging / upload ────────────────────────────────────────
@@ -334,6 +501,7 @@ function ExpensesTab() {
   // ─── Save ─────────────────────────────────────────────────────────
   const buildPayload = (extra = {}) => {
     const amt = parseFloat(form.amount);
+    const numOrNull = (v) => (v === '' || v == null ? null : Number(v));
     return {
       accommodation_id: form.accommodation_id,
       performance_date: form.performance_date || null,
@@ -346,6 +514,12 @@ function ExpensesTab() {
       invoice_number: form.invoice_number?.trim() || null,
       cost_center_id: form.cost_center_id || null,
       notes: form.notes?.trim() || null,
+      // VAT (migration 114)
+      vat_rate: numOrNull(form.vat_rate),
+      net_amount: numOrNull(form.net_amount),
+      vat_amount: numOrNull(form.vat_amount),
+      vat_exemption_reason: form.vat_exemption_reason || null,
+      is_reverse_vat: !!form.is_reverse_vat,
       ...extra,
     };
   };
@@ -366,6 +540,25 @@ function ExpensesTab() {
     if (form.amount === '' || form.amount == null) return setFormError('Összeg kötelező');
     const amt = parseFloat(form.amount);
     if (isNaN(amt) || amt < 0) return setFormError('Összeg nem lehet negatív');
+
+    // VAT validation — mirrors server-side checks so we surface errors
+    // before round-tripping. Server is still authoritative.
+    if (form.vat_rate !== '' && form.vat_rate != null) {
+      const r = parseFloat(form.vat_rate);
+      if (isNaN(r) || r < 0 || r > 100) return setFormError('ÁFA kulcs 0 és 100 között lehet');
+    }
+    const hasNet = form.net_amount !== '' && form.net_amount != null;
+    const hasVat = form.vat_amount !== '' && form.vat_amount != null;
+    if (hasNet !== hasVat) {
+      return setFormError('Nettó és ÁFA összeg csak együtt adható meg (vagy egyik sem)');
+    }
+    if (hasNet && hasVat) {
+      const net = parseFloat(form.net_amount);
+      const vat = parseFloat(form.vat_amount);
+      if (Math.abs(net + vat - amt) > 1) {
+        return setFormError(`Nettó + ÁFA ≠ bruttó (${net} + ${vat} ≠ ${amt}, tolerancia 1 Ft)`);
+      }
+    }
 
     setSaving(true);
     try {
@@ -621,7 +814,7 @@ function ExpensesTab() {
                 select required fullWidth size="small"
                 label="Kategória"
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => setCategory(e.target.value)}
               >
                 {CATEGORIES.map((c) => (
                   <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>
@@ -657,11 +850,12 @@ function ExpensesTab() {
             <Grid item xs={12} md={6}>
               <TextField
                 required fullWidth size="small"
-                label="Összeg (Ft)"
+                label="Bruttó összeg (Ft)"
                 type="number"
                 inputProps={{ min: 0, step: 1 }}
                 value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                onChange={(e) => setAmount(e.target.value)}
+                helperText="Bruttó (a teljes számla végösszege)"
               />
             </Grid>
             <Grid item xs={12}>
@@ -678,6 +872,71 @@ function ExpensesTab() {
           {/* ─── Számla adatok ─── */}
           <SectionLabel>Számla adatok</SectionLabel>
           <Grid container spacing={2}>
+            {/* VAT — ÁFA kulcs + Nettó + ÁFA */}
+            <Grid item xs={12} md={vatSelectValue() === 'custom' ? 6 : 12}>
+              <TextField
+                select fullWidth size="small"
+                label="ÁFA kulcs"
+                value={vatSelectValue()}
+                onChange={(e) => onVatSelectChange(e.target.value)}
+              >
+                {VAT_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {vatSelectValue() === 'custom' && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth size="small"
+                  label="Egyedi ÁFA kulcs (%)"
+                  type="number"
+                  inputProps={{ min: 0, max: 100, step: 0.01 }}
+                  value={form.vat_rate}
+                  onChange={(e) => setCustomVatRate(e.target.value)}
+                />
+              </Grid>
+            )}
+
+            {(form.vat_exemption_reason === 'aam' || form.vat_exemption_reason === 'targy_mentes') && (
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ py: 0.5 }}>
+                  {form.vat_exemption_reason === 'aam'
+                    ? 'Alanyi adómentes (AAM) — ÁFA nincs felszámítva. A nettó és bruttó megegyezik.'
+                    : 'Tárgyi mentes — a szolgáltatás vagy termék ÁFA mentes. A nettó és bruttó megegyezik.'}
+                </Alert>
+              </Grid>
+            )}
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth size="small"
+                label="Nettó összeg (Ft)"
+                type="number"
+                inputProps={{ min: 0, step: 1 }}
+                value={form.net_amount}
+                onChange={(e) => setNetAmount(e.target.value)}
+                disabled={!!form.vat_exemption_reason}
+                helperText={
+                  vatAmountsManual
+                    ? 'Kézzel megadva'
+                    : (form.vat_rate !== '' ? 'Automatikusan a bruttóból és kulcsból' : '')
+                }
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth size="small"
+                label="ÁFA összeg (Ft)"
+                type="number"
+                inputProps={{ min: 0, step: 1 }}
+                value={form.vat_amount}
+                onChange={(e) => setVatAmount(e.target.value)}
+                disabled={!!form.vat_exemption_reason}
+              />
+            </Grid>
+
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth size="small"
@@ -809,18 +1068,35 @@ function ExpensesTab() {
               <Typography variant="body2" sx={{ fontWeight: 500 }}>Speciális beállítások</Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <Autocomplete
-                size="small"
-                options={costCenters}
-                value={selectedCostCenter}
-                onChange={(_, v) => setForm({ ...form, cost_center_id: v?.id || '' })}
-                getOptionLabel={(opt) => opt ? `${opt.name}${opt.code ? ` (${opt.code})` : ''}` : ''}
-                isOptionEqualToValue={(a, b) => a.id === b.id}
-                renderInput={(params) => (
-                  <TextField {...params} label="Költséghely" helperText="Opcionális: hozzárendelhető a régi cost_center taxonómiához" />
+              <Stack spacing={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!form.is_reverse_vat}
+                      onChange={(e) => setIsReverseVat(e.target.checked)}
+                    />
+                  }
+                  label="Fordított adózás (vevő számolja el az ÁFA-t)"
+                />
+                {form.is_reverse_vat && (
+                  <Alert severity="info" sx={{ py: 0.5 }}>
+                    Fordított adózás — a számla 0% ÁFA-val érkezik, te (vevő) számolod el az ÁFA-t
+                    a saját bevallásodban. Tipikus esetek: építési-szerelési munka, fémhulladék.
+                  </Alert>
                 )}
-                noOptionsText="Nincs találat"
-              />
+                <Autocomplete
+                  size="small"
+                  options={costCenters}
+                  value={selectedCostCenter}
+                  onChange={(_, v) => setForm({ ...form, cost_center_id: v?.id || '' })}
+                  getOptionLabel={(opt) => opt ? `${opt.name}${opt.code ? ` (${opt.code})` : ''}` : ''}
+                  isOptionEqualToValue={(a, b) => a.id === b.id}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Költséghely" helperText="Opcionális: hozzárendelhető a régi cost_center taxonómiához" />
+                  )}
+                  noOptionsText="Nincs találat"
+                />
+              </Stack>
             </AccordionDetails>
           </Accordion>
         </DialogContent>
