@@ -2458,7 +2458,7 @@ export const gtdAPI = {
   },
 };
 
-// ─── Accommodation Expenses (occupancy billing — migration 112) ───
+// ─── Accommodation Expenses (occupancy billing — migration 112/113) ───
 export const expensesAPI = {
   getAll: async (params = {}) => {
     const response = await api.get('/expenses', { params });
@@ -2468,8 +2468,12 @@ export const expensesAPI = {
     const response = await api.get(`/expenses/${id}`);
     return response.data;
   },
-  create: async (data) => {
-    const response = await api.post('/expenses', data);
+
+  // create() throws on 409 — the caller should catch e.response?.status === 409
+  // and inspect e.response.data.duplicate_check.
+  create: async (data, { force } = {}) => {
+    const url = force ? '/expenses?force=true' : '/expenses';
+    const response = await api.post(url, data);
     return response.data;
   },
   update: async (id, data) => {
@@ -2478,6 +2482,33 @@ export const expensesAPI = {
   },
   delete: async (id) => {
     const response = await api.delete(`/expenses/${id}`);
+    return response.data;
+  },
+
+  // Preview dedup matches WITHOUT creating anything. Body shape:
+  //   { vendor_name, amount, performance_date, exclude_id? }
+  checkDuplicates: async (candidate) => {
+    const response = await api.post('/expenses/check-duplicates', candidate);
+    return response.data;
+  },
+
+  uploadFile: async (expense_id, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const response = await api.post(`/expenses/${expense_id}/files`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  // Returns a Blob — caller is responsible for triggering the download
+  downloadFile: async (expense_id, file_id) => {
+    const response = await api.get(`/expenses/${expense_id}/files/${file_id}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+  deleteFile: async (expense_id, file_id) => {
+    const response = await api.delete(`/expenses/${expense_id}/files/${file_id}`);
     return response.data;
   },
 };
