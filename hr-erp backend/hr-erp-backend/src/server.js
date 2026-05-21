@@ -472,12 +472,19 @@ async function startServer() {
       logger.info('💬 Slack integration disabled (SLACK_BOT_TOKEN not set)');
     }
 
-    // Start Gmail universal polling (every 5 minutes)
-    if (process.env.GMAIL_REFRESH_TOKEN) {
+    // Gmail universal polling — disabled by default since 2026-05-21 while the
+    // accommodation_expenses + cost-tracking redesign is in flight. Set
+    // GMAIL_POLLING_ENABLED=true in .env to reactivate (Phase 2 / Day 5 plan).
+    // The previous behaviour (auto-start whenever GMAIL_REFRESH_TOKEN was set)
+    // was producing 5-min `invalid_grant` errors and would resume orphan-draft
+    // creation the moment the refresh token was rotated.
+    if (process.env.GMAIL_POLLING_ENABLED === 'true' && process.env.GMAIL_REFRESH_TOKEN) {
       cron.schedule('*/5 * * * *', () => {
         gmailUniversalPoller.pollAllEmails();
       });
       logger.info('📧 Gmail universal polling started (every 5 min)');
+    } else if (process.env.GMAIL_REFRESH_TOKEN) {
+      logger.info('📧 Gmail universal polling held off (GMAIL_POLLING_ENABLED not set to true)');
     } else {
       logger.info('📧 Gmail universal polling disabled (GMAIL_REFRESH_TOKEN not set)');
     }
