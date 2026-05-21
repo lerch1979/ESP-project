@@ -1,5 +1,32 @@
 const { query } = require('../database/connection');
-const { deriveBillingMonth, generateFingerprint } = require('../models/expense.model');
+const {
+  deriveBillingMonth, generateFingerprint, computeNetVat,
+} = require('../models/expense.model');
+
+// ────────────────────────────────────────────────────────────────────────
+// VAT auto-fill helper
+//
+// When a vat_rate is provided but the caller didn't supply net/vat
+// (a common quick-entry case), derive both from gross + rate. If the
+// caller DID supply them, leave them — validation in the model has
+// already enforced net + vat ≈ amount (±1 HUF).
+//
+// Returns { net_amount, vat_amount } that the SQL should use. Null
+// values mean "do not change" (UPDATE path) or "leave NULL" (INSERT).
+// ────────────────────────────────────────────────────────────────────────
+function deriveVatSplit({ amount, vat_rate, net_amount, vat_amount }) {
+  const hasNet = net_amount != null && net_amount !== '';
+  const hasVat = vat_amount != null && vat_amount !== '';
+  // Caller supplied both → trust them, validation already passed.
+  if (hasNet && hasVat) return { net_amount, vat_amount };
+  // No rate → can't compute, leave null.
+  if (vat_rate == null || vat_rate === '') return { net_amount: null, vat_amount: null };
+  // Have rate + gross → compute.
+  if (amount == null || amount === '') return { net_amount: null, vat_amount: null };
+  const split = computeNetVat(amount, vat_rate);
+  if (!split) return { net_amount: null, vat_amount: null };
+  return { net_amount: split.net, vat_amount: split.vat };
+}
 
 class ExpenseService {
   /**
@@ -16,6 +43,7 @@ class ExpenseService {
       month_from, month_to,
       perf_from, perf_to,
       source, status, payment_status, cost_center_id, vendor,
+      vat_rate, is_reverse_vat,
       page = 1, limit = 50,
     } = filters;
     const offset = (page - 1) * limit;
@@ -40,6 +68,10 @@ class ExpenseService {
     if (status)           push('e.status = $$', status);
     if (payment_status)   push('e.payment_status = $$', payment_status);
     if (cost_center_id)   push('e.cost_center_id = $$', cost_center_id);
+    if (vat_rate !== undefined && vat_rate !== '') push('e.vat_rate = $$', vat_rate);
+    if (is_reverse_vat === true || is_reverse_vat === 'true') {
+      push('e.is_reverse_vat = $$', true);
+    }
     if (vendor) {
       whereConditions.push(`lower(e.vendor_name) LIKE $${paramIndex++}`);
       params.push(`%${String(vendor).toLowerCase()}%`);
@@ -130,19 +162,29 @@ class ExpenseService {
       performance_date: data.performance_date,
     });
 
+    // VAT auto-fill — only when vat_rate provided AND net/vat omitted.
+    const vatSplit = deriveVatSplit({
+      amount: data.amount,
+      vat_rate: data.vat_rate,
+      net_amount: data.net_amount,
+      vat_amount: data.vat_amount,
+    });
+
     const result = await query(
       `INSERT INTO accommodation_expenses (
         accommodation_id, billing_month, category, amount, currency,
         invoice_number, attachment_url, notes, created_by,
         performance_date, invoice_date, vendor_name, vendor_tax_number,
         dedup_fingerprint, file_attachments, cost_center_id,
-        source, ai_confidence, status, payment_date, payment_status
+        source, ai_confidence, status, payment_date, payment_status,
+        net_amount, vat_rate, vat_amount, vat_exemption_reason, is_reverse_vat
        ) VALUES (
         $1, $2, $3, $4, COALESCE($5, 'HUF'),
         $6, $7, $8, $9,
         $10, $11, $12, $13,
         $14, COALESCE($15::jsonb, '[]'::jsonb), $16,
-        COALESCE($17, 'manual'), $18, COALESCE($19, 'confirmed'), $20, COALESCE($21, 'unpaid')
+        COALESCE($17, 'manual'), $18, COALESCE($19, 'confirmed'), $20, COALESCE($21, 'unpaid'),
+        $22, $23, $24, $25, COALESCE($26, FALSE)
        ) RETURNING *`,
       [
         data.accommodation_id,
@@ -166,6 +208,11 @@ class ExpenseService {
         data.status || null,
         data.payment_date || null,
         data.payment_status || null,
+        vatSplit.net_amount,
+        data.vat_rate == null || data.vat_rate === '' ? null : Number(data.vat_rate),
+        vatSplit.vat_amount,
+        data.vat_exemption_reason || null,
+        data.is_reverse_vat === true || data.is_reverse_vat === 'true' ? true : null,
       ],
     );
 
@@ -213,6 +260,41 @@ class ExpenseService {
       });
     }
 
+    // VAT recompute. Trigger when amount or vat_rate changed AND the caller
+    // did NOT explicitly supply net/vat. If caller passed both, trust them
+    // (validation already confirmed net+vat ≈ amount within tolerance).
+    // If caller cleared vat_rate (passed null), clear net/vat too.
+    let vatNet;
+    let vatVat;
+    let vatTouched = false;
+    const amountTouched = data.amount !== undefined;
+    const rateTouched = data.vat_rate !== undefined;
+    const netExplicit = data.net_amount !== undefined;
+    const vatExplicit = data.vat_amount !== undefined;
+
+    if (netExplicit || vatExplicit) {
+      vatTouched = true;
+      vatNet = data.net_amount ?? null;
+      vatVat = data.vat_amount ?? null;
+    } else if (amountTouched || rateTouched) {
+      vatTouched = true;
+      const effectiveAmount = amountTouched ? data.amount : current.rows[0].amount;
+      const effectiveRate   = rateTouched   ? data.vat_rate : current.rows[0].vat_rate;
+      if (effectiveRate == null || effectiveRate === '') {
+        vatNet = null;
+        vatVat = null;
+      } else {
+        const split = computeNetVat(effectiveAmount, effectiveRate);
+        vatNet = split ? split.net : null;
+        vatVat = split ? split.vat : null;
+      }
+    }
+
+    // VAT writeback: when vatTouched=true, we write the computed (or
+    // explicit) values verbatim — including NULL when the user cleared
+    // the rate. When vatTouched=false, the SQL keeps the existing
+    // values via COALESCE. The $vatTouchedFlag boolean toggles between
+    // the two behaviours inside the SQL.
     const result = await query(
       `UPDATE accommodation_expenses SET
         accommodation_id  = COALESCE($1, accommodation_id),
@@ -236,8 +318,13 @@ class ExpenseService {
         approved_by       = COALESCE($19, approved_by),
         approved_at       = COALESCE($20::timestamp, approved_at),
         payment_date      = COALESCE($21::date, payment_date),
-        payment_status    = COALESCE($22, payment_status)
-       WHERE id = $23 AND deleted_at IS NULL
+        payment_status    = COALESCE($22, payment_status),
+        net_amount         = CASE WHEN $23 THEN $24::numeric ELSE net_amount END,
+        vat_rate           = CASE WHEN $25 THEN $26::numeric ELSE vat_rate END,
+        vat_amount         = CASE WHEN $23 THEN $27::numeric ELSE vat_amount END,
+        vat_exemption_reason = COALESCE($28, vat_exemption_reason),
+        is_reverse_vat       = COALESCE($29, is_reverse_vat)
+       WHERE id = $30 AND deleted_at IS NULL
        RETURNING *`,
       [
         data.accommodation_id, next_billing_month, data.category, data.amount,
@@ -251,6 +338,15 @@ class ExpenseService {
         data.status,
         data.approved_by, data.approved_at,
         data.payment_date, data.payment_status,
+        // VAT split writeback
+        vatTouched,
+        vatNet,
+        rateTouched,
+        rateTouched ? (data.vat_rate == null || data.vat_rate === '' ? null : Number(data.vat_rate)) : null,
+        vatVat,
+        data.vat_exemption_reason,
+        data.is_reverse_vat === true ? true
+          : data.is_reverse_vat === false ? false : null,
         id,
       ],
     );

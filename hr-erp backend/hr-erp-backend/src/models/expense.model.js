@@ -19,6 +19,53 @@ const CATEGORY_LABELS = {
   egyeb: 'Egyéb',
 };
 
+// ────────────────────────────────────────────────────────────────────────
+// VAT (ÁFA) defaults + math — migration 114
+//
+// HU VAT is 27% for most accommodation operating costs (utilities,
+// maintenance, cleaning). 'egyeb' is intentionally NULL — let the user
+// pick because the bucket spans many actual rates.
+//
+// Tolerance: ±1 HUF when validating user-supplied net/vat/gross triples.
+// HUF has no minor units in practice, so 1 forint covers rounding noise.
+// ────────────────────────────────────────────────────────────────────────
+const DEFAULT_VAT_RATE_BY_CATEGORY = {
+  rezsi: 27,
+  karbantartas: 27,
+  takaritas: 27,
+  egyeb: null,
+};
+const VAT_TOLERANCE_HUF = 1;
+
+function defaultVatRateForCategory(category) {
+  if (category in DEFAULT_VAT_RATE_BY_CATEGORY) {
+    return DEFAULT_VAT_RATE_BY_CATEGORY[category];
+  }
+  return null;
+}
+
+/**
+ * Compute (net, vat) from a gross amount + rate.
+ *   net = round(gross / (1 + rate/100))
+ *   vat = gross - net
+ * Returns {net, vat} or null if inputs are unusable.
+ */
+function computeNetVat(grossAmount, vatRate) {
+  if (grossAmount == null || vatRate == null) return null;
+  const gross = Number(grossAmount);
+  const rate = Number(vatRate);
+  if (Number.isNaN(gross) || Number.isNaN(rate)) return null;
+  if (rate < 0 || rate > 100) return null;
+
+  // Special case: 0% — net == gross, vat == 0
+  if (rate === 0) {
+    return { net: Math.round(gross), vat: 0 };
+  }
+  const net = Math.round(gross / (1 + rate / 100));
+  const vat = Math.round(gross - net);
+  return { net, vat };
+}
+
 const BILLING_MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -151,7 +198,54 @@ function validateCreate(data) {
     errors.push('file_attachments tömb (array) kell legyen');
   }
 
+  validateVatFields(data, errors);
+
   return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Shared VAT validation — appends errors into the supplied array.
+ *   • vat_rate range (loose, 0-100 — matches CHECK)
+ *   • net/vat split consistency (both or neither — matches CHECK)
+ *   • If all three of (net, vat, amount) are present: |net + vat - amount| ≤ 1 HUF
+ *   • is_reverse_vat boolean type
+ *   • vat_exemption_reason length sanity
+ */
+function validateVatFields(data, errors) {
+  if (data.vat_rate !== undefined && data.vat_rate !== null && data.vat_rate !== '') {
+    const r = Number(data.vat_rate);
+    if (Number.isNaN(r) || r < 0 || r > 100) {
+      errors.push('ÁFA kulcs 0 és 100 között lehet');
+    }
+  }
+
+  const hasNet = data.net_amount !== undefined && data.net_amount !== null && data.net_amount !== '';
+  const hasVat = data.vat_amount !== undefined && data.vat_amount !== null && data.vat_amount !== '';
+  if (hasNet !== hasVat) {
+    errors.push('Nettó és ÁFA összeg csak együtt adható meg (vagy egyik sem)');
+  }
+
+  if (hasNet && hasVat
+      && data.amount !== undefined && data.amount !== null && data.amount !== '') {
+    const net = Number(data.net_amount);
+    const vat = Number(data.vat_amount);
+    const amt = Number(data.amount);
+    if (!Number.isNaN(net) && !Number.isNaN(vat) && !Number.isNaN(amt)
+        && Math.abs(net + vat - amt) > VAT_TOLERANCE_HUF) {
+      errors.push(
+        `Nettó + ÁFA = bruttó nem stimmel (${net} + ${vat} ≠ ${amt}, tolerancia ${VAT_TOLERANCE_HUF} Ft)`,
+      );
+    }
+  }
+
+  if (data.is_reverse_vat !== undefined
+      && typeof data.is_reverse_vat !== 'boolean') {
+    errors.push('is_reverse_vat csak true vagy false lehet');
+  }
+
+  if (data.vat_exemption_reason && String(data.vat_exemption_reason).length > 50) {
+    errors.push('ÁFA mentesség indoka maximum 50 karakter lehet');
+  }
 }
 
 function validateUpdate(data) {
@@ -215,6 +309,8 @@ function validateUpdate(data) {
     errors.push('file_attachments tömb (array) kell legyen');
   }
 
+  validateVatFields(data, errors);
+
   const validFields = [
     'accommodation_id', 'billing_month', 'category', 'amount', 'currency',
     'invoice_number', 'attachment_url', 'notes',
@@ -222,6 +318,8 @@ function validateUpdate(data) {
     'performance_date', 'invoice_date', 'vendor_name', 'vendor_tax_number',
     'file_attachments', 'cost_center_id', 'source', 'ai_confidence', 'status',
     'approved_by', 'approved_at', 'payment_date', 'payment_status',
+    // VAT fields (migration 114):
+    'net_amount', 'vat_rate', 'vat_amount', 'vat_exemption_reason', 'is_reverse_vat',
   ];
   const hasValidField = Object.keys(data).some((key) => validFields.includes(key));
   if (!hasValidField) {
@@ -236,9 +334,13 @@ module.exports = {
   validateUpdate,
   deriveBillingMonth,
   generateFingerprint,
+  defaultVatRateForCategory,
+  computeNetVat,
   VALID_CATEGORIES,
   VALID_SOURCES,
   VALID_STATUSES,
   VALID_PAYMENT_STATUSES,
   CATEGORY_LABELS,
+  DEFAULT_VAT_RATE_BY_CATEGORY,
+  VAT_TOLERANCE_HUF,
 };

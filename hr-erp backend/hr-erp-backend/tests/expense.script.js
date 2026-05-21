@@ -12,8 +12,9 @@ require('dotenv').config();
 const {
   validateCreate, validateUpdate,
   deriveBillingMonth, generateFingerprint,
+  defaultVatRateForCategory, computeNetVat,
   VALID_CATEGORIES, VALID_SOURCES, VALID_STATUSES, VALID_PAYMENT_STATUSES,
-  CATEGORY_LABELS,
+  CATEGORY_LABELS, DEFAULT_VAT_RATE_BY_CATEGORY, VAT_TOLERANCE_HUF,
 } = require('../src/models/expense.model');
 const expenseService = require('../src/services/expense.service');
 const { query, closePool } = require('../src/database/connection');
@@ -621,6 +622,250 @@ async function main() {
       const expected = ['unpaid', 'paid', 'partial'];
       if (VALID_PAYMENT_STATUSES.length !== 3) throw new Error('length');
       expected.forEach((s) => { if (!VALID_PAYMENT_STATUSES.includes(s)) throw new Error(`missing ${s}`); });
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 8. VAT (migration 114)
+  // ────────────────────────────────────────────────────────────────────────
+
+  await describe('VAT — pure helpers', async () => {
+    await test('defaultVatRateForCategory returns 27 for rezsi/karbantartas/takaritas', async () => {
+      if (defaultVatRateForCategory('rezsi') !== 27) throw new Error('rezsi');
+      if (defaultVatRateForCategory('karbantartas') !== 27) throw new Error('karbantartas');
+      if (defaultVatRateForCategory('takaritas') !== 27) throw new Error('takaritas');
+    });
+    await test('defaultVatRateForCategory returns null for egyeb + unknown', async () => {
+      if (defaultVatRateForCategory('egyeb') !== null) throw new Error('egyeb');
+      if (defaultVatRateForCategory('bogus') !== null) throw new Error('bogus');
+    });
+
+    await test('computeNetVat: 12700 @ 27% → net 10000, vat 2700', async () => {
+      const r = computeNetVat(12700, 27);
+      if (!r || r.net !== 10000 || r.vat !== 2700) throw new Error(JSON.stringify(r));
+    });
+    await test('computeNetVat: 11800 @ 18% → net 10000, vat 1800', async () => {
+      const r = computeNetVat(11800, 18);
+      if (!r || r.net !== 10000 || r.vat !== 1800) throw new Error(JSON.stringify(r));
+    });
+    await test('computeNetVat: 10500 @ 5% → net 10000, vat 500', async () => {
+      const r = computeNetVat(10500, 5);
+      if (!r || r.net !== 10000 || r.vat !== 500) throw new Error(JSON.stringify(r));
+    });
+    await test('computeNetVat: 10000 @ 0% → net 10000, vat 0', async () => {
+      const r = computeNetVat(10000, 0);
+      if (!r || r.net !== 10000 || r.vat !== 0) throw new Error(JSON.stringify(r));
+    });
+    await test('computeNetVat: returns null on missing inputs', async () => {
+      if (computeNetVat(null, 27) !== null) throw new Error('null amount');
+      if (computeNetVat(1000, null) !== null) throw new Error('null rate');
+    });
+    await test('computeNetVat: returns null on rate out of range', async () => {
+      if (computeNetVat(1000, -1) !== null) throw new Error('-1');
+      if (computeNetVat(1000, 101) !== null) throw new Error('101');
+    });
+  });
+
+  await describe('VAT — validation', async () => {
+    await test('vat_rate < 0 rejected', async () => {
+      const r = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, vat_rate: -1,
+      });
+      if (r.valid) throw new Error('expected invalid');
+    });
+    await test('vat_rate > 100 rejected', async () => {
+      const r = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, vat_rate: 101,
+      });
+      if (r.valid) throw new Error('expected invalid');
+    });
+    await test('only net OR only vat (half-state) rejected', async () => {
+      const r1 = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, net_amount: 800,
+      });
+      if (r1.valid) throw new Error('only net should fail');
+      const r2 = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, vat_amount: 200,
+      });
+      if (r2.valid) throw new Error('only vat should fail');
+    });
+    await test('net + vat ≠ gross beyond tolerance rejected', async () => {
+      const r = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, net_amount: 800, vat_amount: 150, // 950 ≠ 1000
+      });
+      if (r.valid) throw new Error('expected invalid');
+      if (!r.errors.some((e) => e.includes('Nettó + ÁFA'))) {
+        throw new Error('missing sum-mismatch error');
+      }
+    });
+    await test('net + vat ≈ gross within ±1 HUF accepted', async () => {
+      const r = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, net_amount: 787, vat_amount: 213, // sums to 1000 exactly
+      });
+      if (!r.valid) throw new Error(r.errors.join(', '));
+      const r2 = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, net_amount: 787, vat_amount: 214, // 1001, ≤1 tolerance
+      });
+      if (!r2.valid) throw new Error(r2.errors.join(', '));
+    });
+    await test('is_reverse_vat must be boolean', async () => {
+      const r = validateCreate({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'rezsi', amount: 1000, is_reverse_vat: 'truthy',
+      });
+      if (r.valid) throw new Error('expected invalid');
+    });
+  });
+
+  let vatId;
+  await describe('VAT — service create (auto-fill)', async () => {
+    await test('only vat_rate provided → service computes net + vat', async () => {
+      const r = await expenseService.create({
+        accommodation_id: accId, billing_month: '2026-09',
+        performance_date: '2026-09-15',
+        category: 'rezsi', amount: 12700, vat_rate: 27,
+        vendor_name: 'VAT Test Áram Zrt.', notes: RUN_TAG,
+      }, usrId);
+      if (r.error) throw new Error(r.error);
+      vatId = r.data.id;
+      createdIds.push(vatId);
+      if (parseFloat(r.data.net_amount) !== 10000) throw new Error(`net=${r.data.net_amount}`);
+      if (parseFloat(r.data.vat_amount) !== 2700) throw new Error(`vat=${r.data.vat_amount}`);
+      if (parseFloat(r.data.vat_rate) !== 27) throw new Error(`rate=${r.data.vat_rate}`);
+      if (r.data.is_reverse_vat !== false) throw new Error(`is_reverse_vat=${r.data.is_reverse_vat}`);
+    });
+
+    await test('all three provided + match → persisted verbatim', async () => {
+      const r = await expenseService.create({
+        accommodation_id: accId, billing_month: '2026-09',
+        performance_date: '2026-09-16',
+        category: 'rezsi', amount: 10500, vat_rate: 5,
+        net_amount: 10000, vat_amount: 500,
+        vendor_name: 'VAT Test 5%', notes: RUN_TAG,
+      }, usrId);
+      if (r.error) throw new Error(r.error);
+      createdIds.push(r.data.id);
+      if (parseFloat(r.data.net_amount) !== 10000) throw new Error(`net=${r.data.net_amount}`);
+      if (parseFloat(r.data.vat_amount) !== 500) throw new Error(`vat=${r.data.vat_amount}`);
+    });
+
+    await test('no vat_rate, no net/vat → all three NULL on DB', async () => {
+      const r = await expenseService.create({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'egyeb', amount: 5000,
+        notes: RUN_TAG,
+      }, usrId);
+      if (r.error) throw new Error(r.error);
+      createdIds.push(r.data.id);
+      if (r.data.net_amount !== null) throw new Error(`net should be null, got ${r.data.net_amount}`);
+      if (r.data.vat_rate !== null) throw new Error(`rate should be null`);
+      if (r.data.vat_amount !== null) throw new Error(`vat should be null`);
+    });
+
+    await test('exemption reason + reverse VAT persist', async () => {
+      const r = await expenseService.create({
+        accommodation_id: accId, billing_month: '2026-09',
+        category: 'egyeb', amount: 1000,
+        vat_exemption_reason: 'aam',
+        is_reverse_vat: true,
+        notes: RUN_TAG,
+      }, usrId);
+      if (r.error) throw new Error(r.error);
+      createdIds.push(r.data.id);
+      if (r.data.vat_exemption_reason !== 'aam') throw new Error(`exemption=${r.data.vat_exemption_reason}`);
+      if (r.data.is_reverse_vat !== true) throw new Error(`reverse=${r.data.is_reverse_vat}`);
+    });
+  });
+
+  await describe('VAT — service update (recompute)', async () => {
+    await test('changing amount recomputes net + vat at existing rate', async () => {
+      const r = await expenseService.update(vatId, { amount: 25400 }); // 25400 / 1.27 = 20000
+      if (r.error) throw new Error(r.error);
+      if (parseFloat(r.data.net_amount) !== 20000) throw new Error(`net=${r.data.net_amount}`);
+      if (parseFloat(r.data.vat_amount) !== 5400) throw new Error(`vat=${r.data.vat_amount}`);
+      if (parseFloat(r.data.vat_rate) !== 27) throw new Error('rate should be untouched');
+    });
+
+    await test('clearing vat_rate (null) clears net + vat', async () => {
+      const r = await expenseService.update(vatId, { vat_rate: null });
+      if (r.error) throw new Error(r.error);
+      if (r.data.vat_rate !== null) throw new Error('rate should be null');
+      if (r.data.net_amount !== null) throw new Error('net should clear');
+      if (r.data.vat_amount !== null) throw new Error('vat should clear');
+    });
+
+    await test('changing vat_rate alone recomputes net + vat from current amount', async () => {
+      const r = await expenseService.update(vatId, { vat_rate: 5 }); // current amount=25400 @ 5% → net=24190, vat=1210
+      if (r.error) throw new Error(r.error);
+      if (parseFloat(r.data.vat_rate) !== 5) throw new Error('rate');
+      // 25400 / 1.05 = 24190.47... → round 24190; vat = 25400 - 24190 = 1210
+      if (parseFloat(r.data.net_amount) !== 24190) throw new Error(`net=${r.data.net_amount}`);
+      if (parseFloat(r.data.vat_amount) !== 1210) throw new Error(`vat=${r.data.vat_amount}`);
+    });
+
+    await test('explicit net + vat override auto-compute', async () => {
+      const r = await expenseService.update(vatId, { net_amount: 20000, vat_amount: 5400 });
+      if (r.error) throw new Error(r.error);
+      if (parseFloat(r.data.net_amount) !== 20000) throw new Error(`net=${r.data.net_amount}`);
+      if (parseFloat(r.data.vat_amount) !== 5400) throw new Error(`vat=${r.data.vat_amount}`);
+    });
+
+    await test('toggling is_reverse_vat false→true persists', async () => {
+      const r = await expenseService.update(vatId, { is_reverse_vat: true });
+      if (r.error) throw new Error(r.error);
+      if (r.data.is_reverse_vat !== true) throw new Error('toggle');
+    });
+  });
+
+  await describe('VAT — CHECK constraints catch direct writes', async () => {
+    await test('DB rejects vat_rate = 150 via direct INSERT', async () => {
+      let threw = false;
+      try {
+        await query(
+          `INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount, vat_rate)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [accId, '2026-09', 'rezsi', 1000, 150],
+        );
+      } catch (e) {
+        if (/acc_exp_vat_rate_range/.test(e.message)) threw = true;
+      }
+      if (!threw) throw new Error('expected CHECK violation');
+    });
+
+    await test('DB rejects half-state (net set, vat NULL)', async () => {
+      let threw = false;
+      try {
+        await query(
+          `INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount, net_amount)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [accId, '2026-09', 'rezsi', 1000, 800],
+        );
+      } catch (e) {
+        if (/acc_exp_vat_split_consistency/.test(e.message)) threw = true;
+      }
+      if (!threw) throw new Error('expected CHECK violation');
+    });
+  });
+
+  await describe('VAT — filters', async () => {
+    await test('filter by vat_rate', async () => {
+      const r = await expenseService.getAll({ accommodation_id: accId, vat_rate: 5 });
+      if (r.expenses.some((e) => e.vat_rate != null && Number(e.vat_rate) !== 5)) {
+        throw new Error('rate filter not applied');
+      }
+    });
+    await test('filter by is_reverse_vat=true', async () => {
+      const r = await expenseService.getAll({ accommodation_id: accId, is_reverse_vat: true });
+      if (r.expenses.some((e) => e.is_reverse_vat !== true)) {
+        throw new Error('reverse_vat filter not applied');
+      }
     });
   });
 
