@@ -44,7 +44,8 @@ router.post('/upload', upload.single('file'), controller.uploadPDF);
 router.post('/poll-emails', checkPermission('settings.edit'), controller.pollEmails);
 router.put('/:id', controller.update);
 router.post('/:id/approve', checkPermission('settings.edit'), controller.approve);
-router.post('/:id/reject', checkPermission('settings.edit'), controller.reject);
+router.post('/:id/reject',  checkPermission('settings.edit'), controller.reject);
+router.post('/:id/convert', checkPermission('settings.edit'), controller.convert);
 router.post('/:id/re-ocr', controller.reRunOCR);
 router.delete('/:id', checkPermission('settings.edit'), controller.remove);
 

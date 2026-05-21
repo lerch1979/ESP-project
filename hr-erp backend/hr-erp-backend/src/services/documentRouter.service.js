@@ -90,11 +90,11 @@ class DocumentRouterService {
         email_from, email_subject, pdf_file_path,
         invoice_number, vendor_name, vendor_tax_number,
         net_amount, vat_amount, gross_amount,
-        invoice_date, due_date, beneficiary_iban,
+        invoice_date, performance_date, due_date, beneficiary_iban,
         description, extracted_data,
         suggested_cost_center_id, cost_center_confidence, suggestion_reasoning,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'pending')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'pending')
       RETURNING id
     `, [
       doc.email_from,
@@ -107,6 +107,7 @@ class DocumentRouterService {
       extractedData.vatAmount || null,
       extractedData.grossAmount || null,
       extractedData.invoiceDate || null,
+      extractedData.performanceDate || null,
       extractedData.dueDate || null,
       extractedData.beneficiaryIban || null,
       extractedData.description || null,

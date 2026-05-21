@@ -1653,6 +1653,15 @@ export const invoiceDraftsAPI = {
     const response = await api.post('/invoice-drafts/poll-emails');
     return response.data;
   },
+
+  // POST /invoice-drafts/:id/convert — body = expense payload (same shape
+  // as expensesAPI.create). Returns { data: { expense, invoice_draft_id,
+  // pdf_copy_error? } }. Throws on 409 (already converted / non-pending);
+  // caller should inspect e.response.data.final_expense_id.
+  convert: async (id, payload) => {
+    const response = await api.post(`/invoice-drafts/${id}/convert`, payload);
+    return response.data;
+  },
 };
 
 // Classification Rules API (invoice auto-classification rules)

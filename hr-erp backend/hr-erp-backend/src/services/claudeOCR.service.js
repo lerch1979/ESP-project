@@ -34,14 +34,24 @@ Schema (use exactly these field names, null if not found):
   "grossAmount": number | null,         // "Bruttó összeg" / "Fizetendő összeg" / total
   "currency": "HUF" | "EUR" | "USD" | "GBP" | "CHF" | null,
   "vatRate": string | null,             // e.g. "27%" or "5%"
-  "invoiceDate": string | null,         // ISO YYYY-MM-DD
-  "dueDate": string | null,             // ISO YYYY-MM-DD
+  "invoiceDate": string | null,         // ISO YYYY-MM-DD — invoice issue date ("Számla dátuma" / "Kelte")
+  "performanceDate": string | null,     // ISO YYYY-MM-DD — TELJESÍTÉS dátum (drives HU VAT period; see rules)
+  "dueDate": string | null,             // ISO YYYY-MM-DD — payment deadline ("Fizetési határidő" / "Esedékesség")
+  "paymentMethod": string | null,       // "átutalás" | "készpénz" | "bankkártya" | "csekk" | other free text
   "beneficiaryIban": string | null,     // e.g. "HU12 1234 5678 9012 3456 7890 1234"
   "description": string | null,         // 1-3 line items joined by "; "
   "confidence": number                  // 0-100 — your certainty the doc is a real invoice
 }
 
 Rules:
+- performanceDate is the SERVICE DELIVERY date — the day the service was provided or
+  the good was delivered. On Hungarian invoices it appears as one of:
+    "Teljesítés dátuma" / "Teljesítés kelte" / "Teljesítés időpontja"
+    "Szolgáltatás teljesítésének időpontja" / "Telj. dátum" / "Telj.:"
+  It often equals invoiceDate but NOT always — utility bills, monthly subscriptions,
+  and post-paid invoices commonly have performanceDate = end of the prior month and
+  invoiceDate = the day the invoice was issued. Return performanceDate even if it
+  matches invoiceDate; do NOT deduplicate. If absent from the document, return null.
 - Hungarian number format uses "." or space as thousands separator and "," as decimal:
   "32.860 Ft" → 32860, "1 234 567,89 HUF" → 1234567.89.
 - Do NOT include currency symbol in amount fields. Put the currency code in "currency".
@@ -152,6 +162,16 @@ const PATTERNS = {
     new RegExp(`sz[aá]mla\\s*d[aá]tum[a]?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
     /invoice\s*date[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
     new RegExp(`ki[aá]ll[ií]t[aá]s[ai]?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+  ],
+  performanceDate: [
+    // Teljesítés dátuma / kelte / időpontja — variants with optional "időpontja"
+    new RegExp(`telje?s[ií]t[eé]s\\s*(?:d[aá]tum[a]?|kelte?|id[oő]pontja)${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    // "Szolgáltatás teljesítésének időpontja"
+    new RegExp(`szolg[aá]ltat[aá]s\\s*telje?s[ií]t[eé]s[eé]nek\\s*id[oő]pontja${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    // Abbreviated "Telj." form
+    new RegExp(`telj\\.?${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
+    // English fallback
+    /performance\s*date[:\s]*(\d{4}[.\-/]\s?\d{2}[.\-/]\s?\d{2})/i,
   ],
   dueDate: [
     new RegExp(`fizet[eé]si\\s*hat[aá]rid[oő]${BI}[:\\s]*(\\d{4}[.\\-/]\\s?\\d{2}[.\\-/]\\s?\\d{2})`, 'i'),
@@ -294,7 +314,9 @@ class ClaudeOCRService {
       vatAmount: null,
       grossAmount: null,
       invoiceDate: null,
+      performanceDate: null, // HU teljesítés dátum — drives VAT period
       dueDate: null,
+      paymentMethod: null,
       beneficiaryIban: null,
       description: null,
       currency: null,
@@ -367,6 +389,7 @@ class ClaudeOCRService {
 
     // Dates
     result.invoiceDate = this.extractDate(text, PATTERNS.invoiceDate);
+    result.performanceDate = this.extractDate(text, PATTERNS.performanceDate);
     result.dueDate = this.extractDate(text, PATTERNS.dueDate);
 
     // Currency

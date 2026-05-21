@@ -23,7 +23,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'react-toastify';
-import { expensesAPI, profitAPI, accommodationsAPI, costCentersAPI } from '../services/api';
+import { expensesAPI, profitAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
 // Constants — match backend CHECK constraint on accommodation_expenses.category
@@ -36,8 +36,8 @@ const CATEGORIES = [
   { value: 'egyeb',        label: 'Egyéb',        color: 'default' },
 ];
 
-const TABS = ['expenses', 'runs', 'billings', 'profit'];
-const TAB_LABELS = ['Költségek', 'Számlázási futások', 'Számlázások', 'Profit dashboard'];
+const TABS = ['expenses', 'drafts', 'runs', 'billings', 'profit'];
+const TAB_LABELS = ['Költségek', 'Beérkezett számlák', 'Számlázási futások', 'Számlázások', 'Profit dashboard'];
 
 // ────────────────────────────────────────────────────────────────────────
 // Formatters
@@ -54,6 +54,22 @@ const fmtDate = (d) => {
   const m = String(dt.getMonth() + 1).padStart(2, '0');
   const day = String(dt.getDate()).padStart(2, '0');
   return `${y}.${m}.${day}.`;
+};
+
+// HTML <input type="date"> value format. NEVER use .toISOString().slice(0,10)
+// — pg returns DATE as a JS Date at LOCAL midnight, which is the PREVIOUS
+// UTC day in CEST. Same fix pattern as billingEngine.localDateStr().
+const fmtDateInput = (d) => {
+  if (!d) return '';
+  // If caller already passed a YYYY-MM-DD string, pass it through unchanged
+  // (avoid round-tripping through Date which may shift TZ).
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt)) return '';
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
 const currentMonth = () => {
@@ -268,9 +284,9 @@ function ExpensesTab() {
     setEditing(row);
     setForm({
       accommodation_id: row.accommodation_id || '',
-      performance_date: row.performance_date ? String(row.performance_date).slice(0, 10) : '',
+      performance_date: fmtDateInput(row.performance_date),
       billing_month: row.billing_month || '',
-      invoice_date: row.invoice_date ? String(row.invoice_date).slice(0, 10) : '',
+      invoice_date: fmtDateInput(row.invoice_date),
       category: row.category || 'rezsi',
       amount: row.amount != null ? String(row.amount) : '',
       vendor_name: row.vendor_name || '',
@@ -1248,6 +1264,332 @@ const COLOR_PROFIT_POS = '#16a34a';
 const COLOR_PROFIT_NEG = '#dc2626';
 const COLOR_NEUTRAL   = '#475569';
 
+// ────────────────────────────────────────────────────────────────────────
+// Tab 2: Beérkezett számlák — list pending invoice_drafts + "Konvertálás
+// költséggé" flow. POST /api/v1/invoice-drafts/:id/convert handles the
+// expense creation, PDF copy, draft status update + audit log server-side.
+// ────────────────────────────────────────────────────────────────────────
+
+function DraftsTab() {
+  const [drafts, setDrafts] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // ─── Convert dialog state ─────────────────────────────────────────
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(null); // currently selected draft row
+  const [form, setForm] = useState({
+    accommodation_id: '',
+    performance_date: '',
+    billing_month: '',
+    category: 'rezsi',
+    amount: '',
+    vat_rate: '27',
+    notes: '',
+  });
+  const [billingMonthManual, setBillingMonthManual] = useState(false);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [accommodations, setAccommodations] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await accommodationsAPI.getAll({ limit: 500 });
+        const list = res?.accommodations || res?.data?.accommodations || res?.data || [];
+        setAccommodations(Array.isArray(list) ? list : []);
+      } catch (e) { /* silent */ }
+    })();
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await invoiceDraftsAPI.getAll({ status: 'pending', limit: 100 });
+      const list = res?.data?.drafts || res?.data || res?.drafts || [];
+      setDrafts(Array.isArray(list) ? list : []);
+    } catch (e) {
+      toast.error('Számla piszkozatok betöltése sikertelen');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openConvert = (d) => {
+    setDraft(d);
+    // Pre-fill performance_date with the priority chain:
+    //   draft.performanceDate (new, from OCR — migration 116) >
+    //   draft.invoiceDate (legacy fallback for pre-migration drafts) >
+    //   empty
+    // NOTE 1: formatDraft returns camelCase, NOT snake_case.
+    // NOTE 2: pg returns DATE as a Date at LOCAL midnight, which slides to
+    //   the previous UTC day under CEST. fmtDateInput uses local components.
+    const perf = fmtDateInput(d.performanceDate || d.invoiceDate);
+    setForm({
+      accommodation_id: '',
+      performance_date: perf,
+      billing_month: perf ? perf.slice(0, 7) : '',
+      category: 'rezsi',
+      amount: '',
+      vat_rate: '27',
+      notes: d.description ? String(d.description).slice(0, 200) : '',
+    });
+    setBillingMonthManual(false);
+    setError('');
+    setOpen(true);
+  };
+
+  const setPerformanceDate = (value) => {
+    setForm((f) => {
+      const next = { ...f, performance_date: value };
+      if (!billingMonthManual && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        next.billing_month = value.slice(0, 7);
+      }
+      return next;
+    });
+  };
+
+  const setBillingMonth = (value) => {
+    setForm((f) => ({ ...f, billing_month: value }));
+    setBillingMonthManual(true);
+  };
+
+  const setCategory = (cat) => {
+    setForm((f) => {
+      const next = { ...f, category: cat };
+      const def = DEFAULT_VAT_RATE_BY_CATEGORY[cat];
+      next.vat_rate = def != null ? String(def) : '';
+      return next;
+    });
+  };
+
+  const handleConvert = async () => {
+    setError('');
+    if (!form.accommodation_id) return setError('Szállás megadása kötelező');
+    if (!form.performance_date && !form.billing_month) {
+      return setError('Teljesítés dátum vagy számlázási hónap kötelező');
+    }
+    const amt = parseFloat(form.amount);
+    if (Number.isNaN(amt) || amt < 0) return setError('Bruttó összeg pozitív szám kell legyen');
+    if (!form.category) return setError('Kategória kötelező');
+
+    setSaving(true);
+    try {
+      await invoiceDraftsAPI.convert(draft.id, {
+        accommodation_id: form.accommodation_id,
+        performance_date: form.performance_date || null,
+        billing_month: form.billing_month || undefined,
+        category: form.category,
+        amount: amt,
+        vat_rate: form.vat_rate === '' ? null : Number(form.vat_rate),
+        notes: form.notes || null,
+        // Server adds source='email_ocr' + merges draft vendor/invoice metadata
+      });
+      toast.success('Költség létrehozva a piszkozatból');
+      setOpen(false);
+      await load();
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 409) {
+        toast.warning(e?.response?.data?.message || 'A piszkozat már át lett konvertálva');
+        setOpen(false);
+        await load();
+        return;
+      }
+      setError(e?.response?.data?.message || 'Konvertálás sikertelen');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Box>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            Beérkezett számlák — konverzióra váró piszkozatok
+          </Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          <Tooltip title="Frissítés">
+            <IconButton onClick={load}><RefreshIcon /></IconButton>
+          </Tooltip>
+        </Stack>
+        <Typography variant="caption" color="text.secondary">
+          A régi e-mail/OCR pipeline által rögzített piszkozatok. A "Konvertálás" gombbal
+          az adatokból költség sor jön létre — a PDF automatikusan átkerül a csatolmányok közé.
+        </Typography>
+      </Paper>
+
+      <Paper>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Beszállító</TableCell>
+                <TableCell>Adószám</TableCell>
+                <TableCell>Számlaszám</TableCell>
+                <TableCell>Számla dátum</TableCell>
+                <TableCell>Esedékesség</TableCell>
+                <TableCell>OCR szöveg</TableCell>
+                <TableCell align="right">Műveletek</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <CircularProgress size={28} />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && drafts.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    Nincs konverzióra váró piszkozat.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && drafts.map((d) => (
+                <TableRow key={d.id} hover>
+                  <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={d.vendorName || ''}>
+                      <span>{d.vendorName || '—'}</span>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>{d.vendorTaxNumber || '—'}</TableCell>
+                  <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {d.invoiceNumber || '—'}
+                  </TableCell>
+                  <TableCell>{fmtDate(d.invoiceDate)}</TableCell>
+                  <TableCell>{fmtDate(d.dueDate)}</TableCell>
+                  <TableCell sx={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={d.description || ''}>
+                      <span>{d.description ? String(d.description).slice(0, 60) : '—'}</span>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button size="small" variant="contained" onClick={() => openConvert(d)}>
+                      Konvertálás
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      {/* Convert dialog */}
+      <Dialog open={open} onClose={() => !saving && setOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Konvertálás költséggé</DialogTitle>
+        <DialogContent dividers>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+          {draft && (
+            <Alert severity="info" sx={{ mb: 2 }} icon={<AttachFileIcon />}>
+              <Typography variant="body2"><strong>{draft.vendorName || '—'}</strong></Typography>
+              <Typography variant="caption" color="text.secondary">
+                Számla: {draft.invoiceNumber || '—'} · Adószám: {draft.vendorTaxNumber || '—'}
+                {draft.pdfFilePath && ' · PDF automatikusan csatolva'}
+              </Typography>
+            </Alert>
+          )}
+
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                select required fullWidth size="small"
+                label="Szállás"
+                value={form.accommodation_id}
+                onChange={(e) => setForm({ ...form, accommodation_id: e.target.value })}
+              >
+                {accommodations.map((a) => (
+                  <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                select required fullWidth size="small"
+                label="Kategória"
+                value={form.category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                {CATEGORIES.map((c) => (
+                  <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                required fullWidth size="small"
+                label="Bruttó összeg (Ft)"
+                type="number"
+                inputProps={{ min: 0, step: 1 }}
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                helperText="Olvasd le a PDF-ről vagy az OCR szövegből"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth size="small"
+                label="Teljesítés dátum"
+                type="date"
+                value={form.performance_date}
+                onChange={(e) => setPerformanceDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth size="small"
+                label="Számlázási hónap"
+                type="month"
+                value={form.billing_month}
+                onChange={(e) => setBillingMonth(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText={billingMonthManual ? 'Kézzel' : 'Automatikusan'}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                select fullWidth size="small"
+                label="ÁFA kulcs"
+                value={form.vat_rate}
+                onChange={(e) => setForm({ ...form, vat_rate: e.target.value })}
+              >
+                <MenuItem value="">— Nincs megadva —</MenuItem>
+                <MenuItem value="27">27% (standard)</MenuItem>
+                <MenuItem value="18">18%</MenuItem>
+                <MenuItem value="5">5%</MenuItem>
+                <MenuItem value="0">0%</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth size="small"
+                label="Megjegyzés"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                multiline rows={2}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)} disabled={saving}>Mégse</Button>
+          <Button variant="contained" onClick={handleConvert} disabled={saving}>
+            {saving ? <CircularProgress size={20} /> : 'Konvertálás'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 function SummaryCard({ title, value, color, icon, subtitle }) {
   return (
     <Card sx={{ height: '100%' }}>
@@ -1557,9 +1899,10 @@ export default function Billing() {
       </Paper>
 
       {tabIdx === 0 && <ExpensesTab />}
-      {tabIdx === 1 && <PlaceholderTab title="Számlázási futások" />}
-      {tabIdx === 2 && <PlaceholderTab title="Számlázások" />}
-      {tabIdx === 3 && <ProfitTab />}
+      {tabIdx === 1 && <DraftsTab />}
+      {tabIdx === 2 && <PlaceholderTab title="Számlázási futások" />}
+      {tabIdx === 3 && <PlaceholderTab title="Számlázások" />}
+      {tabIdx === 4 && <ProfitTab />}
     </Box>
   );
 }

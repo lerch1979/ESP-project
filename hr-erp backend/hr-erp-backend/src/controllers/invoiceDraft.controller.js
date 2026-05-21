@@ -1,11 +1,47 @@
+const fs = require('fs/promises');
+const path = require('path');
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { logActivity } = require('../utils/activityLogger');
 const gmailMCP = require('../services/gmailMCP.service');
 const claudeOCR = require('../services/claudeOCR.service');
 const costCenterPredictor = require('../services/costCenterPredictor.service');
-const path = require('path');
+const expenseService = require('../services/expense.service');
+const storage = require('../services/storage.service');
 
-const VALID_STATUSES = ['pending', 'approved', 'rejected', 'ocr_failed'];
+const VALID_STATUSES = ['pending', 'approved', 'rejected', 'ocr_failed', 'converted'];
+
+// MIME sniff for the PDF copy on convert. invoice_drafts pdf_file_path
+// is always a PDF in practice (claudeOCR.service.js + Gmail attachment
+// filter both require it), but we double-check the extension before
+// pushing into the expense storage adapter.
+function mimeFromPath(p) {
+  const ext = path.extname(p || '').toLowerCase();
+  if (ext === '.pdf') return 'application/pdf';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.png') return 'image/png';
+  return null;
+}
+
+// pg returns DATE columns as JS Date objects at LOCAL midnight. Passing
+// those back to another INSERT serialises them via .toISOString() which
+// flips to UTC and drops the day by ~1 under CEST. Same root cause as the
+// frontend fmtDateInput fix — use local components, never UTC.
+function dateToISODate(d) {
+  if (d == null) return null;
+  if (typeof d === 'string') {
+    // Already a string — keep just the date portion.
+    return /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : d;
+  }
+  if (d instanceof Date) {
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return null;
+}
 
 /**
  * Format a draft row for API response
@@ -24,6 +60,7 @@ function formatDraft(row) {
     vatAmount: row.vat_amount ? parseFloat(row.vat_amount) : null,
     grossAmount: row.gross_amount ? parseFloat(row.gross_amount) : null,
     invoiceDate: row.invoice_date,
+    performanceDate: row.performance_date,
     dueDate: row.due_date,
     beneficiaryIban: row.beneficiary_iban,
     description: row.description,
@@ -483,15 +520,16 @@ const reRunOCR = async (req, res) => {
         vat_amount = $5,
         gross_amount = $6,
         invoice_date = $7,
-        due_date = $8,
-        beneficiary_iban = $9,
-        description = $10,
-        extracted_data = $11,
-        suggested_cost_center_id = $12,
-        cost_center_confidence = $13,
-        suggestion_reasoning = $14,
+        performance_date = $8,
+        due_date = $9,
+        beneficiary_iban = $10,
+        description = $11,
+        extracted_data = $12,
+        suggested_cost_center_id = $13,
+        cost_center_confidence = $14,
+        suggestion_reasoning = $15,
         status = 'pending'
-      WHERE id = $15
+      WHERE id = $16
     `, [
       extractedData.invoiceNumber,
       extractedData.vendorName,
@@ -500,6 +538,7 @@ const reRunOCR = async (req, res) => {
       extractedData.vatAmount,
       extractedData.grossAmount,
       extractedData.invoiceDate,
+      extractedData.performanceDate || null,
       extractedData.dueDate,
       extractedData.beneficiaryIban,
       extractedData.description,
@@ -546,6 +585,170 @@ const pollEmails = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/v1/invoice-drafts/:id/convert
+ *
+ * Day-3 (2026-05-21) bridge from the dormant old AI pipeline to the
+ * live accommodation_expenses table. The UI calls this with a full
+ * expense payload — the human has filled accommodation/category/amount
+ * already. We:
+ *   1. Verify the draft exists and is convertible (status='pending').
+ *      If already 'converted', return 409 with the existing
+ *      final_expense_id so the UI can show the linked expense.
+ *   2. Pre-merge draft metadata (vendor_name, vendor_tax_number,
+ *      invoice_number, invoice_date) into the payload BEFORE handing
+ *      it to expenseService.create — the UI normally fills these but
+ *      we don't want a half-converted draft losing the OCR work if
+ *      the human accidentally cleared a field.
+ *   3. Run expenseService.create + dedup is skipped here (the user
+ *      saw the source draft, so they're aware of duplication risk;
+ *      we don't want them blocked when the original email came in
+ *      twice — which IS the case for 2 of our 5 stale drafts).
+ *   4. Copy invoice_drafts.pdf_file_path → storage.save() under the
+ *      new expense's uploads/expenses/YYYY/MM/<id>/ path.
+ *   5. Update the draft: status='converted', final_expense_id=<id>.
+ *   6. Audit via activityLogger on both entities.
+ *
+ * Body: same shape as POST /expenses + override_note for the audit log.
+ */
+const convert = async (req, res) => {
+  try {
+    // Step 1: load + guard
+    const draftRes = await query(
+      'SELECT * FROM invoice_drafts WHERE id = $1',
+      [req.params.id],
+    );
+    if (draftRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Számla piszkozat nem található' });
+    }
+    const draft = draftRes.rows[0];
+
+    if (draft.status === 'converted') {
+      return res.status(409).json({
+        success: false,
+        message: 'A piszkozat már át lett konvertálva költséggé',
+        final_expense_id: draft.final_expense_id,
+      });
+    }
+    if (draft.status !== 'pending') {
+      return res.status(409).json({
+        success: false,
+        message: `Csak 'pending' státuszú piszkozat konvertálható (jelenleg: ${draft.status})`,
+      });
+    }
+
+    // Step 2: merge draft metadata into the payload as fallbacks.
+    // performance_date priority: caller > draft.performance_date >
+    // draft.invoice_date. The invoice_date fallback covers legacy
+    // drafts created before migration 116 / the OCR prompt update.
+    // Date fields go through dateToISODate to dodge the local-midnight →
+    // UTC-previous-day flip when DB rows are re-INSERTed downstream.
+    const payload = {
+      ...req.body,
+      vendor_name:       req.body.vendor_name       || draft.vendor_name       || null,
+      vendor_tax_number: req.body.vendor_tax_number || draft.vendor_tax_number || null,
+      invoice_number:    req.body.invoice_number    || draft.invoice_number    || null,
+      invoice_date:      req.body.invoice_date      || dateToISODate(draft.invoice_date),
+      performance_date:  req.body.performance_date
+                       || dateToISODate(draft.performance_date)
+                       || dateToISODate(draft.invoice_date)
+                       || null,
+      source: 'email_ocr',
+    };
+
+    // Step 3: create the expense (dedup gate skipped — same vendor +
+    // amount across drafts is expected for monthly recurring bills).
+    const result = await expenseService.create(payload, req.user.id);
+    if (result.error) {
+      return res.status(result.status || 400).json({ success: false, message: result.error });
+    }
+    const expense = result.data;
+
+    // Step 4: copy the PDF (if any) into the expense's file_attachments.
+    // Failure here is non-fatal — the expense is already created;
+    // we log + return a soft warning rather than rolling back.
+    let pdfCopyError = null;
+    if (draft.pdf_file_path) {
+      try {
+        const absSrc = path.isAbsolute(draft.pdf_file_path)
+          ? draft.pdf_file_path
+          : path.join(__dirname, '..', '..', draft.pdf_file_path);
+        const buffer = await fs.readFile(absSrc);
+        const mime = mimeFromPath(draft.pdf_file_path) || 'application/pdf';
+        const original_name = path.basename(draft.pdf_file_path);
+
+        const saved = await storage.save({
+          buffer, mime,
+          expense_id: expense.id,
+          billing_month: expense.billing_month,
+          original_name,
+          uploaded_by: req.user.id,
+        });
+
+        const upd = await query(
+          `UPDATE accommodation_expenses
+              SET file_attachments = COALESCE(file_attachments, '[]'::jsonb) || $1::jsonb
+            WHERE id = $2 RETURNING file_attachments`,
+          [JSON.stringify([saved]), expense.id],
+        );
+        expense.file_attachments = upd.rows[0].file_attachments;
+      } catch (e) {
+        pdfCopyError = e.message;
+        logger.error('PDF copy failed during draft convert:', e);
+      }
+    }
+
+    // Step 5: mark the draft converted
+    await query(
+      `UPDATE invoice_drafts
+          SET status = 'converted',
+              final_expense_id = $1,
+              reviewed_by = $2,
+              reviewed_at = CURRENT_TIMESTAMP,
+              updated_at  = CURRENT_TIMESTAMP
+        WHERE id = $3`,
+      [expense.id, req.user.id, draft.id],
+    );
+
+    // Step 6: audit (action names ≤20 chars for the VARCHAR(20) column)
+    await logActivity({
+      userId: req.user.id,
+      entityType: 'invoice_draft',
+      entityId: draft.id,
+      action: 'draft_convert',
+      metadata: {
+        final_expense_id: expense.id,
+        vendor_name: draft.vendor_name,
+        invoice_number: draft.invoice_number,
+        pdf_copied: !pdfCopyError,
+        pdf_copy_error: pdfCopyError,
+      },
+    });
+    await logActivity({
+      userId: req.user.id,
+      entityType: 'accommodation_expense',
+      entityId: expense.id,
+      action: 'from_draft',
+      metadata: { invoice_draft_id: draft.id },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: pdfCopyError
+        ? 'Költség létrehozva, de a PDF másolás sikertelen'
+        : 'Költség létrehozva a piszkozatból',
+      data: {
+        expense,
+        invoice_draft_id: draft.id,
+        pdf_copy_error: pdfCopyError,
+      },
+    });
+  } catch (error) {
+    logger.error('Piszkozat konvertálási hiba:', error);
+    res.status(500).json({ success: false, message: 'Piszkozat konvertálási hiba' });
+  }
+};
+
 module.exports = {
   getAll,
   getStats,
@@ -557,4 +760,5 @@ module.exports = {
   uploadPDF,
   reRunOCR,
   pollEmails,
+  convert,
 };
