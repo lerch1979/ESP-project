@@ -5,13 +5,20 @@ import {
   Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TablePagination, IconButton, Chip, CircularProgress, Tooltip, Dialog,
   DialogTitle, DialogContent, DialogActions, Alert,
+  Card, CardContent, Grid,
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
   Refresh as RefreshIcon, FilterAltOff as FilterOffIcon,
+  TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon,
+  AccountBalance as AccountBalanceIcon, Percent as PercentIcon,
 } from '@mui/icons-material';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
+  Legend, ResponsiveContainer,
+} from 'recharts';
 import { toast } from 'react-toastify';
-import { expensesAPI, accommodationsAPI } from '../services/api';
+import { expensesAPI, profitAPI, accommodationsAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
 // Constants — match backend CHECK constraint on accommodation_expenses.category
@@ -438,6 +445,277 @@ function ExpensesTab() {
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Tab 4: Profit Dashboard
+// ────────────────────────────────────────────────────────────────────────
+
+const COLOR_INCOME    = '#16a34a'; // green
+const COLOR_EXPENSE   = '#dc2626'; // red
+const COLOR_PROFIT_POS = '#16a34a';
+const COLOR_PROFIT_NEG = '#dc2626';
+const COLOR_NEUTRAL   = '#475569';
+
+function SummaryCard({ title, value, color, icon, subtitle }) {
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ py: 2.5, px: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+          <Box sx={{ color, display: 'flex' }}>{icon}</Box>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+            {title}
+          </Typography>
+        </Stack>
+        <Typography variant="h4" sx={{ fontWeight: 700, color }}>
+          {value}
+        </Typography>
+        {subtitle && (
+          <Typography variant="caption" color="text.secondary">{subtitle}</Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <Paper sx={{ p: 1.5, minWidth: 200 }} elevation={4}>
+      <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>{label}</Typography>
+      {payload.map((p) => (
+        <Stack key={p.dataKey} direction="row" justifyContent="space-between" spacing={2}>
+          <Typography variant="body2" sx={{ color: p.color }}>{p.name}:</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>{fmtMoney(p.value)}</Typography>
+        </Stack>
+      ))}
+    </Paper>
+  );
+}
+
+// Minimum visible spinner time so the "Profit számítása…" state can't flash
+// imperceptibly when the API responds in <50ms.
+const MIN_LOADING_MS = 300;
+
+function ProfitTab() {
+  const [month, setMonth] = useState(currentMonth());
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Single effect owns the data lifecycle. We do NOT clear `data` eagerly —
+  // the old chart stays visible behind the spinner until new data arrives,
+  // which avoids the "empty render → manual refresh" glitch.
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}$/.test(month)) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await profitAPI.byAccommodation({ month });
+        if (cancelled) return;
+        const elapsed = Date.now() - startedAt;
+        const remaining = MIN_LOADING_MS - elapsed;
+        if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
+        if (cancelled) return;
+        setData(res?.data || null);
+      } catch (e) {
+        if (!cancelled) toast.error('Profit lekérdezés sikertelen');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [month, refreshKey]);
+
+  const refresh = () => setRefreshKey((k) => k + 1);
+
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    return (data.by_accommodation || []).map((r) => ({
+      name: r.accommodation_name || '—',
+      Bevétel: r.income || 0,
+      Költség: r.expenses?.total || 0,
+    }));
+  }, [data]);
+
+  const summary = data?.summary;
+  const rows = data?.by_accommodation || [];
+  const isEmpty = !loading && data && rows.length === 0;
+
+  const profitColor = summary?.total_profit > 0
+    ? COLOR_PROFIT_POS
+    : summary?.total_profit < 0
+      ? COLOR_PROFIT_NEG
+      : COLOR_NEUTRAL;
+
+  return (
+    <Box>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            label="Hónap"
+            type="month"
+            size="small"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 180 }}
+            disabled={loading}
+          />
+          <Tooltip title="Újraszámítás">
+            <span>
+              <IconButton onClick={refresh} disabled={loading}><RefreshIcon /></IconButton>
+            </span>
+          </Tooltip>
+          {loading && (
+            <Stack direction="row" spacing={1} alignItems="center" sx={{
+              color: 'primary.main',
+              px: 1.5, py: 0.5,
+              bgcolor: 'action.hover',
+              borderRadius: 1,
+            }}>
+              <CircularProgress size={18} />
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Profit számítása…
+              </Typography>
+            </Stack>
+          )}
+        </Stack>
+      </Paper>
+
+      {/* Summary cards */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <SummaryCard
+            title="Összes bevétel"
+            value={fmtMoney(summary?.total_income ?? 0)}
+            color={COLOR_INCOME}
+            icon={<TrendingUpIcon />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <SummaryCard
+            title="Összes költség"
+            value={fmtMoney(summary?.total_expenses ?? 0)}
+            color={COLOR_EXPENSE}
+            icon={<TrendingDownIcon />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <SummaryCard
+            title="Profit"
+            value={fmtMoney(summary?.total_profit ?? 0)}
+            color={profitColor}
+            icon={<AccountBalanceIcon />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <SummaryCard
+            title="Profit margin"
+            value={summary?.profit_margin_pct == null ? '—' : `${summary.profit_margin_pct}%`}
+            color={profitColor}
+            icon={<PercentIcon />}
+          />
+        </Grid>
+      </Grid>
+
+      {/* Empty state */}
+      {isEmpty && (
+        <Paper sx={{ p: 6, textAlign: 'center' }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>Nincs adat erre a hónapra.</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Próbálj egy másik hónapot, vagy rögzíts költséget a Költségek fülön.
+          </Typography>
+        </Paper>
+      )}
+
+      {/* Chart */}
+      {!isEmpty && rows.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+            Bevétel vs. költség szállásonként
+          </Typography>
+          <Box sx={{ width: '100%', height: 360 }}>
+            <ResponsiveContainer>
+              <BarChart data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12 }}
+                  interval={0}
+                  angle={chartData.length > 5 ? -25 : 0}
+                  textAnchor={chartData.length > 5 ? 'end' : 'middle'}
+                  height={chartData.length > 5 ? 60 : 30}
+                />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(v) => `${(v / 1000).toLocaleString('hu-HU')}k`}
+                />
+                <RTooltip content={<ChartTooltip />} />
+                <Legend />
+                <Bar dataKey="Bevétel" fill={COLOR_INCOME} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Költség" fill={COLOR_EXPENSE} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Detailed table */}
+      {!isEmpty && rows.length > 0 && (
+        <Paper>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Szállás</TableCell>
+                  <TableCell align="right">Bevétel</TableCell>
+                  <TableCell align="right">Rezsi</TableCell>
+                  <TableCell align="right">Karbantartás</TableCell>
+                  <TableCell align="right">Takarítás</TableCell>
+                  <TableCell align="right">Egyéb</TableCell>
+                  <TableCell align="right">Költség össz.</TableCell>
+                  <TableCell align="right">Profit</TableCell>
+                  <TableCell align="right">Margin</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((r) => {
+                  const exp = r.expenses || {};
+                  const pColor = r.profit > 0
+                    ? COLOR_PROFIT_POS
+                    : r.profit < 0 ? COLOR_PROFIT_NEG : COLOR_NEUTRAL;
+                  return (
+                    <TableRow key={r.accommodation_id} hover>
+                      <TableCell>{r.accommodation_name || '—'}</TableCell>
+                      <TableCell align="right" sx={{ color: COLOR_INCOME, fontWeight: 600 }}>
+                        {fmtMoney(r.income)}
+                      </TableCell>
+                      <TableCell align="right">{fmtMoney(exp.rezsi || 0)}</TableCell>
+                      <TableCell align="right">{fmtMoney(exp.karbantartas || 0)}</TableCell>
+                      <TableCell align="right">{fmtMoney(exp.takaritas || 0)}</TableCell>
+                      <TableCell align="right">{fmtMoney(exp.egyeb || 0)}</TableCell>
+                      <TableCell align="right" sx={{ color: COLOR_EXPENSE, fontWeight: 600 }}>
+                        {fmtMoney(exp.total || 0)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: pColor, fontWeight: 700 }}>
+                        {fmtMoney(r.profit)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: pColor, fontWeight: 600 }}>
+                        {r.profit_margin_pct == null ? '—' : `${r.profit_margin_pct}%`}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+    </Box>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // Placeholder tabs (built in later steps)
 // ────────────────────────────────────────────────────────────────────────
 
@@ -487,7 +765,7 @@ export default function Billing() {
       {tabIdx === 0 && <ExpensesTab />}
       {tabIdx === 1 && <PlaceholderTab title="Számlázási futások" />}
       {tabIdx === 2 && <PlaceholderTab title="Számlázások" />}
-      {tabIdx === 3 && <PlaceholderTab title="Profit dashboard" />}
+      {tabIdx === 3 && <ProfitTab />}
     </Box>
   );
 }
