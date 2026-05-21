@@ -11,7 +11,9 @@ require('dotenv').config();
 
 const {
   validateCreate, validateUpdate,
-  VALID_CATEGORIES, CATEGORY_LABELS,
+  deriveBillingMonth, generateFingerprint,
+  VALID_CATEGORIES, VALID_SOURCES, VALID_STATUSES, VALID_PAYMENT_STATUSES,
+  CATEGORY_LABELS,
 } = require('../src/models/expense.model');
 const expenseService = require('../src/services/expense.service');
 const { query, closePool } = require('../src/database/connection');
@@ -439,6 +441,186 @@ async function main() {
       const r = await expenseService.delete(id1);
       if (!r.error) throw new Error('expected error on second delete');
       if (r.status !== 404) throw new Error(`expected 404, got ${r.status}`);
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 7. Phase 2 — vendor metadata, performance_date, fingerprint, cost_center
+  // ────────────────────────────────────────────────────────────────────────
+
+  await describe('Phase 2 — pure utilities', async () => {
+    await test('deriveBillingMonth from YYYY-MM-DD returns YYYY-MM', async () => {
+      if (deriveBillingMonth('2026-07-15') !== '2026-07') throw new Error('wrong derive');
+    });
+    await test('deriveBillingMonth returns null on bad input', async () => {
+      if (deriveBillingMonth(null) !== null) throw new Error('null input');
+      if (deriveBillingMonth('garbage') !== null) throw new Error('garbage');
+      if (deriveBillingMonth('2026-7-1') !== null) throw new Error('non-padded');
+    });
+
+    await test('generateFingerprint deterministic for same inputs', async () => {
+      const a = generateFingerprint({ vendor_name: 'Vodafone Zrt.', amount: 50000, performance_date: '2026-05-15' });
+      const b = generateFingerprint({ vendor_name: 'Vodafone Zrt.', amount: 50000, performance_date: '2026-05-15' });
+      if (a !== b) throw new Error('not deterministic');
+      if (!a || a.length !== 64) throw new Error(`bad hash length: ${a?.length}`);
+    });
+    await test('generateFingerprint normalises whitespace + case in vendor', async () => {
+      const a = generateFingerprint({ vendor_name: '  vodafone   zrt. ', amount: 50000, performance_date: '2026-05-15' });
+      const b = generateFingerprint({ vendor_name: 'Vodafone Zrt.',      amount: 50000, performance_date: '2026-05-15' });
+      if (a !== b) throw new Error('normalisation failed');
+    });
+    await test('generateFingerprint differs when amount changes', async () => {
+      const a = generateFingerprint({ vendor_name: 'V', amount: 100, performance_date: '2026-05-15' });
+      const b = generateFingerprint({ vendor_name: 'V', amount: 101, performance_date: '2026-05-15' });
+      if (a === b) throw new Error('should differ');
+    });
+    await test('generateFingerprint returns null when vendor missing', async () => {
+      const f = generateFingerprint({ vendor_name: '', amount: 100, performance_date: '2026-05-15' });
+      if (f !== null) throw new Error('expected null');
+    });
+    await test('generateFingerprint returns null when performance_date missing', async () => {
+      const f = generateFingerprint({ vendor_name: 'V', amount: 100, performance_date: null });
+      if (f !== null) throw new Error('expected null');
+    });
+  });
+
+  let p2Id;
+  await describe('Phase 2 — service create with new fields', async () => {
+    await test('auto-derives billing_month from performance_date when omitted', async () => {
+      const r = await expenseService.create({
+        accommodation_id: accId,
+        performance_date: '2026-07-15',
+        // no billing_month
+        category: 'rezsi',
+        amount: 12345,
+        vendor_name: 'Test Energiakereskedő Zrt.',
+        notes: RUN_TAG,
+      }, usrId);
+      if (r.error) throw new Error(r.error);
+      p2Id = r.data.id;
+      createdIds.push(p2Id);
+      if (r.data.billing_month !== '2026-07') throw new Error(`derived month=${r.data.billing_month}`);
+      if (r.data.performance_date == null) throw new Error('performance_date not stored');
+    });
+
+    await test('persists vendor metadata, dates, source/status defaults', async () => {
+      const row = await expenseService.getById(p2Id);
+      if (!row) throw new Error('not found');
+      if (row.vendor_name !== 'Test Energiakereskedő Zrt.') throw new Error('vendor not stored');
+      if (row.source !== 'manual') throw new Error(`default source=${row.source}`);
+      if (row.status !== 'confirmed') throw new Error(`default status=${row.status}`);
+      if (row.payment_status !== 'unpaid') throw new Error(`default payment_status=${row.payment_status}`);
+      if (!Array.isArray(row.file_attachments)) throw new Error('file_attachments not array');
+      if (row.file_attachments.length !== 0) throw new Error('file_attachments not empty');
+    });
+
+    await test('generates and persists dedup_fingerprint on create', async () => {
+      const row = await expenseService.getById(p2Id);
+      if (!row.dedup_fingerprint) throw new Error('fingerprint missing');
+      const expected = generateFingerprint({
+        vendor_name: 'Test Energiakereskedő Zrt.',
+        amount: 12345,
+        performance_date: '2026-07-15',
+      });
+      if (row.dedup_fingerprint !== expected) throw new Error('fingerprint mismatch');
+    });
+
+    await test('row WITHOUT vendor_name gets NULL fingerprint', async () => {
+      const r = await expenseService.create({
+        accommodation_id: accId,
+        billing_month: '2026-08',
+        performance_date: '2026-08-01',
+        category: 'egyeb',
+        amount: 999,
+        notes: RUN_TAG,
+      }, usrId);
+      createdIds.push(r.data.id);
+      if (r.data.dedup_fingerprint !== null) throw new Error('fingerprint should be null');
+    });
+  });
+
+  await describe('Phase 2 — update recomputes fingerprint', async () => {
+    await test('amount change recomputes fingerprint', async () => {
+      const before = await expenseService.getById(p2Id);
+      const r = await expenseService.update(p2Id, { amount: 99999 });
+      if (r.error) throw new Error(r.error);
+      if (r.data.dedup_fingerprint === before.dedup_fingerprint) {
+        throw new Error('fingerprint should have changed');
+      }
+      const expected = generateFingerprint({
+        vendor_name: before.vendor_name,
+        amount: 99999,
+        performance_date: before.performance_date,
+      });
+      if (r.data.dedup_fingerprint !== expected) throw new Error('mismatch');
+    });
+
+    await test('untouched update does NOT change fingerprint', async () => {
+      const before = await expenseService.getById(p2Id);
+      const r = await expenseService.update(p2Id, { notes: `${RUN_TAG}-untouched` });
+      if (r.data.dedup_fingerprint !== before.dedup_fingerprint) {
+        throw new Error('fingerprint changed without trigger');
+      }
+    });
+  });
+
+  await describe('Phase 2 — filters', async () => {
+    await test('filter by perf_from/perf_to (performance_date range)', async () => {
+      const r = await expenseService.getAll({
+        accommodation_id: accId,
+        perf_from: '2026-07-01',
+        perf_to:   '2026-07-31',
+      });
+      if (!r.expenses.some((e) => e.id === p2Id)) throw new Error('expected p2Id in July range');
+      if (r.expenses.some((e) => e.performance_date && new Date(e.performance_date) < new Date('2026-07-01'))) {
+        throw new Error('perf_from filter not applied');
+      }
+    });
+
+    await test('filter by source=manual', async () => {
+      const r = await expenseService.getAll({ accommodation_id: accId, source: 'manual' });
+      if (r.expenses.some((e) => e.source !== 'manual')) throw new Error('source filter not applied');
+    });
+
+    await test('filter by vendor (ilike substring)', async () => {
+      const r = await expenseService.getAll({ accommodation_id: accId, vendor: 'energiakeresk' });
+      if (!r.expenses.some((e) => e.id === p2Id)) throw new Error('expected p2Id in vendor match');
+    });
+  });
+
+  await describe('Phase 2 — cost_center linkage (Option B)', async () => {
+    const cc = await query('SELECT id FROM cost_centers LIMIT 1');
+    const ccId = cc.rows[0]?.id;
+
+    await test('cost_center_id persists and joins back name + code', async () => {
+      if (!ccId) {
+        console.log('    SKIP (no cost_centers in DB)');
+        return;
+      }
+      const r = await expenseService.update(p2Id, { cost_center_id: ccId });
+      if (r.error) throw new Error(r.error);
+      const row = await expenseService.getById(p2Id);
+      if (row.cost_center_id !== ccId) throw new Error('cost_center_id not stored');
+      if (!row.cost_center_name) throw new Error('cost_center_name not joined');
+      if (!row.cost_center_code) throw new Error('cost_center_code not joined');
+    });
+  });
+
+  await describe('Phase 2 — constants', async () => {
+    await test('VALID_SOURCES matches migration 113 CHECK', async () => {
+      const expected = ['manual', 'ai', 'email_ocr', 'import'];
+      if (VALID_SOURCES.length !== 4) throw new Error('length');
+      expected.forEach((s) => { if (!VALID_SOURCES.includes(s)) throw new Error(`missing ${s}`); });
+    });
+    await test('VALID_STATUSES matches migration 113 CHECK', async () => {
+      const expected = ['pending_review', 'confirmed', 'rejected'];
+      if (VALID_STATUSES.length !== 3) throw new Error('length');
+      expected.forEach((s) => { if (!VALID_STATUSES.includes(s)) throw new Error(`missing ${s}`); });
+    });
+    await test('VALID_PAYMENT_STATUSES matches migration 113 CHECK', async () => {
+      const expected = ['unpaid', 'paid', 'partial'];
+      if (VALID_PAYMENT_STATUSES.length !== 3) throw new Error('length');
+      expected.forEach((s) => { if (!VALID_PAYMENT_STATUSES.includes(s)) throw new Error(`missing ${s}`); });
     });
   });
 
