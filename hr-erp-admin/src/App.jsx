@@ -35,6 +35,7 @@ const CostCenters = lazy(() => import('./pages/CostCenters'));
 const Invoices = lazy(() => import('./pages/Invoices'));
 const InvoiceReports = lazy(() => import('./pages/invoices/InvoiceReports'));
 const InvoiceListPage = lazy(() => import('./pages/invoices/InvoiceListPage'));
+const Billing = lazy(() => import('./pages/Billing'));
 const MyTasks = lazy(() => import('./pages/MyTasks'));
 const UnifiedTasks = lazy(() => import('./pages/Tasks/UnifiedTasks'));
 const TaskContexts = lazy(() => import('./pages/Tasks/Contexts'));
@@ -167,6 +168,7 @@ function App() {
               <Route path="invoices" element={<PermissionGuard permission="settings.edit"><Invoices /></PermissionGuard>} />
               <Route path="invoice-reports" element={<PermissionGuard permission="settings.edit"><InvoiceReports /></PermissionGuard>} />
               <Route path="invoice-management" element={<PermissionGuard permission="settings.edit"><InvoiceListPage /></PermissionGuard>} />
+              <Route path="admin/billing" element={<PermissionGuard permission="settings.edit"><Billing /></PermissionGuard>} />
               <Route path="admin/users" element={<PermissionGuard permission="users.manage_permissions"><AdminUsers /></PermissionGuard>} />
               <Route path="admin/users/:id/permissions" element={<PermissionGuard permission="users.manage_permissions"><AdminUserPermissions /></PermissionGuard>} />
               <Route path="admin/roles" element={<PermissionGuard permission="users.manage_permissions"><AdminRoles /></PermissionGuard>} />

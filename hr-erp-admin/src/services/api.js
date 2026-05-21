@@ -2458,4 +2458,36 @@ export const gtdAPI = {
   },
 };
 
+// ─── Accommodation Expenses (occupancy billing — migration 112) ───
+export const expensesAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/expenses', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/expenses/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/expenses', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/expenses/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/expenses/${id}`);
+    return response.data;
+  },
+};
+
+// ─── Profit dashboard (occupancy billing — migration 112) ───
+export const profitAPI = {
+  byAccommodation: async (params = {}) => {
+    const response = await api.get('/profit/by-accommodation', { params });
+    return response.data;
+  },
+};
+
 export default api;
