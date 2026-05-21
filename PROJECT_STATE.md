@@ -140,6 +140,7 @@ For older history: `git log --oneline --since="2026-04-01"`.
 | Item | Severity | Notes |
 |---|---|---|
 | Gmail poller may still be running | medium | Verify `src/services/gmailMCP.service.js` cron registration. If active, new orphan drafts pile up. |
+| `uploads/expenses/` not in backup cron | **high** before production | Local-filesystem storage adapter writes expense file attachments to `hr-erp-backend/uploads/expenses/YYYY/MM/<id>/`. **Add this path to the nightly backup** OR migrate to S3 before production cutover. Pluggable storage interface (`src/services/storage.service.js`) is designed for the S3 swap. |
 | 5 stale `invoice_drafts` rows (since 2026-04-21) | low | Either review + enter manually into `accommodation_expenses` or archive |
 | 11 of 20 classification rules never matched | low | Cleanup candidate once pipeline disposition decided |
 | Tab 4 fixes uncommitted | _resolves on next commit_ | `Billing.jsx` working tree modified |

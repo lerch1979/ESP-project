@@ -1,8 +1,26 @@
+const multer = require('multer');
+const { query } = require('../database/connection');
 const expenseService = require('../services/expense.service');
 const dedupService = require('../services/expenseDeduplication.service');
+const storage = require('../services/storage.service');
 const { validateCreate, validateUpdate } = require('../models/expense.model');
 const { logger } = require('../utils/logger');
 const { logActivity } = require('../utils/activityLogger');
+
+// File-upload middleware. Memory-storage so we can validate MIME + size
+// before the bytes ever hit disk, then hand the buffer to the storage
+// adapter for a deterministic on-disk path.
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+const uploadMw = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (!storage.ALLOWED_MIMES.includes(file.mimetype)) {
+      return cb(new Error('Csak PDF / JPG / PNG fájl tölthető fel'));
+    }
+    cb(null, true);
+  },
+}).single('file');
 
 /**
  * GET /api/v1/expenses
@@ -230,4 +248,190 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove, checkDuplicates };
+// ─────────────────────────────────────────────────────────────────────
+// File attachments
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Multer error handler middleware — translates LIMIT_FILE_SIZE and the
+ * fileFilter rejection into clean 400 / 413 responses with Hungarian
+ * messages, so the routes file can compose [errorWrappedUpload, handler].
+ */
+const uploadWithErrorHandling = (req, res, next) => {
+  uploadMw(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        success: false,
+        message: `A fájl maximális mérete ${MAX_FILE_BYTES / (1024 * 1024)} MB`,
+      });
+    }
+    return res.status(400).json({ success: false, message: err.message || 'Feltöltési hiba' });
+  });
+};
+
+/**
+ * POST /api/v1/expenses/:id/files  (multipart/form-data, field "file")
+ */
+const uploadFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Nincs feltöltött fájl (field: "file")' });
+    }
+
+    const expense = await expenseService.getById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ success: false, message: 'Költség nem található' });
+    }
+
+    const saved = await storage.save({
+      buffer: req.file.buffer,
+      mime: req.file.mimetype,
+      expense_id: expense.id,
+      billing_month: expense.billing_month,
+      original_name: req.file.originalname,
+      uploaded_by: req.user.id,
+    });
+
+    // Atomically append to file_attachments JSONB and return the new array.
+    const updated = await query(
+      `UPDATE accommodation_expenses
+          SET file_attachments = COALESCE(file_attachments, '[]'::jsonb) || $1::jsonb
+        WHERE id = $2 AND deleted_at IS NULL
+      RETURNING file_attachments`,
+      [JSON.stringify([saved]), expense.id],
+    );
+
+    if (updated.rows.length === 0) {
+      // expense was soft-deleted between fetch and update; roll back the file
+      await storage.delete(saved.path).catch(() => {});
+      return res.status(404).json({ success: false, message: 'Költség nem található' });
+    }
+
+    await logActivity({
+      userId: req.user.id,
+      entityType: 'accommodation_expense',
+      entityId: expense.id,
+      action: 'file_upload',
+      metadata: {
+        file_id: saved.id, filename: saved.filename, original_name: saved.original_name,
+        mime: saved.mime, size: saved.size,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Fájl feltöltve',
+      data: { file: saved, file_attachments: updated.rows[0].file_attachments },
+    });
+  } catch (error) {
+    logger.error('Fájl feltöltési hiba:', error);
+    res.status(500).json({ success: false, message: 'Fájl feltöltési hiba' });
+  }
+};
+
+/**
+ * GET /api/v1/expenses/:id/files/:file_id
+ */
+const downloadFile = async (req, res) => {
+  try {
+    const expense = await expenseService.getById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ success: false, message: 'Költség nem található' });
+    }
+    const file = (expense.file_attachments || []).find((f) => f.id === req.params.file_id);
+    if (!file) {
+      return res.status(404).json({ success: false, message: 'Fájl nem található' });
+    }
+
+    let buffer;
+    try {
+      buffer = await storage.read(file.path);
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        return res.status(404).json({ success: false, message: 'A fájl nem található a tárolóban' });
+      }
+      throw e;
+    }
+
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(file.original_name || file.filename)}"`,
+    );
+
+    // Log access (fire-and-forget so a logger hiccup doesn't break the download)
+    logActivity({
+      userId: req.user.id,
+      entityType: 'accommodation_expense',
+      entityId: expense.id,
+      action: 'file_download',
+      metadata: { file_id: file.id, filename: file.filename },
+    }).catch(() => {});
+
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Fájl letöltési hiba:', error);
+    res.status(500).json({ success: false, message: 'Fájl letöltési hiba' });
+  }
+};
+
+/**
+ * DELETE /api/v1/expenses/:id/files/:file_id
+ */
+const deleteFile = async (req, res) => {
+  try {
+    const expense = await expenseService.getById(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ success: false, message: 'Költség nem található' });
+    }
+
+    const files = expense.file_attachments || [];
+    const file = files.find((f) => f.id === req.params.file_id);
+    if (!file) {
+      return res.status(404).json({ success: false, message: 'Fájl nem található' });
+    }
+
+    // Atomic JSONB filter — remove the matching element by id.
+    const updated = await query(
+      `UPDATE accommodation_expenses
+          SET file_attachments = COALESCE(
+            (SELECT jsonb_agg(elem) FROM jsonb_array_elements(file_attachments) elem
+              WHERE elem->>'id' <> $1),
+            '[]'::jsonb)
+        WHERE id = $2 AND deleted_at IS NULL
+      RETURNING file_attachments`,
+      [req.params.file_id, expense.id],
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Költség nem található' });
+    }
+
+    await storage.delete(file.path);
+
+    await logActivity({
+      userId: req.user.id,
+      entityType: 'accommodation_expense',
+      entityId: expense.id,
+      action: 'file_delete',
+      metadata: { file_id: file.id, filename: file.filename, original_name: file.original_name },
+    });
+
+    res.json({
+      success: true,
+      message: 'Fájl törölve',
+      data: { file_attachments: updated.rows[0].file_attachments },
+    });
+  } catch (error) {
+    logger.error('Fájl törlési hiba:', error);
+    res.status(500).json({ success: false, message: 'Fájl törlési hiba' });
+  }
+};
+
+module.exports = {
+  getAll, getById, create, update, remove, checkDuplicates,
+  uploadFile, downloadFile, deleteFile,
+  uploadWithErrorHandling,
+};

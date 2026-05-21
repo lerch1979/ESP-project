@@ -14,4 +14,19 @@ router.post('/',    checkPermission('settings.edit'), expenseController.create);
 router.put('/:id',  checkPermission('settings.edit'), expenseController.update);
 router.delete('/:id', checkPermission('settings.edit'), expenseController.remove);
 
+// File attachments (multipart upload via the controller's own multer mw)
+router.post('/:id/files',
+  checkPermission('settings.edit'),
+  expenseController.uploadWithErrorHandling,
+  expenseController.uploadFile,
+);
+router.get('/:id/files/:file_id',
+  checkPermission('settings.view'),
+  expenseController.downloadFile,
+);
+router.delete('/:id/files/:file_id',
+  checkPermission('settings.edit'),
+  expenseController.deleteFile,
+);
+
 module.exports = router;
