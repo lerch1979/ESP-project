@@ -137,6 +137,7 @@ function buildCalculationDetails(rows, computedAt) {
  * @param {object} [opts]
  * @param {string} [opts.createdBy]   user UUID for the billing_run record
  * @param {string} [opts.runType='incoming']
+ * @param {string} [opts.notes]       free-text tag, e.g. '[auto] cron monthly billing'
  * @returns {Promise<{run_id, month, run_type, status, total_amount,
  *                    billing_count, partner_count, skipped_no_rent,
  *                    skipped_no_partner, replaced_run_id}>}
@@ -223,12 +224,16 @@ async function calculateMonthlyBilling(month, opts = {}) {
     }
 
     // ─── 4. Create the run, then one accommodation_billings row per group ───
+    const noteParts = [];
+    if (opts.notes) noteParts.push(opts.notes);
+    if (replacedRunId) noteParts.push(`Replaces ${replacedRunId}`);
+    const runNotes = noteParts.length ? noteParts.join(' | ') : null;
+
     const runIns = await client.query(
       `INSERT INTO billing_runs (billing_month, run_type, status, created_by, notes)
        VALUES ($1, $2, 'draft', $3, $4)
        RETURNING id`,
-      [month, runType, opts.createdBy || null,
-       replacedRunId ? `Replaces ${replacedRunId}` : null]
+      [month, runType, opts.createdBy || null, runNotes]
     );
     const runId = runIns.rows[0].id;
 

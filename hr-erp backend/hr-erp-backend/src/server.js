@@ -551,6 +551,29 @@ async function startServer() {
     });
     logger.info('💰 Monthly payroll cron scheduled (1st of month 01:00, DRY-RUN)');
 
+    // Monthly billing — 03:00 on the 1st of every month. Calculates the
+    // previous month's incoming billing from occupancy_snapshots. The
+    // engine is idempotent (replaces any non-finalized run for the same
+    // month) and writes draft rows only — no invoice generation, no
+    // email yet (Phase 2). A run created by this cron is tagged in
+    // `billing_runs.notes` so it's distinguishable from manual ones.
+    cron.schedule('0 3 1 * *', async () => {
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const targetMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+      try {
+        const engine = require('./services/billingEngine.service');
+        const result = await engine.calculateMonthlyBilling(targetMonth, {
+          notes: '[auto] cron monthly billing',
+        });
+        logger.info(`[cron:monthlyBilling] ${targetMonth} ${JSON.stringify(result)}`);
+      } catch (err) {
+        logger.error('[cron:monthlyBilling] failed:', err.message);
+        sentry.captureException(err, { targetMonth });
+      }
+    });
+    logger.info('🧾 Monthly billing cron scheduled (1st of month 03:00)');
+
     // Szerver indítása
     const server = app.listen(PORT, async () => {
       logger.info(`🚀 Szerver fut: http://localhost:${PORT} (PID: ${process.pid})`);
