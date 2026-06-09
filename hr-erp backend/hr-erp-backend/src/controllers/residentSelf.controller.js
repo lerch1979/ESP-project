@@ -26,8 +26,8 @@ const getMyTickets = async (req, res) => {
       `SELECT
          t.id, t.ticket_number, t.title, t.description, t.language,
          t.created_at, t.updated_at, t.due_date, t.resolved_at, t.closed_at,
-         ts.name as status_name, ts.slug as status_slug, ts.color as status_color,
-         tc.name as category_name, tc.slug as category_slug, tc.color as category_color,
+         ts.name as status_name, ts.slug as status_slug, ts.color as status_color, ts.is_final,
+         tc.name as category_name, tc.slug as category_slug, tc.color as category_color, tc.icon as category_icon,
          p.name as priority_name, p.slug as priority_slug, p.level as priority_level, p.color as priority_color
        FROM tickets t
        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
@@ -76,7 +76,8 @@ const getMyTicketById = async (req, res) => {
 const getMyAccommodation = async (req, res) => {
   try {
     const result = await query(
-      `SELECT a.*, e.room_number as my_room_number
+      `SELECT a.*, e.room_number as my_room_number,
+              e.first_name as my_first_name, e.last_name as my_last_name
        FROM employees e
        JOIN accommodations a ON a.id = e.accommodation_id
        WHERE e.user_id = $1 AND e.end_date IS NULL

@@ -280,6 +280,13 @@ export const accommodationsAPI = {
 };
 
 // Documents API
+export const notificationsAPI = {
+  getUnreadCount: async () => {
+    const response = await api.get('/notification-center/unread-count');
+    return response.data;
+  },
+};
+
 export const documentsAPI = {
   getAll: async (params = {}) => {
     const response = await api.get('/documents', { params });

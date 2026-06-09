@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import DashboardScreen from '../screens/DashboardScreen';
+import ResidentHomeScreen from '../screens/ResidentHomeScreen';
 import TicketStackNavigator from './TicketStackNavigator';
 import EmployeeStackNavigator from './EmployeeStackNavigator';
 import WellbeingStackNavigator from './WellbeingStackNavigator';
@@ -14,6 +15,7 @@ import { isResident } from '../utils/roles';
 const Tab = createBottomTabNavigator();
 
 const tabIcons = {
+  Home: 'home',
   Dashboard: 'home',
   Tickets: 'ticket',
   Employees: 'people',
@@ -31,7 +33,7 @@ export default function MainTabNavigator() {
 
   return (
     <Tab.Navigator
-      initialRouteName={resident ? 'Tickets' : 'Dashboard'}
+      initialRouteName={resident ? 'Home' : 'Dashboard'}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           const iconName = tabIcons[route.name] + (focused ? '' : '-outline');
@@ -48,6 +50,13 @@ export default function MainTabNavigator() {
         headerTitleStyle: { fontWeight: '600' },
       })}
     >
+      {resident && (
+        <Tab.Screen
+          name="Home"
+          component={ResidentHomeScreen}
+          options={{ title: t('nav.home') }}
+        />
+      )}
       {!resident && (
         <Tab.Screen
           name="Dashboard"
