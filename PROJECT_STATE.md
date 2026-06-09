@@ -1,6 +1,6 @@
 # HR-ERP PROJECT STATE
 
-**Last updated:** 2026-05-21
+**Last updated:** 2026-06-09
 **Maintainer:** lerchbalazs@gmail.com
 
 ---
@@ -58,6 +58,7 @@ Companion docs:
 | Slack integration | `memory/project_slack.md` | live | Session 24 |
 | WellMind + CarePath | backend `wellmind*`, `carepath*`, admin pages | live | per code |
 | Cron orchestration | `src/cron/`, 9 wellbeing jobs + billing + payroll | live | 2026-05-18 → 21 |
+| **Resident self-scoped mobile API** (NEW) | backend `residentSelf.{controller,routes}.js` — `/tickets/my`, `/tickets/my/:id`, `/accommodations/my`; role `accommodated_employee` (grant: `tickets.create` only) | live (test resident only) | 2026-06-09 |
 
 ---
 
@@ -112,6 +113,8 @@ For older history: `git log --oneline --since="2026-04-01"`.
 | 2026-05-21 | Profit endpoint income source: INNER JOIN billing_runs, exclude cancelled + non-incoming | Caught a LEFT JOIN bug that leaked cancelled rows | ✅ tested |
 | 2026-05-21 | Profit margin = null when income = 0 | Avoid divide-by-zero / misleading negative-infinity | ✅ implemented |
 | _open_ | Unify accommodation_expenses with cost_centers? | See `docs/ARCH_COST_TRACKING_OPTIONS.md` | ⏳ awaiting decision |
+| 2026-06-09 | Audit trigger: null-tolerant `entity_id` + `activity_logs.entity_id` nullable (mig 118) | `audit_trigger_func` assumed `NEW.id`; broke all composite-PK inserts → froze role-permission grants system-wide | ✅ fixed (applied via psql; runner blocked at 093) |
+| 2026-06-09 | Resident access via dedicated self-scoped `/my` endpoints (Path B), NOT by granting `tickets.view` | `tickets.view`/`accommodations.view` are blanket/overloaded; new auth-only endpoints isolate by `created_by`/`user_id` and leave staff routes untouched | ✅ implemented + isolation-tested |
 
 ---
 
@@ -149,6 +152,9 @@ For older history: `git log --oneline --since="2026-04-01"`.
 | Compensations payroll cron is DRY-RUN | medium | Promote to live mode when ready |
 | `docs/PROJECT_CONTEXT.md` is stale | low | Decide: refresh or deprecate |
 | Sarród I. vs Sarród II. — old CC has only "Sarród szálló" | low | If AI pipeline revived, split needed |
+| **🚩 Migration runner blocked at `093 cleanup_demo_data`** | **high** | Guard "expected exactly 1 user, got 6" fails on the real DB → `npm run db:migrate` stops at 093 and never reaches 118+. 093 is a demo-data *cleanup* — running the chain is unsafe. Mig 118 was applied via psql. **Decide 093's disposition (rewrite guard / mark obsolete) before using the runner; do not touch 093 blindly.** |
+| `tickets.view` is blanket + overloaded | medium | Gates 6 endpoints incl. writes (comments, messages); `getTickets`/`getTicketById`/`getAccommodations` are contractor-/system-wide, not self-scoped. Residents deliberately do NOT hold it — they use the self-scoped `/my` endpoints. Staff self-scoping (created_by) is a future refactor if non-superadmin staff ever need narrower views. |
+| Resident-facing read endpoints lack self-scope (staff side) | low | Only the new `/my` endpoints are self-scoped; the staff `/tickets`, `/accommodations`, `/documents` remain blanket — fine for staff, but no resident may hold those permissions until row-level filtering is added there too. |
 
 ---
 
