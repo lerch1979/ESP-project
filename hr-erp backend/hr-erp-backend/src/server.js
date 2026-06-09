@@ -17,6 +17,7 @@ const { validateSSLConfig } = require('./config/ssl.config');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const ticketRoutes = require('./routes/ticket.routes');
+const residentSelfRoutes = require('./routes/residentSelf.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const categoryRoutes = require('./routes/category.routes');
 const priorityRoutes = require('./routes/priority.routes');
@@ -351,6 +352,9 @@ app.post(`${API_PREFIX}/csp-report`, express.json({ type: 'application/csp-repor
 
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);
+// Resident self-scoped endpoints — MUST be mounted before the staff /tickets
+// and /accommodations routers so /tickets/my and /accommodations/my match here.
+app.use(`${API_PREFIX}`, residentSelfRoutes);
 app.use(`${API_PREFIX}/tickets`, ticketRoutes);
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/categories`, categoryRoutes);
