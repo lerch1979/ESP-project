@@ -10,11 +10,19 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
 import { useAuth } from '../contexts/AuthContext';
 
+const LANGS = [
+  { code: 'hu', label: 'Magyar' },
+  { code: 'uk', label: 'Українська' },
+  { code: 'tl', label: 'Tagalog' },
+];
+
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,9 +66,24 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.title}>Bejelentkezés</Text>
+        <View style={styles.langRow}>
+          {LANGS.map((l) => (
+            <TouchableOpacity
+              key={l.code}
+              style={[styles.langChip, i18n.language === l.code && styles.langChipActive]}
+              onPress={() => i18n.changeLanguage(l.code)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.langChipText, i18n.language === l.code && styles.langChipTextActive]}>
+                {l.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        <Text style={styles.label}>E-mail cím</Text>
+        <Text style={styles.title}>{t('login.subtitle')}</Text>
+
+        <Text style={styles.label}>{t('login.email')}</Text>
         <TextInput
           style={styles.input}
           value={email}
@@ -73,7 +96,7 @@ export default function LoginScreen() {
           editable={!loading}
         />
 
-        <Text style={styles.label}>Jelszó</Text>
+        <Text style={styles.label}>{t('login.password')}</Text>
         <TextInput
           style={styles.input}
           value={password}
@@ -94,7 +117,7 @@ export default function LoginScreen() {
           {loading ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.buttonText}>Bejelentkezés</Text>
+            <Text style={styles.buttonText}>{t('login.button')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -131,6 +154,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  langRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  langChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  langChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  langChipText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  langChipTextActive: {
+    color: colors.white,
+    fontWeight: '600',
   },
   title: {
     fontSize: 22,

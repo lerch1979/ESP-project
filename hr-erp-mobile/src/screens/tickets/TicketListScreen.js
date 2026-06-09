@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ticketsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
 import { colors } from '../../constants/colors';
 import TicketCard from '../../components/TicketCard';
 import SearchBar from '../../components/SearchBar';
@@ -26,6 +28,8 @@ const statusFilters = [
 ];
 
 export default function TicketListScreen({ navigation }) {
+  const { user } = useAuth();
+  const resident = isResident(user);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,16 +48,20 @@ export default function TicketListScreen({ navigation }) {
         if (search) params.search = search;
         if (statusFilter) params.status = statusFilter;
 
-        const response = await ticketsAPI.getAll(params);
+        // Residents use the self-scoped /tickets/my (own tickets only, no
+        // pagination); staff use the full /tickets list as before.
+        const response = resident
+          ? await ticketsAPI.getMine()
+          : await ticketsAPI.getAll(params);
         const newTickets = response.data.tickets;
 
-        if (pageNum === 1 || isRefresh) {
+        if (pageNum === 1 || isRefresh || resident) {
           setTickets(newTickets);
         } else {
           setTickets((prev) => [...prev, ...newTickets]);
         }
 
-        setHasMore(pageNum < response.data.pagination.totalPages);
+        setHasMore(resident ? false : pageNum < response.data.pagination.totalPages);
         setPage(pageNum);
       } catch {
         setError('Nem sikerült betölteni a hibajegyeket');
@@ -63,7 +71,7 @@ export default function TicketListScreen({ navigation }) {
         setLoadingMore(false);
       }
     },
-    [search, statusFilter]
+    [search, statusFilter, resident]
   );
 
   useEffect(() => {

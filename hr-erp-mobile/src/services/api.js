@@ -8,7 +8,7 @@ import { getItem, setItem, deleteItem } from './storage';
 // Fallback points at the current free-tier static domain so builds don't
 // silently break when .env is missing; overwrite it by setting
 // EXPO_PUBLIC_API_URL before `expo start`.
-const FALLBACK_URL = 'https://blinker-bronze-evasion.ngrok-free.dev/api/v1';
+const FALLBACK_URL = 'http://192.168.1.8:3001/api/v1';
 
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
@@ -170,6 +170,15 @@ export const ticketsAPI = {
     const response = await api.get(`/tickets/${id}`);
     return response.data;
   },
+  // Resident self-scoped: only the caller's own tickets (auth-only endpoint).
+  getMine: async () => {
+    const response = await api.get('/tickets/my');
+    return response.data;
+  },
+  getMineById: async (id) => {
+    const response = await api.get(`/tickets/my/${id}`);
+    return response.data;
+  },
   create: async (ticketData) => {
     const response = await api.post('/tickets', ticketData);
     return response.data;
@@ -261,6 +270,11 @@ export const accommodationsAPI = {
   },
   getById: async (id) => {
     const response = await api.get(`/accommodations/${id}`);
+    return response.data;
+  },
+  // Resident self-scoped: only the caller's own room (auth-only endpoint).
+  getMine: async () => {
+    const response = await api.get('/accommodations/my');
     return response.data;
   },
 };

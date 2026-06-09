@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ticketsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
 import { colors } from '../../constants/colors';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingScreen from '../../components/LoadingScreen';
@@ -20,6 +22,8 @@ import ErrorState from '../../components/ErrorState';
 
 export default function TicketDetailScreen({ route }) {
   const { id } = route.params;
+  const { user } = useAuth();
+  const resident = isResident(user);
   const [ticket, setTicket] = useState(null);
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,19 +35,26 @@ export default function TicketDetailScreen({ route }) {
   const fetchTicket = useCallback(async () => {
     try {
       setError(null);
-      const [ticketRes, statusRes] = await Promise.all([
-        ticketsAPI.getById(id),
-        ticketsAPI.getStatuses(),
-      ]);
-      setTicket(ticketRes.data.ticket);
-      setStatuses(statusRes.data.statuses || []);
+      if (resident) {
+        // Self-scoped, read-only: own ticket only, no status/comment endpoints.
+        const ticketRes = await ticketsAPI.getMineById(id);
+        setTicket(ticketRes.data.ticket);
+        setStatuses([]);
+      } else {
+        const [ticketRes, statusRes] = await Promise.all([
+          ticketsAPI.getById(id),
+          ticketsAPI.getStatuses(),
+        ]);
+        setTicket(ticketRes.data.ticket);
+        setStatuses(statusRes.data.statuses || []);
+      }
     } catch {
       setError('Nem sikerült betölteni a hibajegyet');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, resident]);
 
   useEffect(() => {
     fetchTicket();
@@ -128,7 +139,8 @@ export default function TicketDetailScreen({ route }) {
           </View>
         </View>
 
-        {/* Status Change */}
+        {/* Status Change — staff only; residents are read-only */}
+        {!resident && (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Státusz módosítása</Text>
           <View style={styles.statusButtons}>
@@ -155,6 +167,7 @@ export default function TicketDetailScreen({ route }) {
             ))}
           </View>
         </View>
+        )}
 
         {/* Comments */}
         <View style={styles.card}>
@@ -179,7 +192,8 @@ export default function TicketDetailScreen({ route }) {
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* Add Comment */}
+      {/* Add Comment — staff only; residents cannot comment */}
+      {!resident && (
       <View style={styles.commentInputContainer}>
         <TextInput
           style={styles.commentInput}
@@ -197,6 +211,7 @@ export default function TicketDetailScreen({ route }) {
           <Ionicons name="send" size={20} color={colors.white} />
         </TouchableOpacity>
       </View>
+      )}
     </KeyboardAvoidingView>
   );
 }

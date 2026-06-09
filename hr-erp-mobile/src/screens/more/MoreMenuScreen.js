@@ -3,6 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
+
+// Menu item keys a resident (accommodated_employee) may see — everything else
+// is staff-only and hidden.
+const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile'];
 
 const menuSections = [
   {
@@ -70,7 +75,13 @@ const menuSections = [
 ];
 
 export default function MoreMenuScreen({ navigation }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const resident = isResident(user);
+  const sections = resident
+    ? menuSections
+        .map((s) => ({ ...s, items: s.items.filter((i) => RESIDENT_MENU_KEYS.includes(i.key)) }))
+        .filter((s) => s.items.length > 0)
+    : menuSections;
 
   const handleLogout = () => {
     Alert.alert('Kijelentkezés', 'Biztosan ki szeretne jelentkezni?', [
@@ -81,7 +92,7 @@ export default function MoreMenuScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {menuSections.map((section) => (
+      {sections.map((section) => (
         <View key={section.title}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
           {section.items.map((item) => (

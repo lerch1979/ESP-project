@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { accommodationsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
 import { colors } from '../../constants/colors';
 import AccommodationCard from '../../components/AccommodationCard';
 import SearchBar from '../../components/SearchBar';
@@ -17,6 +19,8 @@ const statusFilters = [
 ];
 
 export default function AccommodationListScreen({ navigation }) {
+  const { user } = useAuth();
+  const resident = isResident(user);
   const [accommodations, setAccommodations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,6 +35,16 @@ export default function AccommodationListScreen({ navigation }) {
     async (pageNum = 1, isRefresh = false) => {
       try {
         setError(null);
+        // Residents see ONLY their own room (self-scoped /accommodations/my,
+        // a single object); staff get the full paginated list as before.
+        if (resident) {
+          const response = await accommodationsAPI.getMine();
+          setAccommodations(response.data.accommodation ? [response.data.accommodation] : []);
+          setHasMore(false);
+          setPage(1);
+          return;
+        }
+
         const params = { page: pageNum, limit: 20 };
         if (search) params.search = search;
         if (statusFilter) params.status = statusFilter;
@@ -54,7 +68,7 @@ export default function AccommodationListScreen({ navigation }) {
         setLoadingMore(false);
       }
     },
-    [search, statusFilter]
+    [search, statusFilter, resident]
   );
 
   useEffect(() => {
@@ -81,15 +95,19 @@ export default function AccommodationListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <SearchBar placeholder="Szálláshely keresése..." onSearch={setSearch} />
-      <FilterChips options={statusFilters} selected={statusFilter} onSelect={setStatusFilter} />
+      {!resident && (
+        <>
+          <SearchBar placeholder="Szálláshely keresése..." onSearch={setSearch} />
+          <FilterChips options={statusFilters} selected={statusFilter} onSelect={setStatusFilter} />
+        </>
+      )}
       <FlatList
         data={accommodations}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <AccommodationCard
             accommodation={item}
-            onPress={() => navigation.navigate('AccommodationDetail', { id: item.id })}
+            onPress={resident ? undefined : () => navigation.navigate('AccommodationDetail', { id: item.id })}
           />
         )}
         refreshControl={
