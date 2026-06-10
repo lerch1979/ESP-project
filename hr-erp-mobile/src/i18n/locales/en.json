@@ -6,6 +6,16 @@
     "employees": "Employees",
     "more": "More"
   },
+  "resident": {
+    "reportIssue": "Report an issue",
+    "myTickets": "My tickets",
+    "room": "Room"
+  },
+  "chat": {
+    "placeholder": "Write a message…",
+    "me": "Me",
+    "empty": "No messages yet"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Login",

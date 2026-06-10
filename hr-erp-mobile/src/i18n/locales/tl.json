@@ -6,6 +6,16 @@
     "employees": "Mga Empleyado",
     "more": "Iba pa"
   },
+  "resident": {
+    "reportIssue": "Mag-ulat ng problema",
+    "myTickets": "Mga tiket ko",
+    "room": "Silid"
+  },
+  "chat": {
+    "placeholder": "Magsulat ng mensahe…",
+    "me": "Ako",
+    "empty": "Wala pang mensahe"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Mag-login",

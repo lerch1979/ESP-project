@@ -6,6 +6,16 @@
     "employees": "Mitarbeiter",
     "more": "Mehr"
   },
+  "resident": {
+    "reportIssue": "Problem melden",
+    "myTickets": "Meine Tickets",
+    "room": "Zimmer"
+  },
+  "chat": {
+    "placeholder": "Nachricht schreiben…",
+    "me": "Ich",
+    "empty": "Noch keine Nachrichten"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Anmelden",

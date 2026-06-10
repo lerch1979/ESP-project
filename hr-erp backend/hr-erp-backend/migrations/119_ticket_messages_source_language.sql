@@ -1,0 +1,12 @@
+-- 119: translation-readiness for the ticket chat (Step-2 prep, no behavior change).
+--
+-- Adds the language each message was written in, so the future auto-translate
+-- step can (a) skip translation when viewer language == source language, and
+-- (b) use this as `source_lang` for the existing translation_cache lookup
+-- (source_text, source_lang, target_lang) without re-detecting per message.
+--
+-- original_text  → already stored in ticket_messages.message (never overwritten)
+-- translated_text → lives in translation_cache (content-keyed), NOT here
+--
+-- Idempotent + additive (nullable). No data change.
+ALTER TABLE ticket_messages ADD COLUMN IF NOT EXISTS source_language VARCHAR(5);

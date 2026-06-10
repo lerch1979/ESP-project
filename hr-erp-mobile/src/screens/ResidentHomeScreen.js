@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, Text, RefreshControl, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { accommodationsAPI, ticketsAPI, notificationsAPI } from '../services/api';
 import ActionCard from '../components/ActionCard';
@@ -9,6 +10,7 @@ import { colors } from '../constants/colors';
 // Profile-centric resident home. Big icon cards, minimal text (mixed-language
 // workforce). Badges: open ticket count + unread notifications.
 export default function ResidentHomeScreen({ navigation }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [room, setRoom] = useState(null);
@@ -60,7 +62,7 @@ export default function ResidentHomeScreen({ navigation }) {
           <View style={styles.roomRow}>
             <Ionicons name="home-outline" size={16} color="rgba(255,255,255,0.85)" />
             <Text style={styles.room}>
-              {room.name}{room.my_room_number ? ` · Szoba ${room.my_room_number}` : ''}
+              {room.name}{room.my_room_number ? ` · ${t('resident.room')} ${room.my_room_number}` : ''}
             </Text>
           </View>
         )}
@@ -70,20 +72,20 @@ export default function ResidentHomeScreen({ navigation }) {
       <View style={styles.actions}>
         <ActionCard
           icon="alert-circle"
-          label="Hibát jelentek"
+          label={t('resident.reportIssue')}
           variant="primary"
           onPress={() => navigation.navigate('Tickets', { screen: 'CreateTicket' })}
         />
         <View style={styles.grid}>
           <ActionCard
             icon="ticket-outline"
-            label="Hibajegyeim"
+            label={t('resident.myTickets')}
             badge={openCount}
             onPress={() => navigation.navigate('Tickets', { screen: 'TicketList' })}
           />
           <ActionCard
             icon="notifications-outline"
-            label="Értesítések"
+            label={t('notifications.title')}
             badge={unread}
             onPress={() => navigation.navigate('More', { screen: 'Notifications' })}
           />
@@ -91,7 +93,7 @@ export default function ResidentHomeScreen({ navigation }) {
         <View style={styles.grid}>
           <ActionCard
             icon="person-circle-outline"
-            label="Profil"
+            label={t('settings.profile')}
             onPress={() => navigation.navigate('More', { screen: 'Profile' })}
           />
           <View style={styles.spacer} />

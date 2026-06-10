@@ -15,12 +15,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { ticketsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { isResident } from '../../utils/roles';
+import ResidentTicketDetail from './ResidentTicketDetail';
 import { colors } from '../../constants/colors';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingScreen from '../../components/LoadingScreen';
 import ErrorState from '../../components/ErrorState';
 
-export default function TicketDetailScreen({ route }) {
+export default function TicketDetailScreen({ route, navigation }) {
+  const { user } = useAuth();
+  if (isResident(user)) return <ResidentTicketDetail route={route} navigation={navigation} />;
+  return <StaffTicketDetail route={route} navigation={navigation} />;
+}
+
+function StaffTicketDetail({ route }) {
   const { id } = route.params;
   const { user } = useAuth();
   const resident = isResident(user);

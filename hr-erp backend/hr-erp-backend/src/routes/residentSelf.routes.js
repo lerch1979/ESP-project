@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const residentSelf = require('../controllers/residentSelf.controller');
+const ticketMessages = require('../controllers/ticketMessages.controller');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
@@ -17,5 +18,11 @@ router.use(authenticateToken);
 router.get('/tickets/my', residentSelf.getMyTickets);
 router.get('/tickets/my/:id', residentSelf.getMyTicketById);
 router.get('/accommodations/my', residentSelf.getMyAccommodation);
+
+// Resident ticket chat — self-scoped to OWN ticket (requireOwnTicket guard),
+// then reuse the shared staff thread controllers so messages land in the same
+// ticket_messages thread staff already see.
+router.get('/tickets/my/:ticketId/messages', residentSelf.requireOwnTicket, ticketMessages.list);
+router.post('/tickets/my/:ticketId/messages', residentSelf.requireOwnTicket, ticketMessages.send);
 
 module.exports = router;

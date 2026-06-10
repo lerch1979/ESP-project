@@ -6,6 +6,16 @@
     "employees": "Працівники",
     "more": "Ще"
   },
+  "resident": {
+    "reportIssue": "Повідомити про проблему",
+    "myTickets": "Мої заявки",
+    "room": "Кімната"
+  },
+  "chat": {
+    "placeholder": "Напишіть повідомлення…",
+    "me": "Я",
+    "empty": "Повідомлень ще немає"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Увійти",

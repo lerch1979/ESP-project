@@ -6,6 +6,16 @@
     "employees": "Munkavállalók",
     "more": "Továbbiak"
   },
+  "resident": {
+    "reportIssue": "Hibát jelentek",
+    "myTickets": "Hibajegyeim",
+    "room": "Szoba"
+  },
+  "chat": {
+    "placeholder": "Írj üzenetet…",
+    "me": "Én",
+    "empty": "Még nincs üzenet"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Bejelentkezés",

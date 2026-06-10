@@ -93,4 +93,25 @@ const getMyAccommodation = async (req, res) => {
   }
 };
 
-module.exports = { getMyTickets, getMyTicketById, getMyAccommodation };
+// Guard for the resident ticket-chat routes: the :ticketId path param MUST be
+// a ticket the resident created. 404 (not 403) so other tenants' ticket
+// existence isn't revealed. This is the ONLY ownership scope — the reused
+// ticketMessages.list/send do NOT self-scope (their _detectSenderRole returns
+// a role for any existing ticket), so this guard must run before them.
+const requireOwnTicket = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    if (!UUID_RE.test(ticketId)) {
+      return res.status(404).json({ success: false, message: 'Hibajegy nem található' });
+    }
+    const r = await query('SELECT created_by FROM tickets WHERE id = $1', [ticketId]);
+    if (r.rowCount === 0 || r.rows[0].created_by !== req.user.id) {
+      return res.status(404).json({ success: false, message: 'Hibajegy nem található' });
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Hiba a hibajegy ellenőrzésekor' });
+  }
+};
+
+module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket };
