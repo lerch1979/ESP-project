@@ -14,7 +14,10 @@
   "chat": {
     "placeholder": "Írj üzenetet…",
     "me": "Én",
-    "empty": "Még nincs üzenet"
+    "empty": "Még nincs üzenet",
+    "original": "eredeti",
+    "showTranslation": "fordítás",
+    "translationUnavailable": "fordítás nem elérhető"
   },
   "login": {
     "title": "HR-ERP Mobile",

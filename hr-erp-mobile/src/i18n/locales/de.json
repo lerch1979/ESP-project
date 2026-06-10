@@ -14,7 +14,10 @@
   "chat": {
     "placeholder": "Nachricht schreiben…",
     "me": "Ich",
-    "empty": "Noch keine Nachrichten"
+    "empty": "Noch keine Nachrichten",
+    "original": "Original",
+    "showTranslation": "Übersetzung",
+    "translationUnavailable": "Übersetzung nicht verfügbar"
   },
   "login": {
     "title": "HR-ERP Mobile",

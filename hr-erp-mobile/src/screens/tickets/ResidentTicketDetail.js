@@ -23,6 +23,36 @@ function fmtTime(d) {
   return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
 }
 
+// One chat bubble. Shows the reader's-language text by default; if it was
+// translated, a small "eredeti" toggle reveals the original.
+function MessageBubble({ item, mine, t }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const text = showOriginal ? (item.original_text || item.message) : (item.display_text || item.message);
+  return (
+    <View style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowStaff]}>
+      <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleStaff]}>
+        <Text style={[styles.sender, mine ? styles.senderMine : styles.senderStaff]}>
+          {mine ? t('chat.me') : STAFF_LABEL}
+        </Text>
+        <Text style={[styles.msg, mine && styles.msgMine]}>{text}</Text>
+        <View style={styles.metaRow}>
+          <Text style={[styles.time, mine && styles.timeMine]}>{fmtTime(item.created_at)}</Text>
+          {item.is_translated ? (
+            <TouchableOpacity onPress={() => setShowOriginal((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Text style={[styles.origLink, mine && styles.origLinkMine]}>
+                {showOriginal ? t('chat.showTranslation') : t('chat.original')}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {item.translation_unavailable ? (
+            <Text style={[styles.unavail, mine && styles.timeMine]}>· {t('chat.translationUnavailable')}</Text>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // Read-only ticket header + chat thread (resident's OWN ticket only, via /my).
 export default function ResidentTicketDetail({ route, navigation }) {
   const { id } = route.params;
@@ -105,20 +135,9 @@ export default function ResidentTicketDetail({ route, navigation }) {
     </View>
   );
 
-  const renderItem = ({ item }) => {
-    const mine = item.sender_id === user?.id;
-    return (
-      <View style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowStaff]}>
-        <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleStaff]}>
-          <Text style={[styles.sender, mine ? styles.senderMine : styles.senderStaff]}>
-            {mine ? t('chat.me') : STAFF_LABEL}
-          </Text>
-          <Text style={[styles.msg, mine && styles.msgMine]}>{item.message}</Text>
-          <Text style={[styles.time, mine && styles.timeMine]}>{fmtTime(item.created_at)}</Text>
-        </View>
-      </View>
-    );
-  };
+  const renderItem = ({ item }) => (
+    <MessageBubble item={item} mine={item.sender_id === user?.id} t={t} />
+  );
 
   return (
     <KeyboardAvoidingView
@@ -185,8 +204,12 @@ const styles = StyleSheet.create({
   senderStaff: { color: colors.primary },
   msg: { fontSize: 15, color: colors.text, lineHeight: 20 },
   msgMine: { color: colors.white },
-  time: { fontSize: 10, color: colors.textLight, marginTop: 3, alignSelf: 'flex-end' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 3, gap: 8 },
+  time: { fontSize: 10, color: colors.textLight },
   timeMine: { color: 'rgba(255,255,255,0.7)' },
+  origLink: { fontSize: 11, color: colors.primary, fontWeight: '600' },
+  origLinkMine: { color: 'rgba(255,255,255,0.95)', textDecorationLine: 'underline' },
+  unavail: { fontSize: 10, color: colors.textLight, fontStyle: 'italic' },
   empty: { textAlign: 'center', color: colors.textLight, padding: 24, fontSize: 14 },
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', padding: 10,

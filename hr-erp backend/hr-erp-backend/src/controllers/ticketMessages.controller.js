@@ -16,6 +16,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const inApp = require('../services/inAppNotification.service');
 const emailService = require('../services/email.service');
+const translation = require('../services/translation.service');
 const { buildSubject } = require('../utils/ticketEmailToken');
 
 // Dual env-flag for outbound chat→email. EMAIL_ASSISTANT_REPLY remains the
@@ -142,6 +143,7 @@ const list = async (req, res) => {
     const { ticketId } = req.params;
     const r = await query(
       `SELECT m.id, m.ticket_id, m.sender_id, m.sender_role, m.message,
+              m.source_language,
               m.attachments, m.source, m.source_id, m.read_by,
               m.edited_at, m.created_at,
               u.first_name AS sender_first_name,
@@ -154,7 +156,29 @@ const list = async (req, res) => {
         LIMIT 500`,
       [ticketId]
     );
-    res.json({ success: true, data: { messages: r.rows } });
+
+    // Show each message in the VIEWER's language. translateText is cache-first
+    // and NEVER throws (returns the original on error/disabled/empty), so this
+    // can never break the thread. Same-language messages are left untouched.
+    const viewerLang = await translation.getUserLanguage(req.user.id);
+    const messages = await Promise.all(r.rows.map(async (m) => {
+      const src = m.source_language;
+      let display_text = m.message;
+      let is_translated = false;
+      let translation_unavailable = false;
+      if (src && src !== viewerLang) {
+        const translated = await translation.translateText(m.message, src, viewerLang);
+        if (translated && translated !== m.message) {
+          display_text = translated;
+          is_translated = true;
+        } else {
+          translation_unavailable = true; // fallback returned the original
+        }
+      }
+      return { ...m, original_text: m.message, display_text, is_translated, translation_unavailable };
+    }));
+
+    res.json({ success: true, data: { messages } });
   } catch (err) {
     logger.error('[ticketMessages.list]', err);
     res.status(500).json({ success: false, message: 'Üzenetek betöltési hiba' });
@@ -173,12 +197,16 @@ const send = async (req, res) => {
     const role = await _detectSenderRole(ticketId, req.user.id);
     if (!role) return res.status(404).json({ success: false, message: 'Hibajegy nem található' });
 
+    // Sender's language — stored so the viewer-side translation knows the
+    // source and can skip same-language pairs. Best-effort (defaults 'hu').
+    const sourceLang = await translation.getUserLanguage(req.user.id);
+
     const ins = await query(
       `INSERT INTO ticket_messages
-         (ticket_id, sender_id, sender_role, message, attachments, source)
-       VALUES ($1, $2, $3, $4, $5::jsonb, 'in_app')
+         (ticket_id, sender_id, sender_role, message, attachments, source, source_language)
+       VALUES ($1, $2, $3, $4, $5::jsonb, 'in_app', $6)
        RETURNING *`,
-      [ticketId, req.user.id, role, message.trim(), JSON.stringify(attachments || [])]
+      [ticketId, req.user.id, role, message.trim(), JSON.stringify(attachments || []), sourceLang]
     );
     const created = ins.rows[0];
 
@@ -256,6 +284,30 @@ const send = async (req, res) => {
       }
     })();
 
+    // Best-effort translation pre-warm: translate into the other participants'
+    // languages (+ staff 'hu') so their first read is an instant cache hit.
+    // Non-blocking; never affects the send.
+    (async () => {
+      try {
+        const langs = await query(
+          `SELECT DISTINCT u.preferred_language AS lang
+             FROM tickets t
+             LEFT JOIN users creator ON creator.id = t.created_by
+             LEFT JOIN users assignee ON assignee.id = t.assigned_to
+             JOIN users u ON u.id IN (creator.id, assignee.id)
+            WHERE t.id = $1 AND u.id <> $2`,
+          [ticketId, req.user.id]
+        );
+        const targets = new Set(['hu', ...langs.rows.map(x => x.lang).filter(Boolean)]);
+        targets.delete(sourceLang);
+        for (const tgt of targets) {
+          await translation.translateText(message.trim(), sourceLang, tgt);
+        }
+      } catch (e) {
+        logger.warn('[ticketMessages.translate prewarm] failed:', e.message);
+      }
+    })();
+
     // Re-read with sender names so the UI can render the new bubble immediately
     const r2 = await query(
       `SELECT m.*, u.first_name AS sender_first_name, u.last_name AS sender_last_name, u.email AS sender_email
@@ -264,7 +316,12 @@ const send = async (req, res) => {
         WHERE m.id = $1`,
       [created.id]
     );
-    res.status(201).json({ success: true, data: { message: r2.rows[0] } });
+    // Sender always sees their own message in their own language.
+    const sent = r2.rows[0];
+    res.status(201).json({
+      success: true,
+      data: { message: { ...sent, original_text: sent.message, display_text: sent.message, is_translated: false, translation_unavailable: false } },
+    });
   } catch (err) {
     logger.error('[ticketMessages.send]', err);
     res.status(500).json({ success: false, message: 'Üzenet küldési hiba' });

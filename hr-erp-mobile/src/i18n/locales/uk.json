@@ -14,7 +14,10 @@
   "chat": {
     "placeholder": "Напишіть повідомлення…",
     "me": "Я",
-    "empty": "Повідомлень ще немає"
+    "empty": "Повідомлень ще немає",
+    "original": "оригінал",
+    "showTranslation": "переклад",
+    "translationUnavailable": "переклад недоступний"
   },
   "login": {
     "title": "HR-ERP Mobile",

@@ -14,7 +14,10 @@
   "chat": {
     "placeholder": "Magsulat ng mensahe…",
     "me": "Ako",
-    "empty": "Wala pang mensahe"
+    "empty": "Wala pang mensahe",
+    "original": "orihinal",
+    "showTranslation": "pagsasalin",
+    "translationUnavailable": "walang pagsasalin"
   },
   "login": {
     "title": "HR-ERP Mobile",

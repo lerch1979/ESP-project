@@ -32,6 +32,7 @@ const fmtTime = (s) => {
 };
 
 function MessageBubble({ message, isOwn, currentUserId, onMarkRead, onDelete }) {
+  const [showOriginal, setShowOriginal] = useState(false);
   const role  = ROLE_LABEL[message.sender_role] || '';
   const color = ROLE_COLOR[message.sender_role] || '#6b7280';
   const senderName = [message.sender_first_name, message.sender_last_name].filter(Boolean).join(' ')
@@ -88,8 +89,28 @@ function MessageBubble({ message, isOwn, currentUserId, onMarkRead, onDelete }) 
           )}
         </Stack>
         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {message.message}
+          {showOriginal ? (message.original_text || message.message) : (message.display_text || message.message)}
         </Typography>
+        {(message.is_translated || message.translation_unavailable) && (
+          <Box sx={{ mt: 0.25 }}>
+            {message.is_translated && (
+              <Typography
+                component="span"
+                variant="caption"
+                onClick={() => setShowOriginal(v => !v)}
+                sx={{ cursor: 'pointer', textDecoration: 'underline', fontSize: 10, opacity: 0.85,
+                  color: isOwn ? 'rgba(255,255,255,0.9)' : '#2563eb' }}
+              >
+                {showOriginal ? 'fordítás' : 'eredeti'}
+              </Typography>
+            )}
+            {message.translation_unavailable && (
+              <Typography component="span" variant="caption" sx={{ fontStyle: 'italic', opacity: 0.7, fontSize: 10 }}>
+                fordítás nem elérhető
+              </Typography>
+            )}
+          </Box>
+        )}
         <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end" sx={{ mt: 0.5 }}>
           <Typography variant="caption" sx={{ opacity: 0.7, fontSize: 10 }}>
             {fmtTime(message.created_at)}
