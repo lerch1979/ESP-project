@@ -19,6 +19,34 @@
     "showTranslation": "Übersetzung",
     "translationUnavailable": "Übersetzung nicht verfügbar"
   },
+  "category": {
+    "viz-csotores": "Wasser/Leck", "futes": "Heizung", "elektromos": "Elektrik",
+    "butor-berendezes": "Möbel/Ausstattung", "tisztasag": "Sauberkeit", "egyeb": "Sonstiges"
+  },
+  "status": {
+    "new": "Neu", "in_progress": "In Bearbeitung", "waiting": "Wartet",
+    "waiting_material": "Wartet auf Material", "completed": "Geschlossen", "resolved": "Gelöst",
+    "rejected": "Abgelehnt", "closed_unsuccessful": "Geschlossen (erfolglos)"
+  },
+  "priority": { "low": "Niedrig", "normal": "Normal", "urgent": "Dringend", "critical": "Kritisch" },
+  "ticketForm": {
+    "title": "Titel", "titlePlaceholder": "Ticket-Titel",
+    "description": "Beschreibung", "descriptionPlaceholder": "Detaillierte Beschreibung…",
+    "category": "Kategorie", "priority": "Priorität", "submit": "Ticket erstellen",
+    "titleRequired": "Titel ist erforderlich", "categoryRequired": "Bitte Kategorie wählen",
+    "priorityRequired": "Bitte Priorität wählen", "missingData": "Fehlende Daten",
+    "createError": "Ticket konnte nicht erstellt werden", "loadError": "Einstellungen konnten nicht geladen werden",
+    "success": "Ticket erfolgreich erstellt"
+  },
+  "ticketList": {
+    "open": "Offen ({{count}})", "closed": "Geschlossen ({{count}})", "empty": "Noch keine Tickets",
+    "loadError": "Tickets konnten nicht geladen werden", "detailLoadError": "Ticket konnte nicht geladen werden"
+  },
+  "roomView": { "loadError": "Unterkunft konnte nicht geladen werden", "empty": "Dir ist keine Unterkunft zugewiesen" },
+  "menu": {
+    "accommodations": "Unterkunft", "notifications": "Benachrichtigungen", "profile": "Profil",
+    "logout": "Abmelden", "allGood": "Alles in Ordnung!", "contractor": "Auftragnehmer", "roles": "Rollen"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Anmelden",

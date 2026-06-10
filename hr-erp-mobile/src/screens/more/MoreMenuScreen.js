@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../contexts/AuthContext';
 import { isResident } from '../../utils/roles';
+import { useTranslation } from 'react-i18next';
 
 // Menu item keys a resident (accommodated_employee) may see — everything else
 // is staff-only and hidden.
@@ -75,6 +76,7 @@ const menuSections = [
 ];
 
 export default function MoreMenuScreen({ navigation }) {
+  const { t } = useTranslation();
   const { logout, user } = useAuth();
   const resident = isResident(user);
   const sections = resident
@@ -84,9 +86,9 @@ export default function MoreMenuScreen({ navigation }) {
     : menuSections;
 
   const handleLogout = () => {
-    Alert.alert('Kijelentkezés', 'Biztosan ki szeretne jelentkezni?', [
-      { text: 'Mégse', style: 'cancel' },
-      { text: 'Kijelentkezés', style: 'destructive', onPress: logout },
+    Alert.alert(t('menu.logout'), t('settings.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('menu.logout'), style: 'destructive', onPress: logout },
     ]);
   };
 
@@ -94,7 +96,7 @@ export default function MoreMenuScreen({ navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {sections.map((section) => (
         <View key={section.title}>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
+          {!resident && <Text style={styles.sectionTitle}>{section.title}</Text>}
           {section.items.map((item) => (
             <TouchableOpacity
               key={item.key}
@@ -103,7 +105,7 @@ export default function MoreMenuScreen({ navigation }) {
               activeOpacity={0.7}
             >
               <Ionicons name={item.icon} size={22} color={colors.primary} />
-              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Text style={styles.menuLabel}>{resident ? t(`menu.${item.key}`, { defaultValue: item.label }) : item.label}</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
             </TouchableOpacity>
           ))}
@@ -116,7 +118,7 @@ export default function MoreMenuScreen({ navigation }) {
         activeOpacity={0.7}
       >
         <Ionicons name="log-out-outline" size={22} color={colors.error} />
-        <Text style={[styles.menuLabel, styles.logoutLabel]}>Kijelentkezés</Text>
+        <Text style={[styles.menuLabel, styles.logoutLabel]}>{t('menu.logout')}</Text>
       </TouchableOpacity>
       <View style={styles.bottomPadding} />
     </ScrollView>

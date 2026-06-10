@@ -29,9 +29,9 @@ export default function ProfileScreen() {
   const currentLang = i18nInstance.language || 'hu';
 
   const handleLogout = () => {
-    Alert.alert('Kijelentkezés', 'Biztosan ki szeretne jelentkezni?', [
-      { text: 'Mégse', style: 'cancel' },
-      { text: 'Kijelentkezés', style: 'destructive', onPress: logout },
+    Alert.alert(t('menu.logout'), t('settings.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('menu.logout'), style: 'destructive', onPress: logout },
     ]);
   };
 
@@ -70,10 +70,10 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <InfoRow label="E-mail" value={user.email} />
         {user.contractor && (
-          <InfoRow label="Alvállalkozó" value={user.contractor.name} />
+          <InfoRow label={t('menu.contractor')} value={user.contractor.name} />
         )}
         {user.roles && user.roles.length > 0 && (
-          <InfoRow label="Szerepkörök" value={user.roles.join(', ')} />
+          <InfoRow label={t('menu.roles')} value={user.roles.join(', ')} />
         )}
       </View>
 
@@ -110,7 +110,7 @@ export default function ProfileScreen() {
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
         <Ionicons name="log-out-outline" size={20} color={colors.white} />
-        <Text style={styles.logoutText}>Kijelentkezés</Text>
+        <Text style={styles.logoutText}>{t('menu.logout')}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />

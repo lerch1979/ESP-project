@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SectionList, Text, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import ResidentTicketRow from '../../components/ResidentTicketRow';
@@ -11,6 +12,7 @@ import EmptyState from '../../components/EmptyState';
 // Resident ticket view: chronological, newest-first, split into OPEN (prominent,
 // top) and CLOSED (dimmed, below). Read-only — tapping opens the detail screen.
 export default function ResidentTicketList({ navigation }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState([]);
   const [closed, setClosed] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ export default function ResidentTicketList({ navigation }) {
       setOpen(tickets.filter((t) => !t.is_final));
       setClosed(tickets.filter((t) => t.is_final));
     } catch {
-      setError('Nem sikerült betölteni a hibajegyeket');
+      setError(t('ticketList.loadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,8 +54,8 @@ export default function ResidentTicketList({ navigation }) {
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorState message={error} onRetry={load} />;
 
-  const sections = [{ title: `NYITOTT (${open.length})`, data: open, dimmed: false }];
-  if (closed.length > 0) sections.push({ title: `LEZÁRT (${closed.length})`, data: closed, dimmed: true });
+  const sections = [{ title: t('ticketList.open', { count: open.length }), data: open, dimmed: false }];
+  if (closed.length > 0) sections.push({ title: t('ticketList.closed', { count: closed.length }), data: closed, dimmed: true });
   const total = open.length + closed.length;
 
   return (
@@ -74,7 +76,7 @@ export default function ResidentTicketList({ navigation }) {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />
       }
-      ListEmptyComponent={<EmptyState icon="ticket-outline" message="Még nincs hibajegyed" />}
+      ListEmptyComponent={<EmptyState icon="ticket-outline" message={t('ticketList.empty')} />}
       contentContainerStyle={total === 0 && styles.emptyContainer}
       stickySectionHeadersEnabled={false}
     />

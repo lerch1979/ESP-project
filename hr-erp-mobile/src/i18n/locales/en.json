@@ -19,6 +19,34 @@
     "showTranslation": "translation",
     "translationUnavailable": "translation unavailable"
   },
+  "category": {
+    "viz-csotores": "Water/leak", "futes": "Heating", "elektromos": "Electrical",
+    "butor-berendezes": "Furniture/equipment", "tisztasag": "Cleanliness", "egyeb": "Other"
+  },
+  "status": {
+    "new": "New", "in_progress": "In progress", "waiting": "Waiting",
+    "waiting_material": "Waiting for materials", "completed": "Closed", "resolved": "Resolved",
+    "rejected": "Rejected", "closed_unsuccessful": "Closed (unsuccessful)"
+  },
+  "priority": { "low": "Low", "normal": "Normal", "urgent": "Urgent", "critical": "Critical" },
+  "ticketForm": {
+    "title": "Title", "titlePlaceholder": "Ticket title",
+    "description": "Description", "descriptionPlaceholder": "Detailed description…",
+    "category": "Category", "priority": "Priority", "submit": "Create ticket",
+    "titleRequired": "Title is required", "categoryRequired": "Please choose a category",
+    "priorityRequired": "Please choose a priority", "missingData": "Missing data",
+    "createError": "Could not create the ticket", "loadError": "Could not load settings",
+    "success": "Ticket created successfully"
+  },
+  "ticketList": {
+    "open": "Open ({{count}})", "closed": "Closed ({{count}})", "empty": "No tickets yet",
+    "loadError": "Could not load tickets", "detailLoadError": "Could not load ticket"
+  },
+  "roomView": { "loadError": "Could not load accommodation", "empty": "No accommodation assigned to you" },
+  "menu": {
+    "accommodations": "Accommodation", "notifications": "Notifications", "profile": "Profile",
+    "logout": "Log out", "allGood": "All good!", "contractor": "Contractor", "roles": "Roles"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Login",

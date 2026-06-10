@@ -11,11 +11,13 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import LoadingScreen from '../../components/LoadingScreen';
 
 export default function CreateTicketScreen({ navigation }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(null);
@@ -36,7 +38,7 @@ export default function CreateTicketScreen({ navigation }) {
         setCategories(catRes.data.categories || []);
         setPriorities(priRes.data.priorities || []);
       } catch {
-        Alert.alert('Hiba', 'Nem sikerült betölteni a beállításokat');
+        Alert.alert(t('common.error'), t('ticketForm.loadError'));
       } finally {
         setLoading(false);
       }
@@ -46,13 +48,13 @@ export default function CreateTicketScreen({ navigation }) {
 
   const handleSubmit = async () => {
     const nextErrors = {};
-    if (!title.trim()) nextErrors.title = 'A cím megadása kötelező';
-    if (!categoryId) nextErrors.category = 'Kérjük, válasszon kategóriát';
-    if (!priorityId) nextErrors.priority = 'Kérjük, válasszon prioritást';
+    if (!title.trim()) nextErrors.title = t('ticketForm.titleRequired');
+    if (!categoryId) nextErrors.category = t('ticketForm.categoryRequired');
+    if (!priorityId) nextErrors.priority = t('ticketForm.priorityRequired');
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
-      Alert.alert('Hiányzó adatok', Object.values(nextErrors).join('\n'));
+      Alert.alert(t('ticketForm.missingData'), Object.values(nextErrors).join('\n'));
       return;
     }
     setErrors({});
@@ -65,12 +67,12 @@ export default function CreateTicketScreen({ navigation }) {
         category_id: categoryId,
         priority_id: priorityId,
       });
-      Alert.alert('Siker', 'Hibajegy sikeresen létrehozva', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert(t('common.success'), t('ticketForm.success'), [
+        { text: t('common.ok'), onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
-      const message = err.response?.data?.message || 'Nem sikerült létrehozni a hibajegyet';
-      Alert.alert('Hiba', message);
+      const message = err.response?.data?.message || t('ticketForm.createError');
+      Alert.alert(t('common.error'), message);
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +87,7 @@ export default function CreateTicketScreen({ navigation }) {
     >
       <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.label}>Cím *</Text>
+          <Text style={styles.label}>{t('ticketForm.title')} *</Text>
           <TextInput
             style={[styles.input, errors.title && styles.inputError]}
             value={title}
@@ -93,24 +95,24 @@ export default function CreateTicketScreen({ navigation }) {
               setTitle(text);
               if (errors.title) setErrors((e) => ({ ...e, title: null }));
             }}
-            placeholder="Hibajegy címe"
+            placeholder={t('ticketForm.titlePlaceholder')}
             placeholderTextColor={colors.textLight}
           />
           {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
-          <Text style={styles.label}>Leírás</Text>
+          <Text style={styles.label}>{t('ticketForm.description')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={description}
             onChangeText={setDescription}
-            placeholder="Részletes leírás..."
+            placeholder={t('ticketForm.descriptionPlaceholder')}
             placeholderTextColor={colors.textLight}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
           />
 
-          <Text style={styles.label}>Kategória *</Text>
+          <Text style={styles.label}>{t('ticketForm.category')} *</Text>
           <View style={[styles.optionGroup, errors.category && styles.optionGroupError]}>
             {categories.map((cat) => (
               <TouchableOpacity
@@ -125,14 +127,14 @@ export default function CreateTicketScreen({ navigation }) {
                 <Text
                   style={[styles.optionText, categoryId === cat.id && styles.optionTextSelected]}
                 >
-                  {cat.name}
+                  {t(`category.${cat.slug}`, { defaultValue: cat.name })}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
           {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
 
-          <Text style={styles.label}>Prioritás *</Text>
+          <Text style={styles.label}>{t('ticketForm.priority')} *</Text>
           <View style={[styles.optionGroup, errors.priority && styles.optionGroupError]}>
             {priorities.map((pri) => (
               <TouchableOpacity
@@ -147,7 +149,7 @@ export default function CreateTicketScreen({ navigation }) {
                 <Text
                   style={[styles.optionText, priorityId === pri.id && styles.optionTextSelected]}
                 >
-                  {pri.name}
+                  {t(`priority.${pri.slug}`, { defaultValue: pri.name })}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -164,7 +166,7 @@ export default function CreateTicketScreen({ navigation }) {
           {submitting ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.submitButtonText}>Hibajegy létrehozása</Text>
+            <Text style={styles.submitButtonText}>{t('ticketForm.submit')}</Text>
           )}
         </TouchableOpacity>
 

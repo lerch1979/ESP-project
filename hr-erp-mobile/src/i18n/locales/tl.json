@@ -19,6 +19,34 @@
     "showTranslation": "pagsasalin",
     "translationUnavailable": "walang pagsasalin"
   },
+  "category": {
+    "viz-csotores": "Tubig/tagas", "futes": "Pag-init", "elektromos": "Kuryente",
+    "butor-berendezes": "Muwebles/kagamitan", "tisztasag": "Kalinisan", "egyeb": "Iba pa"
+  },
+  "status": {
+    "new": "Bago", "in_progress": "Isinasagawa", "waiting": "Naghihintay",
+    "waiting_material": "Naghihintay ng materyales", "completed": "Sarado", "resolved": "Naayos",
+    "rejected": "Tinanggihan", "closed_unsuccessful": "Sarado (hindi matagumpay)"
+  },
+  "priority": { "low": "Mababa", "normal": "Normal", "urgent": "Apurahan", "critical": "Kritikal" },
+  "ticketForm": {
+    "title": "Pamagat", "titlePlaceholder": "Pamagat ng tiket",
+    "description": "Paglalarawan", "descriptionPlaceholder": "Detalyadong paglalarawan…",
+    "category": "Kategorya", "priority": "Priyoridad", "submit": "Gumawa ng tiket",
+    "titleRequired": "Kailangan ang pamagat", "categoryRequired": "Pumili ng kategorya",
+    "priorityRequired": "Pumili ng priyoridad", "missingData": "Kulang na datos",
+    "createError": "Hindi nagawa ang tiket", "loadError": "Hindi ma-load ang mga setting",
+    "success": "Matagumpay na nagawa ang tiket"
+  },
+  "ticketList": {
+    "open": "Bukas ({{count}})", "closed": "Sarado ({{count}})", "empty": "Wala pang tiket",
+    "loadError": "Hindi ma-load ang mga tiket", "detailLoadError": "Hindi ma-load ang tiket"
+  },
+  "roomView": { "loadError": "Hindi ma-load ang tirahan", "empty": "Walang nakatalagang tirahan sa iyo" },
+  "menu": {
+    "accommodations": "Tirahan", "notifications": "Mga abiso", "profile": "Profile",
+    "logout": "Mag-logout", "allGood": "Maayos lahat!", "contractor": "Kontratista", "roles": "Mga tungkulin"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Mag-login",

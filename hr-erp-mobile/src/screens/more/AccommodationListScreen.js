@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { accommodationsAPI } from '../../services/api';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { isResident } from '../../utils/roles';
 import { colors } from '../../constants/colors';
@@ -19,6 +20,7 @@ const statusFilters = [
 ];
 
 export default function AccommodationListScreen({ navigation }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const resident = isResident(user);
   const [accommodations, setAccommodations] = useState([]);
@@ -61,7 +63,7 @@ export default function AccommodationListScreen({ navigation }) {
         setHasMore(pageNum < response.data.pagination.totalPages);
         setPage(pageNum);
       } catch {
-        setError('Nem sikerült betölteni a szálláshelyeket');
+        setError(resident ? t('roomView.loadError') : 'Nem sikerült betölteni a szálláshelyeket');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -115,7 +117,7 @@ export default function AccommodationListScreen({ navigation }) {
         }
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
-        ListEmptyComponent={<EmptyState icon="home-outline" message="Nincs találat" />}
+        ListEmptyComponent={<EmptyState icon="home-outline" message={resident ? t('roomView.empty') : 'Nincs találat'} />}
         contentContainerStyle={accommodations.length === 0 && styles.emptyContainer}
       />
     </View>

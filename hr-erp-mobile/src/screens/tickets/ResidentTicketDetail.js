@@ -84,7 +84,7 @@ export default function ResidentTicketDetail({ route, navigation }) {
       setTicket(tRes.data.ticket);
       setMessages(mRes.data.messages || []);
     } catch {
-      setError('Nem sikerült betölteni a hibajegyet');
+      setError(t('ticketList.detailLoadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -123,13 +123,13 @@ export default function ResidentTicketDetail({ route, navigation }) {
     <View style={styles.headerCard}>
       <View style={styles.headerRow}>
         <Text style={styles.ticketNumber}>{ticket?.ticket_number}</Text>
-        <StatusBadge label={ticket?.status_name} slug={ticket?.status_slug} color={ticket?.status_color} />
+        <StatusBadge label={t(`status.${ticket?.status_slug}`, { defaultValue: ticket?.status_name })} slug={ticket?.status_slug} color={ticket?.status_color} />
       </View>
       <Text style={styles.title}>{ticket?.title}</Text>
       {ticket?.description ? <Text style={styles.desc}>{ticket.description}</Text> : null}
       {ticket?.category_name ? (
         <View style={styles.catChip}>
-          <Text style={styles.catText}>{(ticket.category_icon || '📋') + '  ' + ticket.category_name}</Text>
+          <Text style={styles.catText}>{(ticket.category_icon || '📋') + '  ' + t(`category.${ticket.category_slug}`, { defaultValue: ticket.category_name })}</Text>
         </View>
       ) : null}
     </View>

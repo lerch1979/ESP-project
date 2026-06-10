@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
 import api from '../services/api';
 
@@ -42,6 +43,7 @@ function timeAgo(dateStr) {
 }
 
 export default function NotificationsScreen({ navigation }) {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ export default function NotificationsScreen({ navigation }) {
       {unreadCount > 0 && (
         <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
           <Ionicons name="checkmark-done-outline" size={18} color={colors.primary} />
-          <Text style={styles.markAllText}>Mind olvasottnak jelölés ({unreadCount})</Text>
+          <Text style={styles.markAllText}>{t('notifications.markAllRead')} ({unreadCount})</Text>
         </TouchableOpacity>
       )}
 
@@ -145,8 +147,8 @@ export default function NotificationsScreen({ navigation }) {
         ListEmptyComponent={!loading && (
           <View style={styles.emptyState}>
             <Ionicons name="notifications-off-outline" size={48} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>Nincs értesítés</Text>
-            <Text style={styles.emptyText}>Minden rendben van!</Text>
+            <Text style={styles.emptyTitle}>{t('notifications.empty')}</Text>
+            <Text style={styles.emptyText}>{t('menu.allGood')}</Text>
           </View>
         )}
       />

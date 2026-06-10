@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import StatusBadge from './StatusBadge';
 import { colors } from '../constants/colors';
 
@@ -11,6 +12,7 @@ function formatDate(d) {
 
 // Chronological resident ticket row: category icon chip + short title + date + status.
 export default function ResidentTicketRow({ ticket, onPress, dimmed }) {
+  const { t } = useTranslation();
   const chipBg = (ticket.category_color || colors.primary) + '22'; // ~13% alpha tint
   return (
     <TouchableOpacity style={[styles.row, dimmed && styles.dimmed]} onPress={onPress} activeOpacity={0.7}>
@@ -21,7 +23,7 @@ export default function ResidentTicketRow({ ticket, onPress, dimmed }) {
         <Text style={styles.title} numberOfLines={2}>{ticket.title}</Text>
         <Text style={styles.date}>{formatDate(ticket.created_at)}</Text>
       </View>
-      <StatusBadge label={ticket.status_name} slug={ticket.status_slug} color={ticket.status_color} />
+      <StatusBadge label={t(`status.${ticket.status_slug}`, { defaultValue: ticket.status_name })} slug={ticket.status_slug} color={ticket.status_color} />
     </TouchableOpacity>
   );
 }
