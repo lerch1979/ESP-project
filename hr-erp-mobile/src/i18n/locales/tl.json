@@ -47,6 +47,11 @@
     "accommodations": "Tirahan", "notifications": "Mga abiso", "profile": "Profile",
     "logout": "Mag-logout", "allGood": "Maayos lahat!", "contractor": "Kontratista", "roles": "Mga tungkulin"
   },
+  "attach": {
+    "photos": "Mga larawan", "add": "Magdagdag ng larawan", "camera": "Kamera", "gallery": "Galerya",
+    "max": "Hanggang 3 larawan", "uploading": "Ina-upload…",
+    "uploaded": "{{ok}}/{{total}} larawan na-upload", "permission": "Kailangan ng pahintulot para sa larawan"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Mag-login",

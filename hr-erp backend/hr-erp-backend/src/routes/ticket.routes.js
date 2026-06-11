@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
 const ticketMessages = require('../controllers/ticketMessages.controller');
+const ticketAttachments = require('../controllers/ticketAttachments.controller');
 const { authenticateToken, checkContractorAccess } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -71,5 +72,14 @@ router.patch('/:ticketId/messages/:messageId/read',
   checkPermission('tickets.view'), ticketMessages.markRead);
 router.delete('/:ticketId/messages/:messageId',
   checkPermission('tickets.view'), ticketMessages.remove);
+
+/**
+ * Ticket photo attachments — staff VIEW only (residents upload via the
+ * self-scoped /tickets/my/:id/attachments path). Read-only here.
+ */
+router.get('/:ticketId/attachments',
+  checkPermission('tickets.view'), ticketAttachments.listForStaff);
+router.get('/:ticketId/attachments/:attId',
+  checkPermission('tickets.view'), ticketAttachments.streamForStaff);
 
 module.exports = router;

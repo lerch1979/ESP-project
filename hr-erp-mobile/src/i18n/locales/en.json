@@ -47,6 +47,11 @@
     "accommodations": "Accommodation", "notifications": "Notifications", "profile": "Profile",
     "logout": "Log out", "allGood": "All good!", "contractor": "Contractor", "roles": "Roles"
   },
+  "attach": {
+    "photos": "Photos", "add": "Add photo", "camera": "Camera", "gallery": "Gallery",
+    "max": "Max 3 photos", "uploading": "Uploading…",
+    "uploaded": "{{ok}}/{{total}} photos uploaded", "permission": "Permission needed for photos"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Login",

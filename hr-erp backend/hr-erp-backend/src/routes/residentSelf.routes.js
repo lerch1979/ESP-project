@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const residentSelf = require('../controllers/residentSelf.controller');
 const ticketMessages = require('../controllers/ticketMessages.controller');
+const ticketAttachments = require('../controllers/ticketAttachments.controller');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
@@ -24,5 +25,9 @@ router.get('/accommodations/my', residentSelf.getMyAccommodation);
 // ticket_messages thread staff already see.
 router.get('/tickets/my/:ticketId/messages', residentSelf.requireOwnTicket, ticketMessages.list);
 router.post('/tickets/my/:ticketId/messages', residentSelf.requireOwnTicket, ticketMessages.send);
+
+// Resident photo attachments — self-scoped to OWN ticket (create-time upload).
+router.post('/tickets/my/:ticketId/attachments', residentSelf.requireOwnTicket, ticketAttachments.uploadPhoto, ticketAttachments.uploadMine);
+router.get('/tickets/my/:ticketId/attachments/:attId', residentSelf.requireOwnTicket, ticketAttachments.streamMine);
 
 module.exports = router;

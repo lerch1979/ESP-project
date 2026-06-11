@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity,
+  View, Text, FlatList, TextInput, TouchableOpacity, Image, Modal, ScrollView,
   KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
+import { getItem } from '../../services/storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../constants/colors';
 import StatusBadge from '../../components/StatusBadge';
@@ -65,7 +66,12 @@ export default function ResidentTicketDetail({ route, navigation }) {
   const [error, setError] = useState(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [token, setToken] = useState(null);
+  const [viewer, setViewer] = useState(null);
   const listRef = useRef(null);
+
+  // Auth token for protected attachment image requests (RN Image supports headers).
+  useEffect(() => { getItem('token').then(setToken); }, []);
 
   const loadMessages = useCallback(async () => {
     try {
@@ -132,6 +138,18 @@ export default function ResidentTicketDetail({ route, navigation }) {
           <Text style={styles.catText}>{(ticket.category_icon || '📋') + '  ' + t(`category.${ticket.category_slug}`, { defaultValue: ticket.category_name })}</Text>
         </View>
       ) : null}
+      {ticket?.attachments?.length > 0 && token ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
+          {ticket.attachments.map((a) => {
+            const uri = ticketsAPI.myAttachmentUrl(id, a.id);
+            return (
+              <TouchableOpacity key={a.id} onPress={() => setViewer(uri)} activeOpacity={0.8}>
+                <Image source={{ uri, headers: { Authorization: `Bearer ${token}` } }} style={styles.photoThumb} />
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      ) : null}
     </View>
   );
 
@@ -176,6 +194,14 @@ export default function ResidentTicketDetail({ route, navigation }) {
           {sending ? <ActivityIndicator color={colors.white} size="small" /> : <Ionicons name="send" size={20} color={colors.white} />}
         </TouchableOpacity>
       </View>
+
+      <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
+        <TouchableOpacity style={styles.viewerBackdrop} activeOpacity={1} onPress={() => setViewer(null)}>
+          {viewer ? (
+            <Image source={{ uri: viewer, headers: { Authorization: `Bearer ${token}` } }} style={styles.viewerImage} resizeMode="contain" />
+          ) : null}
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -193,6 +219,10 @@ const styles = StyleSheet.create({
   desc: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 10 },
   catChip: { alignSelf: 'flex-start', backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
   catText: { fontSize: 13, color: colors.textSecondary },
+  photoStrip: { marginTop: 12 },
+  photoThumb: { width: 72, height: 72, borderRadius: 8, marginRight: 8, backgroundColor: colors.background },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  viewerImage: { width: '94%', height: '80%' },
   bubbleRow: { paddingHorizontal: 12, marginVertical: 4, flexDirection: 'row' },
   rowMine: { justifyContent: 'flex-end' },
   rowStaff: { justifyContent: 'flex-start' },

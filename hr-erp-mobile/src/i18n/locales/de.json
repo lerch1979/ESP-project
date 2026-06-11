@@ -47,6 +47,11 @@
     "accommodations": "Unterkunft", "notifications": "Benachrichtigungen", "profile": "Profil",
     "logout": "Abmelden", "allGood": "Alles in Ordnung!", "contractor": "Auftragnehmer", "roles": "Rollen"
   },
+  "attach": {
+    "photos": "Fotos", "add": "Foto hinzufügen", "camera": "Kamera", "gallery": "Galerie",
+    "max": "Max. 3 Fotos", "uploading": "Wird hochgeladen…",
+    "uploaded": "{{ok}}/{{total}} Fotos hochgeladen", "permission": "Berechtigung für Fotos erforderlich"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Anmelden",

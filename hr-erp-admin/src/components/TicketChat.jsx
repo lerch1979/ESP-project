@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Paper, Box, Typography, TextField, Button, IconButton, Stack,
-  CircularProgress, Tooltip, Avatar, Chip,
+  CircularProgress, Tooltip, Avatar, Chip, Dialog,
 } from '@mui/material';
 import {
   Send as SendIcon, Refresh as RefreshIcon,
@@ -155,6 +155,32 @@ export default function TicketChat({ ticketId, currentUser }) {
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState('');
   const scrollRef = useRef(null);
+  const [attachments, setAttachments] = useState([]);
+  const [thumbs, setThumbs] = useState({});
+  const [lightbox, setLightbox] = useState(null);
+
+  // Fetch resident photos + their blobs (auth-protected → object URLs for <img>).
+  useEffect(() => {
+    if (!ticketId) return;
+    const urls = [];
+    (async () => {
+      try {
+        const res = await ticketsAPI.listAttachments(ticketId);
+        const list = res?.data?.attachments || [];
+        setAttachments(list);
+        const map = {};
+        for (const a of list) {
+          try {
+            const blob = await ticketsAPI.getAttachmentBlob(ticketId, a.id);
+            const u = URL.createObjectURL(blob);
+            map[a.id] = u; urls.push(u);
+          } catch { /* skip one */ }
+        }
+        setThumbs(map);
+      } catch { /* none / no access */ }
+    })();
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [ticketId]);
 
   const load = useCallback(async () => {
     if (!ticketId) return;
@@ -242,6 +268,28 @@ export default function TicketChat({ ticketId, currentUser }) {
         </Tooltip>
       </Stack>
 
+      {attachments.length > 0 && (
+        <Box sx={{ mb: 1.25 }}>
+          <Typography variant="caption" color="text.secondary">
+            📎 {attachments.length} fotó a lakótól
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap' }}>
+            {attachments.map((a) => (
+              <Box
+                key={a.id}
+                component="img"
+                src={thumbs[a.id]}
+                onClick={() => thumbs[a.id] && setLightbox(thumbs[a.id])}
+                sx={{
+                  width: 64, height: 64, borderRadius: 1, objectFit: 'cover',
+                  cursor: 'pointer', bgcolor: '#eee', border: '1px solid #ddd',
+                }}
+              />
+            ))}
+          </Stack>
+        </Box>
+      )}
+
       <Box
         ref={scrollRef}
         sx={{
@@ -293,6 +341,12 @@ export default function TicketChat({ ticketId, currentUser }) {
           Küldés
         </Button>
       </Stack>
+
+      <Dialog open={!!lightbox} onClose={() => setLightbox(null)} maxWidth="lg">
+        {lightbox && (
+          <Box component="img" src={lightbox} sx={{ maxWidth: '90vw', maxHeight: '85vh', display: 'block' }} />
+        )}
+      </Dialog>
     </Paper>
   );
 }

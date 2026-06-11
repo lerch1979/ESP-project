@@ -47,6 +47,11 @@
     "accommodations": "Szálláshelyek", "notifications": "Értesítések", "profile": "Profil",
     "logout": "Kijelentkezés", "allGood": "Minden rendben van!", "contractor": "Alvállalkozó", "roles": "Szerepkörök"
   },
+  "attach": {
+    "photos": "Fotók", "add": "Fotó hozzáadása", "camera": "Kamera", "gallery": "Galéria",
+    "max": "Legfeljebb 3 fotó", "uploading": "Feltöltés…",
+    "uploaded": "{{ok}}/{{total}} fotó feltöltve", "permission": "Engedély szükséges a fotóhoz"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Bejelentkezés",

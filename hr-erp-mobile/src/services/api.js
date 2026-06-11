@@ -188,6 +188,20 @@ export const ticketsAPI = {
     const response = await api.post(`/tickets/my/${id}/messages`, { message });
     return response.data;
   },
+  // Upload one (already-compressed) photo to the resident's OWN ticket.
+  uploadMyAttachment: async (id, uri, onUploadProgress) => {
+    const ext = (uri.split('.').pop() || 'jpg').toLowerCase();
+    const type = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    const form = new FormData();
+    form.append('photo', { uri, name: `photo.${ext}`, type });
+    const response = await api.post(`/tickets/my/${id}/attachments`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    });
+    return response.data;
+  },
+  // Auth-protected stream URL for a resident's own ticket photo (use with a Bearer header).
+  myAttachmentUrl: (id, attId) => `${API_BASE_URL}/tickets/my/${id}/attachments/${attId}`,
   create: async (ticketData) => {
     const response = await api.post('/tickets', ticketData);
     return response.data;

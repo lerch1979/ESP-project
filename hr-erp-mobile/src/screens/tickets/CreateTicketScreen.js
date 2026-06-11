@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
+  View, Text, TextInput, TouchableOpacity, ScrollView, Alert,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Image, StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import LoadingScreen from '../../components/LoadingScreen';
+
+const MAX_PHOTOS = 3;
+
+// Resize to 1600px wide + 0.8 JPEG — keeps uploads small on mobile data.
+async function compressPhoto(uri) {
+  const r = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1600 } }],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+  );
+  return r.uri;
+}
 
 export default function CreateTicketScreen({ navigation }) {
   const { t } = useTranslation();
@@ -27,6 +34,33 @@ export default function CreateTicketScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [photos, setPhotos] = useState([]);
+
+  const addPhoto = async (fromCamera) => {
+    if (photos.length >= MAX_PHOTOS) return;
+    try {
+      const perm = fromCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert(t('common.error'), t('attach.permission')); return; }
+      const res = fromCamera
+        ? await ImagePicker.launchCameraAsync({ quality: 0.9 })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.9 });
+      if (res.canceled) return;
+      const uri = res.assets?.[0]?.uri;
+      if (!uri) return;
+      const compressed = await compressPhoto(uri);
+      setPhotos((p) => [...p, compressed].slice(0, MAX_PHOTOS));
+    } catch { /* ignore picker errors */ }
+  };
+
+  const pickPhoto = () => {
+    Alert.alert(t('attach.add'), undefined, [
+      { text: t('attach.camera'), onPress: () => addPhoto(true) },
+      { text: t('attach.gallery'), onPress: () => addPhoto(false) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -61,13 +95,25 @@ export default function CreateTicketScreen({ navigation }) {
 
     setSubmitting(true);
     try {
-      await ticketsAPI.create({
+      const created = await ticketsAPI.create({
         title: title.trim(),
         description: description.trim(),
         category_id: categoryId,
         priority_id: priorityId,
       });
-      Alert.alert(t('common.success'), t('ticketForm.success'), [
+      // Upload photos sequentially. A failure on one does NOT lose the ticket
+      // or the others — we report the honest uploaded count.
+      const ticketId = created?.data?.ticket?.id;
+      let ok = 0;
+      if (ticketId && photos.length > 0) {
+        for (const uri of photos) {
+          try { await ticketsAPI.uploadMyAttachment(ticketId, uri); ok += 1; } catch { /* keep going */ }
+        }
+      }
+      const msg = photos.length > 0
+        ? `${t('ticketForm.success')}\n${t('attach.uploaded', { ok, total: photos.length })}`
+        : t('ticketForm.success');
+      Alert.alert(t('common.success'), msg, [
         { text: t('common.ok'), onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
@@ -155,6 +201,27 @@ export default function CreateTicketScreen({ navigation }) {
             ))}
           </View>
           {errors.priority && <Text style={styles.errorText}>{errors.priority}</Text>}
+
+          <Text style={styles.label}>{t('attach.photos')}</Text>
+          <View style={styles.photoRow}>
+            {photos.map((uri, i) => (
+              <View key={i} style={styles.photoWrap}>
+                <Image source={{ uri }} style={styles.photoThumb} />
+                <TouchableOpacity
+                  style={styles.photoRemove}
+                  onPress={() => setPhotos((p) => p.filter((_, idx) => idx !== i))}
+                >
+                  <Ionicons name="close" size={14} color={colors.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {photos.length < MAX_PHOTOS && (
+              <TouchableOpacity style={styles.photoAdd} onPress={pickPhoto} activeOpacity={0.7}>
+                <Ionicons name="camera-outline" size={26} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.photoHint}>{t('attach.max')}</Text>
         </View>
 
         <TouchableOpacity
@@ -254,6 +321,18 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: colors.white,
   },
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
+  photoWrap: { position: 'relative' },
+  photoThumb: { width: 72, height: 72, borderRadius: 8, backgroundColor: colors.background },
+  photoRemove: {
+    position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center',
+  },
+  photoAdd: {
+    width: 72, height: 72, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background,
+  },
+  photoHint: { fontSize: 12, color: colors.textLight, marginTop: 6 },
   submitButton: {
     backgroundColor: colors.primary,
     marginHorizontal: 16,

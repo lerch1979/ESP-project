@@ -188,6 +188,15 @@ export const ticketsAPI = {
     const response = await api.delete(`/tickets/${ticketId}/messages/${messageId}`);
     return response.data;
   },
+  // Ticket photo attachments (resident-uploaded; staff view only).
+  listAttachments: async (ticketId) => {
+    const response = await api.get(`/tickets/${ticketId}/attachments`);
+    return response.data;
+  },
+  getAttachmentBlob: async (ticketId, attId) => {
+    const response = await api.get(`/tickets/${ticketId}/attachments/${attId}`, { responseType: 'blob' });
+    return response.data;
+  },
 
   getStatuses: async () => {
     const response = await api.get('/statuses');

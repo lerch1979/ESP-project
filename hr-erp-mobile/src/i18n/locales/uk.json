@@ -47,6 +47,11 @@
     "accommodations": "Житло", "notifications": "Сповіщення", "profile": "Профіль",
     "logout": "Вийти", "allGood": "Все гаразд!", "contractor": "Підрядник", "roles": "Ролі"
   },
+  "attach": {
+    "photos": "Фото", "add": "Додати фото", "camera": "Камера", "gallery": "Галерея",
+    "max": "Максимум 3 фото", "uploading": "Завантаження…",
+    "uploaded": "Завантажено {{ok}}/{{total}} фото", "permission": "Потрібен дозвіл для фото"
+  },
   "login": {
     "title": "HR-ERP Mobile",
     "subtitle": "Увійти",

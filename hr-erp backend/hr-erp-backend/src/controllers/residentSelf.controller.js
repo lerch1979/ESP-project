@@ -66,7 +66,13 @@ const getMyTicketById = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Hibajegy nem található' });
     }
-    res.json({ success: true, data: { ticket: result.rows[0] } });
+    // Actual attachment rows on disk (honest count — partial uploads show real state).
+    const att = await query(
+      `SELECT id, file_name, mime_type, file_size, created_at
+         FROM ticket_attachments WHERE ticket_id = $1 ORDER BY created_at ASC`,
+      [id]
+    );
+    res.json({ success: true, data: { ticket: { ...result.rows[0], attachments: att.rows } } });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Hiba a hibajegy lekérésekor' });
   }
