@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ExpiryMonitorWidget from '../components/ExpiryMonitorWidget';
 import {
   Grid,
   Paper,
@@ -299,6 +300,9 @@ function Dashboard() {
             icon={<TrendingUp sx={{ fontSize: 28 }} />}
             bgColor="rgba(245, 158, 11, 0.1)"
           />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <ExpiryMonitorWidget compact />
         </Grid>
       </Grid>
     ),

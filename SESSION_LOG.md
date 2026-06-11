@@ -6,6 +6,31 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-11 (evening) — visa/contract/document expiry monitor (audit P0)
+
+Server-independent backend+admin feature (built while Hetzner account verification is pending).
+
+### WHAT WAS BUILT
+- **Monitors 3 fields:** `employees.visa_expiry`, `employees.end_date` (contract), `employee_documents.expiry_date` (any document_type). All currently empty in prod data (0/287 visa, 0 end_date) — built against the schema, ready when HR populates it.
+- **Fully runtime-toggleable (no restart):** `expiry_monitor_config` (single row, mirrors `nlp_sentiment_config`). Cron reads `enabled` fresh each run → exits silently when off; dashboard widget shows **"Kikapcsolva"**; admin flips it from the UI. Default ON. `digest_enabled` flag reserved for the email digest (off until prod SMTP).
+- **Configurable per-attribute threshold rules:** `expiry_threshold_rules` (`field`, `nationality`, `document_type`, `contractor_id` [schema only, not in UI v1], `thresholds INT[]`, `include_overdue`). **Most-specific wins** (`nationality 4 > document_type 2 > contractor 1 > field 1`). Seeded default `{60,30,14,7}`+overdue; hardcoded baseline fallback if all rules deleted. Example: `PH→{120,90,60,30,7}`, `UA→{45,30,14,7}` are two rows.
+- **Added `employees.nationality VARCHAR(2)`** (mig 121) — no nationality column existed; `permanent_address_country` was empty *and* semantically wrong. Nullable → NULL = default rule (graceful). HR sets it only for non-standard cases.
+- **Dedup resilient to rule edits:** `expiry_alert_log UNIQUE(entity_type, entity_id, field, expiry_date, threshold_days)`, keyed on the **threshold value that fired** (not a rule id). `entity_id` is TEXT (employees.id is uuid, employee_documents.id is integer). Firing rule = the single most-urgent bucket the item currently qualifies for → adding a bigger threshold never retro-fires, late data entry fires only the current bucket, renewed expiry_date resets. Atomic via `INSERT … ON CONFLICT DO NOTHING RETURNING id`.
+- **Surfaces:** in-app notifications (`inAppNotification.notifyMany` → `notifications` table, type `expiry_alert`) to global HR admins (superadmin/data_controller/admin, contractor_id stamped); **live dashboard widget** (`GET /expiry-monitor/summary`); daily **07:00 cron** (toggle-gated) wired in server.js next to the other daily jobs.
+- **API** (`/expiry-monitor`, admin-gated): `GET/PUT /config`, `GET/POST/PUT/DELETE /rules` (descending-positive-distinct validation), `GET /summary`, `POST /run?force=true`.
+- **Admin UI:** `ExpiryMonitorWidget` (toggle + severity counts + soonest-expiring list, or "Kikapcsolva") embedded on the Dashboard (compact) and the new **Lejárati figyelő** page (`/expiry-monitor`, nav under Residents) with the rules CRUD table + validated add/edit dialog.
+
+### ✅ VERIFIED
+- 12/12 service scenarios (deterministic, seeded on the TEST resident only — `da8462e9…` Eszti/TEST-1, never the 286 real rows; cleaned up after): 25d+default→30-bucket; PH rule wins at 100d→120 (default=none); NULL nat→default; toggle OFF→cron no-ops + summary `{enabled:false}`; same-day re-run→no dup; renewed visa→fresh cycle; notifications fan out to all 4 HR recipients.
+- HTTP layer: config GET/PUT, **resident→403** (admin-gated), summary, rule validation (ascending→400), create (nationality upcased), delete, run (recipients=4).
+- Admin Vite build clean. Migrations 120/121 apply via the runner on a fresh `hr_erp_test` (111 total). **Full jest 1240/1240, 55/55 suites.**
+
+### Notes / future
+- Email digest is built-flagged-off (`digest_enabled`) — switch on once prod SMTP exists.
+- Per-contractor rules: `contractor_id` is in the schema but not surfaced in the UI (future EOR need).
+
+---
+
 ## SESSION 2026-06-11 (later still) — CI red since 2026-06-09 diagnosed + fixed
 
 ### 🐛 ROOT CAUSE — resident router blanket-gated all of `/api/v1` (production regression)

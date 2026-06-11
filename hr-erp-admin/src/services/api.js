@@ -259,6 +259,18 @@ export const dashboardAPI = {
   },
 };
 
+// Expiry monitor (visa / contract / document) — admin-gated.
+export const expiryMonitorAPI = {
+  getConfig: async () => (await api.get('/expiry-monitor/config')).data,
+  updateConfig: async (body) => (await api.put('/expiry-monitor/config', body)).data,
+  getSummary: async () => (await api.get('/expiry-monitor/summary')).data,
+  listRules: async () => (await api.get('/expiry-monitor/rules')).data,
+  createRule: async (body) => (await api.post('/expiry-monitor/rules', body)).data,
+  updateRule: async (id, body) => (await api.put(`/expiry-monitor/rules/${id}`, body)).data,
+  deleteRule: async (id) => (await api.delete(`/expiry-monitor/rules/${id}`)).data,
+  run: async () => (await api.post('/expiry-monitor/run?force=true')).data,
+};
+
 // Accommodations API
 export const accommodationsAPI = {
   getAll: async (params = {}) => {

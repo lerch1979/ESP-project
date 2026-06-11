@@ -72,6 +72,7 @@ const inspectionRoutes = require('./routes/inspection.routes');
 const inspectionTemplateRoutes = require('./routes/inspectionTemplate.routes');
 const inspectionScheduleRoutes = require('./routes/inspectionSchedule.routes');
 const inspectionTaskRoutes = require('./routes/inspectionTask.routes');
+const expiryMonitorRoutes = require('./routes/expiryMonitor.routes');
 const roomsRoutes = require('./routes/rooms.routes');
 const compensationRoutes = require('./routes/compensation.routes');
 const fineRoutes = require('./routes/fine.routes');
@@ -409,6 +410,7 @@ app.use(`${API_PREFIX}/translation`, translationRoutes);
 app.use(`${API_PREFIX}/classification-rules`, classificationRulesRoutes);
 app.use(`${API_PREFIX}/inspections`, inspectionRoutes);
 app.use(`${API_PREFIX}/inspection-templates`, inspectionTemplateRoutes);
+app.use(`${API_PREFIX}/expiry-monitor`, expiryMonitorRoutes);
 app.use(`${API_PREFIX}/inspection-schedules`, inspectionScheduleRoutes);
 app.use(`${API_PREFIX}/inspection-tasks`, inspectionTaskRoutes);
 app.use(`${API_PREFIX}/rooms`, roomsRoutes);
@@ -505,6 +507,17 @@ async function startServer() {
       });
     });
     logger.info('📋 Inspection automation cron scheduled (daily at 03:00)');
+
+    // Visa/contract/document expiry monitor — daily at 07:00 local. The job reads
+    // expiry_monitor_config.enabled FRESH at each run and exits silently when off
+    // (admin toggles it from the UI, no restart). Dedup via expiry_alert_log.
+    const expiryMonitor = require('./services/expiryMonitor.service');
+    cron.schedule('0 7 * * *', () => {
+      expiryMonitor.runDaily().catch((err) => {
+        logger.error('[cron:expiryMonitor] failed:', err.message);
+      });
+    });
+    logger.info('⏳ Expiry monitor cron scheduled (daily at 07:00, toggle-gated)');
 
     // Wellbeing cron jobs (9 jobs: pulse reminders, assessments, alerts, Slack
     // check-ins, materialized view refresh). All schedules + handlers defined

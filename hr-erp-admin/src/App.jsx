@@ -20,6 +20,7 @@ const Users = lazy(() => import('./pages/Users'));
 const Contractors = lazy(() => import('./pages/Contractors'));
 const Accommodations = lazy(() => import('./pages/Accommodations'));
 const Employees = lazy(() => import('./pages/Employees'));
+const ExpiryMonitor = lazy(() => import('./pages/ExpiryMonitor'));
 const ResidentImport = lazy(() => import('./pages/ResidentImport'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Calendar = lazy(() => import('./pages/Calendar'));
@@ -153,6 +154,7 @@ function App() {
               <Route path="contractors" element={<PermissionGuard permission="employees.view"><Contractors /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="employees" element={<PermissionGuard permission="employees.view"><Employees /></PermissionGuard>} />
+              <Route path="expiry-monitor" element={<PermissionGuard permission="employees.view"><ExpiryMonitor /></PermissionGuard>} />
               <Route path="residents/import" element={<PermissionGuard permission="employees.create"><ResidentImport /></PermissionGuard>} />
               <Route path="documents" element={<PermissionGuard permission="documents.view"><Documents /></PermissionGuard>} />
               <Route path="reports" element={<PermissionGuard permission="reports.view"><Reports /></PermissionGuard>} />
