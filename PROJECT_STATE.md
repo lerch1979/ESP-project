@@ -1,6 +1,6 @@
 # HR-ERP PROJECT STATE
 
-**Last updated:** 2026-06-09
+**Last updated:** 2026-06-11
 **Maintainer:** lerchbalazs@gmail.com
 
 ---
@@ -36,7 +36,7 @@ Companion docs:
 - `hr-erp-admin/` — admin SPA, served at `/`, API at `/api/v1`
 - `hr-erp-mobile/` — mobile RN app
 - `docs/` — architecture + sales decks (mixed freshness)
-- `migrations/` (under backend) — numbered SQL, latest is **112** (2026-05-20)
+- `migrations/` (under backend) — numbered SQL, latest is **122** (2026-06-11). ⚠️ Runner blocked at `093` on the **dev DB only** (6 users); fresh DBs (CI/test) migrate cleanly through 122. New migrations applied to dev via `psql`; see tech-debt.
 
 ---
 
@@ -58,7 +58,9 @@ Companion docs:
 | Slack integration | `memory/project_slack.md` | live | Session 24 |
 | WellMind + CarePath | backend `wellmind*`, `carepath*`, admin pages | live | per code |
 | Cron orchestration | `src/cron/`, 9 wellbeing jobs + billing + payroll | live | 2026-05-18 → 21 |
-| **Resident self-scoped mobile API** (NEW) | backend `residentSelf.{controller,routes}.js` — `/tickets/my`, `/tickets/my/:id`, `/accommodations/my`; role `accommodated_employee` (grant: `tickets.create` only) | live (test resident only) | 2026-06-09 |
+| **Resident self-scoped mobile API + UX** (NEW) | backend `residentSelf.{controller,routes}.js` — `/tickets/my[/...]`, `/accommodations/my`, in-ticket chat (reuses `ticket_messages`) + AI auto-translation, photo attachments, **AI category suggestion** (`categoryAI.service.js`, Haiku), self-scoped `/tickets/my/suggest-category`; mobile resident screens fully i18n (5 locales) + `scripts/check-i18n-coverage.js` guard | live (test resident only) | 2026-06-11 |
+| **⚖️ Expiry monitor (visa/contract/document)** (AUDIT P0) | backend `expiryMonitor.{service,controller,routes}.js`, migs 120–121 (`employees.nationality`); daily 07:00 cron (runtime toggle-gated); per-attribute threshold rules (nationality/doc-type), most-specific-wins; in-app notifications + admin widget/page | live (no real data — fields empty until HR populates) | 2026-06-11 |
+| **⚖️ GDPR anonymization (right-to-be-forgotten)** (AUDIT P0) | backend `gdprAnonymization.{service,controller,routes}.js`, mig 122; superadmin-gated `/anonymization` (dry-run → double-confirm → execute); consent (`employees.data_consent_at`) + grace-period **propose-only** queue + daily 08:00 reminder cron; admin GDPR page + per-employee action in detail modal | live (v1) | 2026-06-11 |
 
 ---
 
@@ -85,8 +87,14 @@ Companion docs:
 
 | Date | Commit | Summary |
 |---|---|---|
-| 2026-05-21 | _uncommitted_ | Tab 4 fixes: 300 ms minimum spinner, removed eager `setData(null)`, refreshKey-based effect |
-| 2026-05-21 | `dc0887c0` | Admin `/admin/billing` page, Tab 1 (Expenses CRUD), tabs 2–4 scaffolded |
+| 2026-06-11 | `9e6f2b63` | **AUDIT P0:** GDPR anonymization (right-to-be-forgotten) v1 — engine + lifecycle + admin UI (mig 122). Verified on a throwaway employee (18/18). |
+| 2026-06-11 | `989d2ec8` | **AUDIT P0:** visa/contract/document expiry monitor — runtime toggle + per-attribute rules + 07:00 cron (migs 120–121). |
+| 2026-06-11 | `c2cf4052` | **CI fix:** resident router blanket-gated all `/api/v1` (per-route auth); actions bumped to v5. CI green again (red since 2026-06-09). |
+| 2026-06-11 | `8984deb7` | Resident AI category suggestion (Haiku, self-scoped). |
+| 2026-06-11 | `28c06794` | Resident chat language-drift fix + category scoping + i18n guard. |
+| 2026-06-10 | `2a142073`,`ff53ac4a` | Billing Day 3–4: invoice_drafts→expenses, accountant share links (public token). |
+| 2026-06-09 | `1ad48504` … | Resident self-scope + audit-trigger fix (mig 118), mobile testable, in-ticket chat + AI translation, photo attachments. |
+| 2026-05-21 | `dc0887c0` | Tab 4 fixes + Admin `/admin/billing` page, Tab 1 (Expenses CRUD), tabs 2–4 scaffolded |
 | 2026-05-21 | `2adbaed5` | GET `/api/v1/profit/by-accommodation` + 19-test integration suite |
 | 2026-05-21 | `c9973de2` | Expense CRUD endpoints + 48-test integration suite |
 | 2026-05-20 | `b24a9439` | Monthly billing cron + engine `notes` option |
@@ -115,6 +123,10 @@ For older history: `git log --oneline --since="2026-04-01"`.
 | _open_ | Unify accommodation_expenses with cost_centers? | See `docs/ARCH_COST_TRACKING_OPTIONS.md` | ⏳ awaiting decision |
 | 2026-06-09 | Audit trigger: null-tolerant `entity_id` + `activity_logs.entity_id` nullable (mig 118) | `audit_trigger_func` assumed `NEW.id`; broke all composite-PK inserts → froze role-permission grants system-wide | ✅ fixed (applied via psql; runner blocked at 093) |
 | 2026-06-09 | Resident access via dedicated self-scoped `/my` endpoints (Path B), NOT by granting `tickets.view` | `tickets.view`/`accommodations.view` are blanket/overloaded; new auth-only endpoints isolate by `created_by`/`user_id` and leave staff routes untouched | ✅ implemented + isolation-tested |
+| 2026-06-11 | Expiry monitor: runtime toggle (config table, read fresh each run) + per-attribute threshold **rules** (most-specific-wins), not hardcoded | Clients who don't want monitoring would get noise → must be one-click silenceable; permit lead-times differ by nationality (PH ~90d vs UA ~30d) so thresholds must vary per attribute | ✅ implemented + verified |
+| 2026-06-11 | GDPR erasure = **per-category disposition**, not blanket wipe; KEEP statutory (payroll/contract/billing) pseudonymized, DELETE health, KEEP tickets intact (authorship cascades via pseudonym) | GDPR Art 17(3) yields to legal-obligation (HU 8-yr accounting + payroll) and legal-claims retention; tickets are operational, not sensitive by design | ✅ implemented + throwaway-verified |
+| 2026-06-11 | GDPR lifecycle is **propose-only** (grace clock on `end_date`); system never auto-anonymizes | Irreversible + legally sensitive → human must dispose; reminder cron only notifies | ✅ implemented |
+| 2026-06-11 | Anonymization audit log stores **counts only**, never removed values; backups age out in ≤30d as the GDPR "ages-out" guarantee | Accountability of the erasure without re-storing the erased PII; backups are not edited | ✅ implemented (see `HETZNER_DEPLOY.md`) |
 
 ---
 
@@ -152,7 +164,10 @@ For older history: `git log --oneline --since="2026-04-01"`.
 | Compensations payroll cron is DRY-RUN | medium | Promote to live mode when ready |
 | `docs/PROJECT_CONTEXT.md` is stale | low | Decide: refresh or deprecate |
 | Sarród I. vs Sarród II. — old CC has only "Sarród szálló" | low | If AI pipeline revived, split needed |
-| **🚩 Migration runner blocked at `093 cleanup_demo_data`** | **high** | Guard "expected exactly 1 user, got 6" fails on the real DB → `npm run db:migrate` stops at 093 and never reaches 118+. 093 is a demo-data *cleanup* — running the chain is unsafe. Mig 118 was applied via psql. **Decide 093's disposition (rewrite guard / mark obsolete) before using the runner; do not touch 093 blindly.** |
+| **🚩 Migration runner blocked at `093 cleanup_demo_data` (dev DB only)** | medium | Guard "expected exactly 1 user, got 6" fails on the **dev** DB → `npm run db:migrate` stops at 093. **Confirmed 2026-06-11: fresh DBs (CI/test) migrate cleanly through 122** — so CI is unaffected and prod-via-dump-restore is fine. Dev migrations (118–122) applied via psql. **Decide 093's disposition (rewrite guard / mark obsolete) before relying on the runner on dev; do not touch 093 blindly.** |
+| **⚖️ GDPR: legal/DPO sign-off before first REAL erasure** | **high** before production | All dispositions are configurable (no code change): finalize retention years + which `statutory_document_types` slugs map to real contract docs; confirm payroll/social-security long-retention categories. The engine is built + verified; the *policy* values need DPO confirmation. |
+| GDPR v2 backlog (documented) | low | Out of v1 scope: `activity_logs` JSONB scrubbing, `translation_cache` purge, automatic retention-expiry execution, GDPR data export (portability/Art 20). |
+| Expiry monitor has no real data yet | low | `employees.visa_expiry`/`end_date`/`nationality` are empty (0/287). Feature is correct + ready; produces nothing until HR populates these fields. |
 | `tickets.view` is blanket + overloaded | medium | Gates 6 endpoints incl. writes (comments, messages); `getTickets`/`getTicketById`/`getAccommodations` are contractor-/system-wide, not self-scoped. Residents deliberately do NOT hold it — they use the self-scoped `/my` endpoints. Staff self-scoping (created_by) is a future refactor if non-superadmin staff ever need narrower views. |
 | Resident-facing read endpoints lack self-scope (staff side) | low | Only the new `/my` endpoints are self-scoped; the staff `/tickets`, `/accommodations`, `/documents` remain blanket — fine for staff, but no resident may hold those permissions until row-level filtering is added there too. |
 
@@ -160,17 +175,14 @@ For older history: `git log --oneline --since="2026-04-01"`.
 
 ## CURRENT FOCUS
 
-**Active work:**
-- Admin `/admin/billing` page — Tab 1 (Expenses) ✅, Tab 4 (Profit) ✅ with fixes pending commit, Tabs 2 + 3 not yet built.
-- Cost-tracking unification decision (see `docs/ARCH_COST_TRACKING_OPTIONS.md`).
+**Recently shipped (2026-06-09 → 11):** resident mobile (self-scope, chat + AI translation, photos, AI category suggestion, full i18n), CI red-since-June-9 diagnosed + fixed, and the two **audit P0** features — visa/contract/document **expiry monitor** and **GDPR anonymization** (right-to-be-forgotten v1).
 
-**Next steps (proposed):**
-1. Commit Tab 4 fixes after browser verification.
-2. User picks an architectural option (A/B/C) from the cost-tracking analysis.
-3. Build Tab 2 (Billing runs) + Tab 3 (Billings list) for full admin coverage.
-4. Decide on Gmail poller status — keep / disable / rewire.
+**Pending / next:**
+- **Production deployment to Hetzner** — plan ready in `HETZNER_DEPLOY.md`; on standby until the user's Hetzner account clears identity verification. Two pre-deploy blockers: domain/subdomains (DNS ahead of time) + `ENCRYPTION_KEY` carry-over-vs-rotate.
+- **GDPR legal/DPO sign-off** on retention years + `statutory_document_types` before any real erasure (config-only).
+- Cost-tracking unification decision (see `docs/ARCH_COST_TRACKING_OPTIONS.md`) — still open.
+- Billing admin Tabs 2 (Billing runs) + 3 (Billings list) not yet built; Gmail poller disposition (keep/disable/rewire).
 
 **Not in current scope:**
-- OCR re-integration (Phase 3)
-- Outgoing billing (Phase 2 per migration 112 header)
-- Currency expansion beyond HUF
+- GDPR v2 (activity_logs scrub, translation_cache purge, auto retention-expiry, data export)
+- OCR re-integration (Phase 3); outgoing billing (Phase 2); currency expansion beyond HUF
