@@ -38,7 +38,8 @@
     "titleRequired": "Kailangan ang pamagat", "categoryRequired": "Pumili ng kategorya",
     "priorityRequired": "Pumili ng priyoridad", "missingData": "Kulang na datos",
     "createError": "Hindi nagawa ang tiket", "loadError": "Hindi ma-load ang mga setting",
-    "success": "Matagumpay na nagawa ang tiket"
+    "success": "Matagumpay na nagawa ang tiket",
+    "aiSuggestion": "Mungkahi ng AI"
   },
   "ticketList": {
     "open": "Bukas ({{count}})", "closed": "Sarado ({{count}})", "empty": "Wala pang tiket",

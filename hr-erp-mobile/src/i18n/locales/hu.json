@@ -38,7 +38,8 @@
     "titleRequired": "A cím megadása kötelező", "categoryRequired": "Kérjük, válasszon kategóriát",
     "priorityRequired": "Kérjük, válasszon prioritást", "missingData": "Hiányzó adatok",
     "createError": "Nem sikerült létrehozni a hibajegyet", "loadError": "Nem sikerült betölteni a beállításokat",
-    "success": "Hibajegy sikeresen létrehozva"
+    "success": "Hibajegy sikeresen létrehozva",
+    "aiSuggestion": "AI-javaslat"
   },
   "ticketList": {
     "open": "Nyitott ({{count}})", "closed": "Lezárt ({{count}})", "empty": "Még nincs hibajegyed",

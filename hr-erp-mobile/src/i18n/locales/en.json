@@ -38,7 +38,8 @@
     "titleRequired": "Title is required", "categoryRequired": "Please choose a category",
     "priorityRequired": "Please choose a priority", "missingData": "Missing data",
     "createError": "Could not create the ticket", "loadError": "Could not load settings",
-    "success": "Ticket created successfully"
+    "success": "Ticket created successfully",
+    "aiSuggestion": "AI suggestion"
   },
   "ticketList": {
     "open": "Open ({{count}})", "closed": "Closed ({{count}})", "empty": "No tickets yet",

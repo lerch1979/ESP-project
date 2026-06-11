@@ -38,7 +38,8 @@
     "titleRequired": "Titel ist erforderlich", "categoryRequired": "Bitte Kategorie wählen",
     "priorityRequired": "Bitte Priorität wählen", "missingData": "Fehlende Daten",
     "createError": "Ticket konnte nicht erstellt werden", "loadError": "Einstellungen konnten nicht geladen werden",
-    "success": "Ticket erfolgreich erstellt"
+    "success": "Ticket erfolgreich erstellt",
+    "aiSuggestion": "KI-Vorschlag"
   },
   "ticketList": {
     "open": "Offen ({{count}})", "closed": "Geschlossen ({{count}})", "empty": "Noch keine Tickets",

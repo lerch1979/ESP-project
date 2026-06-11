@@ -38,7 +38,8 @@
     "titleRequired": "Вкажіть тему", "categoryRequired": "Оберіть категорію",
     "priorityRequired": "Оберіть пріоритет", "missingData": "Відсутні дані",
     "createError": "Не вдалося створити заявку", "loadError": "Не вдалося завантажити налаштування",
-    "success": "Заявку успішно створено"
+    "success": "Заявку успішно створено",
+    "aiSuggestion": "Підказка ШІ"
   },
   "ticketList": {
     "open": "Відкриті ({{count}})", "closed": "Закриті ({{count}})", "empty": "Поки немає заявок",

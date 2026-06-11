@@ -16,8 +16,13 @@
  */
 
 const { query } = require('../database/connection');
+const categoryAI = require('../services/categoryAI.service');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Min confidence to pre-select a category. Below this, return null (manual pick)
+// so the resident never sees a visibly-wrong guess.
+const SUGGEST_CONFIDENCE_THRESHOLD = 70;
 
 // GET /tickets/my — only tickets the resident created.
 const getMyTickets = async (req, res) => {
@@ -138,4 +143,51 @@ const getMyCategories = async (req, res) => {
   }
 };
 
-module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories };
+// POST /tickets/my/suggest-category — "AI suggests, resident confirms".
+// Classifies the typed description against the resident's OWN curated 6
+// categories (same contractor-scoped set as getMyCategories — NEVER the global
+// taxonomy) and returns a pre-selectable category, but only when the model is
+// confident (>= threshold). Failure-invisible: any error / low confidence / no
+// key returns { category_id: null } so the form silently falls back to manual.
+const suggestMyCategory = async (req, res) => {
+  try {
+    const description = typeof req.body?.description === 'string' ? req.body.description : '';
+
+    // The resident's OWN categories — the ONLY slugs a suggestion may resolve to.
+    const cats = await query(
+      `SELECT id, slug, name
+         FROM ticket_categories
+        WHERE contractor_id = $1 AND is_active = TRUE`,
+      [req.user.contractorId],
+    );
+    if (cats.rows.length === 0) {
+      return res.json({ success: true, data: { category_id: null } });
+    }
+
+    const suggestion = await categoryAI.suggestCategory(
+      description,
+      cats.rows.map((c) => ({ slug: c.slug, name: c.name })),
+    );
+
+    if (!suggestion || suggestion.confidence < SUGGEST_CONFIDENCE_THRESHOLD) {
+      return res.json({ success: true, data: { category_id: null } });
+    }
+
+    // Map the slug back to an id WITHIN the resident's own set (belt-and-braces
+    // isolation: even a hallucinated slug can't escape these 6 rows).
+    const match = cats.rows.find((c) => c.slug === suggestion.slug);
+    if (!match) {
+      return res.json({ success: true, data: { category_id: null } });
+    }
+
+    res.json({
+      success: true,
+      data: { category_id: match.id, slug: match.slug, confidence: suggestion.confidence },
+    });
+  } catch (err) {
+    // Never surface an error here — suggestion is optional, fall back to manual.
+    res.json({ success: true, data: { category_id: null } });
+  }
+};
+
+module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories, suggestMyCategory };

@@ -227,6 +227,13 @@ export const ticketsAPI = {
     const response = await api.get('/tickets/my/categories');
     return response.data;
   },
+  // Resident: AI category suggestion from the typed description (self-scoped to
+  // the resident's own 6 categories). Returns { category_id, slug, confidence }
+  // or { category_id: null }. Optional + failure-invisible — callers swallow errors.
+  suggestMyCategory: async (description) => {
+    const response = await api.post('/tickets/my/suggest-category', { description });
+    return response.data;
+  },
   getPriorities: async () => {
     const response = await api.get('/priorities');
     return response.data;

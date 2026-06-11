@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Alert,
   ActivityIndicator, KeyboardAvoidingView, Platform, Image, StyleSheet,
@@ -39,6 +39,46 @@ export default function CreateTicketScreen({ navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [photos, setPhotos] = useState([]);
+  // AI category suggestion ("AI suggests, resident confirms"). aiSuggested gates
+  // the ✨ badge; suggesting shows a subtle spinner during the classify call.
+  const [aiSuggested, setAiSuggested] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  // Once the resident taps a category themselves, the AI must never overwrite it.
+  const userTouchedCategory = useRef(false);
+  // Sequence guard so a slow earlier response can't clobber a newer one.
+  const suggestSeq = useRef(0);
+
+  // Debounced AI suggestion: residents only, after a typing pause, once the
+  // description is substantial. Failure-invisible — any error leaves manual
+  // selection exactly as today. Skips entirely once the user picks a category.
+  useEffect(() => {
+    if (!resident) return undefined;
+    if (userTouchedCategory.current) return undefined;
+    const text = description.trim();
+    if (text.length < 15) return undefined;
+
+    const handle = setTimeout(async () => {
+      const seq = (suggestSeq.current += 1);
+      setSuggesting(true);
+      try {
+        const res = await ticketsAPI.suggestMyCategory(text);
+        // Ignore stale responses and ignore if the resident took over meanwhile.
+        if (seq !== suggestSeq.current || userTouchedCategory.current) return;
+        const cid = res?.data?.category_id;
+        if (cid) {
+          setCategoryId(cid);
+          setAiSuggested(true);
+          setErrors((e) => (e.category ? { ...e, category: null } : e));
+        }
+      } catch {
+        /* optional + failure-invisible: resident just picks manually */
+      } finally {
+        if (seq === suggestSeq.current) setSuggesting(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(handle);
+  }, [description, resident]);
 
   const addPhoto = async (fromCamera) => {
     if (photos.length >= MAX_PHOTOS) return;
@@ -162,13 +202,27 @@ export default function CreateTicketScreen({ navigation }) {
             textAlignVertical="top"
           />
 
-          <Text style={styles.label}>{t('ticketForm.category')} *</Text>
+          <View style={styles.labelRow}>
+            <Text style={[styles.label, styles.labelInline]}>{t('ticketForm.category')} *</Text>
+            {suggesting && (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.suggestSpinner} />
+            )}
+            {aiSuggested && !suggesting && (
+              <View style={styles.aiBadge}>
+                <Text style={styles.aiBadgeText}>✨ {t('ticketForm.aiSuggestion')}</Text>
+              </View>
+            )}
+          </View>
           <View style={[styles.optionGroup, errors.category && styles.optionGroupError]}>
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
                 style={[styles.optionButton, categoryId === cat.id && styles.optionButtonSelected]}
                 onPress={() => {
+                  // Manual pick wins permanently: clear the AI badge and stop
+                  // any further auto-suggestion from overwriting this choice.
+                  userTouchedCategory.current = true;
+                  setAiSuggested(false);
                   setCategoryId(cat.id);
                   if (errors.category) setErrors((e) => ({ ...e, category: null }));
                 }}
@@ -272,6 +326,31 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 6,
     marginTop: 12,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  labelInline: {
+    marginBottom: 6,
+  },
+  suggestSpinner: {
+    marginLeft: 8,
+    marginTop: 6,
+  },
+  aiBadge: {
+    marginLeft: 8,
+    marginTop: 6,
+    backgroundColor: colors.primaryLight || '#E8F0FE',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  aiBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   input: {
     backgroundColor: colors.background,

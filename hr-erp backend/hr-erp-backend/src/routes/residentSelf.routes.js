@@ -17,8 +17,10 @@ const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
 router.get('/tickets/my', residentSelf.getMyTickets);
-// MUST be before /tickets/my/:id so "categories" isn't captured as an :id.
+// MUST be before /tickets/my/:id so "categories"/"suggest-category" aren't
+// captured as an :id.
 router.get('/tickets/my/categories', residentSelf.getMyCategories);
+router.post('/tickets/my/suggest-category', residentSelf.suggestMyCategory);
 router.get('/tickets/my/:id', residentSelf.getMyTicketById);
 router.get('/accommodations/my', residentSelf.getMyAccommodation);
 

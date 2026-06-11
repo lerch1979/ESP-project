@@ -6,6 +6,20 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-11 (later) — AI category suggestion for resident issue reporting
+
+### WHAT WAS DONE
+- **"AI suggests, resident confirms" category pre-selection.** Resident types a description in any language → Haiku classifies it → the matching category auto-fills with a subtle **✨ AI-javaslat** badge; resident can accept (do nothing) or override with one tap (badge clears, AI never overwrites again).
+- **Backend** — new `categoryAI.service.js` (reuses the SAME `ANTHROPIC_API_KEY` + Haiku model as translation.service; **never-throws** → null on any error/disabled/empty, so manual selection is always available). New self-scoped `POST /tickets/my/suggest-category` (auth-only) in `residentSelf.controller` — classifies against the resident's **OWN 6 contractor categories** (same source as `getMyCategories`, never the global 33), maps slug→`category_id` only within those rows, and returns a suggestion **only at confidence ≥ 70** (else `{category_id: null}`).
+- **Mobile** — `ticketsAPI.suggestMyCategory`; `CreateTicketScreen` debounced suggestion (residents only, ≥15 chars, 600ms pause, sequence-guarded against stale responses, fire-and-forget on error); ✨ badge + spinner; manual pick sets a ref that permanently disables auto-suggest for that ticket. Staff create flow untouched. `ticketForm.aiSuggestion` added in all 5 locales.
+- **Cost** (confirmed against the Claude API reference): Haiku 4.5 = $1/1M in, $5/1M out → ≈ **$0.0005 per classification**; debounce + 15-char gate ⇒ ~1–3 calls/ticket. Prompt-caching does **not** engage — the ~350-token prefix is below Haiku's 4096-token minimum cacheable prefix (not worth pursuing at this size).
+- **Verified by curl** against the test resident: HU "csöpög a csap" → `viz-csotores` (95); **UK** same meaning → `viz-csotores` (85, cross-language proven); **TL** heating → `futes` (95); EN electrical → `elektromos` (95); short/vague → `null`; **isolation** — payroll/IT (global-only) → `null`, and across 15 multilingual samples **only the resident's own 6 slugs ever returned, zero global-33 leaks**. i18n guard green; backend + JSX parse clean.
+
+### ⚙️ Notes for next session
+- Photo input deferred to v2 (text-only classify for v1, by design).
+
+---
+
 ## SESSION 2026-06-11 — resident i18n completion, photo attachments, category scoping + i18n guard
 
 ### ⚙️ STANDING WORKFLOW (run automatically in future sessions)
