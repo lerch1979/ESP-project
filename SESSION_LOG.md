@@ -6,6 +6,22 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-11 (later still) — CI red since 2026-06-09 diagnosed + fixed
+
+### 🐛 ROOT CAUSE — resident router blanket-gated all of `/api/v1` (production regression)
+- **CI had been red on every push since 2026-06-09** (last green 2026-05-21); not caused by today's commits — the docs + AI-feature pushes just ran an already-broken suite. Failure was **2 tests** in `tests/integration/chatbot.test.js`: the **public** `GET /chatbot/faq/categories` and `/faq/entries` returned **401** instead of 200/404.
+- **Cause:** `a14d96c4` (June 9 self-scope commit) mounts `residentSelfRoutes` at the **bare `${API_PREFIX}`** (`server.js:357`), and that router opened with a path-less **`router.use(authenticateToken)`**. Express runs router-level path-less middleware for *every* request entering the mount — so it 401-gated **all unauthenticated `/api/v1/*` requests** that reached line 357, including the public chatbot FAQ endpoints mounted later (`:378`). **Not just a test artifact — those endpoints were genuinely 401 in production**, and any future public `/api/v1` route after the resident mount would have been silently gated too. (Login at `:353` and the accountant page at `/public/accountant` sit outside the blast radius, which is why only those 2 broke.)
+- **Fix (B):** removed the router-level `router.use(authenticateToken)`; attached `authenticateToken` **per-route** in `residentSelf.routes.js` (keeps the bare-prefix mount, removes the catch-all). Added a header comment warning against re-introducing a blanket `.use()` here.
+- **CI hygiene:** bumped `actions/checkout@v4`→`v5` and `actions/setup-node@v4`→`v5` (Node 20 actions deprecated, forced to Node 24 on 2026-06-16).
+
+### ✅ VERIFIED before push
+1. Full `jest --coverage` on a fresh `hr_erp_test` (mirrors CI: 109 migrations applied — confirms the `093` blocker is **dev-DB-only**, never blocks CI/fresh DBs) → **1240/1240, 55/55 suites green**.
+2. Public FAQ endpoints **without token** → `200`/`200` (was 401).
+3. Resident `/my` endpoints **without token** → `401`; with the test resident's token → `200` (self-scope intact).
+4. Resident journey with auth (login, `/tickets/my`, `/tickets/my/categories`, `/accommodations/my`, `suggest-category`, `/messages`) all `200`; `suggest-category` still returns `viz-csotores` (95).
+
+---
+
 ## SESSION 2026-06-11 (later) — AI category suggestion for resident issue reporting
 
 ### WHAT WAS DONE

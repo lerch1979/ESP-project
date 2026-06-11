@@ -13,25 +13,30 @@ const { authenticateToken } = require('../middleware/auth');
  *   GET /tickets/my          → own tickets only
  *   GET /tickets/my/:id      → own ticket (404 if not theirs)
  *   GET /accommodations/my   → own room only
+ *
+ * ⚠️ Auth is attached PER-ROUTE, not via a router-level `router.use(...)`.
+ * This router is mounted at the BARE `${API_PREFIX}` (so its concrete paths
+ * win over the staff routers), which means a path-less `router.use(authenticateToken)`
+ * would run for EVERY `/api/v1/*` request entering this router — 401-gating
+ * public endpoints mounted after it (it previously broke the public chatbot
+ * FAQ endpoints). Keep `authenticateToken` on each route definition instead.
  */
-router.use(authenticateToken);
-
-router.get('/tickets/my', residentSelf.getMyTickets);
+router.get('/tickets/my', authenticateToken, residentSelf.getMyTickets);
 // MUST be before /tickets/my/:id so "categories"/"suggest-category" aren't
 // captured as an :id.
-router.get('/tickets/my/categories', residentSelf.getMyCategories);
-router.post('/tickets/my/suggest-category', residentSelf.suggestMyCategory);
-router.get('/tickets/my/:id', residentSelf.getMyTicketById);
-router.get('/accommodations/my', residentSelf.getMyAccommodation);
+router.get('/tickets/my/categories', authenticateToken, residentSelf.getMyCategories);
+router.post('/tickets/my/suggest-category', authenticateToken, residentSelf.suggestMyCategory);
+router.get('/tickets/my/:id', authenticateToken, residentSelf.getMyTicketById);
+router.get('/accommodations/my', authenticateToken, residentSelf.getMyAccommodation);
 
 // Resident ticket chat — self-scoped to OWN ticket (requireOwnTicket guard),
 // then reuse the shared staff thread controllers so messages land in the same
 // ticket_messages thread staff already see.
-router.get('/tickets/my/:ticketId/messages', residentSelf.requireOwnTicket, ticketMessages.list);
-router.post('/tickets/my/:ticketId/messages', residentSelf.requireOwnTicket, ticketMessages.send);
+router.get('/tickets/my/:ticketId/messages', authenticateToken, residentSelf.requireOwnTicket, ticketMessages.list);
+router.post('/tickets/my/:ticketId/messages', authenticateToken, residentSelf.requireOwnTicket, ticketMessages.send);
 
 // Resident photo attachments — self-scoped to OWN ticket (create-time upload).
-router.post('/tickets/my/:ticketId/attachments', residentSelf.requireOwnTicket, ticketAttachments.uploadPhoto, ticketAttachments.uploadMine);
-router.get('/tickets/my/:ticketId/attachments/:attId', residentSelf.requireOwnTicket, ticketAttachments.streamMine);
+router.post('/tickets/my/:ticketId/attachments', authenticateToken, residentSelf.requireOwnTicket, ticketAttachments.uploadPhoto, ticketAttachments.uploadMine);
+router.get('/tickets/my/:ticketId/attachments/:attId', authenticateToken, residentSelf.requireOwnTicket, ticketAttachments.streamMine);
 
 module.exports = router;
