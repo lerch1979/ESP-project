@@ -6,6 +6,30 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-11 (night) — GDPR anonymization / right-to-be-forgotten (audit P0, v1)
+
+Legally sensitive; design was reviewed + approved before build (see the personal-data map produced this session).
+
+### WHAT WAS BUILT (decisions locked with user)
+- **Engine `gdprAnonymization.service.js`** — `anonymizeEmployee(id,{dryRun,requestedBy,reason})`. Dry-run = counts + file list + kept categories, **zero mutation**; execute = one `transaction()` then file unlink **post-commit** (files can't roll back; `storage.delete` is ENOENT-safe). Two entry points (GDPR request + grace proposal), one engine, one flow.
+- **Disposition:** employees → name `TÖRÖLT-<id8>` + all other PII NULLed + `anonymized_at`; **users** → `is_active=false` (auth re-checks is_active → blocks existing JWTs too), email scrambled, password randomized, name→pseudonym (NOT NULL); **employee_documents** → non-statutory scans physically deleted (file+row), statutory types KEPT (configurable list); **health/wellbeing** (~18 tables) → hard DELETE; **financial** (compensations, compensation_residents incl. `signature_data`, salary_deductions) → KEPT, denormalized names→pseudonym, contacts NULLed; **tickets/messages/attachments/chatbot/translation_cache** → KEPT INTACT (authorship cascades via the pseudonymized user record — no edits needed); notifications for/about subject → deleted. **SKIPPED v1 → v2:** activity_logs JSONB scrub, translation_cache purge.
+- **Pseudonym** = `TÖRÖLT-<first 8 of uuid>`, same across all retained tables.
+- **Lifecycle:** consent (`employees.data_consent_at` + `recorded_by`); grace clock on `end_date + grace_months` (default 24, configurable); **propose-only** queue (`GET /proposals`, live query — never auto-anonymizes); daily 08:00 **reminder cron** notifies superadmin/data_controller of newly-eligible (dedup via `retention_notified_at`); the system proposes, a human disposes.
+- **Migration 122:** `employees.{data_consent_at,data_consent_recorded_by,anonymized_at,retention_notified_at}` · `anonymization_config` (grace_months=24, backup_retention_days=30, statutory_document_types[], reminder_enabled) · `anonymization_log` (WHO/WHEN/WHY + **counts-only** summary, never the removed values).
+- **API `/anonymization`:** config, proposals, preview, execute (requires `confirm:true`), logs — **superadmin only**; consent — admin. Audit-of-the-anonymization stored (dry-run logged too).
+- **Admin UI:** dedicated **GDPR / Anonimizálás** page (config + proposal queue with multi-select → preview → typed `ANONIMIZÁL` double-confirm → execute + log viewer) **and** a per-employee `EmployeeGdprAction` in the employee detail modal (consent chip/record + superadmin-only anonymize → preview → double-confirm). employee detail SELECT now returns the new columns.
+
+### ✅ VERIFIED on a THROWAWAY employee+user (18/18; created fresh, never the real data, fully removed after)
+preview = no mutation; execute → name pseudonymized + all PII NULL + anonymized_at; user deactivated + email scrambled + name→pseudonym; non-statutory doc+files physically deleted, **statutory contract file KEPT on disk**; health rows hard-deleted; notifications deleted; **ticket KEPT, author display cascades to pseudonym**; log = counts only (asserted no raw PII like passport/tax/IBAN in summary); idempotent (re-run → already_anonymized). **The throwaway caught a real bug** (`users.first_name/last_name` are NOT NULL → service was NULLing them → fixed to pseudonym). HTTP: resident→403, execute-without-confirm→400, consent works. Admin Vite build clean. **Full jest 1240/1240** (migration 122 applies on fresh DB → 112 total).
+
+### Hetzner runbook updated
+Added the GDPR/backup interaction to `HETZNER_DEPLOY.md`: bounded backup retention (≤30d, the "ages out" guarantee) + re-apply `anonymization_log` after any restore (no selective resurrection).
+
+### Still for legal/DPO before first REAL use (no code change needed — all configurable)
+Finalize retention years + which `statutory_document_types` slugs map to real contract docs; confirm payroll/social-security long-retention categories. v2 backlog: activity_logs JSONB scrub, translation_cache purge, automatic retention-expiry execution, GDPR data export (portability).
+
+---
+
 ## SESSION 2026-06-11 (evening) — visa/contract/document expiry monitor (audit P0)
 
 Server-independent backend+admin feature (built while Hetzner account verification is pending).

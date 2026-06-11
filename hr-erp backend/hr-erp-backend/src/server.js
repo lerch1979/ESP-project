@@ -73,6 +73,7 @@ const inspectionTemplateRoutes = require('./routes/inspectionTemplate.routes');
 const inspectionScheduleRoutes = require('./routes/inspectionSchedule.routes');
 const inspectionTaskRoutes = require('./routes/inspectionTask.routes');
 const expiryMonitorRoutes = require('./routes/expiryMonitor.routes');
+const gdprAnonymizationRoutes = require('./routes/gdprAnonymization.routes');
 const roomsRoutes = require('./routes/rooms.routes');
 const compensationRoutes = require('./routes/compensation.routes');
 const fineRoutes = require('./routes/fine.routes');
@@ -411,6 +412,7 @@ app.use(`${API_PREFIX}/classification-rules`, classificationRulesRoutes);
 app.use(`${API_PREFIX}/inspections`, inspectionRoutes);
 app.use(`${API_PREFIX}/inspection-templates`, inspectionTemplateRoutes);
 app.use(`${API_PREFIX}/expiry-monitor`, expiryMonitorRoutes);
+app.use(`${API_PREFIX}/anonymization`, gdprAnonymizationRoutes);
 app.use(`${API_PREFIX}/inspection-schedules`, inspectionScheduleRoutes);
 app.use(`${API_PREFIX}/inspection-tasks`, inspectionTaskRoutes);
 app.use(`${API_PREFIX}/rooms`, roomsRoutes);
@@ -518,6 +520,17 @@ async function startServer() {
       });
     });
     logger.info('⏳ Expiry monitor cron scheduled (daily at 07:00, toggle-gated)');
+
+    // GDPR retention reminder — daily at 08:00. PROPOSES only: notifies superadmin/
+    // data_controller about ex-employees past their grace period. NEVER anonymizes
+    // (the system proposes, a human disposes via the admin UI).
+    const gdprService = require('./services/gdprAnonymization.service');
+    cron.schedule('0 8 * * *', () => {
+      gdprService.notifyProposals().catch((err) => {
+        logger.error('[cron:gdprProposals] failed:', err.message);
+      });
+    });
+    logger.info('🔒 GDPR retention reminder cron scheduled (daily at 08:00, propose-only)');
 
     // Wellbeing cron jobs (9 jobs: pulse reminders, assessments, alerts, Slack
     // check-ins, materialized view refresh). All schedules + handlers defined

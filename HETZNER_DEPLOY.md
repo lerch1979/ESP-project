@@ -321,6 +321,8 @@ chmod +x ~/hr-erp/backup.sh
 ```
 **Belt-and-braces:** also enable **Hetzner automated snapshots/backups** on the VM (whole-disk, one-click rollback). Use snapshots for fast disaster recovery, the Storage Box copy as the true offsite. **Test a restore once** before go-live (restore the dump into a throwaway DB).
 
+> 🔒 **GDPR interaction (bounded backup retention = the "ages out" guarantee).** The GDPR anonymization feature is irreversible in the live DB, but nightly backups taken *before* an erasure still contain the subject's data. Standard compliant practice (we do **not** edit backups): keep a **bounded retention** — the `backup.sh` `find … -mtime +14 -delete` above plus the offsite Storage Box rotation must be set so erased data ages out within the documented window. The app default is **`anonymization_config.backup_retention_days = 30`** — keep the backup rotation ≤ that figure (or update the config to match your chosen window), and document it as the retention policy. **After any restore**, re-run the outstanding entries in `anonymization_log` (reason=`gdpr_request`/`retention_expiry`) against the restored DB so erasures aren't silently resurrected — restores are all-or-nothing disaster recovery, never selective resurrection.
+
 ---
 
 ## 3. Go-live security checklist

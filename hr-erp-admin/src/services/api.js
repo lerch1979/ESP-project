@@ -259,6 +259,17 @@ export const dashboardAPI = {
   },
 };
 
+// GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).
+export const anonymizationAPI = {
+  getConfig: async () => (await api.get('/anonymization/config')).data,
+  updateConfig: async (body) => (await api.put('/anonymization/config', body)).data,
+  getProposals: async () => (await api.get('/anonymization/proposals')).data,
+  preview: async (employeeIds, reason) => (await api.post('/anonymization/preview', { employeeIds, reason })).data,
+  execute: async (employeeIds, reason) => (await api.post('/anonymization/execute', { employeeIds, reason, confirm: true })).data,
+  getLogs: async () => (await api.get('/anonymization/logs')).data,
+  recordConsent: async (employeeId) => (await api.post('/anonymization/consent', { employeeId })).data,
+};
+
 // Expiry monitor (visa / contract / document) — admin-gated.
 export const expiryMonitorAPI = {
   getConfig: async () => (await api.get('/expiry-monitor/config')).data,

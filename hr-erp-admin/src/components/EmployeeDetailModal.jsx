@@ -64,6 +64,7 @@ import UserAvatar from './common/UserAvatar';
 import PdfViewer from './PdfViewer';
 import TaskCreationModal from './TaskCreationModal';
 import EmployeeDocumentsPanel from './EmployeeDocumentsPanel';
+import EmployeeGdprAction from './EmployeeGdprAction';
 
 const GENDER_LABELS = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
 const MARITAL_LABELS = { single: 'Egyedülálló', married: 'Házas', divorced: 'Elvált', widowed: 'Özvegy' };
@@ -962,6 +963,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
         ) : (
           <>
             <Button onClick={handleClose}>Bezárás</Button>
+            {employee && <EmployeeGdprAction employee={employee} onDone={() => { onSuccess && onSuccess(); handleClose(); }} />}
+            <Box sx={{ flexGrow: 1 }} />
             {employee && activeTab === 0 && (
               <>
                 <FormControl size="small" sx={{ minWidth: 180 }}>
