@@ -8,6 +8,7 @@ import {
   DeleteOutline as DeleteIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../services/api';
 
 const ROLE_LABEL = {
@@ -150,6 +151,7 @@ function MessageBubble({ message, isOwn, currentUserId, onMarkRead, onDelete }) 
  * later if we want it.
  */
 export default function TicketChat({ ticketId, currentUser }) {
+  const { i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -186,14 +188,14 @@ export default function TicketChat({ ticketId, currentUser }) {
     if (!ticketId) return;
     setLoading(true);
     try {
-      const res = await ticketsAPI.listMessages(ticketId);
+      const res = await ticketsAPI.listMessages(ticketId, i18n.language);
       if (res?.success) setMessages(res.data?.messages || []);
     } catch {
       toast.error('Üzenetek betöltése sikertelen');
     } finally {
       setLoading(false);
     }
-  }, [ticketId]);
+  }, [ticketId, i18n.language]);
 
   useEffect(() => { load(); }, [load]);
 

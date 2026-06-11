@@ -26,7 +26,9 @@
   "status": {
     "new": "Bago", "in_progress": "Isinasagawa", "waiting": "Naghihintay",
     "waiting_material": "Naghihintay ng materyales", "completed": "Sarado", "resolved": "Naayos",
-    "rejected": "Tinanggihan", "closed_unsuccessful": "Sarado (hindi matagumpay)"
+    "rejected": "Tinanggihan", "closed_unsuccessful": "Sarado (hindi matagumpay)",
+    "invoicing": "Pagsingil", "payment_pending": "Naghihintay ng bayad",
+    "transferred": "Inilipat", "not_feasible": "Hindi magagawa"
   },
   "priority": { "low": "Mababa", "normal": "Normal", "urgent": "Apurahan", "critical": "Kritikal" },
   "ticketForm": {
@@ -140,6 +142,7 @@
     "logout": "Mag-logout",
     "logoutConfirm": "Sigurado ka bang gusto mong mag-logout?",
     "languageUpdated": "Na-update ang wika",
+    "languageSaveFailed": "Hindi na-save ang wika",
     "languages": {
       "hu": "Magyar",
       "en": "English",

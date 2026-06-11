@@ -26,7 +26,9 @@
   "status": {
     "new": "New", "in_progress": "In progress", "waiting": "Waiting",
     "waiting_material": "Waiting for materials", "completed": "Closed", "resolved": "Resolved",
-    "rejected": "Rejected", "closed_unsuccessful": "Closed (unsuccessful)"
+    "rejected": "Rejected", "closed_unsuccessful": "Closed (unsuccessful)",
+    "invoicing": "Invoicing", "payment_pending": "Payment pending",
+    "transferred": "Transferred", "not_feasible": "Not feasible"
   },
   "priority": { "low": "Low", "normal": "Normal", "urgent": "Urgent", "critical": "Critical" },
   "ticketForm": {
@@ -140,6 +142,7 @@
     "logout": "Logout",
     "logoutConfirm": "Are you sure you want to logout?",
     "languageUpdated": "Language updated",
+    "languageSaveFailed": "Could not save language",
     "languages": {
       "hu": "Magyar",
       "en": "English",

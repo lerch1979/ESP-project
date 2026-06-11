@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
 import { colors } from '../../constants/colors';
 import LoadingScreen from '../../components/LoadingScreen';
 
@@ -25,6 +27,8 @@ async function compressPhoto(uri) {
 
 export default function CreateTicketScreen({ navigation }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const resident = isResident(user);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(null);
@@ -66,7 +70,7 @@ export default function CreateTicketScreen({ navigation }) {
     const load = async () => {
       try {
         const [catRes, priRes] = await Promise.all([
-          ticketsAPI.getCategories(),
+          resident ? ticketsAPI.getMyCategories() : ticketsAPI.getCategories(),
           ticketsAPI.getPriorities(),
         ]);
         setCategories(catRes.data.categories || []);
@@ -78,7 +82,7 @@ export default function CreateTicketScreen({ navigation }) {
       }
     };
     load();
-  }, []);
+  }, [resident]);
 
   const handleSubmit = async () => {
     const nextErrors = {};

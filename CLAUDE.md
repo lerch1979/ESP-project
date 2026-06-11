@@ -13,3 +13,11 @@ Then run `git log --oneline -10` and `git status` and **briefly summarize** to t
 **Open architectural decision:** see `docs/ARCH_COST_TRACKING_OPTIONS.md` — cost-tracking unification between old `cost_centers` pipeline and new `accommodation_expenses`. Awaiting user choice.
 
 **Duplication is a real risk in this repo.** Before adding anything new, search for existing systems and check the "Known overlaps" section of `PROJECT_STATE.md`.
+
+**🌐 Resident i18n guard (MANDATORY before committing resident-facing changes).** If a change touches resident-facing UI (the mobile resident screens) OR DB enums a resident can see (ticket categories / statuses / priorities), run:
+
+```
+node scripts/check-i18n-coverage.js     # must exit 0
+```
+
+It verifies every resident-visible enum slug has a key in all 5 locales (hu/en/uk/tl/de) and that the resident-only screens contain no hardcoded Hungarian. Do not commit such changes if it exits non-zero — fix the gaps it lists first. (Needs Postgres up; honors `$DATABASE_URL`.)

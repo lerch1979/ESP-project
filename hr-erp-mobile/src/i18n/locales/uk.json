@@ -26,7 +26,9 @@
   "status": {
     "new": "Нова", "in_progress": "В роботі", "waiting": "Очікує",
     "waiting_material": "Очікує матеріалів", "completed": "Закрито", "resolved": "Вирішено",
-    "rejected": "Відхилено", "closed_unsuccessful": "Закрито (невдало)"
+    "rejected": "Відхилено", "closed_unsuccessful": "Закрито (невдало)",
+    "invoicing": "Виставлення рахунку", "payment_pending": "Очікує оплати",
+    "transferred": "Передано", "not_feasible": "Неможливо виконати"
   },
   "priority": { "low": "Низький", "normal": "Звичайний", "urgent": "Терміновий", "critical": "Критичний" },
   "ticketForm": {
@@ -140,6 +142,7 @@
     "logout": "Вийти",
     "logoutConfirm": "Ви впевнені, що хочете вийти?",
     "languageUpdated": "Мову оновлено",
+    "languageSaveFailed": "Не вдалося зберегти мову",
     "languages": {
       "hu": "Magyar",
       "en": "English",

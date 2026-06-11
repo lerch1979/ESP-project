@@ -160,7 +160,12 @@ const list = async (req, res) => {
     // Show each message in the VIEWER's language. translateText is cache-first
     // and NEVER throws (returns the original on error/disabled/empty), so this
     // can never break the thread. Same-language messages are left untouched.
-    const viewerLang = await translation.getUserLanguage(req.user.id);
+    // Prefer the language the client is actually displaying (?lang=), so chat
+    // matches the UI even if the stored preferred_language is stale. Fall back
+    // to the DB preference when no valid param is passed.
+    const SUPPORTED = ['hu', 'en', 'tl', 'uk', 'de'];
+    const reqLang = String(req.query.lang || '').toLowerCase();
+    const viewerLang = SUPPORTED.includes(reqLang) ? reqLang : await translation.getUserLanguage(req.user.id);
     const messages = await Promise.all(r.rows.map(async (m) => {
       const src = m.source_language;
       let display_text = m.message;

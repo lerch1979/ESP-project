@@ -26,7 +26,9 @@
   "status": {
     "new": "Új", "in_progress": "Folyamatban", "waiting": "Várakozik",
     "waiting_material": "Anyagra vár", "completed": "Lezárva", "resolved": "Megoldva",
-    "rejected": "Elutasítva", "closed_unsuccessful": "Lezárt (sikertelen)"
+    "rejected": "Elutasítva", "closed_unsuccessful": "Lezárt (sikertelen)",
+    "invoicing": "Számlázás", "payment_pending": "Pénzügyi teljesítés",
+    "transferred": "Továbbítva", "not_feasible": "Nem megvalósítható"
   },
   "priority": { "low": "Alacsony", "normal": "Normál", "urgent": "Sürgős", "critical": "Kritikus" },
   "ticketForm": {
@@ -140,6 +142,7 @@
     "logout": "Kijelentkezés",
     "logoutConfirm": "Biztosan kijelentkezik?",
     "languageUpdated": "Nyelv frissítve",
+    "languageSaveFailed": "A nyelv mentése nem sikerült",
     "languages": {
       "hu": "Magyar",
       "en": "English",

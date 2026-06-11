@@ -47,10 +47,13 @@ export default function ProfileScreen() {
     } catch (e) {
       // ignore persist failure
     }
-    // Fire-and-forget backend update
-    userAPI.updateLanguage(code).catch(() => {
-      // Network failure shouldn't break UI
-    });
+    // Persist to the backend (the DB is the source for notifications/emails).
+    // Surface failures so a language that didn't save isn't silently lost.
+    try {
+      await userAPI.updateLanguage(code);
+    } catch (e) {
+      Alert.alert(t('common.error'), t('settings.languageSaveFailed'));
+    }
   };
 
   if (!user) return null;

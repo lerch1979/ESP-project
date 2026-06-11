@@ -120,4 +120,22 @@ const requireOwnTicket = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket };
+// Resident's OWN contractor categories (the curated set for their housing
+// provider), NOT the global staff taxonomy. Keeps the report picker short and
+// fully translated — a resident never sees other contractors'/staff categories.
+const getMyCategories = async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT id, name, slug, color, icon
+         FROM ticket_categories
+        WHERE contractor_id = $1 AND is_active = TRUE
+        ORDER BY name`,
+      [req.user.contractorId],
+    );
+    res.json({ success: true, data: { categories: r.rows } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Hiba a kategóriák lekérésekor' });
+  }
+};
+
+module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories };

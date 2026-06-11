@@ -172,8 +172,8 @@ export const ticketsAPI = {
   },
 
   // ── Ticket message thread (migration 106) ─────────────────────────
-  listMessages: async (ticketId) => {
-    const response = await api.get(`/tickets/${ticketId}/messages`);
+  listMessages: async (ticketId, lang) => {
+    const response = await api.get(`/tickets/${ticketId}/messages`, lang ? { params: { lang } } : undefined);
     return response.data;
   },
   sendMessage: async (ticketId, body) => {

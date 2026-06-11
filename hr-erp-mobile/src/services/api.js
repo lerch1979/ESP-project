@@ -180,8 +180,8 @@ export const ticketsAPI = {
     return response.data;
   },
   // Resident ticket chat (self-scoped to own ticket).
-  getMineMessages: async (id) => {
-    const response = await api.get(`/tickets/my/${id}/messages`);
+  getMineMessages: async (id, lang) => {
+    const response = await api.get(`/tickets/my/${id}/messages`, lang ? { params: { lang } } : undefined);
     return response.data;
   },
   sendMineMessage: async (id, message) => {
@@ -220,6 +220,11 @@ export const ticketsAPI = {
   },
   getCategories: async () => {
     const response = await api.get('/categories');
+    return response.data;
+  },
+  // Resident: only their OWN contractor's curated categories (not the global staff taxonomy).
+  getMyCategories: async () => {
+    const response = await api.get('/tickets/my/categories');
     return response.data;
   },
   getPriorities: async () => {

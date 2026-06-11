@@ -57,7 +57,7 @@ function MessageBubble({ item, mine, t }) {
 // Read-only ticket header + chat thread (resident's OWN ticket only, via /my).
 export default function ResidentTicketDetail({ route, navigation }) {
   const { id } = route.params;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [ticket, setTicket] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -75,17 +75,17 @@ export default function ResidentTicketDetail({ route, navigation }) {
 
   const loadMessages = useCallback(async () => {
     try {
-      const res = await ticketsAPI.getMineMessages(id);
+      const res = await ticketsAPI.getMineMessages(id, i18n.language);
       setMessages(res.data.messages || []);
     } catch { /* keep current thread on a transient poll error */ }
-  }, [id]);
+  }, [id, i18n.language]);
 
   const loadAll = useCallback(async () => {
     try {
       setError(null);
       const [tRes, mRes] = await Promise.all([
         ticketsAPI.getMineById(id),
-        ticketsAPI.getMineMessages(id),
+        ticketsAPI.getMineMessages(id, i18n.language),
       ]);
       setTicket(tRes.data.ticket);
       setMessages(mRes.data.messages || []);
@@ -95,7 +95,7 @@ export default function ResidentTicketDetail({ route, navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, i18n.language]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 

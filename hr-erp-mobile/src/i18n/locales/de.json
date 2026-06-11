@@ -26,7 +26,9 @@
   "status": {
     "new": "Neu", "in_progress": "In Bearbeitung", "waiting": "Wartet",
     "waiting_material": "Wartet auf Material", "completed": "Geschlossen", "resolved": "Gelöst",
-    "rejected": "Abgelehnt", "closed_unsuccessful": "Geschlossen (erfolglos)"
+    "rejected": "Abgelehnt", "closed_unsuccessful": "Geschlossen (erfolglos)",
+    "invoicing": "Abrechnung", "payment_pending": "Zahlung ausstehend",
+    "transferred": "Weitergeleitet", "not_feasible": "Nicht machbar"
   },
   "priority": { "low": "Niedrig", "normal": "Normal", "urgent": "Dringend", "critical": "Kritisch" },
   "ticketForm": {
@@ -140,6 +142,7 @@
     "logout": "Abmelden",
     "logoutConfirm": "Möchten Sie sich wirklich abmelden?",
     "languageUpdated": "Sprache aktualisiert",
+    "languageSaveFailed": "Sprache konnte nicht gespeichert werden",
     "languages": {
       "hu": "Magyar",
       "en": "English",
