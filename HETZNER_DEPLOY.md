@@ -321,6 +321,39 @@ chmod +x ~/hr-erp/backup.sh
 ```
 **Belt-and-braces:** also enable **Hetzner automated snapshots/backups** on the VM (whole-disk, one-click rollback). Use snapshots for fast disaster recovery, the Storage Box copy as the true offsite. **Test a restore once** before go-live (restore the dump into a throwaway DB).
 
+#### Dual backup — provider independence (DECISION: stay on Hetzner, mitigate provider risk)
+Everything above lives inside the Hetzner account. If that account is ever locked/suspended, the server **and** the Storage Box become unreachable at once. Mitigation: a **daily pull-down to a machine you control** (Mac laptop / NAS), so a full copy of the data exists outside Hetzner and the docker-compose stack can be redeployed anywhere within a day.
+
+On the **Mac**, `~/hr-erp-backup-pull.sh` (pulls the newest DB dump + uploads archive — from the Storage Box, or directly from the server):
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+DEST=~/hr-erp-offsite; mkdir -p "$DEST"
+# Pull from the Storage Box (preferred — already aggregated, off the live VM):
+rsync -az --delete u<box-id>@u<box-id>.your-storagebox.de:hr-erp-backups/ "$DEST/"
+# (Alternative — straight from the server: rsync -az deploy@<SERVER_IP>:hr-erp/backups/ "$DEST/")
+# Keep the two newest of each so the laptop doesn't fill up:
+ls -1t "$DEST"/db-*.dump      2>/dev/null | tail -n +3 | xargs -r rm -f
+ls -1t "$DEST"/uploads-*.tgz  2>/dev/null | tail -n +3 | xargs -r rm -f
+echo "$(date): pulled $(ls -1 "$DEST"/db-*.dump | wc -l) db dump(s)"
+```
+Schedule it with **launchd** (survives reboots; runs at next wake if the Mac was asleep). `~/Library/LaunchAgents/hu.hrerp.backuppull.plist`:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+  <key>Label</key><string>hu.hrerp.backuppull</string>
+  <key>ProgramArguments</key><array><string>/bin/bash</string><string>-lc</string>
+    <string>~/hr-erp-backup-pull.sh >> ~/hr-erp-offsite/pull.log 2>&1</string></array>
+  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+  <key>RunAtLoad</key><true/>
+</dict></plist>
+```
+```bash
+chmod +x ~/hr-erp-backup-pull.sh
+launchctl load ~/Library/LaunchAgents/hu.hrerp.backuppull.plist
+```
+> Runs at 09:00 (after the server's 02:30 backup). Uses the **same SSH key** added to the Storage Box / server. **Verify the local copy restores** at least once (`pg_restore` a pulled dump into a throwaway DB) — an untested backup isn't a backup. This is the disaster-recovery seed: with the latest dump + uploads tarball + this repo, the whole stack redeploys on any host via `docker-compose.prod.yml`.
+
 > 🔒 **GDPR interaction (bounded backup retention = the "ages out" guarantee).** The GDPR anonymization feature is irreversible in the live DB, but nightly backups taken *before* an erasure still contain the subject's data. Standard compliant practice (we do **not** edit backups): keep a **bounded retention** — the `backup.sh` `find … -mtime +14 -delete` above plus the offsite Storage Box rotation must be set so erased data ages out within the documented window. The app default is **`anonymization_config.backup_retention_days = 30`** — keep the backup rotation ≤ that figure (or update the config to match your chosen window), and document it as the retention policy. **After any restore**, re-run the outstanding entries in `anonymization_log` (reason=`gdpr_request`/`retention_expiry`) against the restored DB so erasures aren't silently resurrected — restores are all-or-nothing disaster recovery, never selective resurrection.
 
 ---
@@ -342,6 +375,7 @@ chmod +x ~/hr-erp/backup.sh
 - [ ] **`CSRF_ENABLED=true`, `SECURITY_HEADERS_ENABLED=true`.**
 - [ ] **HTTPS only** — Caddy redirects 80→443 automatically; confirm cert issued for both subdomains.
 - [ ] **Backups verified** — run `backup.sh` once and do a test restore before residents are onboarded.
+- [ ] **Provider independence: local backup copy verified** — the daily Mac/NAS pull-down (`~/hr-erp-backup-pull.sh` via launchd, §2.11) has fetched a dump + uploads archive, and a pulled dump has been test-restored into a throwaway DB. Guarantees all data is held outside Hetzner; the stack can redeploy anywhere within a day if the provider account is ever locked.
 - [ ] **Run the i18n guard** on the deployed commit (`node scripts/check-i18n-coverage.js`) — standing rule for resident-facing releases.
 
 ---

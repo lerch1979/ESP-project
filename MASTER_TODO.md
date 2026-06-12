@@ -142,4 +142,14 @@ Roadmap-only (from README — not started, not blocking):
 
 ---
 
+## POST-PILOT BACKLOG (HR-ERP — after the first live rollout)
+
+### Workforce Insights report module (POST-PILOT — needs 1–2 months of real usage data first)
+- **Per-nationality metrics from existing data:** communication activity (who reports vs. who stays silent — *silent cohorts = churn-risk signal*), ticket patterns by cohort, response-time satisfaction, translation/chat usage trends (*more messages = growing trust*).
+- **Client-facing report format** (Autoliv pitch material): measurable outcomes per cohort, early-warning signals, resolution times.
+- This is the **first data-driven Pulse deliverable**; pairs with the consulting layer (multicultural workforce advisory) as the premium EOR package.
+- **Positioning note:** the intercultural capability is **ALREADY BUILT** (own-language chat, language-agnostic AI categorization, per-nationality visa rules) — *name it in marketing, don't rebuild it.*
+
+---
+
 *Maintenance: update this file when a project's status changes. It is a portfolio index, not a substitute for each project's own `SESSION_LOG`/`PROJECT_STATE`.*
