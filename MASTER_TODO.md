@@ -142,7 +142,25 @@ Roadmap-only (from README — not started, not blocking):
 
 ---
 
-## POST-PILOT BACKLOG (HR-ERP — after the first live rollout)
+## STRATEGIC / POST-PILOT BACKLOG (HR-ERP — after the first live rollout)
+
+### AI AGENT LAYER over HR-ERP — POST-DEPLOY + POST-PILOT roadmap
+**Spec:** `HR-ERP-AI-Agent-Architektura-v1.md` (2026-06-13). **NOT before the live system has real usage data.**
+
+- **Strategic fit:** the agent layer **IS** the EOR admin-burden absorption we pitch to clients; it multiplies the 2-person admin capacity. The internal layer doubles as the Pulse compliance demo (*"we run it on ourselves, auditable"*).
+- **Core principles (non-negotiable):** deterministic detection → LLM interpretation → **human approval** → deterministic execution. A **permanent L1 zone (no automation ever)** for: money/payroll, contracts, invoices, authority comms, worker sanctions. **"Measure the process, never the individual"** (AI Act Annex III avoidance). Full audit log.
+- **Roster (7+1) — BUILD ONE AT A TIME, proven live before the next:**
+  1. **Compliance Watchdog** (FIRST — its deterministic layer **already exists** as the visa/expiry monitor we built; EOR pitch demo; June-regulation timing)
+  2. Data Quality
+  3. Efficiency (needs `entity_status_history` + 4wk data)
+  4. Financial/Controlling (revenue-leakage finds money, but needs the billing data-source decision + >80% precision)
+  5. Onboarding
+  6. Housing Ops
+  7. Reporting
+  8. WhatsApp worker assistant (LAST — highest AI Act exposure)
+- **Cost:** ~€30–100/mo tokens. The **real** cost is human build/eval/maintenance time — *this gates pace, not money.*
+- **Sequence:** deploy → pilot (4–6wk real data) → Phase 0 infra (~2 days) → Compliance Watchdog L0→L1 → evaluate → next agent only if proven.
+- **Open decisions before Phase 2:** billing data source (Számlázz.hu/Billingo API vs CSV), `entity_status_history` hook (app-level recommended), DPIA for the agent layer.
 
 ### Workforce Insights report module (POST-PILOT — needs 1–2 months of real usage data first)
 - **Per-nationality metrics from existing data:** communication activity (who reports vs. who stays silent — *silent cohorts = churn-risk signal*), ticket patterns by cohort, response-time satisfaction, translation/chat usage trends (*more messages = growing trust*).
