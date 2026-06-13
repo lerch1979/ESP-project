@@ -43,7 +43,7 @@ https://github.com/lerch1979/ESP-project/blob/main/PROJECT_CONTEXT.md
 
 ```bash
 # Git status:
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 git status
 git log --oneline -10
 
@@ -95,7 +95,7 @@ npx @anthropic-ai/claude-code --remote-control
 **Ha nem (404 error):**
 ```bash
 # Használj Cursor-t:
-cursor /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cursor /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 ```
 
 ---
@@ -106,11 +106,11 @@ cursor /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
 
 ```bash
 # Backend:
-cd "/Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend"
+cd "/Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend"
 npm test
 
 # Mobile:
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 npm start
 ```
 
@@ -131,7 +131,7 @@ Tech Stack:
 - Mobile: React Native 0.81 + Expo ~54
 
 Repository: https://github.com/lerch1979/ESP-project (PRIVATE)
-Local: /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/
+Local: /Users/lerchbalazs/dev/HR-ERP-PROJECT/
 
 Structure:
 - hr-erp backend/hr-erp-backend/ (Backend API)
@@ -268,7 +268,7 @@ npx @anthropic-ai/claude-code --version
 
 2. **Local (SECONDARY):**
    ```
-   /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/
+   /Users/lerchbalazs/dev/HR-ERP-PROJECT/
    ```
 
 ---

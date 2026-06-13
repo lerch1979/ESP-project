@@ -19,7 +19,7 @@
 
 **Repository:** https://github.com/lerch1979/ESP-project (PRIVATE)
 
-**Local:** `/Users/lerchbalazs/Desktop/HR-ERP-PROJECT/`
+**Local:** `/Users/lerchbalazs/dev/HR-ERP-PROJECT/`
 
 ---
 

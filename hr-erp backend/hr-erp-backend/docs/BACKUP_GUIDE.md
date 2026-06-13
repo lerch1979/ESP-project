@@ -63,7 +63,7 @@ Fajl: `scripts/backup_config.json`
 crontab -e
 
 # Sor hozzaadasa (napi 7:00)
-0 7 * * * cd "/Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend" && /usr/local/bin/node scripts/auto_backup.js >> logs/backup.log 2>&1
+0 7 * * * cd "/Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend" && /usr/local/bin/node scripts/auto_backup.js >> logs/backup.log 2>&1
 ```
 
 ## CLI kapcsolok

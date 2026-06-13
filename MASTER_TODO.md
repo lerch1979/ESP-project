@@ -27,7 +27,7 @@ Three things tracked as separate "projects" are actually **subsystems of HR-ERP*
 
 | Project | Location | VCS | Last activity | Status | Open items |
 |---|---|---|---|---|---|
-| **HR-ERP** (incl. Pulse, Videos, Bruno) | `~/Desktop/HR-ERP-PROJECT` | git, clean | 2026-05-21 | 🟢 Active, pre-pilot | many (see §1) |
+| **HR-ERP** (incl. Pulse, Videos, Bruno) | `~/dev/HR-ERP-PROJECT` | git, clean | 2026-05-21 | 🟢 Active, pre-pilot | many (see §1) |
 | **StockMaster** | `~/Desktop/StockMaster` | git, dirty | 2026-04-10 (60d) | 🟡 Dormant, phases 1–5 done | hardening/tests/CI (§2) |
 | **hedge-fund-agent** | `~/Desktop/hedge-fund-agent` | **none** | 2026-04-23 | 🟡 Dormant, runs manually | not-versioned; keys; wiring (§3) |
 | **sg-intel-agent** | `~/sg-intel-agent` | git, clean | 2026-05-31 (10d) | 🟢 Healthy, shipping daily | roadmap-only (§4) |
@@ -37,7 +37,7 @@ Three things tracked as separate "projects" are actually **subsystems of HR-ERP*
 
 ---
 
-## §1 — HR-ERP (`~/Desktop/HR-ERP-PROJECT`) 🟢 ACTIVE
+## §1 — HR-ERP (`~/dev/HR-ERP-PROJECT`) 🟢 ACTIVE
 
 The flagship. Backend (Node/Express/PG/Redis, in `"hr-erp backend/hr-erp-backend/"` — note the literal space), admin SPA (React/Vite/MUI, port 5173), mobile (RN/Expo). 226/226 backend tests green. Working tree clean. Authoritative live state: `PROJECT_STATE.md`; per-session detail: `SESSION_LOG.md`.
 

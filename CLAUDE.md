@@ -1,6 +1,6 @@
 # Project entrypoint for Claude Code
 
-You are working in the HR-ERP project (`/Users/lerchbalazs/Desktop/HR-ERP-PROJECT`).
+You are working in the HR-ERP project (`/Users/lerchbalazs/dev/HR-ERP-PROJECT`).
 
 **Before doing ANY work in this repo, read these three files in order:**
 

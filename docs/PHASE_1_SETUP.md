@@ -36,7 +36,7 @@
 npx @anthropic-ai/claude-code --version
 
 # Ha működik:
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 npx @anthropic-ai/claude-code --remote-control
 
 # Ha NEM működik (404 error):
@@ -53,7 +53,7 @@ npx @anthropic-ai/claude-code --remote-control
 brew install --cask cursor
 
 # Indítás:
-cursor /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cursor /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 
 # Használat:
 # Cmd+K → "Implement Sprint 2 backend endpoints"
@@ -73,7 +73,7 @@ cursor /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
 **Setup:**
 
 ```bash
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 
 # Workflows mappa létrehozása:
 mkdir -p .github/workflows
@@ -440,7 +440,7 @@ Timeline: 2-3 sprints to implement
 
 ```bash
 # Terminal:
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp\ backend/hr-erp-backend
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp\ backend/hr-erp-backend
 npx @anthropic-ai/claude-code --remote-control
 
 # Claude Code-ban:
@@ -608,7 +608,7 @@ npm test -- invoice.test.js
 **Test Suite Setup:**
 
 ```bash
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp\ backend/hr-erp-backend
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp\ backend/hr-erp-backend
 
 # Jest config:
 cat > jest.config.js << 'EOF'
@@ -645,7 +645,7 @@ npm test -- --coverage
 
 ```bash
 # Mobile E2E setup:
-cd /Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp-mobile
+cd /Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp-mobile
 
 npm install --save-dev detox detox-cli
 

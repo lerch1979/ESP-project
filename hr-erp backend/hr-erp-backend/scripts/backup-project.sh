@@ -4,7 +4,7 @@
 set -e
 
 BACKUP_DIR="$HOME/hr-erp-backups/project"
-PROJECT_ROOT="/Users/lerchbalazs/Desktop/HR-ERP-PROJECT"
+PROJECT_ROOT="/Users/lerchbalazs/dev/HR-ERP-PROJECT"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/hr-erp-project_${TIMESTAMP}.tar.gz"
 

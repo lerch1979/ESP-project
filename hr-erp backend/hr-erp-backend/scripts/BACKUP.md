@@ -36,8 +36,8 @@ Append:
 
 ```cron
 # HR-ERP database: backup at 03:00, verify at 03:15
-0  3 * * * cd "/Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend" && ./scripts/backup-database.sh   >> "$HOME/Backups/HR-ERP/backup.log"   2>&1
-15 3 * * * cd "/Users/lerchbalazs/Desktop/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend" && ./scripts/verify-backup.sh     >> "$HOME/Backups/HR-ERP/verify.log"   2>&1
+0  3 * * * cd "/Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend" && ./scripts/backup-database.sh   >> "$HOME/Backups/HR-ERP/backup.log"   2>&1
+15 3 * * * cd "/Users/lerchbalazs/dev/HR-ERP-PROJECT/hr-erp backend/hr-erp-backend" && ./scripts/verify-backup.sh     >> "$HOME/Backups/HR-ERP/verify.log"   2>&1
 ```
 
 On macOS you may also want to grant `cron` Full Disk Access (System Settings → Privacy & Security → Full Disk Access → `+` → `/usr/sbin/cron`) so it can read the `.env` and write under `~/Backups/`.

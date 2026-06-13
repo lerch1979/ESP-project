@@ -12,7 +12,7 @@
 ## One-Time Setup
 
 ```bash
-cd ~/Desktop/HR-ERP-PROJECT
+cd ~/dev/HR-ERP-PROJECT
 chmod +x setup.sh start-all.sh stop-all.sh
 ./setup.sh
 ```
