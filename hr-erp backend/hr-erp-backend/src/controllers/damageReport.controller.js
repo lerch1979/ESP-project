@@ -115,7 +115,7 @@ const getReport = async (req, res) => {
 
 const updateReport = async (req, res) => {
   try {
-    const report = await damageService.updateReport(req.params.id, req.body);
+    const report = await damageService.updateReport(req.params.id, req.body, req.user?.id);
     if (!report) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, data: report });
   } catch (error) {

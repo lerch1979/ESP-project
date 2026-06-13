@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
 const { encrypt, decrypt, decryptPiiFields, decryptPiiRows } = require('../services/encryption.service');
+const statusHistory = require('../services/entityStatusHistory.service');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -527,6 +528,16 @@ const createEmployee = async (req, res) => {
       ipAddress: req.ip,
     });
 
+    // Seed the initial status row (from=null → to=initial). Best-effort, never throws.
+    statusHistory.recordStatusChangeById({
+      entityType: 'employee',
+      entityId: result.rows[0].id,
+      fromStatusId: null,
+      toStatusId: result.rows[0].status_id,
+      changedBy: req.user?.id,
+      source: 'create',
+    });
+
     // If no user exists but we have name/email, create one
     if (!userId && email) {
       const bcrypt = require('bcryptjs');
@@ -689,6 +700,17 @@ const updateEmployee = async (req, res) => {
       changes,
       metadata: { name: `${result.rows[0].last_name || ''} ${result.rows[0].first_name || ''}` },
       ipAddress: req.ip,
+    });
+
+    // Record the status transition if status_id changed. Best-effort, never throws
+    // (the recorder no-ops when old === new, so unconditional call is safe).
+    statusHistory.recordStatusChangeById({
+      entityType: 'employee',
+      entityId: id,
+      fromStatusId: existing.rows[0].status_id,
+      toStatusId: result.rows[0].status_id,
+      changedBy: req.user?.id,
+      source: 'update',
     });
 
     logger.info('Munkavallaló frissitve', { employeeId: id });
@@ -1510,6 +1532,14 @@ const bulkUpdateStatus = async (req, res) => {
       });
     }
 
+    // Capture each employee's current status BEFORE the update so the history
+    // recorder can log the real from→to (the UPDATE overwrites it).
+    const prior = await query(
+      `SELECT id, status_id FROM employees WHERE id = ANY($1) AND end_date IS NULL`,
+      [employee_ids]
+    );
+    const priorStatusById = new Map(prior.rows.map((r) => [r.id, r.status_id]));
+
     const result = await query(
       `UPDATE employees
        SET status_id = $1, updated_at = CURRENT_TIMESTAMP
@@ -1528,6 +1558,16 @@ const bulkUpdateStatus = async (req, res) => {
         changes: { status_id: { old: null, new: status_id } },
         metadata: { bulk_action: 'status_update' },
         ipAddress: req.ip,
+      });
+
+      // Status-history transition (best-effort, never throws; no-ops if unchanged).
+      statusHistory.recordStatusChangeById({
+        entityType: 'employee',
+        entityId: row.id,
+        fromStatusId: priorStatusById.get(row.id) ?? null,
+        toStatusId: status_id,
+        changedBy: req.user?.id,
+        source: 'bulk',
       });
     }
 

@@ -5,6 +5,7 @@ const autoAssignService = require('../services/autoAssign.service');
 const workerAssignmentService = require('../services/workerAssignment.service');
 const slaService = require('../services/sla.service');
 const translation = require('../services/translation.service');
+const statusHistory = require('../services/entityStatusHistory.service');
 const { isValidUUID, sanitizeString, parsePagination, sanitizeSearch } = require('../utils/validation');
 
 async function translateForViewer(req, rowOrRows, fields = ['title', 'description']) {
@@ -506,6 +507,16 @@ const createTicket = async (req, res) => {
       responseTicket = { ...responseTicket, ...slaData };
     }
 
+    // Seed the initial status row (from=null → to=initial). Best-effort, never throws.
+    statusHistory.recordStatusChangeById({
+      entityType: 'ticket',
+      entityId: createdTicket.id,
+      fromStatusId: null,
+      toStatusId: createdTicket.status_id,
+      changedBy: req.user.id,
+      source: 'create',
+    });
+
     res.status(201).json({
       success: true,
       message: 'Ticket sikeresen létrehozva',
@@ -657,6 +668,7 @@ const updateTicketStatus = async (req, res) => {
       });
     }
 
+    let previousStatusId = null;
     await transaction(async (client) => {
       // Jelenlegi ticket lekérése
       const currentResult = await client.query(
@@ -669,6 +681,7 @@ const updateTicketStatus = async (req, res) => {
       }
 
       const currentTicket = currentResult.rows[0];
+      previousStatusId = currentTicket.status_id;
 
       // Jogosultság ellenőrzés
       if (!req.user.roles.includes('superadmin') && 
@@ -735,6 +748,16 @@ const updateTicketStatus = async (req, res) => {
         success: true,
         message: 'Státusz sikeresen frissítve'
       });
+    });
+
+    // After COMMIT: record the transition (best-effort, independent pool, never throws).
+    statusHistory.recordStatusChangeById({
+      entityType: 'ticket',
+      entityId: id,
+      fromStatusId: previousStatusId,
+      toStatusId: status_id,
+      changedBy: req.user.id,
+      source: 'update',
     });
 
   } catch (error) {

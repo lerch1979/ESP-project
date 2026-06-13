@@ -1,5 +1,6 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const statusHistory = require('./entityStatusHistory.service');
 
 // ─── Report Number Generation ───────────────────────────────────────
 
@@ -213,7 +214,7 @@ async function listReports(contractorId, filters = {}) {
   return result.rows;
 }
 
-async function updateReport(id, data) {
+async function updateReport(id, data, changedBy = null) {
   const fields = [];
   const values = [];
   let idx = 1;
@@ -237,12 +238,38 @@ async function updateReport(id, data) {
   }
   if (fields.length === 0) return null;
 
+  // Capture the old status before the update so a status change can be logged
+  // with the real from→to. Only needed when this update touches `status`.
+  let oldStatus = null;
+  if (data.status !== undefined) {
+    const before = await query('SELECT status FROM damage_reports WHERE id = $1', [id]);
+    oldStatus = before.rows[0]?.status ?? null;
+  }
+
   values.push(id);
   const result = await query(
     `UPDATE damage_reports SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
     values
   );
-  return result.rows[0];
+  const updated = result.rows[0];
+
+  // Record the status transition (best-effort, never throws; no-ops if unchanged).
+  // Damage-report status is a raw VARCHAR (no lookup table), so the value is its
+  // own label.
+  if (updated && data.status !== undefined) {
+    statusHistory.recordStatusChange({
+      entityType: 'damage_report',
+      entityId: updated.id,
+      fromStatus: oldStatus,
+      toStatus: updated.status,
+      fromLabel: oldStatus,
+      toLabel: updated.status,
+      changedBy,
+      source: 'update',
+    });
+  }
+
+  return updated;
 }
 
 async function deleteReport(id) {
