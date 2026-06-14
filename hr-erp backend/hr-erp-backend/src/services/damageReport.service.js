@@ -42,7 +42,22 @@ async function createFromTicket(ticketId, createdBy, contractorId, creatorLang =
     [reportNumber, ticketId, ticket.linked_employee_id || null, contractorId,
      ticket.created_at || new Date(), ticket.description || ticket.title, createdBy, lang]
   );
-  return result.rows[0];
+  const created = result.rows[0];
+
+  // Seed the initial status row (from=null → initial). Best-effort, never throws.
+  // Damage-report status is a raw VARCHAR (no lookup table) — value is its own label.
+  statusHistory.recordStatusChange({
+    entityType: 'damage_report',
+    entityId: created.id,
+    fromStatus: null,
+    toStatus: created.status,
+    fromLabel: null,
+    toLabel: created.status,
+    changedBy: createdBy,
+    source: 'create',
+  });
+
+  return created;
 }
 
 // ─── Create Manual ──────────────────────────────────────────────────
@@ -82,7 +97,21 @@ async function createManual(data, createdBy, creatorLang = 'hu') {
      data.total_cost || 0, data.employee_salary || null,
      data.photo_urls || [], data.notes || null, createdBy, creatorLang]
   );
-  return result.rows[0];
+  const created = result.rows[0];
+
+  // Seed the initial status row (from=null → initial). Best-effort, never throws.
+  statusHistory.recordStatusChange({
+    entityType: 'damage_report',
+    entityId: created.id,
+    fromStatus: null,
+    toStatus: created.status,
+    fromLabel: null,
+    toLabel: created.status,
+    changedBy: createdBy,
+    source: 'create',
+  });
+
+  return created;
 }
 
 // ─── Payment Plan Calculator (Mt. 177.§) ────────────────────────────
