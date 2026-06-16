@@ -190,7 +190,12 @@ app.use('/api/', speedLimiter);
 
 // 6. CSRF protection (skips JWT Bearer requests automatically)
 app.use(csrfProtection({
-  exemptPaths: ['/auth/google/callback', '/api/health', '/health', '/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/reset-password'],
+  // /auth/refresh is exempt for the same reason as /auth/login: the refresh
+  // token in the request body is the auth factor (not an ambient cookie), and a
+  // cross-origin attacker cannot read the rotated token back. Without this, the
+  // mobile auto-refresh (raw axios, no Bearer/CSRF header) is blocked once
+  // CSRF_ENABLED=true in prod (it is false in dev, so this path is dev-untested).
+  exemptPaths: ['/auth/google/callback', '/api/health', '/health', '/api/v1/auth/login', '/api/v1/auth/refresh', '/api/v1/auth/register', '/api/v1/auth/reset-password'],
 }));
 
 // 7. Request logging — log completion with status + duration so a single
