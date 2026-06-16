@@ -53,7 +53,9 @@ class CacheWarmingService {
     const { rows } = await db.query(`
       SELECT
         (SELECT COUNT(*) FROM users WHERE is_active = true) AS active_users,
-        (SELECT COUNT(*) FROM tickets WHERE status NOT IN ('closed', 'resolved')) AS open_tickets,
+        (SELECT COUNT(*) FROM tickets t
+           LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
+           WHERE ts.is_final = false OR ts.is_final IS NULL) AS open_tickets,
         (SELECT COUNT(*) FROM accommodations WHERE is_active = true) AS active_accommodations
     `);
     if (rows[0]) {
