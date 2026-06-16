@@ -239,7 +239,15 @@ const getTicketById = async (req, res) => {
         acc.name           as linked_employee_accommodation_name,
         ou.name            as linked_employee_org_unit,
         mgr.first_name     as linked_employee_manager_first_name,
-        mgr.last_name      as linked_employee_manager_last_name
+        mgr.last_name      as linked_employee_manager_last_name,
+        acc.address        as linked_employee_accommodation_address,
+        -- Reporter's housing: resident self-reports carry no linked_employee_id,
+        -- so derive the accommodation from who created the ticket
+        -- (created_by -> employees.user_id). Staff need this to dispatch repairs.
+        remp.accommodation_id as reporter_accommodation_id,
+        remp.room_number      as reporter_room_number,
+        racc.name             as reporter_accommodation_name,
+        racc.address          as reporter_accommodation_address
       FROM tickets t
       LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
       LEFT JOIN ticket_categories tc ON t.category_id = tc.id
@@ -250,6 +258,8 @@ const getTicketById = async (req, res) => {
       LEFT JOIN sla_policies sp ON t.sla_policy_id = sp.id
       LEFT JOIN employees le ON t.linked_employee_id = le.id
       LEFT JOIN accommodations acc ON le.accommodation_id = acc.id
+      LEFT JOIN employees remp ON remp.user_id = t.created_by
+      LEFT JOIN accommodations racc ON remp.accommodation_id = racc.id
       LEFT JOIN organizational_units ou ON le.organizational_unit_id = ou.id
       LEFT JOIN users mgr ON ou.manager_id = mgr.id
       WHERE t.id = $1
@@ -355,6 +365,22 @@ const getTicketById = async (req, res) => {
         manager_name: managerName,
       };
     }
+    // Accommodation for repair dispatch: the linked employee's room takes
+    // precedence; otherwise fall back to the reporter's housing (resident
+    // self-reports have no linked_employee_id). Null when neither resolves.
+    const accName = translatedTicket.linked_employee_accommodation_name
+      || translatedTicket.reporter_accommodation_name || null;
+    const accommodation = accName ? {
+      id: translatedTicket.linked_employee_accommodation_id
+        || translatedTicket.reporter_accommodation_id || null,
+      name: accName,
+      room_number: translatedTicket.linked_employee_room_number
+        || translatedTicket.reporter_room_number || null,
+      address: translatedTicket.linked_employee_accommodation_address
+        || translatedTicket.reporter_accommodation_address || null,
+      source: translatedTicket.linked_employee_accommodation_name ? 'linked_employee' : 'reporter',
+    } : null;
+
     // Strip the flat helper fields that only existed for the join.
     for (const k of [
       'linked_employee_id_out', 'linked_employee_first_name', 'linked_employee_last_name',
@@ -362,7 +388,9 @@ const getTicketById = async (req, res) => {
       'linked_employee_room_number', 'linked_employee_accommodation_id',
       'linked_employee_accommodation_name', 'linked_employee_photo',
       'linked_employee_org_unit', 'linked_employee_manager_first_name',
-      'linked_employee_manager_last_name',
+      'linked_employee_manager_last_name', 'linked_employee_accommodation_address',
+      'reporter_accommodation_id', 'reporter_room_number',
+      'reporter_accommodation_name', 'reporter_accommodation_address',
     ]) delete translatedTicket[k];
 
     res.json({
@@ -371,6 +399,7 @@ const getTicketById = async (req, res) => {
         ticket: {
           ...translatedTicket,
           linked_employee: linkedEmployee,
+          accommodation,
           comments: translatedComments,
           attachments: attachmentsResult.rows,
           history: historyResult.rows

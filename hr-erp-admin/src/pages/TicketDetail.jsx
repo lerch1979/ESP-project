@@ -29,6 +29,7 @@ import {
   CheckCircle as CheckIcon,
   Gavel as GavelIcon,
   Edit as EditIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { ticketsAPI, damageReportsAPI } from '../services/api';
 import { toast } from 'react-toastify';
@@ -283,6 +284,17 @@ function TicketDetail() {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               {ticket.ticket_number}
             </Typography>
+            {/* Szállás + szoba — a szervizes diszpécsernek azonnal látnia kell,
+                hol van a hiba. Csak admin nézetben jelenik meg. */}
+            {ticket.accommodation?.name && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75 }}>
+                <HomeIcon sx={{ fontSize: 18, color: '#2563eb' }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+                  Szállás: {ticket.accommodation.name}
+                  {ticket.accommodation.room_number ? ` · Szoba ${ticket.accommodation.room_number}` : ''}
+                </Typography>
+              </Box>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
