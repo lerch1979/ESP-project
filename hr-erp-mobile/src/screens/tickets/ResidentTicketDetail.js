@@ -73,11 +73,17 @@ export default function ResidentTicketDetail({ route, navigation }) {
   // Auth token for protected attachment image requests (RN Image supports headers).
   useEffect(() => { getItem('token').then(setToken); }, []);
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (retry = true) => {
     try {
       const res = await ticketsAPI.getMineMessages(id, i18n.language);
       setMessages(res.data.messages || []);
-    } catch { /* keep current thread on a transient poll error */ }
+    } catch (e) {
+      // Keep the current thread (don't wipe it) on a transient error, but log
+      // it and do ONE quick retry so a single failed poll/focus fetch doesn't
+      // strand a stale thread until the next 12s tick.
+      console.warn('[ResidentTicketDetail] loadMessages failed:', e?.message || e);
+      if (retry) setTimeout(() => loadMessages(false), 1500);
+    }
   }, [id, i18n.language]);
 
   const loadAll = useCallback(async () => {
@@ -99,14 +105,19 @@ export default function ResidentTicketDetail({ route, navigation }) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // Poll ONLY while focused; stop on blur (and clean up on unmount).
+  // Refetch on every focus + poll while focused; stop on blur (clean up on unmount).
   useEffect(() => {
     let timer = null;
-    const start = () => { if (!timer) timer = setInterval(loadMessages, POLL_MS); };
+    const startPolling = () => { if (!timer) timer = setInterval(loadMessages, POLL_MS); };
     const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
-    const subF = navigation.addListener('focus', start);
+    // A real focus transition (navigated away → back, reopened after re-login):
+    // refetch immediately so a staff reply shows within a frame, not up to
+    // POLL_MS later. This 'focus' listener does NOT fire on the already-focused
+    // initial mount — loadAll() handles that — so there's no double-fetch on open.
+    const onFocus = () => { loadMessages(); startPolling(); };
+    const subF = navigation.addListener('focus', onFocus);
     const subB = navigation.addListener('blur', stop);
-    if (navigation.isFocused && navigation.isFocused()) start();
+    if (navigation.isFocused && navigation.isFocused()) startPolling(); // mount: poll only
     return () => { stop(); subF(); subB(); };
   }, [navigation, loadMessages]);
 
