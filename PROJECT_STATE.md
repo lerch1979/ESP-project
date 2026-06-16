@@ -1,6 +1,6 @@
 # HR-ERP PROJECT STATE
 
-**Last updated:** 2026-06-11
+**Last updated:** 2026-06-16
 **Maintainer:** lerchbalazs@gmail.com
 
 ---
@@ -36,7 +36,7 @@ Companion docs:
 - `hr-erp-admin/` — admin SPA, served at `/`, API at `/api/v1`
 - `hr-erp-mobile/` — mobile RN app
 - `docs/` — architecture + sales decks (mixed freshness)
-- `migrations/` (under backend) — numbered SQL, latest is **122** (2026-06-11). ⚠️ Runner blocked at `093` on the **dev DB only** (6 users); fresh DBs (CI/test) migrate cleanly through 122. New migrations applied to dev via `psql`; see tech-debt.
+- `migrations/` (under backend) — numbered SQL, latest is **123** (2026-06-13, agent foundation). ⚠️ Runner blocked at `093` on the **dev DB only** (6 users); fresh DBs (CI/test) migrate cleanly through 123. New migrations applied to dev via `psql`; see tech-debt.
 
 ---
 
@@ -61,6 +61,7 @@ Companion docs:
 | **Resident self-scoped mobile API + UX** (NEW) | backend `residentSelf.{controller,routes}.js` — `/tickets/my[/...]`, `/accommodations/my`, in-ticket chat (reuses `ticket_messages`) + AI auto-translation, photo attachments, **AI category suggestion** (`categoryAI.service.js`, Haiku), self-scoped `/tickets/my/suggest-category`; mobile resident screens fully i18n (5 locales) + `scripts/check-i18n-coverage.js` guard | live (test resident only) | 2026-06-11 |
 | **⚖️ Expiry monitor (visa/contract/document)** (AUDIT P0) | backend `expiryMonitor.{service,controller,routes}.js`, migs 120–121 (`employees.nationality`); daily 07:00 cron (runtime toggle-gated); per-attribute threshold rules (nationality/doc-type), most-specific-wins; in-app notifications + admin widget/page | live (no real data — fields empty until HR populates) | 2026-06-11 |
 | **⚖️ GDPR anonymization (right-to-be-forgotten)** (AUDIT P0) | backend `gdprAnonymization.{service,controller,routes}.js`, mig 122; superadmin-gated `/anonymization` (dry-run → double-confirm → execute); consent (`employees.data_consent_at`) + grace-period **propose-only** queue + daily 08:00 reminder cron; admin GDPR page + per-employee action in detail modal | live (v1) | 2026-06-11 |
+| **🤖 AI agent foundation** | backend `entityStatusHistory.service.js`, mig 123. `entity_status_history` **WIRED**: never-throws, best-effort recorder logs every status transition (create-seed `from=null→initial` + changes) for tickets, employees, damage reports — fired after commit on the shared pool, never the caller's tx. `agent_audit_log` + `agent_suggestions` are **schema-only scaffolding** (no code writes them yet) for the future agent layer's audit log + human-approval queue. | live (collecting history; agents not built) | 2026-06-16 |
 
 ---
 
@@ -87,6 +88,9 @@ Companion docs:
 
 | Date | Commit | Summary |
 |---|---|---|
+| 2026-06-16 | `6e0b9501` | **Agent foundation:** seed `entity_status_history` on damage-report create too — completes create + status-change coverage across tickets, employees, damage reports. CI green. |
+| 2026-06-13 | `09acb7a1` | **Agent foundation:** never-throws status-history recorder + mig 123 (`entity_status_history` WIRED; `agent_audit_log` + `agent_suggestions` schema-only scaffolding). Wired into ticket/employee/damage-report create + status-change. Verified labels + changed_by; full jest 1245/1245. |
+| 2026-06-13 | `31c24ea9` | **Infra:** moved project off TCC-protected Desktop → `~/dev/HR-ERP-PROJECT` (permanent EPERM `uv_cwd` fix); rewrote all hard-coded paths + `hrerp` alias. |
 | 2026-06-11 | `9e6f2b63` | **AUDIT P0:** GDPR anonymization (right-to-be-forgotten) v1 — engine + lifecycle + admin UI (mig 122). Verified on a throwaway employee (18/18). |
 | 2026-06-11 | `989d2ec8` | **AUDIT P0:** visa/contract/document expiry monitor — runtime toggle + per-attribute rules + 07:00 cron (migs 120–121). |
 | 2026-06-11 | `c2cf4052` | **CI fix:** resident router blanket-gated all `/api/v1` (per-route auth); actions bumped to v5. CI green again (red since 2026-06-09). |
