@@ -4,11 +4,11 @@ import { getItem, setItem, deleteItem } from './storage';
 
 // Resolve the backend URL from env. This value is baked in at Expo build
 // time, so the mobile .env (EXPO_PUBLIC_API_URL) must match the live
-// backend origin — localhost for simulator, ngrok URL for device testing.
-// Fallback points at the current free-tier static domain so builds don't
-// silently break when .env is missing; overwrite it by setting
-// EXPO_PUBLIC_API_URL before `expo start`.
-const FALLBACK_URL = 'https://blinker-bronze-evasion.ngrok-free.dev/api/v1';
+// backend origin. Default is the production API on Hetzner; override with
+// EXPO_PUBLIC_API_URL before `expo start` for local/simulator testing.
+// Fallback points at production so builds don't silently break when .env
+// is missing.
+const FALLBACK_URL = 'https://app.housingsolutions.hu/api/v1';
 
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
