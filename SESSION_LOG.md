@@ -6,6 +6,39 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-16 (post-deploy) — mobile cutover, CSRF fix, pre-go-live audit (15/15 PASS), accommodation feature
+
+Continuation of the deploy below. Production hardened, fully audited, two prod bugs fixed, one admin feature added.
+
+### Mobile → prod, verified on device
+- App pointed at `https://app.housingsolutions.hu/api/v1` (`.env` + `api.js` fallback); CORS confirmed. Loaded on the phone via Expo Go tunnel; `[API] Base URL` confirmed = prod. Requests land on Hetzner from the phone's IP.
+
+### 🐛 CSRF blocked mobile token refresh (prod-only regression) — FIXED (commit 3e08321e)
+- `CSRF_ENABLED=false` in dev but `true` in prod, so the path was dev-untested. Mobile auto-refresh calls `POST /auth/refresh` via raw axios (no Bearer, no x-csrf-token) → CSRF rejected every refresh → residents 401'd and couldn't stay logged in.
+- Fix: added `/api/v1/auth/refresh` to the CSRF `exemptPaths` (same rationale as `/auth/login` — the refresh token in the body is the auth factor; a cross-origin attacker can't read the rotated token back). Server-side → fixes every installed app with no rebuild. Verified: `/auth/refresh` now reaches its handler (401 invalid-token, not 403).
+
+### Pre-go-live audit — 15/15 PASS (evidence captured)
+- **Security:** (1) only `/public/accountant/:token` is unauth — all data endpoints 401 without a token; (2) **resident self-scope PASS** — test resident saw only **2 of 21** tickets live on prod; (3) CSRF still guards mutations (logout/tickets POST → 403), refresh intentionally exempt; (4) rate limiting active (`ratelimit-limit: 200; w=900`); (5) ufw (22/80/443 only) + fail2ban (sshd jail) + `PermitRootLogin no` + `PasswordAuthentication no`; (6) secrets — ANTHROPIC rotated `sk-ant-…`, ENCRYPTION_KEY SHA-identical to dev, JWT_SECRET ≠ dev, DB pw 48 chars.
+- **Data/features:** (7) AI live — direct Anthropic call 200 with `claude-haiku-4-5`; translation+category enabled; (8) PII decrypts (identical key + zero decrypt errors); (9) GDPR config (grace 24mo / backup_retention 30d / reminder on) + expiry monitor enabled; (10) `entity_status_history` recording — admin status change wrote a correct row (ticket: Új→Anyagra várunk, by admin, src=update).
+- **Ops:** (11) backups — server cron 02:30 + Mac launchd 09:00, test-restore verified both sides; (12) **stopped the old `blinker-bronze-evasion` ngrok tunnel** (was still exposing the laptop backend); (13) **healthcheck false-negatives fixed** (see below); (14) logs — found + fixed the cache bug below; (15) go-live open items listed.
+- Note: temporary boundary test left `JWT_EXPIRES_IN=60s` on prod — **restored to 8h** during the audit.
+
+### 🐛 Cache-warming SQL bug — FIXED (commit 53803fd2)
+- `cacheWarming.service.js` queried `tickets.status` (non-existent; schema uses `status_id` → `ticket_statuses`) → dashboard-stats warm threw every 5 min (latent; failed in dev too). Fixed to `LEFT JOIN ticket_statuses … WHERE is_final false/NULL` (mirrors `analytics.service`). Verified live: cache warm flipped `✗ → ✓ dashboard stats`, error spam stopped.
+
+### 🔧 Healthcheck overrides — `docker-compose.prod.yml` (server-only file, not repo-tracked)
+- backend + admin showed `unhealthy` (false negatives: backend HC hit `localhost` → HTTPS-redirect → TLS error; admin HC hit IPv6 `localhost` vs IPv4-only nginx). Overrode both: backend probes `127.0.0.1:3001/health` with `X-Forwarded-Proto: https`; admin probes `127.0.0.1:80`. Both now report **healthy** → `docker compose ps` is trustworthy. ⚠️ `docker-compose.prod.yml` is NOT in the repo — server-side edit; consider version-controlling it.
+
+### ✨ Feature: accommodation on admin ticket detail (commit 4cc4eab3)
+- Staff couldn't see which housing+room a ticket was about (needed for repair dispatch). Tickets have no `accommodation_id` — derived. Admin `getTicketById` already joined the **linked** employee's accommodation, but resident self-reports (15/21) have no `linked_employee_id` → null. Added a **reporter** derivation (`created_by → employees.user_id → accommodation`) and exposed a COALESCE(linked, reporter) `accommodation` object `{id,name,room_number,address,source}`. Admin `TicketDetail` header now shows `🏠 Szállás: {name} · Szoba {room}`. **Admin-only** — `/tickets/my` + resident app untouched; `TicketChat` unchanged (embedded). Verified in browser: #21 Fertőd/TEST-1 (reporter), #19 Röjtökmuzsaj/100 (linked), #14 none.
+
+### OPEN before real residents (carried)
+- **Storage Box offsite leg** — deferred (2 backup legs live; reactivate by ordering BX11 + adding the server key in `~/hr-erp/backup.env`).
+- Native-speaker pass on uk/tl locales; HR data population (visa dates, nationality for expiry monitor); DPO sign-off on GDPR retention; EAS Android APK build decision.
+- Version-control `docker-compose.prod.yml` + `Caddyfile` + `backup.sh` (currently server-only artifacts).
+
+---
+
 ## SESSION 2026-06-16 — PRODUCTION DEPLOY (Hetzner) + backups + mobile→prod
 
 **🚀 `app.housingsolutions.hu` is LIVE on Hetzner over HTTPS, full stack healthy, production data restored.**
