@@ -170,7 +170,7 @@ const refreshToken = async (req, res) => {
 
     // Új access token generálás
     const userResult = await query(
-      'SELECT id, email, contractor_id FROM users WHERE id = $1 AND is_active = true',
+      'SELECT id, email, contractor_id, preferred_language FROM users WHERE id = $1 AND is_active = true',
       [decoded.userId]
     );
 
@@ -202,7 +202,9 @@ const refreshToken = async (req, res) => {
 
     res.json({
       success: true,
-      data: { token: newToken }
+      // Surface the saved language so a session-restore via refresh can keep it
+      // (the JWT payload intentionally doesn't carry this mutable preference).
+      data: { token: newToken, preferred_language: user.preferred_language || 'hu' }
     });
 
   } catch (error) {
@@ -235,10 +237,21 @@ const refreshToken = async (req, res) => {
  */
 const me = async (req, res) => {
   try {
+    // preferred_language is a runtime-mutable preference that lives in the DB
+    // and is NOT carried in the JWT payload, so req.user lacks it. Read it fresh
+    // here — otherwise the app's session-restore via /me loses the saved
+    // language and the UI falls back to Hungarian ("resets on re-login").
+    let preferred_language = 'hu';
+    try {
+      const r = await query('SELECT preferred_language FROM users WHERE id = $1', [req.user.id]);
+      preferred_language = r.rows[0]?.preferred_language || 'hu';
+    } catch (e) {
+      logger.warn('[auth.me] preferred_language lookup failed:', e.message);
+    }
     res.json({
       success: true,
       data: {
-        user: req.user
+        user: { ...req.user, preferred_language }
       }
     });
   } catch (error) {
