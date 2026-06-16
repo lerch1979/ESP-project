@@ -6,6 +6,35 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-16 — PRODUCTION DEPLOY (Hetzner) + backups + mobile→prod
+
+**🚀 `app.housingsolutions.hu` is LIVE on Hetzner over HTTPS, full stack healthy, production data restored.**
+
+### Deploy (per HETZNER_DEPLOY.md)
+- **Host:** Hetzner VM `167.233.122.3`, hardened — **ufw + fail2ban + key-only SSH** (only 22/80/443 public; postgres/redis/backend/admin internal-only on the Docker network).
+- **Stack:** `docker-compose.prod.yml` — Caddy (TLS) → backend (Node :3001) + admin (nginx SPA) → postgres:15 + redis:7. Images pulled from GHCR. All 5 containers up, **0 restarts**.
+- **TLS:** Caddy auto-issued a Let's Encrypt cert for `app.housingsolutions.hu` (tls-alpn-01). HTTP→HTTPS automatic.
+- **Routing decision (deviates from runbook's two-subdomain template):** **single domain, path-routed** in `Caddyfile` — `/api/*` + `/public/*` (accountant page) + `/health` → backend:3001; everything else → admin SPA. `CORS_ORIGIN`/`FRONTEND_URL` = `https://app.housingsolutions.hu`.
+- **DB restore:** dumped dev `hr_erp_db` (custom format) → scp → `pg_restore --clean --if-exists` into the postgres container. **exit 0, zero stderr, 166 tables**, row counts match dev (users 6 / tickets 21 / accommodations 16 / damage_reports 4). Migration runner deliberately NOT run (still blocked at `093 cleanup_demo_data`) — the dump carries full schema+data.
+- **Secrets:** `ENCRYPTION_KEY` **carried over from dev verbatim** (SHA-verified identical → restored PII decrypts); `ANTHROPIC_API_KEY` **rotated** to a fresh key (old/exposed dev key NOT reused). Zero placeholders remain in `.env.production`.
+- **Known cosmetic:** backend + admin containers report `unhealthy` — **false negatives** in the images' built-in healthchecks (backend: HTTP→HTTPS redirect when no `X-Forwarded-Proto`; admin: healthcheck hits IPv6 `localhost`, nginx is IPv4-only). Both serve correctly through Caddy (verified `200`). `restart: unless-stopped` doesn't restart on unhealthy → no loop. Fix the healthcheck cmds later if clean `ps` is wanted.
+
+### Backups (durable data + dual-backup, retention 30d = GDPR "ages out")
+- **Server nightly (cron 02:30):** `~/hr-erp/backup.sh` → `pg_dump hr_erp` (custom) + `tar uploads_data` → `~/hr-erp/backups/` → prune >30d → (offsite push, gated). Config in `~/hr-erp/backup.env`.
+- **Mac daily pull (launchd `hu.hrerp.backuppull`, 09:00):** `~/hr-erp-backup-pull.sh` rsyncs dumps+uploads off Hetzner → `~/hr-erp-offsite/` (provider-independence; laptop copy alone rebuilds the DB).
+- **✅ Verified both sides:** manual run created artifacts (db 2.4M + uploads 196B), Mac pull fetched them, **test-restore `exit 0` on BOTH server and Mac copies** (166 tables, counts match).
+- Server keypair generated for the (deferred) Storage Box; public key ready to add when ordered.
+
+### Mobile → production
+- `hr-erp-mobile/.env` `EXPO_PUBLIC_API_URL` + `api.js` `FALLBACK_URL` → `https://app.housingsolutions.hu/api/v1` (replaced the ngrok tunnel `blinker-bronze-evasion` + stale comments). No ngrok/LAN refs remain in mobile src. CORS preflight confirmed live.
+
+### OPEN
+- **Storage Box offsite leg — DEFERRED** (user choice; two legs already protect us). To activate: order Hetzner Storage Box BX11, enable SSH support, add the server's public key (`ssh-ed25519 …BTJINZy hr-erp-backup@hr-erp-prod`), fill `STORAGEBOX_HOST`/`USER` in `~/hr-erp/backup.env`, run `backup.sh` once to verify.
+- Optional belt-and-braces: enable Hetzner VM snapshots in the Console.
+- After any real restore: re-run outstanding `anonymization_log` entries (GDPR — no selective resurrection).
+
+---
+
 ## SESSION 2026-06-11 (night) — GDPR anonymization / right-to-be-forgotten (audit P0, v1)
 
 Legally sensitive; design was reviewed + approved before build (see the personal-data map produced this session).

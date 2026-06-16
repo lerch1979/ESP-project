@@ -12,6 +12,8 @@ logs/
 # Manual backups — not source of truth
 *.BACKUP
 *.backup
+*.dump
+*.sql.gz
 backups/
 outputs/
 
