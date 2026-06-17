@@ -255,10 +255,10 @@ export default function TicketChat({ ticketId, currentUser }) {
   const myUserId = currentUser?.id;
 
   return (
-    <Paper sx={{ p: 2, mt: 2 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-          💬 Kommunikáció
+    <Paper sx={{ p: 2, mt: 2, borderLeft: '4px solid #2c5f2d', bgcolor: '#f3f8f3' }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e3a1f' }}>
+          💬 Válasz a lakónak (chat)
           {messages.length > 0 && (
             <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
               {messages.length} üzenet
@@ -269,6 +269,9 @@ export default function TicketChat({ ticketId, currentUser }) {
           <IconButton size="small" onClick={load} disabled={loading}><RefreshIcon fontSize="small" /></IconButton>
         </Tooltip>
       </Stack>
+      <Typography variant="caption" sx={{ display: 'block', mb: 1.25, fontWeight: 600, color: '#2c5f2d' }}>
+        🏠 A lakó megkapja a mobilappban
+      </Typography>
 
       {attachments.length > 0 && (
         <Box sx={{ mb: 1.25 }}>

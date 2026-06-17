@@ -110,7 +110,7 @@ function TicketDetail() {
       });
 
       if (response.success) {
-        toast.success('Megjegyzés hozzáadva');
+        toast.success('Belső jegyzet hozzáadva');
         setNewComment('');
         loadTicket();
       }
@@ -432,11 +432,17 @@ function TicketDetail() {
             </Typography>
           </Paper>
 
-          {/* Előzmények */}
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, mb: 3, display: 'block' }}>
-              Előzmények
-            </Typography>
+          {/* Resident chat FIRST — reaching the resident is the common action. */}
+          <TicketChat ticketId={ticket.id} currentUser={user} />
+
+          {/* Internal staff notes — explicitly marked as NOT resident-facing. */}
+          <Paper sx={{ p: 3, mt: 2, bgcolor: '#fff7ed', borderLeft: '4px solid #d97706' }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 3 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                🔒 Belső jegyzetek (csak munkatársak)
+              </Typography>
+              <Chip label="BELSŐ" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: '#e7e5e4', color: '#57534e' }} />
+            </Stack>
 
             {timeline.length > 0 ? (
               <Stack spacing={3}>
@@ -496,22 +502,23 @@ function TicketDetail() {
               fullWidth
               multiline
               rows={3}
-              placeholder="Új megjegyzés írása..."
+              placeholder="Belső jegyzet írása… (a lakó nem látja)"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               sx={{ mb: 2 }}
             />
             <Button
-              variant="contained"
-              endIcon={<SendIcon />}
+              variant="outlined"
+              startIcon={<CommentIcon />}
               onClick={handleAddComment}
               disabled={sendingComment || !newComment.trim()}
               sx={{
-                bgcolor: '#2563eb',
-                '&:hover': { bgcolor: '#1d4ed8' },
+                color: '#92400e',
+                borderColor: '#d97706',
+                '&:hover': { borderColor: '#b45309', bgcolor: '#fef3c7' },
               }}
             >
-              {sendingComment ? 'Küldés...' : 'Megjegyzés hozzáadása'}
+              {sendingComment ? 'Mentés...' : 'Belső jegyzet hozzáadása'}
             </Button>
           </Paper>
 
@@ -521,9 +528,6 @@ function TicketDetail() {
             ticketNumber={ticket.ticket_number}
             relatedEmployeeId={ticket.linked_employee?.id || ticket.linked_employee_id || null}
           />
-
-          {/* Direct chat thread (admin ↔ assigned worker ↔ linked employee) */}
-          <TicketChat ticketId={ticket.id} currentUser={user} />
         </Grid>
 
         {/* Jobb oldal */}
