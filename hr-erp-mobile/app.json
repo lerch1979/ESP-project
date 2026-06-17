@@ -30,6 +30,12 @@
     "plugins": [
       "expo-secure-store",
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bfe6bb56-c510-4e2d-a6ea-19b2674e7491"
+      }
+    },
+    "owner": "hr-erp"
   }
 }
