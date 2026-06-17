@@ -92,6 +92,10 @@ const COLUMN_MAP = {
   'vízum lejárat': 'visa_expiry',
   'vizum lejarat': 'visa_expiry',
   'visa_expiry': 'visa_expiry',
+  'szerződés lejárat': 'end_date',
+  'szerzodes lejarat': 'end_date',
+  'contract_expiry': 'end_date',
+  'end_date': 'end_date',
   'szobaszám': 'room_number',
   'szobaszam': 'room_number',
   'room_number': 'room_number',
@@ -132,9 +136,9 @@ const COLUMN_MAP = {
   'e-mail cim': 'personal_email',
   'email cím': 'personal_email',
   'email cim': 'personal_email',
-  'nemzetiség': 'permanent_address_country',
-  'nemzetiseg': 'permanent_address_country',
-  'nationality': 'permanent_address_country',
+  'nemzetiség': 'nationality',
+  'nemzetiseg': 'nationality',
+  'nationality': 'nationality',
   'személyi igazolvány szám': 'passport_number',
   'szemelyi igazolvany szam': 'passport_number',
   'személyi igazolvány': 'passport_number',
@@ -156,7 +160,7 @@ const EMPLOYEE_DIRECT_FIELDS = [
   'permanent_address_country', 'permanent_address_county',
   'permanent_address_city', 'permanent_address_street',
   'permanent_address_number', 'company_name', 'company_email',
-  'company_phone', 'room_id',
+  'company_phone', 'room_id', 'nationality', 'end_date',
 ];
 
 /**
@@ -843,7 +847,7 @@ const bulkImportEmployees = async (req, res) => {
       return s;
     };
 
-    const DATE_FIELDS = ['birth_date', 'arrival_date', 'visa_expiry', 'start_date'];
+    const DATE_FIELDS = ['birth_date', 'arrival_date', 'visa_expiry', 'start_date', 'end_date'];
 
     // Map column headers
     const rows = rawRows.map(raw => {
@@ -883,6 +887,11 @@ const bulkImportEmployees = async (req, res) => {
         else if (m === 'elvált' || m === 'elvalt' || m === 'divorced') mapped.marital_status = 'divorced';
         else if (m === 'özvegy' || m === 'ozvegy' || m === 'widowed') mapped.marital_status = 'widowed';
         else mapped.marital_status = null;
+      }
+      // Nationality: store a 2-letter UPPER-CASE code (the expiry monitor matches
+      // its per-nationality rules case-sensitively). Blank stays blank (optional).
+      if (mapped.nationality) {
+        mapped.nationality = String(mapped.nationality).trim().toUpperCase().slice(0, 2);
       }
       return mapped;
     });
@@ -990,7 +999,8 @@ const bulkImportEmployees = async (req, res) => {
             permanent_address_county, permanent_address_city,
             permanent_address_street, permanent_address_number,
             company_name, company_email, company_phone,
-            personal_email, personal_phone
+            personal_email, personal_phone,
+            nationality, end_date
           )
           VALUES (
             $1, $2, $3, $4, $5, $6,
@@ -999,7 +1009,8 @@ const bulkImportEmployees = async (req, res) => {
             $17, $18, $19, $20, $21,
             $22, $23, $24, $25, $26, $27,
             $28, $29, $30,
-            $31, $32
+            $31, $32,
+            $33, $34
           )
           RETURNING id, employee_number`,
           [
@@ -1035,6 +1046,8 @@ const bulkImportEmployees = async (req, res) => {
             row.company_phone || null,
             row.personal_email || null,
             row.personal_phone || null,
+            row.nationality || null,
+            row.end_date || null,
           ]
         );
         imported.push(result.rows[0]);

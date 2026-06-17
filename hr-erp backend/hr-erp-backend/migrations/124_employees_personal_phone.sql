@@ -1,0 +1,12 @@
+-- 124: employees.personal_phone — restore the column the bulk import expects.
+--
+-- personal_phone exists in dev/prod because it arrived via the data dump, but NO
+-- migration ever created it. So a freshly-migrated database (CI, the jest test DB,
+-- any new install) lacks the column, and the employee bulk-import INSERT — which
+-- lists personal_phone — fails with "column does not exist". This was never caught
+-- because no test exercised the bulk INSERT until now.
+--
+-- Additive, idempotent, nullable — no backfill. Prod already has the column (and
+-- the migration runner is paused before this on prod), so this only takes effect on
+-- freshly-migrated databases, bringing them in line with prod.
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS personal_phone VARCHAR(50);
