@@ -41,5 +41,6 @@ yarn-error.*
 /ios
 /android
 
-# screenshots
+# screenshots (but always keep the app icon/splash assets)
 *.png
+!assets/*.png
