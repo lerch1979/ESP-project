@@ -19,7 +19,7 @@
     "android": {
       "package": "hu.housingsolutions.hrerp",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#2c5f2d"
       },
       "edgeToEdgeEnabled": true
