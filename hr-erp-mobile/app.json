@@ -19,8 +19,8 @@
     "android": {
       "package": "hu.housingsolutions.hrerp",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#2c5f2d"
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundColor": "#1c1c1e"
       },
       "edgeToEdgeEnabled": true
     },
