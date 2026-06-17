@@ -542,11 +542,16 @@ async function startServer() {
     // in config/cronSchedule.js — this call wires them into node-cron.
     require('./config/cronSchedule').initializeWellbeingCronJobs();
 
-    // Daily database backup at 02:00. Shell script handles env loading,
-    // docker-vs-local pg_dump selection, gzip, and 30-day retention.
-    // Destination defaults to $HOME/Backups/HR-ERP (outside repo tree); set
-    // HR_ERP_BACKUP_DIR to override (e.g. an S3-synced or NAS mount).
-    {
+    // Daily database backup at 02:00 — OPT-IN (default OFF). This in-app job
+    // runs a bash pg_dump script and defaults its destination to
+    // $HOME/Backups/HR-ERP. In the containerized prod deployment that's wrong on
+    // both counts: the Alpine image has no bash (→ "spawn bash ENOENT"), and
+    // $HOME is an ephemeral, non-mounted path (a backup there would vanish on
+    // recreate). Prod DB backups are HOST-managed (host cron pg_dump + offsite
+    // pull), which is the single verified source of truth. Enable this in-app
+    // job only on a non-containerized/local host by setting
+    // HR_ERP_INAPP_BACKUP=true (override the path with HR_ERP_BACKUP_DIR).
+    if (process.env.HR_ERP_INAPP_BACKUP === 'true') {
       const { execFile } = require('child_process');
       const path = require('path');
       const backupScript = path.resolve(__dirname, '..', 'scripts', 'backup-database.sh');
@@ -563,6 +568,8 @@ async function startServer() {
         });
       });
       logger.info('💾 Database backup cron scheduled (daily at 02:00)');
+    } else {
+      logger.info('💾 In-app backup skipped (host-managed) — set HR_ERP_INAPP_BACKUP=true to enable');
     }
 
     // Daily occupancy snapshot at 00:30 — captures the day that just ended.
