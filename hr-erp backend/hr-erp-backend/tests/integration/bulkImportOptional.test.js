@@ -8,6 +8,12 @@ const XLSX = require('xlsx');
 const app = require('../../src/server');
 const { query } = require('../../src/database/connection');
 
+// CI's test env ships no .env, so JWT_SECRET can be undefined. Provide a stable
+// fallback AFTER requiring the app (dotenv has already run) so that both our
+// jwt.sign() below and the app's jwt.verify() (read dynamically per request) use
+// the same secret. Locally this is a no-op (the real secret is already set).
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-bulkimport';
+
 const MARK = 'ZBulkOptTest';
 let authToken;
 let seededUserId;
