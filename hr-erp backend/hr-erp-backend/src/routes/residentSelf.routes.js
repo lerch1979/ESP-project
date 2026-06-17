@@ -3,6 +3,7 @@ const router = express.Router();
 const residentSelf = require('../controllers/residentSelf.controller');
 const ticketMessages = require('../controllers/ticketMessages.controller');
 const ticketAttachments = require('../controllers/ticketAttachments.controller');
+const calendarController = require('../controllers/calendar.controller');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
@@ -28,6 +29,10 @@ router.get('/tickets/my/categories', authenticateToken, residentSelf.getMyCatego
 router.post('/tickets/my/suggest-category', authenticateToken, residentSelf.suggestMyCategory);
 router.get('/tickets/my/:id', authenticateToken, residentSelf.getMyTicketById);
 router.get('/accommodations/my', authenticateToken, residentSelf.getMyAccommodation);
+
+// Resident calendar — auth-only, self-scoped, READ-ONLY (one-way). Returns ONLY
+// the caller's own upcoming events (repairs, check-in/out, visa/contract expiry).
+router.get('/calendar/my', authenticateToken, calendarController.getMyCalendarEvents);
 
 // Resident ticket chat — self-scoped to OWN ticket (requireOwnTicket guard),
 // then reuse the shared staff thread controllers so messages land in the same

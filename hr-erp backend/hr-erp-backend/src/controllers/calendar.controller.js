@@ -298,6 +298,105 @@ const getCalendarEvents = async (req, res) => {
 };
 
 // ============================================================
+// GET /api/v1/calendar/my  (resident self-service)
+// Auth-only, SELF-SCOPED, READ-ONLY / ONE-WAY: returns ONLY the caller's own
+// upcoming events. Nothing here reads back into HR-ERP. v1 types only
+// (medical/personal excluded for privacy; inspections = v2).
+// ============================================================
+const getMyCalendarEvents = async (req, res) => {
+  try {
+    const employeeId = await getOwnEmployeeId(req);
+    if (!employeeId) {
+      // No linked employee record (e.g. a staff-only login) → nothing to show.
+      return res.json({ success: true, data: { events: [], dateRange: { from: null, to: null } } });
+    }
+    const userId = req.user.id;
+
+    // Upcoming window: optional ?date_from/?date_to, else now → +3 months.
+    let dateFrom, dateTo;
+    const { date_from, date_to } = req.query;
+    if (date_from && date_to) {
+      dateFrom = date_from;
+      dateTo = date_to;
+    } else {
+      const now = new Date();
+      dateFrom = now.toISOString().split('T')[0];
+      const future = new Date(now);
+      future.setMonth(future.getMonth() + 3);
+      dateTo = future.toISOString().split('T')[0];
+    }
+
+    // Every event a resident sees relates to where they live → resolve their own
+    // accommodation (name + room) once and attach it to each event.
+    const accResult = await query(
+      `SELECT acc.name AS accommodation_name, e.room_number
+         FROM employees e
+         LEFT JOIN accommodations acc ON acc.id = e.accommodation_id
+        WHERE e.id = $1`,
+      [employeeId]
+    );
+    const accRow = accResult.rows[0] || {};
+    const accommodation = accRow.accommodation_name
+      ? { name: accRow.accommodation_name, room: accRow.room_number || null }
+      : null;
+
+    // EVERY subquery is scoped to the caller. CRITICAL: the admin aggregator's
+    // ticket_deadline subquery has NO employee filter (admins see all). Here it
+    // is strictly limited to the resident's OWN tickets — created_by = the user,
+    // OR linked_employee_id = the employee — so a resident can NEVER see another
+    // resident's repair deadlines.
+    // params: $1 dateFrom, $2 dateTo, $3 employeeId, $4 userId
+    const { rows } = await query(
+      `
+      SELECT e.arrival_date AS event_date, 'checkin' AS type,
+             'Beköltözés' AS title, 'Érkezés a szállásra' AS description
+        FROM employees e
+       WHERE e.arrival_date BETWEEN $1 AND $2 AND e.id = $3
+      UNION ALL
+      SELECT e.end_date, 'checkout',
+             'Kiköltözés', 'Távozás a szállásról'
+        FROM employees e
+       WHERE e.end_date BETWEEN $1 AND $2 AND e.end_date < CURRENT_DATE AND e.id = $3
+      UNION ALL
+      SELECT e.visa_expiry, 'visa_expiry',
+             'Vízum lejárat', 'A vízumod ekkor jár le — időben hosszabbítsd meg'
+        FROM employees e
+       WHERE e.visa_expiry BETWEEN $1 AND $2 AND e.end_date IS NULL AND e.id = $3
+      UNION ALL
+      SELECT e.end_date, 'contract_expiry',
+             'Szerződés lejárat', 'A szerződésed ekkor jár le'
+        FROM employees e
+       WHERE e.end_date BETWEEN $1 AND $2 AND e.end_date >= CURRENT_DATE AND e.id = $3
+      UNION ALL
+      SELECT t.due_date, 'ticket_deadline', t.title,
+             'Tervezett javítás határideje (#' || t.ticket_number || ')'
+        FROM tickets t
+       WHERE t.due_date BETWEEN $1 AND $2 AND t.closed_at IS NULL
+         AND (t.created_by = $4 OR t.linked_employee_id = $3)
+      ORDER BY event_date ASC
+      `,
+      [dateFrom, dateTo, employeeId, userId]
+    );
+
+    const events = rows.map((r) => ({
+      type: r.type,
+      title: r.title,
+      date: r.event_date,
+      description: r.description,
+      accommodation,
+    }));
+
+    return res.json({
+      success: true,
+      data: { events, dateRange: { from: dateFrom, to: dateTo } },
+    });
+  } catch (error) {
+    logger.error('Saját naptár lekérési hiba:', error);
+    return res.status(500).json({ success: false, message: 'Naptár betöltési hiba' });
+  }
+};
+
+// ============================================================
 // Shift CRUD (admin only — enforced at route level)
 // ============================================================
 
@@ -573,6 +672,7 @@ const deletePersonalEvent = async (req, res) => {
 
 module.exports = {
   getCalendarEvents,
+  getMyCalendarEvents,
   createShift,
   updateShift,
   deleteShift,
