@@ -1,0 +1,12 @@
+# Scope the EAS Build archive to the mobile app only.
+# Used together with EAS_NO_VCS=1 so EAS tars just hr-erp-mobile/ (the project
+# root), not the whole monorepo (backend/admin/docs/etc. live in sibling dirs
+# and are excluded automatically once VCS archiving is off). These rules keep
+# the heavy local-only dirs out of the upload.
+node_modules/
+.expo/
+dist/
+/android
+/ios
+*.log
+.DS_Store
