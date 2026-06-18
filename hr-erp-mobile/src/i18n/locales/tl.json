@@ -237,6 +237,8 @@
       "visa_expiry": "Pag-expire ng visa",
       "contract_expiry": "Pag-expire ng kontrata",
       "ticket_deadline": "Nakatakdang pagkukumpuni"
-    }
+    },
+    "addToCalendar": "Idagdag sa aking kalendaryo",
+    "icsError": "Hindi ma-export ang kaganapan"
   }
 }

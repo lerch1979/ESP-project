@@ -344,6 +344,14 @@ export const calendarAPI = {
     const response = await api.get('/calendar/my');
     return response.data;
   },
+  // Single-event .ics export (text/calendar) for "add to my calendar". Self-scoped.
+  myIcs: async (type, id, lang) => {
+    const response = await api.get(`/calendar/my/${type}/${id}.ics`, {
+      responseType: 'text',
+      params: lang ? { lang } : undefined,
+    });
+    return response.data;
+  },
 };
 
 // Google Calendar API

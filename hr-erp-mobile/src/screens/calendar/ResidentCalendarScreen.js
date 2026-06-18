@@ -1,8 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, SectionList, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  View, Text, SectionList, RefreshControl, ActivityIndicator,
+  TouchableOpacity, Alert, StyleSheet,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { calendarAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 
@@ -64,6 +69,29 @@ export default function ResidentCalendarScreen() {
 
   const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
+  // Layer 2 — one-way "add to my calendar": fetch the self-scoped .ics, write it
+  // to a temp file, and hand it to the native share sheet (any calendar app, no
+  // account). Read-only; nothing flows back into HR-ERP.
+  const addToCalendar = useCallback(async (item) => {
+    try {
+      const ics = await calendarAPI.myIcs(item.type, item.id, i18n.language);
+      const uri = `${FileSystem.cacheDirectory}event.ics`;
+      await FileSystem.writeAsStringAsync(uri, ics, { encoding: FileSystem.EncodingType.UTF8 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'text/calendar',
+          UTI: 'com.apple.ical.ics',
+          dialogTitle: t('calendar.addToCalendar'),
+        });
+      } else {
+        Alert.alert(t('calendar.title'), t('calendar.icsError'));
+      }
+    } catch (e) {
+      console.warn('[ResidentCalendar] ics export failed:', e?.message || e);
+      Alert.alert(t('calendar.title'), t('calendar.icsError'));
+    }
+  }, [t, i18n.language]);
+
   const renderItem = ({ item }) => {
     const typeLabel = t(`calendar.eventType.${item.type}`, { defaultValue: item.title || item.type });
     const isTicket = item.type === 'ticket_deadline';
@@ -89,6 +117,16 @@ export default function ResidentCalendarScreen() {
               <Text style={styles.where}>{where}</Text>
             </View>
           )}
+          {item.id ? (
+            <TouchableOpacity
+              onPress={() => addToCalendar(item)}
+              style={styles.addBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+              <Text style={styles.addBtnText}>{t('calendar.addToCalendar')}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     );
@@ -170,4 +208,11 @@ const styles = StyleSheet.create({
   },
   whereRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   where: { color: colors.textSecondary, fontSize: 13 },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start', marginTop: 10,
+    paddingVertical: 5, paddingHorizontal: 10,
+    borderRadius: 8, borderWidth: 1, borderColor: colors.primary,
+  },
+  addBtnText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
 });

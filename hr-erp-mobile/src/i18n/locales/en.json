@@ -237,6 +237,8 @@
       "visa_expiry": "Visa expiry",
       "contract_expiry": "Contract expiry",
       "ticket_deadline": "Scheduled repair"
-    }
+    },
+    "addToCalendar": "Add to my calendar",
+    "icsError": "Could not export the calendar event"
   }
 }

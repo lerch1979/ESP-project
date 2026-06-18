@@ -237,6 +237,8 @@
       "visa_expiry": "Visum-Ablauf",
       "contract_expiry": "Vertragsende",
       "ticket_deadline": "Geplante Reparatur"
-    }
+    },
+    "addToCalendar": "Zu meinem Kalender hinzufügen",
+    "icsError": "Termin konnte nicht exportiert werden"
   }
 }

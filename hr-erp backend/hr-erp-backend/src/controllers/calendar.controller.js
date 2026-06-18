@@ -349,27 +349,27 @@ const getMyCalendarEvents = async (req, res) => {
     const { rows } = await query(
       `
       SELECT e.arrival_date AS event_date, 'checkin' AS type,
-             'Beköltözés' AS title, 'Érkezés a szállásra' AS description
+             'Beköltözés' AS title, 'Érkezés a szállásra' AS description, e.id AS related_id
         FROM employees e
        WHERE e.arrival_date BETWEEN $1 AND $2 AND e.id = $3
       UNION ALL
       SELECT e.end_date, 'checkout',
-             'Kiköltözés', 'Távozás a szállásról'
+             'Kiköltözés', 'Távozás a szállásról', e.id
         FROM employees e
        WHERE e.end_date BETWEEN $1 AND $2 AND e.end_date < CURRENT_DATE AND e.id = $3
       UNION ALL
       SELECT e.visa_expiry, 'visa_expiry',
-             'Vízum lejárat', 'A vízumod ekkor jár le — időben hosszabbítsd meg'
+             'Vízum lejárat', 'A vízumod ekkor jár le — időben hosszabbítsd meg', e.id
         FROM employees e
        WHERE e.visa_expiry BETWEEN $1 AND $2 AND e.end_date IS NULL AND e.id = $3
       UNION ALL
       SELECT e.end_date, 'contract_expiry',
-             'Szerződés lejárat', 'A szerződésed ekkor jár le'
+             'Szerződés lejárat', 'A szerződésed ekkor jár le', e.id
         FROM employees e
        WHERE e.end_date BETWEEN $1 AND $2 AND e.end_date >= CURRENT_DATE AND e.id = $3
       UNION ALL
       SELECT t.due_date, 'ticket_deadline', t.title,
-             'Tervezett javítás határideje (#' || t.ticket_number || ')'
+             'Tervezett javítás határideje (#' || t.ticket_number || ')', t.id
         FROM tickets t
        WHERE t.due_date BETWEEN $1 AND $2 AND t.closed_at IS NULL
          AND (t.created_by = $4 OR t.linked_employee_id = $3)
@@ -379,6 +379,7 @@ const getMyCalendarEvents = async (req, res) => {
     );
 
     const events = rows.map((r) => ({
+      id: r.related_id,
       type: r.type,
       title: r.title,
       date: r.event_date,
@@ -393,6 +394,131 @@ const getMyCalendarEvents = async (req, res) => {
   } catch (error) {
     logger.error('Saját naptár lekérési hiba:', error);
     return res.status(500).json({ success: false, message: 'Naptár betöltési hiba' });
+  }
+};
+
+// ============================================================
+// .ics export — minimal RFC 5545 VEVENT for one-way "add to my calendar".
+// ============================================================
+const ICS_TYPES = ['checkin', 'checkout', 'visa_expiry', 'contract_expiry', 'ticket_deadline'];
+
+// System-event SUMMARY labels per language (ticket events use the ticket title).
+const ICS_LABELS = {
+  checkin:         { hu: 'Beköltözés', en: 'Move-in', uk: 'Заселення', tl: 'Pag-check-in', de: 'Einzug' },
+  checkout:        { hu: 'Kiköltözés', en: 'Move-out', uk: 'Виселення', tl: 'Pag-check-out', de: 'Auszug' },
+  visa_expiry:     { hu: 'Vízum lejárat', en: 'Visa expiry', uk: 'Закінчення візи', tl: 'Pag-expire ng visa', de: 'Visum-Ablauf' },
+  contract_expiry: { hu: 'Szerződés lejárat', en: 'Contract expiry', uk: 'Закінчення договору', tl: 'Pag-expire ng kontrata', de: 'Vertragsende' },
+};
+
+function icsEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+// Fold long content lines at 75 octets (RFC 5545 §3.1).
+function icsFold(line) {
+  if (line.length <= 75) return line;
+  let out = line.slice(0, 75);
+  let i = 75;
+  while (i < line.length) { out += '\r\n ' + line.slice(i, i + 74); i += 74; }
+  return out;
+}
+
+function ymd(d) {
+  // node-pg returns DATE columns as Date objects (at local midnight). Use the
+  // local Y/M/D so the all-day date never shifts across timezones; for a plain
+  // 'YYYY-MM-DD…' string just slice it.
+  if (d instanceof Date) {
+    return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return String(d).slice(0, 10).replace(/-/g, '');
+}
+
+function buildIcs({ uid, dateYmd, summary, description, location, dtstamp }) {
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Housing Solutions//HR-ERP//HU',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    `UID:${uid}`, `DTSTAMP:${dtstamp}`, `DTSTART;VALUE=DATE:${dateYmd}`,
+    `SUMMARY:${icsEscape(summary)}`,
+    description ? `DESCRIPTION:${icsEscape(description)}` : null,
+    location ? `LOCATION:${icsEscape(location)}` : null,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].filter(Boolean).map(icsFold).join('\r\n') + '\r\n';
+}
+
+// ============================================================
+// GET /api/v1/calendar/my/:type/:id.ics  (resident self-service)
+// Auth-only, SELF-SCOPED, READ-ONLY / ONE-WAY: returns a single VEVENT for the
+// caller's OWN event so they can add it to ANY calendar app. No SMTP, no OAuth.
+// ============================================================
+const getMyCalendarEventIcs = async (req, res) => {
+  try {
+    const employeeId = await getOwnEmployeeId(req);
+    if (!employeeId) return res.status(404).json({ success: false, message: 'Esemény nem található' });
+    const userId = req.user.id;
+    const { type, id } = req.params;
+    if (!ICS_TYPES.includes(type)) {
+      return res.status(404).json({ success: false, message: 'Ismeretlen eseménytípus' });
+    }
+
+    // Accommodation (the resident's own) → LOCATION.
+    const accResult = await query(
+      `SELECT acc.name AS name, acc.address AS address, e.room_number AS room
+         FROM employees e LEFT JOIN accommodations acc ON acc.id = e.accommodation_id
+        WHERE e.id = $1`,
+      [employeeId]
+    );
+    const a = accResult.rows[0] || {};
+    const location = a.name
+      ? [a.name, a.room ? `Szoba ${a.room}` : null, a.address].filter(Boolean).join(', ')
+      : '';
+
+    let date, summary, description, uid;
+
+    if (type === 'ticket_deadline') {
+      const r = await query(
+        `SELECT id, title, ticket_number, due_date
+           FROM tickets
+          WHERE id = $1 AND closed_at IS NULL
+            AND (created_by = $2 OR linked_employee_id = $3)`,
+        [id, userId, employeeId]
+      );
+      if (r.rows.length === 0 || !r.rows[0].due_date) {
+        return res.status(404).json({ success: false, message: 'Esemény nem található' });
+      }
+      const t = r.rows[0];
+      date = t.due_date;
+      summary = t.title || 'Tervezett javítás';
+      description = `Tervezett javítás határideje (#${t.ticket_number})`;
+      uid = `ticket-${t.id}@housingsolutions.hu`;
+    } else {
+      // Employee-based event: the :id MUST be the caller's own employee.
+      if (id !== employeeId) {
+        return res.status(404).json({ success: false, message: 'Esemény nem található' });
+      }
+      const col = type === 'checkin' ? 'arrival_date'
+        : type === 'visa_expiry' ? 'visa_expiry'
+        : 'end_date'; // checkout + contract_expiry
+      const r = await query(`SELECT ${col} AS d FROM employees WHERE id = $1`, [employeeId]);
+      const d = r.rows[0] && r.rows[0].d;
+      if (!d) return res.status(404).json({ success: false, message: 'Esemény nem található' });
+      date = d;
+      const lang = String(req.query.lang || '').toLowerCase();
+      const labels = ICS_LABELS[type] || {};
+      summary = labels[lang] || labels.hu || type;
+      description = a.name ? `${summary} — ${a.name}` : summary;
+      uid = `${type}-${employeeId}@housingsolutions.hu`;
+    }
+
+    const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const ics = buildIcs({ uid, dateYmd: ymd(date), summary, description, location, dtstamp });
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="event.ics"');
+    return res.send(ics);
+  } catch (error) {
+    logger.error('ICS export hiba:', error);
+    return res.status(500).json({ success: false, message: 'Naptár export hiba' });
   }
 };
 
@@ -673,6 +799,7 @@ const deletePersonalEvent = async (req, res) => {
 module.exports = {
   getCalendarEvents,
   getMyCalendarEvents,
+  getMyCalendarEventIcs,
   createShift,
   updateShift,
   deleteShift,

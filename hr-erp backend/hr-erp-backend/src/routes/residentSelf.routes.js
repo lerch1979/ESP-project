@@ -33,6 +33,9 @@ router.get('/accommodations/my', authenticateToken, residentSelf.getMyAccommodat
 // Resident calendar — auth-only, self-scoped, READ-ONLY (one-way). Returns ONLY
 // the caller's own upcoming events (repairs, check-in/out, visa/contract expiry).
 router.get('/calendar/my', authenticateToken, calendarController.getMyCalendarEvents);
+// Per-event .ics export — self-scoped (a resident can only export their OWN
+// events); one-way, no SMTP/OAuth. Feeds the mobile "add to my calendar" sheet.
+router.get('/calendar/my/:type/:id.ics', authenticateToken, calendarController.getMyCalendarEventIcs);
 
 // Resident ticket chat — self-scoped to OWN ticket (requireOwnTicket guard),
 // then reuse the shared staff thread controllers so messages land in the same
