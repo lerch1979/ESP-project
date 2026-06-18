@@ -1,13 +1,18 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, SectionList, ScrollView, RefreshControl, ActivityIndicator,
-  TouchableOpacity, Alert, StyleSheet,
+  TouchableOpacity, Alert, StyleSheet, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+// SDK 54: cacheDirectory / writeAsStringAsync / getContentUriAsync moved OUT of
+// the default expo-file-system export into the /legacy subpath. Importing the
+// default entry made FileSystem.EncodingType undefined → `.UTF8` threw before
+// the share sheet ("export failed"). The legacy import restores the old API.
+import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { calendarAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import MonthGrid, { TYPE_COLOR, ymdKey } from './MonthGrid';
@@ -98,8 +103,30 @@ export default function ResidentCalendarScreen() {
   const addToCalendar = useCallback(async (item) => {
     try {
       const ics = await calendarAPI.myIcs(item.type, item.id, i18n.language);
+      // Legacy writeAsStringAsync defaults to UTF-8 — no EncodingType needed.
       const uri = `${FileSystem.cacheDirectory}event.ics`;
-      await FileSystem.writeAsStringAsync(uri, ics, { encoding: FileSystem.EncodingType.UTF8 });
+      await FileSystem.writeAsStringAsync(uri, ics);
+
+      if (Platform.OS === 'android') {
+        // Android calendar apps import an .ics via an ACTION_VIEW intent on a
+        // content:// URI — NOT the ACTION_SEND share sheet (calendars don't
+        // register as send targets). Open the OS "import event" screen directly.
+        try {
+          const contentUri = await FileSystem.getContentUriAsync(uri);
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            type: 'text/calendar',
+          });
+          return;
+        } catch (intentErr) {
+          // No VIEW handler installed → fall back to the share sheet below.
+          console.warn('[ResidentCalendar] VIEW intent failed, falling back to share:', intentErr?.message || intentErr);
+        }
+      }
+
+      // iOS (and Android fallback): the share sheet surfaces "Add to Calendar"
+      // via the ICS UTI on iOS.
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'text/calendar',
@@ -110,8 +137,11 @@ export default function ResidentCalendarScreen() {
         Alert.alert(t('calendar.title'), t('calendar.icsError'));
       }
     } catch (e) {
-      console.warn('[ResidentCalendar] ics export failed:', e?.message || e);
-      Alert.alert(t('calendar.title'), t('calendar.icsError'));
+      // Surface the real error so on-device failures are diagnosable (the
+      // generic message alone hid the root cause). Safe to trim later.
+      const detail = e?.message || String(e);
+      console.warn('[ResidentCalendar] ics export failed:', detail, e?.stack || '');
+      Alert.alert(t('calendar.title'), `${t('calendar.icsError')}\n\n${detail}`);
     }
   }, [t, i18n.language]);
 
