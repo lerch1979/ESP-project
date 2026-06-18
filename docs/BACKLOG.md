@@ -1,11 +1,67 @@
-# Product Backlog — gated / blocked items
+# Product Backlog & Ötlettár
 
-Items deliberately NOT built yet because a precondition (legal, compliance,
-design sign-off) must be met first. This is distinct from `PROJECT_STATE.md`
-("Current focus" / tech debt) — entries here are **blocked on an external gate**,
-not just unscheduled.
+Two kinds of entries:
+- **§1 Prioritized feature ideas (ötlettár)** — wanted, not yet built; ordered by
+  priority tier. Distinct from `PROJECT_STATE.md` ("Current focus" / tech debt).
+- **§2 Gated / blocked items** — deliberately NOT built until an external
+  precondition (legal, compliance, design sign-off) clears.
 
 ---
+
+# §1 — Prioritized feature ideas (ötlettár)
+
+Priority tiers reflect the user's notes. **Record-only — do not build without an
+explicit go-ahead.**
+
+## Tier 1 — high value / quick wins (do early)
+
+### 1. Push notifications (resident) — Tier 1, HIGH value, do early
+**What:** Native push to the resident's phone for:
+- a **chat reply received** (staff answered their ticket thread),
+- an **upcoming repair / inspection** (from the calendar feed),
+- a **visa / contract expiry reminder**.
+
+**Why:** Brings the chat + calendar "to life" — the resident no longer has to
+open the app to discover a reply or a due date. High engagement lever.
+
+**Feasibility:** Now practical — we ship a **standalone app** (EAS build), so
+**Expo push notifications** are available (`expo-notifications` + Expo push
+tokens; store the token per device, send via Expo's push service). Server-side:
+trigger on new ticket message, and on calendar-derived events approaching.
+
+**Priority:** HIGH — do early (first of these three).
+
+### 2. "Show password" toggle on login — Tier 1, LOW effort
+**What:** An eye-icon on the password field that reveals the password **as
+typed** (toggles `secureTextEntry`). NOT password recovery — passwords stay
+hashed and are never retrievable; this only un-masks the current input.
+
+**Why:** Easier, fewer-error mobile typing — especially for non-Hungarian
+residents entering an unfamiliar password.
+
+**Feasibility:** Trivial — local UI state on the login screen, no backend.
+
+**Priority:** Easy win — slot in anytime.
+
+## Tier 2 — v2 / convenience (after the Tier 1 items)
+
+### 3. Biometric login — Tier 2, v2
+**What:** Fingerprint / face unlock so a returning resident skips typing the
+password each session.
+
+**Why:** Convenience; password login already works, so not urgent.
+
+**Feasibility:** **Expo `LocalAuthentication`** — biometrics are verified
+**on-device** and **never sent to us**; on success, unlock a locally-stored
+session/refresh token. Depends on the standalone app (already have it).
+
+**Priority:** v2 — after push notifications + show-password.
+
+---
+
+# §2 — Gated / blocked items
+
+Blocked on an external gate, not just unscheduled.
 
 ## Medical events in the resident calendar — BLOCKED on DPO sign-off + DPIA
 
