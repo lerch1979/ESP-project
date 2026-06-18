@@ -6,6 +6,34 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-18 — resident calendar: close alignment gaps (inspections + shifts) + List⇄Month grid
+
+Calendar alignment audit (prior session) found 4 gaps between the admin aggregator and the resident feed. This session closed two, confirmed one, and gated one on compliance — then built the grid view. Backend redeployed; mobile EAS build #7 running.
+
+### Gap decisions (per user)
+- **Inspections → ADDED.** Scoped by the resident's OWN `accommodation_id`. Sourced from `inspections` instances (`scheduled_at`), excluding `completed`/`cancelled`. Resident with no accommodation matches none (`= NULL` never true).
+- **Shifts → ADDED.** Data model already existed (`shifts`: `employee_id` + `shift_date` + `shift_type` ∈ {morning,afternoon,night,full_day}). Scoped by the resident's OWN `employee_id`. "Build the capability, deactivate if unused."
+- **Repairs → confirmed `ticket.due_date`** (already in feed as `ticket_deadline`). No change.
+- **Medical/personal → STAYS EXCLUDED, GATED.** GDPR Art. 9 special-category data; in-app display = processing → needs Art. 9(2) basis + DPIA + DPO sign-off FIRST. NOT the "build, deactivate later" path. Documented as a blocked item in **`docs/BACKLOG.md`** (new file). `personal_event` held to the same gate (can carry incidental health info).
+
+### Backend — `calendar.controller.js` (commit 759ce222, CI green, redeployed)
+- `getMyCalendarEvents`: added `shift` + `inspection` UNION subqueries; threaded the resident's `accommodation_id` as `$5`. **All `related_id` cast to `::text`** across every subquery so the UNION column type is consistent regardless of each source table's PK type.
+- `.ics` export: `shift` + `inspection` added to `ICS_TYPES` + `ICS_LABELS` (5 langs) with per-type self-scope checks (shift→`employee_id`, inspection→`accommodation_id`, excluding completed/cancelled).
+- Tests: added shift `.ics` export + cross-scope 404 to `calendarIcs.test.js`. **Full suite 1252 green; i18n guard exit 0.**
+- Redeploy: pulled `ghcr.io/lerch1979/esp-project-backend:latest`, recreated `hr-erp-backend-1` → `Up (healthy)`. `/calendar/my` → 401 (route live); `/healthz` → 200. No migration needed.
+
+### Mobile — List⇄Month grid (commit 56706bfd)
+- **`MonthGrid.js`** (NEW): dependency-free, Monday-first month grid. Chose to hand-roll over `react-native-calendars` (keeps bundle lean + theming/colors ours). Localized month/weekday labels, today marker, prev/next nav, up to 4 color-coded dots per day (one per distinct type). `TYPE_COLOR` shared with the agenda icons.
+- **`ResidentCalendarScreen.js`**: refactored to keep raw `events` in state, derive `eventsByDay`/`sections` via `useMemo`. List⇄Month toggle at top; both views read the SAME `GET /calendar/my` (no new endpoint). Tap a day in Month → its events render below as the same cards. Agenda icons now tinted by `TYPE_COLOR`.
+- i18n: `eventType.shift` / `eventType.inspection` + `viewList` / `viewMonth` / `tapDay` in all 5 locales. **`expo export` (android) clean.**
+- **EAS build #7** queued (git build + `--clear-cache`): `https://expo.dev/accounts/hr-erp/projects/hr-erp-mobile/builds/d972bc04-b78d-40b5-afe0-14fe22576d55`.
+
+### Carried / next
+- Verify build #7 APK (download + confirm gold icon `res/gV.png`/`Zt.png`); install on device; smoke-test Month view with real data (feed is mostly empty — only ~285 check-ins; tickets.due_date=0, shifts=0, inspections=0 at audit time).
+- `docs/BACKLOG.md` medical-events item awaits DPO/DPIA before any build.
+
+---
+
 ## SESSION 2026-06-16 (post-deploy) — mobile cutover, CSRF fix, pre-go-live audit (15/15 PASS), accommodation feature
 
 Continuation of the deploy below. Production hardened, fully audited, two prod bugs fixed, one admin feature added.
