@@ -31,10 +31,11 @@ trigger on new ticket message, and on calendar-derived events approaching.
 
 **Priority:** HIGH — do early (first of these three).
 
-### 2. "Show password" toggle on login — Tier 1, LOW effort
-**What:** An eye-icon on the password field that reveals the password **as
-typed** (toggles `secureTextEntry`). NOT password recovery — passwords stay
-hashed and are never retrievable; this only un-masks the current input.
+### 2. "Show password" toggle on login — Tier 1, LOW effort  ✅ scope CONFIRMED
+**What (confirmed scope):** An eye-icon on the **LOGIN** screen's password field
+that reveals the password **as typed** — input un-mask only (toggles
+`secureTextEntry`). **NOT** stored-password recovery: passwords stay hashed and
+are never retrievable; this only un-masks what the user is currently typing.
 
 **Why:** Easier, fewer-error mobile typing — especially for non-Hungarian
 residents entering an unfamiliar password.
@@ -56,6 +57,29 @@ password each session.
 session/refresh token. Depends on the standalone app (already have it).
 
 **Priority:** v2 — after push notifications + show-password.
+
+### 4. Profile photo (resident-set, admin-visible) — Tier 2, v2
+**What:** The resident uploads their own profile picture from the app
+(gallery/camera) → it uploads to the server → attaches to their **employee
+record** → **admins see it** on the resident's profile in the HR-ERP admin UI.
+**Two-way:** the app sets it, the admin views it.
+
+**Why:** A humanizing touch — puts a face to each resident profile for staff.
+
+**Notes to capture for the future build:**
+- **Storage:** decide server-file (local disk on the Hetzner box) vs object
+  storage — fits our self-hosted setup; investigate at build time.
+- **Resize/compress on upload** — phone photos are large; downscale + compress
+  before/at upload to keep storage and bandwidth sane.
+- **GDPR:** a personal photo IS personal data → keep the upload **OPTIONAL** and
+  **transparent** (the resident must know admins can see it). **MUST NOT** be tied
+  to any face-recognition / biometric processing — it is *only* a profile
+  picture. (This protects the "no biometrics" compliance positioning — same
+  principle as keeping [[biometric login]] strictly on-device.)
+- **Mobile:** `expo-image-picker` (gallery/camera) + multipart upload; reuse the
+  existing ticket-attachment upload pattern on the server if it fits.
+
+**Priority:** v2 — nice humanizing feature, after push + show-password.
 
 ---
 
