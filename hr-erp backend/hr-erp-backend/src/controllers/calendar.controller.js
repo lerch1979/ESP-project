@@ -329,7 +329,7 @@ const getMyCalendarEvents = async (req, res) => {
     // Every event a resident sees relates to where they live → resolve their own
     // accommodation (name + room) once and attach it to each event.
     const accResult = await query(
-      `SELECT acc.name AS accommodation_name, e.room_number
+      `SELECT acc.name AS accommodation_name, e.room_number, e.accommodation_id
          FROM employees e
          LEFT JOIN accommodations acc ON acc.id = e.accommodation_id
         WHERE e.id = $1`,
@@ -339,43 +339,63 @@ const getMyCalendarEvents = async (req, res) => {
     const accommodation = accRow.accommodation_name
       ? { name: accRow.accommodation_name, room: accRow.room_number || null }
       : null;
+    const accommodationId = accRow.accommodation_id || null;
 
     // EVERY subquery is scoped to the caller. CRITICAL: the admin aggregator's
     // ticket_deadline subquery has NO employee filter (admins see all). Here it
     // is strictly limited to the resident's OWN tickets — created_by = the user,
     // OR linked_employee_id = the employee — so a resident can NEVER see another
     // resident's repair deadlines.
-    // params: $1 dateFrom, $2 dateTo, $3 employeeId, $4 userId
+    // params: $1 dateFrom, $2 dateTo, $3 employeeId, $4 userId, $5 accommodationId
+    // related_id is cast to ::text in EVERY subquery so the UNION column has one
+    // consistent type regardless of each source table's PK type.
     const { rows } = await query(
       `
       SELECT e.arrival_date AS event_date, 'checkin' AS type,
-             'Beköltözés' AS title, 'Érkezés a szállásra' AS description, e.id AS related_id
+             'Beköltözés' AS title, 'Érkezés a szállásra' AS description, e.id::text AS related_id
         FROM employees e
        WHERE e.arrival_date BETWEEN $1 AND $2 AND e.id = $3
       UNION ALL
       SELECT e.end_date, 'checkout',
-             'Kiköltözés', 'Távozás a szállásról', e.id
+             'Kiköltözés', 'Távozás a szállásról', e.id::text
         FROM employees e
        WHERE e.end_date BETWEEN $1 AND $2 AND e.end_date < CURRENT_DATE AND e.id = $3
       UNION ALL
       SELECT e.visa_expiry, 'visa_expiry',
-             'Vízum lejárat', 'A vízumod ekkor jár le — időben hosszabbítsd meg', e.id
+             'Vízum lejárat', 'A vízumod ekkor jár le — időben hosszabbítsd meg', e.id::text
         FROM employees e
        WHERE e.visa_expiry BETWEEN $1 AND $2 AND e.end_date IS NULL AND e.id = $3
       UNION ALL
       SELECT e.end_date, 'contract_expiry',
-             'Szerződés lejárat', 'A szerződésed ekkor jár le', e.id
+             'Szerződés lejárat', 'A szerződésed ekkor jár le', e.id::text
         FROM employees e
        WHERE e.end_date BETWEEN $1 AND $2 AND e.end_date >= CURRENT_DATE AND e.id = $3
       UNION ALL
       SELECT t.due_date, 'ticket_deadline', t.title,
-             'Tervezett javítás határideje (#' || t.ticket_number || ')', t.id
+             'Tervezett javítás határideje (#' || t.ticket_number || ')', t.id::text
         FROM tickets t
        WHERE t.due_date BETWEEN $1 AND $2 AND t.closed_at IS NULL
          AND (t.created_by = $4 OR t.linked_employee_id = $3)
+      UNION ALL
+      -- Resident's OWN shifts (scoped by employee_id). shift_type is shown as the
+      -- description; the localized "Shift" label is applied client-side by type.
+      SELECT s.shift_date, 'shift',
+             'Műszak', COALESCE(NULLIF(s.shift_type, ''), 'Beosztott műszak'), s.id::text
+        FROM shifts s
+       WHERE s.shift_date BETWEEN $1 AND $2 AND s.employee_id = $3
+      UNION ALL
+      -- Upcoming inspection of the resident's OWN accommodation (scoped by
+      -- accommodation_id; = $5 is never true when $5 is NULL, so a resident with
+      -- no accommodation sees none). Completed/cancelled instances are excluded.
+      SELECT ins.scheduled_at::date, 'inspection',
+             'Szemle', 'A szállásod ellenőrzése', ins.id::text
+        FROM inspections ins
+       WHERE ins.scheduled_at::date BETWEEN $1 AND $2
+         AND ins.accommodation_id = $5
+         AND COALESCE(ins.status, '') NOT IN ('completed', 'cancelled')
       ORDER BY event_date ASC
       `,
-      [dateFrom, dateTo, employeeId, userId]
+      [dateFrom, dateTo, employeeId, userId, accommodationId]
     );
 
     const events = rows.map((r) => ({
@@ -400,7 +420,7 @@ const getMyCalendarEvents = async (req, res) => {
 // ============================================================
 // .ics export — minimal RFC 5545 VEVENT for one-way "add to my calendar".
 // ============================================================
-const ICS_TYPES = ['checkin', 'checkout', 'visa_expiry', 'contract_expiry', 'ticket_deadline'];
+const ICS_TYPES = ['checkin', 'checkout', 'visa_expiry', 'contract_expiry', 'ticket_deadline', 'shift', 'inspection'];
 
 // System-event SUMMARY labels per language (ticket events use the ticket title).
 const ICS_LABELS = {
@@ -408,6 +428,8 @@ const ICS_LABELS = {
   checkout:        { hu: 'Kiköltözés', en: 'Move-out', uk: 'Виселення', tl: 'Pag-check-out', de: 'Auszug' },
   visa_expiry:     { hu: 'Vízum lejárat', en: 'Visa expiry', uk: 'Закінчення візи', tl: 'Pag-expire ng visa', de: 'Visum-Ablauf' },
   contract_expiry: { hu: 'Szerződés lejárat', en: 'Contract expiry', uk: 'Закінчення договору', tl: 'Pag-expire ng kontrata', de: 'Vertragsende' },
+  shift:           { hu: 'Műszak', en: 'Shift', uk: 'Зміна', tl: 'Shift', de: 'Schicht' },
+  inspection:      { hu: 'Szemle', en: 'Inspection', uk: 'Перевірка', tl: 'Inspeksyon', de: 'Inspektion' },
 };
 
 function icsEscape(s) {
@@ -463,12 +485,14 @@ const getMyCalendarEventIcs = async (req, res) => {
 
     // Accommodation (the resident's own) → LOCATION.
     const accResult = await query(
-      `SELECT acc.name AS name, acc.address AS address, e.room_number AS room
+      `SELECT acc.name AS name, acc.address AS address, e.room_number AS room,
+              e.accommodation_id AS accommodation_id
          FROM employees e LEFT JOIN accommodations acc ON acc.id = e.accommodation_id
         WHERE e.id = $1`,
       [employeeId]
     );
     const a = accResult.rows[0] || {};
+    const accommodationId = a.accommodation_id || null;
     const location = a.name
       ? [a.name, a.room ? `Szoba ${a.room}` : null, a.address].filter(Boolean).join(', ')
       : '';
@@ -491,6 +515,39 @@ const getMyCalendarEventIcs = async (req, res) => {
       summary = t.title || 'Tervezett javítás';
       description = `Tervezett javítás határideje (#${t.ticket_number})`;
       uid = `ticket-${t.id}@housingsolutions.hu`;
+    } else if (type === 'shift') {
+      // Self-scoped: the shift MUST belong to the caller's own employee row.
+      const r = await query(
+        `SELECT id, shift_date, shift_type FROM shifts WHERE id = $1 AND employee_id = $2`,
+        [id, employeeId]
+      );
+      if (r.rows.length === 0 || !r.rows[0].shift_date) {
+        return res.status(404).json({ success: false, message: 'Esemény nem található' });
+      }
+      const s = r.rows[0];
+      date = s.shift_date;
+      const lang = String(req.query.lang || '').toLowerCase();
+      const labels = ICS_LABELS.shift;
+      summary = labels[lang] || labels.hu;
+      description = s.shift_type ? `${summary} — ${s.shift_type}` : summary;
+      uid = `shift-${s.id}@housingsolutions.hu`;
+    } else if (type === 'inspection') {
+      // Self-scoped: the inspection MUST be for the caller's OWN accommodation.
+      const r = await query(
+        `SELECT id, scheduled_at FROM inspections
+          WHERE id = $1 AND accommodation_id = $2
+            AND COALESCE(status, '') NOT IN ('completed', 'cancelled')`,
+        [id, accommodationId]
+      );
+      if (r.rows.length === 0 || !r.rows[0].scheduled_at) {
+        return res.status(404).json({ success: false, message: 'Esemény nem található' });
+      }
+      date = r.rows[0].scheduled_at;
+      const lang = String(req.query.lang || '').toLowerCase();
+      const labels = ICS_LABELS.inspection;
+      summary = labels[lang] || labels.hu;
+      description = a.name ? `${summary} — ${a.name}` : summary;
+      uid = `inspection-${r.rows[0].id}@housingsolutions.hu`;
     } else {
       // Employee-based event: the :id MUST be the caller's own employee.
       if (id !== employeeId) {

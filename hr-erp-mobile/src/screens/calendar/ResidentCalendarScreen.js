@@ -23,6 +23,8 @@ const TYPE_ICON = {
   checkout: 'log-out-outline',
   visa_expiry: 'document-text-outline',
   contract_expiry: 'document-text-outline',
+  shift: 'time-outline',
+  inspection: 'clipboard-outline',
 };
 
 function formatDateHeader(dayKey, lang) {

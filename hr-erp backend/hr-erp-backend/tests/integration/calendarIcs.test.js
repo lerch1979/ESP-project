@@ -10,7 +10,7 @@ const { query } = require('../../src/database/connection');
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-calics';
 
 const MARK = 'ZCalIcsTest';
-let authToken, userId, contractorId, employeeId;
+let authToken, userId, contractorId, employeeId, shiftId;
 
 beforeAll(async () => {
   const u = await query(
@@ -32,6 +32,13 @@ beforeAll(async () => {
     [`${MARK}Emp`, userId]
   );
   employeeId = e.rows[0].id;
+  // A shift for THIS employee, inside the agenda window → exportable .ics.
+  const s = await query(
+    `INSERT INTO shifts (employee_id, shift_date, shift_start_time, shift_end_time, shift_type)
+     VALUES ($1, (CURRENT_DATE + INTERVAL '10 days'), '08:00', '16:00', 'morning') RETURNING id`,
+    [employeeId]
+  );
+  shiftId = s.rows[0].id;
   authToken = jwt.sign(
     { userId, email: `${MARK.toLowerCase()}@example.com`, contractorId: null, roles: ['superadmin'] },
     process.env.JWT_SECRET, { expiresIn: '1h' }
@@ -39,6 +46,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (shiftId) await query('DELETE FROM shifts WHERE id = $1', [shiftId]).catch(() => {});
   if (employeeId) await query('DELETE FROM employees WHERE id = $1', [employeeId]).catch(() => {});
   if (userId) {
     await query('DELETE FROM user_roles WHERE user_id = $1', [userId]).catch(() => {});
@@ -73,6 +81,26 @@ describe('GET /calendar/my/:type/:id.ics — self-scoped one-way export', () => 
   test('cannot export a ticket that is not the caller\'s own (→ 404)', async () => {
     const res = await request(app)
       .get('/api/v1/calendar/my/ticket_deadline/99999999-9999-9999-9999-999999999999.ics')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('exports the resident\'s OWN shift as a valid VEVENT', async () => {
+    const res = await request(app)
+      .get(`/api/v1/calendar/my/shift/${shiftId}.ics`)
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/calendar/);
+    const ics = res.text;
+    expect(ics).toContain('BEGIN:VEVENT');
+    expect(ics).toContain(`UID:shift-${shiftId}@housingsolutions.hu`);
+    expect(ics).toMatch(/DTSTART;VALUE=DATE:\d{8}/);
+  });
+
+  test('cannot export a shift that is not the caller\'s own (→ 404)', async () => {
+    const res = await request(app)
+      .get('/api/v1/calendar/my/shift/99999999-9999-9999-9999-999999999999.ics')
       .set('Authorization', `Bearer ${authToken}`);
     expect(res.status).toBe(404);
   });

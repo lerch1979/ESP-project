@@ -236,7 +236,9 @@
       "checkout": "Move-out",
       "visa_expiry": "Visa expiry",
       "contract_expiry": "Contract expiry",
-      "ticket_deadline": "Scheduled repair"
+      "ticket_deadline": "Scheduled repair",
+      "shift": "Shift",
+      "inspection": "Inspection"
     },
     "addToCalendar": "Add to my calendar",
     "icsError": "Could not export the calendar event"

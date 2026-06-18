@@ -236,7 +236,9 @@
       "checkout": "Pag-check-out",
       "visa_expiry": "Pag-expire ng visa",
       "contract_expiry": "Pag-expire ng kontrata",
-      "ticket_deadline": "Nakatakdang pagkukumpuni"
+      "ticket_deadline": "Nakatakdang pagkukumpuni",
+      "shift": "Shift",
+      "inspection": "Inspeksyon"
     },
     "addToCalendar": "Idagdag sa aking kalendaryo",
     "icsError": "Hindi ma-export ang kaganapan"

@@ -236,7 +236,9 @@
       "checkout": "Auszug",
       "visa_expiry": "Visum-Ablauf",
       "contract_expiry": "Vertragsende",
-      "ticket_deadline": "Geplante Reparatur"
+      "ticket_deadline": "Geplante Reparatur",
+      "shift": "Schicht",
+      "inspection": "Inspektion"
     },
     "addToCalendar": "Zu meinem Kalender hinzufügen",
     "icsError": "Termin konnte nicht exportiert werden"

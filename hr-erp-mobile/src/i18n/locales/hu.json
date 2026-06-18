@@ -236,7 +236,9 @@
       "checkout": "Kiköltözés",
       "visa_expiry": "Vízum lejárat",
       "contract_expiry": "Szerződés lejárat",
-      "ticket_deadline": "Tervezett javítás"
+      "ticket_deadline": "Tervezett javítás",
+      "shift": "Műszak",
+      "inspection": "Szemle"
     },
     "addToCalendar": "Hozzáadás a naptáramhoz",
     "icsError": "A naptári esemény exportálása nem sikerült"
