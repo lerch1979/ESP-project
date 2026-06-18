@@ -241,6 +241,9 @@
       "inspection": "Inspection"
     },
     "addToCalendar": "Add to my calendar",
-    "icsError": "Could not export the calendar event"
+    "icsError": "Could not export the calendar event",
+    "viewList": "List",
+    "viewMonth": "Month",
+    "tapDay": "Tap a day to see its events"
   }
 }

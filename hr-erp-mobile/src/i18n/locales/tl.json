@@ -241,6 +241,9 @@
       "inspection": "Inspeksyon"
     },
     "addToCalendar": "Idagdag sa aking kalendaryo",
-    "icsError": "Hindi ma-export ang kaganapan"
+    "icsError": "Hindi ma-export ang kaganapan",
+    "viewList": "Listahan",
+    "viewMonth": "Buwan",
+    "tapDay": "I-tap ang isang araw para makita ang mga kaganapan"
   }
 }

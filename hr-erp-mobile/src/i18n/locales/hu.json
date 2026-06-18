@@ -241,6 +241,9 @@
       "inspection": "Szemle"
     },
     "addToCalendar": "Hozzáadás a naptáramhoz",
-    "icsError": "A naptári esemény exportálása nem sikerült"
+    "icsError": "A naptári esemény exportálása nem sikerült",
+    "viewList": "Lista",
+    "viewMonth": "Hónap",
+    "tapDay": "Koppints egy napra az események megtekintéséhez"
   }
 }

@@ -241,6 +241,9 @@
       "inspection": "Inspektion"
     },
     "addToCalendar": "Zu meinem Kalender hinzufügen",
-    "icsError": "Termin konnte nicht exportiert werden"
+    "icsError": "Termin konnte nicht exportiert werden",
+    "viewList": "Liste",
+    "viewMonth": "Monat",
+    "tapDay": "Tippe auf einen Tag, um die Termine zu sehen"
   }
 }
