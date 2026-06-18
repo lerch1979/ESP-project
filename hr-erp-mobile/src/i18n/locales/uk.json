@@ -4,7 +4,8 @@
     "tickets": "Заявки",
     "wellbeing": "Добробут",
     "employees": "Працівники",
-    "more": "Ще"
+    "more": "Ще",
+    "calendar": "Календар"
   },
   "resident": {
     "reportIssue": "Повідомити про проблему",
@@ -20,40 +21,79 @@
     "translationUnavailable": "переклад недоступний"
   },
   "category": {
-    "viz-csotores": "Вода/протікання", "futes": "Опалення", "elektromos": "Електрика",
-    "butor-berendezes": "Меблі/обладнання", "tisztasag": "Чистота", "egyeb": "Інше"
+    "viz-csotores": "Вода/протікання",
+    "futes": "Опалення",
+    "elektromos": "Електрика",
+    "butor-berendezes": "Меблі/обладнання",
+    "tisztasag": "Чистота",
+    "egyeb": "Інше"
   },
   "status": {
-    "new": "Нова", "in_progress": "В роботі", "waiting": "Очікує",
-    "waiting_material": "Очікує матеріалів", "completed": "Закрито", "resolved": "Вирішено",
-    "rejected": "Відхилено", "closed_unsuccessful": "Закрито (невдало)",
-    "invoicing": "Виставлення рахунку", "payment_pending": "Очікує оплати",
-    "transferred": "Передано", "not_feasible": "Неможливо виконати"
+    "new": "Нова",
+    "in_progress": "В роботі",
+    "waiting": "Очікує",
+    "waiting_material": "Очікує матеріалів",
+    "completed": "Закрито",
+    "resolved": "Вирішено",
+    "rejected": "Відхилено",
+    "closed_unsuccessful": "Закрито (невдало)",
+    "invoicing": "Виставлення рахунку",
+    "payment_pending": "Очікує оплати",
+    "transferred": "Передано",
+    "not_feasible": "Неможливо виконати"
   },
-  "priority": { "low": "Низький", "normal": "Звичайний", "urgent": "Терміновий", "critical": "Критичний" },
+  "priority": {
+    "low": "Низький",
+    "normal": "Звичайний",
+    "urgent": "Терміновий",
+    "critical": "Критичний"
+  },
   "ticketForm": {
-    "title": "Тема", "titlePlaceholder": "Тема заявки",
-    "description": "Опис", "descriptionPlaceholder": "Детальний опис…",
-    "category": "Категорія", "priority": "Пріоритет", "submit": "Створити заявку",
-    "titleRequired": "Вкажіть тему", "categoryRequired": "Оберіть категорію",
-    "priorityRequired": "Оберіть пріоритет", "missingData": "Відсутні дані",
-    "createError": "Не вдалося створити заявку", "loadError": "Не вдалося завантажити налаштування",
+    "title": "Тема",
+    "titlePlaceholder": "Тема заявки",
+    "description": "Опис",
+    "descriptionPlaceholder": "Детальний опис…",
+    "category": "Категорія",
+    "priority": "Пріоритет",
+    "submit": "Створити заявку",
+    "titleRequired": "Вкажіть тему",
+    "categoryRequired": "Оберіть категорію",
+    "priorityRequired": "Оберіть пріоритет",
+    "missingData": "Відсутні дані",
+    "createError": "Не вдалося створити заявку",
+    "loadError": "Не вдалося завантажити налаштування",
     "success": "Заявку успішно створено",
     "aiSuggestion": "Підказка ШІ"
   },
   "ticketList": {
-    "open": "Відкриті ({{count}})", "closed": "Закриті ({{count}})", "empty": "Поки немає заявок",
-    "loadError": "Не вдалося завантажити заявки", "detailLoadError": "Не вдалося завантажити заявку"
+    "open": "Відкриті ({{count}})",
+    "closed": "Закриті ({{count}})",
+    "empty": "Поки немає заявок",
+    "loadError": "Не вдалося завантажити заявки",
+    "detailLoadError": "Не вдалося завантажити заявку"
   },
-  "roomView": { "loadError": "Не вдалося завантажити житло", "empty": "Вам не призначено житло" },
+  "roomView": {
+    "loadError": "Не вдалося завантажити житло",
+    "empty": "Вам не призначено житло"
+  },
   "menu": {
-    "accommodations": "Житло", "notifications": "Сповіщення", "profile": "Профіль",
-    "logout": "Вийти", "allGood": "Все гаразд!", "contractor": "Підрядник", "roles": "Ролі"
+    "accommodations": "Житло",
+    "notifications": "Сповіщення",
+    "profile": "Профіль",
+    "logout": "Вийти",
+    "allGood": "Все гаразд!",
+    "contractor": "Підрядник",
+    "roles": "Ролі"
   },
   "attach": {
-    "photos": "Фото", "add": "Додати фото", "camera": "Камера", "gallery": "Галерея",
-    "max": "Максимум 3 фото", "uploading": "Завантаження…",
-    "uploaded": "Завантажено {{ok}}/{{total}} фото", "permission": "Потрібен дозвіл для фото"
+    "photos": "Фото",
+    "add": "Додати фото",
+    "camera": "Камера",
+    "gallery": "Галерея",
+    "max": "Максимум 3 фото",
+    "uploading": "Завантаження…",
+    "uploaded": "Завантажено {{ok}}/{{total}} фото",
+    "permission": "Потрібен дозвіл для фото"
   },
   "login": {
     "title": "HR-ERP Mobile",
@@ -185,5 +225,18 @@
     "medium": "Середній",
     "high": "Високий",
     "critical": "Критичний"
+  },
+  "calendar": {
+    "title": "Календар",
+    "empty": "Немає майбутніх подій",
+    "room": "Кімната",
+    "loadError": "Не вдалося завантажити календар",
+    "eventType": {
+      "checkin": "Заселення",
+      "checkout": "Виселення",
+      "visa_expiry": "Закінчення візи",
+      "contract_expiry": "Закінчення договору",
+      "ticket_deadline": "Запланований ремонт"
+    }
   }
 }

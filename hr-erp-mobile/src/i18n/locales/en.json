@@ -4,7 +4,8 @@
     "tickets": "Tickets",
     "wellbeing": "Wellbeing",
     "employees": "Employees",
-    "more": "More"
+    "more": "More",
+    "calendar": "Calendar"
   },
   "resident": {
     "reportIssue": "Report an issue",
@@ -20,40 +21,79 @@
     "translationUnavailable": "translation unavailable"
   },
   "category": {
-    "viz-csotores": "Water/leak", "futes": "Heating", "elektromos": "Electrical",
-    "butor-berendezes": "Furniture/equipment", "tisztasag": "Cleanliness", "egyeb": "Other"
+    "viz-csotores": "Water/leak",
+    "futes": "Heating",
+    "elektromos": "Electrical",
+    "butor-berendezes": "Furniture/equipment",
+    "tisztasag": "Cleanliness",
+    "egyeb": "Other"
   },
   "status": {
-    "new": "New", "in_progress": "In progress", "waiting": "Waiting",
-    "waiting_material": "Waiting for materials", "completed": "Closed", "resolved": "Resolved",
-    "rejected": "Rejected", "closed_unsuccessful": "Closed (unsuccessful)",
-    "invoicing": "Invoicing", "payment_pending": "Payment pending",
-    "transferred": "Transferred", "not_feasible": "Not feasible"
+    "new": "New",
+    "in_progress": "In progress",
+    "waiting": "Waiting",
+    "waiting_material": "Waiting for materials",
+    "completed": "Closed",
+    "resolved": "Resolved",
+    "rejected": "Rejected",
+    "closed_unsuccessful": "Closed (unsuccessful)",
+    "invoicing": "Invoicing",
+    "payment_pending": "Payment pending",
+    "transferred": "Transferred",
+    "not_feasible": "Not feasible"
   },
-  "priority": { "low": "Low", "normal": "Normal", "urgent": "Urgent", "critical": "Critical" },
+  "priority": {
+    "low": "Low",
+    "normal": "Normal",
+    "urgent": "Urgent",
+    "critical": "Critical"
+  },
   "ticketForm": {
-    "title": "Title", "titlePlaceholder": "Ticket title",
-    "description": "Description", "descriptionPlaceholder": "Detailed description…",
-    "category": "Category", "priority": "Priority", "submit": "Create ticket",
-    "titleRequired": "Title is required", "categoryRequired": "Please choose a category",
-    "priorityRequired": "Please choose a priority", "missingData": "Missing data",
-    "createError": "Could not create the ticket", "loadError": "Could not load settings",
+    "title": "Title",
+    "titlePlaceholder": "Ticket title",
+    "description": "Description",
+    "descriptionPlaceholder": "Detailed description…",
+    "category": "Category",
+    "priority": "Priority",
+    "submit": "Create ticket",
+    "titleRequired": "Title is required",
+    "categoryRequired": "Please choose a category",
+    "priorityRequired": "Please choose a priority",
+    "missingData": "Missing data",
+    "createError": "Could not create the ticket",
+    "loadError": "Could not load settings",
     "success": "Ticket created successfully",
     "aiSuggestion": "AI suggestion"
   },
   "ticketList": {
-    "open": "Open ({{count}})", "closed": "Closed ({{count}})", "empty": "No tickets yet",
-    "loadError": "Could not load tickets", "detailLoadError": "Could not load ticket"
+    "open": "Open ({{count}})",
+    "closed": "Closed ({{count}})",
+    "empty": "No tickets yet",
+    "loadError": "Could not load tickets",
+    "detailLoadError": "Could not load ticket"
   },
-  "roomView": { "loadError": "Could not load accommodation", "empty": "No accommodation assigned to you" },
+  "roomView": {
+    "loadError": "Could not load accommodation",
+    "empty": "No accommodation assigned to you"
+  },
   "menu": {
-    "accommodations": "Accommodation", "notifications": "Notifications", "profile": "Profile",
-    "logout": "Log out", "allGood": "All good!", "contractor": "Contractor", "roles": "Roles"
+    "accommodations": "Accommodation",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "logout": "Log out",
+    "allGood": "All good!",
+    "contractor": "Contractor",
+    "roles": "Roles"
   },
   "attach": {
-    "photos": "Photos", "add": "Add photo", "camera": "Camera", "gallery": "Gallery",
-    "max": "Max 3 photos", "uploading": "Uploading…",
-    "uploaded": "{{ok}}/{{total}} photos uploaded", "permission": "Permission needed for photos"
+    "photos": "Photos",
+    "add": "Add photo",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "max": "Max 3 photos",
+    "uploading": "Uploading…",
+    "uploaded": "{{ok}}/{{total}} photos uploaded",
+    "permission": "Permission needed for photos"
   },
   "login": {
     "title": "HR-ERP Mobile",
@@ -185,5 +225,18 @@
     "medium": "Medium",
     "high": "High",
     "critical": "Critical"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "empty": "No upcoming events",
+    "room": "Room",
+    "loadError": "Could not load the calendar",
+    "eventType": {
+      "checkin": "Move-in",
+      "checkout": "Move-out",
+      "visa_expiry": "Visa expiry",
+      "contract_expiry": "Contract expiry",
+      "ticket_deadline": "Scheduled repair"
+    }
   }
 }

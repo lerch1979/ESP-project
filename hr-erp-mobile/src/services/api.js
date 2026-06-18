@@ -339,6 +339,11 @@ export const calendarAPI = {
     const response = await api.get('/calendar/events', { params });
     return response.data;
   },
+  // Resident calendar — self-scoped, READ-ONLY (one-way). Own upcoming events only.
+  getMine: async () => {
+    const response = await api.get('/calendar/my');
+    return response.data;
+  },
 };
 
 // Google Calendar API

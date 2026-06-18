@@ -4,7 +4,8 @@
     "tickets": "Mga Ticket",
     "wellbeing": "Kalusugan",
     "employees": "Mga Empleyado",
-    "more": "Iba pa"
+    "more": "Iba pa",
+    "calendar": "Kalendaryo"
   },
   "resident": {
     "reportIssue": "Mag-ulat ng problema",
@@ -20,40 +21,79 @@
     "translationUnavailable": "walang pagsasalin"
   },
   "category": {
-    "viz-csotores": "Tubig/tagas", "futes": "Pag-init", "elektromos": "Kuryente",
-    "butor-berendezes": "Muwebles/kagamitan", "tisztasag": "Kalinisan", "egyeb": "Iba pa"
+    "viz-csotores": "Tubig/tagas",
+    "futes": "Pag-init",
+    "elektromos": "Kuryente",
+    "butor-berendezes": "Muwebles/kagamitan",
+    "tisztasag": "Kalinisan",
+    "egyeb": "Iba pa"
   },
   "status": {
-    "new": "Bago", "in_progress": "Isinasagawa", "waiting": "Naghihintay",
-    "waiting_material": "Naghihintay ng materyales", "completed": "Sarado", "resolved": "Naayos",
-    "rejected": "Tinanggihan", "closed_unsuccessful": "Sarado (hindi matagumpay)",
-    "invoicing": "Pagsingil", "payment_pending": "Naghihintay ng bayad",
-    "transferred": "Inilipat", "not_feasible": "Hindi magagawa"
+    "new": "Bago",
+    "in_progress": "Isinasagawa",
+    "waiting": "Naghihintay",
+    "waiting_material": "Naghihintay ng materyales",
+    "completed": "Sarado",
+    "resolved": "Naayos",
+    "rejected": "Tinanggihan",
+    "closed_unsuccessful": "Sarado (hindi matagumpay)",
+    "invoicing": "Pagsingil",
+    "payment_pending": "Naghihintay ng bayad",
+    "transferred": "Inilipat",
+    "not_feasible": "Hindi magagawa"
   },
-  "priority": { "low": "Mababa", "normal": "Normal", "urgent": "Apurahan", "critical": "Kritikal" },
+  "priority": {
+    "low": "Mababa",
+    "normal": "Normal",
+    "urgent": "Apurahan",
+    "critical": "Kritikal"
+  },
   "ticketForm": {
-    "title": "Pamagat", "titlePlaceholder": "Pamagat ng tiket",
-    "description": "Paglalarawan", "descriptionPlaceholder": "Detalyadong paglalarawan…",
-    "category": "Kategorya", "priority": "Priyoridad", "submit": "Gumawa ng tiket",
-    "titleRequired": "Kailangan ang pamagat", "categoryRequired": "Pumili ng kategorya",
-    "priorityRequired": "Pumili ng priyoridad", "missingData": "Kulang na datos",
-    "createError": "Hindi nagawa ang tiket", "loadError": "Hindi ma-load ang mga setting",
+    "title": "Pamagat",
+    "titlePlaceholder": "Pamagat ng tiket",
+    "description": "Paglalarawan",
+    "descriptionPlaceholder": "Detalyadong paglalarawan…",
+    "category": "Kategorya",
+    "priority": "Priyoridad",
+    "submit": "Gumawa ng tiket",
+    "titleRequired": "Kailangan ang pamagat",
+    "categoryRequired": "Pumili ng kategorya",
+    "priorityRequired": "Pumili ng priyoridad",
+    "missingData": "Kulang na datos",
+    "createError": "Hindi nagawa ang tiket",
+    "loadError": "Hindi ma-load ang mga setting",
     "success": "Matagumpay na nagawa ang tiket",
     "aiSuggestion": "Mungkahi ng AI"
   },
   "ticketList": {
-    "open": "Bukas ({{count}})", "closed": "Sarado ({{count}})", "empty": "Wala pang tiket",
-    "loadError": "Hindi ma-load ang mga tiket", "detailLoadError": "Hindi ma-load ang tiket"
+    "open": "Bukas ({{count}})",
+    "closed": "Sarado ({{count}})",
+    "empty": "Wala pang tiket",
+    "loadError": "Hindi ma-load ang mga tiket",
+    "detailLoadError": "Hindi ma-load ang tiket"
   },
-  "roomView": { "loadError": "Hindi ma-load ang tirahan", "empty": "Walang nakatalagang tirahan sa iyo" },
+  "roomView": {
+    "loadError": "Hindi ma-load ang tirahan",
+    "empty": "Walang nakatalagang tirahan sa iyo"
+  },
   "menu": {
-    "accommodations": "Tirahan", "notifications": "Mga abiso", "profile": "Profile",
-    "logout": "Mag-logout", "allGood": "Maayos lahat!", "contractor": "Kontratista", "roles": "Mga tungkulin"
+    "accommodations": "Tirahan",
+    "notifications": "Mga abiso",
+    "profile": "Profile",
+    "logout": "Mag-logout",
+    "allGood": "Maayos lahat!",
+    "contractor": "Kontratista",
+    "roles": "Mga tungkulin"
   },
   "attach": {
-    "photos": "Mga larawan", "add": "Magdagdag ng larawan", "camera": "Kamera", "gallery": "Galerya",
-    "max": "Hanggang 3 larawan", "uploading": "Ina-upload…",
-    "uploaded": "{{ok}}/{{total}} larawan na-upload", "permission": "Kailangan ng pahintulot para sa larawan"
+    "photos": "Mga larawan",
+    "add": "Magdagdag ng larawan",
+    "camera": "Kamera",
+    "gallery": "Galerya",
+    "max": "Hanggang 3 larawan",
+    "uploading": "Ina-upload…",
+    "uploaded": "{{ok}}/{{total}} larawan na-upload",
+    "permission": "Kailangan ng pahintulot para sa larawan"
   },
   "login": {
     "title": "HR-ERP Mobile",
@@ -185,5 +225,18 @@
     "medium": "Katamtaman",
     "high": "Mataas",
     "critical": "Kritikal"
+  },
+  "calendar": {
+    "title": "Kalendaryo",
+    "empty": "Walang paparating na kaganapan",
+    "room": "Kwarto",
+    "loadError": "Hindi ma-load ang kalendaryo",
+    "eventType": {
+      "checkin": "Pag-check-in",
+      "checkout": "Pag-check-out",
+      "visa_expiry": "Pag-expire ng visa",
+      "contract_expiry": "Pag-expire ng kontrata",
+      "ticket_deadline": "Nakatakdang pagkukumpuni"
+    }
   }
 }

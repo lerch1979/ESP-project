@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import DashboardScreen from '../screens/DashboardScreen';
 import ResidentHomeScreen from '../screens/ResidentHomeScreen';
+import ResidentCalendarScreen from '../screens/calendar/ResidentCalendarScreen';
 import TicketStackNavigator from './TicketStackNavigator';
 import EmployeeStackNavigator from './EmployeeStackNavigator';
 import WellbeingStackNavigator from './WellbeingStackNavigator';
@@ -17,6 +18,7 @@ const Tab = createBottomTabNavigator();
 const tabIcons = {
   Home: 'home',
   Dashboard: 'home',
+  Calendar: 'calendar',
   Tickets: 'ticket',
   Employees: 'people',
   Wellbeing: 'heart',
@@ -62,6 +64,13 @@ export default function MainTabNavigator() {
           name="Dashboard"
           component={DashboardScreen}
           options={{ title: t('nav.home') }}
+        />
+      )}
+      {resident && (
+        <Tab.Screen
+          name="Calendar"
+          component={ResidentCalendarScreen}
+          options={{ title: t('nav.calendar') }}
         />
       )}
       <Tab.Screen

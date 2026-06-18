@@ -4,7 +4,8 @@
     "tickets": "Hibajegyek",
     "wellbeing": "Jóllét",
     "employees": "Munkavállalók",
-    "more": "Továbbiak"
+    "more": "Továbbiak",
+    "calendar": "Naptár"
   },
   "resident": {
     "reportIssue": "Hibát jelentek",
@@ -20,40 +21,79 @@
     "translationUnavailable": "fordítás nem elérhető"
   },
   "category": {
-    "viz-csotores": "Víz/csőtörés", "futes": "Fűtés", "elektromos": "Elektromos",
-    "butor-berendezes": "Bútor/berendezés", "tisztasag": "Tisztaság", "egyeb": "Egyéb"
+    "viz-csotores": "Víz/csőtörés",
+    "futes": "Fűtés",
+    "elektromos": "Elektromos",
+    "butor-berendezes": "Bútor/berendezés",
+    "tisztasag": "Tisztaság",
+    "egyeb": "Egyéb"
   },
   "status": {
-    "new": "Új", "in_progress": "Folyamatban", "waiting": "Várakozik",
-    "waiting_material": "Anyagra vár", "completed": "Lezárva", "resolved": "Megoldva",
-    "rejected": "Elutasítva", "closed_unsuccessful": "Lezárt (sikertelen)",
-    "invoicing": "Számlázás", "payment_pending": "Pénzügyi teljesítés",
-    "transferred": "Továbbítva", "not_feasible": "Nem megvalósítható"
+    "new": "Új",
+    "in_progress": "Folyamatban",
+    "waiting": "Várakozik",
+    "waiting_material": "Anyagra vár",
+    "completed": "Lezárva",
+    "resolved": "Megoldva",
+    "rejected": "Elutasítva",
+    "closed_unsuccessful": "Lezárt (sikertelen)",
+    "invoicing": "Számlázás",
+    "payment_pending": "Pénzügyi teljesítés",
+    "transferred": "Továbbítva",
+    "not_feasible": "Nem megvalósítható"
   },
-  "priority": { "low": "Alacsony", "normal": "Normál", "urgent": "Sürgős", "critical": "Kritikus" },
+  "priority": {
+    "low": "Alacsony",
+    "normal": "Normál",
+    "urgent": "Sürgős",
+    "critical": "Kritikus"
+  },
   "ticketForm": {
-    "title": "Cím", "titlePlaceholder": "Hibajegy címe",
-    "description": "Leírás", "descriptionPlaceholder": "Részletes leírás…",
-    "category": "Kategória", "priority": "Prioritás", "submit": "Hibajegy létrehozása",
-    "titleRequired": "A cím megadása kötelező", "categoryRequired": "Kérjük, válasszon kategóriát",
-    "priorityRequired": "Kérjük, válasszon prioritást", "missingData": "Hiányzó adatok",
-    "createError": "Nem sikerült létrehozni a hibajegyet", "loadError": "Nem sikerült betölteni a beállításokat",
+    "title": "Cím",
+    "titlePlaceholder": "Hibajegy címe",
+    "description": "Leírás",
+    "descriptionPlaceholder": "Részletes leírás…",
+    "category": "Kategória",
+    "priority": "Prioritás",
+    "submit": "Hibajegy létrehozása",
+    "titleRequired": "A cím megadása kötelező",
+    "categoryRequired": "Kérjük, válasszon kategóriát",
+    "priorityRequired": "Kérjük, válasszon prioritást",
+    "missingData": "Hiányzó adatok",
+    "createError": "Nem sikerült létrehozni a hibajegyet",
+    "loadError": "Nem sikerült betölteni a beállításokat",
     "success": "Hibajegy sikeresen létrehozva",
     "aiSuggestion": "AI-javaslat"
   },
   "ticketList": {
-    "open": "Nyitott ({{count}})", "closed": "Lezárt ({{count}})", "empty": "Még nincs hibajegyed",
-    "loadError": "Nem sikerült betölteni a hibajegyeket", "detailLoadError": "Nem sikerült betölteni a hibajegyet"
+    "open": "Nyitott ({{count}})",
+    "closed": "Lezárt ({{count}})",
+    "empty": "Még nincs hibajegyed",
+    "loadError": "Nem sikerült betölteni a hibajegyeket",
+    "detailLoadError": "Nem sikerült betölteni a hibajegyet"
   },
-  "roomView": { "loadError": "Nem sikerült betölteni a szállást", "empty": "Nincs hozzád rendelt szállás" },
+  "roomView": {
+    "loadError": "Nem sikerült betölteni a szállást",
+    "empty": "Nincs hozzád rendelt szállás"
+  },
   "menu": {
-    "accommodations": "Szálláshelyek", "notifications": "Értesítések", "profile": "Profil",
-    "logout": "Kijelentkezés", "allGood": "Minden rendben van!", "contractor": "Alvállalkozó", "roles": "Szerepkörök"
+    "accommodations": "Szálláshelyek",
+    "notifications": "Értesítések",
+    "profile": "Profil",
+    "logout": "Kijelentkezés",
+    "allGood": "Minden rendben van!",
+    "contractor": "Alvállalkozó",
+    "roles": "Szerepkörök"
   },
   "attach": {
-    "photos": "Fotók", "add": "Fotó hozzáadása", "camera": "Kamera", "gallery": "Galéria",
-    "max": "Legfeljebb 3 fotó", "uploading": "Feltöltés…",
-    "uploaded": "{{ok}}/{{total}} fotó feltöltve", "permission": "Engedély szükséges a fotóhoz"
+    "photos": "Fotók",
+    "add": "Fotó hozzáadása",
+    "camera": "Kamera",
+    "gallery": "Galéria",
+    "max": "Legfeljebb 3 fotó",
+    "uploading": "Feltöltés…",
+    "uploaded": "{{ok}}/{{total}} fotó feltöltve",
+    "permission": "Engedély szükséges a fotóhoz"
   },
   "login": {
     "title": "HR-ERP Mobile",
@@ -185,5 +225,18 @@
     "medium": "Közepes",
     "high": "Magas",
     "critical": "Kritikus"
+  },
+  "calendar": {
+    "title": "Naptár",
+    "empty": "Nincs közelgő eseményed",
+    "room": "Szoba",
+    "loadError": "A naptár betöltése nem sikerült",
+    "eventType": {
+      "checkin": "Beköltözés",
+      "checkout": "Kiköltözés",
+      "visa_expiry": "Vízum lejárat",
+      "contract_expiry": "Szerződés lejárat",
+      "ticket_deadline": "Tervezett javítás"
+    }
   }
 }
