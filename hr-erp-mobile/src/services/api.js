@@ -354,6 +354,18 @@ export const calendarAPI = {
   },
 };
 
+// Device push-token registration (auth attached by the request interceptor).
+export const pushAPI = {
+  register: async (token, platform, deviceName) => {
+    const response = await api.post('/push/tokens', { token, platform, deviceName });
+    return response.data;
+  },
+  unregister: async (token) => {
+    const response = await api.delete('/push/tokens', { data: { token } });
+    return response.data;
+  },
+};
+
 // Google Calendar API
 export const googleCalendarAPI = {
   getStatus: async () => {

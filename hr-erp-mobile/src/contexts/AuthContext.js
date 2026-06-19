@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getItem, setItem, deleteItem } from '../services/storage';
 import { authAPI } from '../services/api';
 import { setLanguageFromProfile } from '../i18n';
+import { registerPushToken, unregisterPushToken } from '../services/push';
 
 const AuthContext = createContext(null);
 
@@ -30,6 +31,8 @@ export function AuthProvider({ children }) {
           setUser(meUser);
           await setItem('user', JSON.stringify(meUser));
           if (meUser.preferred_language) setLanguageFromProfile(meUser.preferred_language);
+          // Re-register this device for push on app resume (best-effort).
+          registerPushToken();
         } catch {
           // Token might be expired, refresh interceptor will handle it
           // If refresh also fails, user stays null
@@ -54,10 +57,15 @@ export function AuthProvider({ children }) {
     setUser(userData);
     // AUTOMATIC: Set language from user profile on login
     if (userData.preferred_language) setLanguageFromProfile(userData.preferred_language);
+    // Register this device for push notifications (best-effort; never blocks login).
+    registerPushToken();
     return userData;
   };
 
   const logout = async () => {
+    // Unregister this device first so a shared phone stops getting the prior
+    // user's pushes (best-effort; runs before the token is cleared).
+    await unregisterPushToken();
     try {
       await authAPI.logout();
     } catch {

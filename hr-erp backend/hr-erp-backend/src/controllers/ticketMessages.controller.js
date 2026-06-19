@@ -249,6 +249,8 @@ const send = async (req, res) => {
             message: tk.sender_name ? `${tk.sender_name}: ${preview}` : preview,
             link: `/tickets/${ticketId}`,
             data: { ticket_id: ticketId, message_id: created.id },
+            // Push to the recipient's device(s), localized by their language.
+            push: { vars: { ticketNumber: tk.ticket_number, sender: tk.sender_name, preview } },
           }).catch(e => logger.warn('[ticketMessages.notify] one failed:', e.message));
         }
 

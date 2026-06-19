@@ -244,6 +244,36 @@ async function runDaily({ force = false } = {}) {
             contractorId: item.contractor_id || null,
           });
         }
+
+        // Resident-facing alert for their OWN visa / contract — push-enabled,
+        // links to the calendar (not the admin employee page). Separate from the
+        // HR-admin alert above; same idempotency bucket already guards re-sends.
+        if (item.entity_type === 'employee' && (item.field === 'visa' || item.field === 'contract')) {
+          try {
+            const ru = await query('SELECT user_id FROM employees WHERE id = $1', [item.employee_id]);
+            const residentUserId = ru.rows[0] && ru.rows[0].user_id;
+            if (residentUserId) {
+              const isVisa = item.field === 'visa';
+              const rTitle = isVisa ? 'Vízum lejárat' : 'Szerződés lejárat';
+              const subject = isVisa ? 'vízumod' : 'szerződésed';
+              const rMsg = dUntil > 0
+                ? `A ${subject} ${dUntil} nap múlva lejár.`
+                : dUntil === 0 ? `A ${subject} ma lejár.` : `A ${subject} ${Math.abs(dUntil)} napja lejárt.`;
+              await inApp.notify({
+                userId: residentUserId,
+                type: 'expiry_alert',
+                title: rTitle,
+                message: rMsg,
+                link: '/calendar',
+                data: { ...data, audience: 'resident' },
+                contractorId: item.contractor_id || null,
+                push: { vars: { field: item.field, days: dUntil } },
+              });
+            }
+          } catch (resErr) {
+            logger.warn('[expiryMonitor] resident alert failed:', resErr.message);
+          }
+        }
         fired += 1;
         byBucket[bucket] = (byBucket[bucket] || 0) + 1;
       } catch (itemErr) {

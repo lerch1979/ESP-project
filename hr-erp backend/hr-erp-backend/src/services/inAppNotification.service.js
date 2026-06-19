@@ -12,8 +12,9 @@
  */
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const pushService = require('./pushNotification.service');
 
-async function notify({ userId, type, title, message, link = null, data = null, contractorId = null } = {}) {
+async function notify({ userId, type, title, message, link = null, data = null, contractorId = null, push = null } = {}) {
   if (!userId) return null;
   try {
     const r = await query(
@@ -22,7 +23,20 @@ async function notify({ userId, type, title, message, link = null, data = null, 
        RETURNING id`,
       [userId, contractorId, type || 'system', title, message, link, data ? JSON.stringify(data) : null]
     );
-    return r.rows[0]?.id || null;
+    const id = r.rows[0]?.id || null;
+    // Optional push delivery — additive, fire-and-forget. `push` is truthy only
+    // for the types we want on the lock screen (e.g. ticket replies, expiry);
+    // `push.vars` feed the localized templates, with title/message as fallback.
+    if (id && push) {
+      pushService.sendToUser(userId, {
+        type: type || 'system',
+        vars: (push && push.vars) || {},
+        fallbackTitle: title,
+        fallbackBody: message,
+        data: { ...(data || {}), link, notification_id: id },
+      }).catch((e) => logger.warn('[inAppNotification.push]', e.message));
+    }
+    return id;
   } catch (err) {
     // Don't let notification failures break the calling workflow.
     logger.error('[inAppNotification.notify]', err.message);
