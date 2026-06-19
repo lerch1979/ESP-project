@@ -61,9 +61,11 @@ describe('POST/DELETE /push/tokens', () => {
     expect(res.status).toBe(400);
   });
 
-  test('requires auth (401)', async () => {
+  test('rejects an unauthenticated request (401 auth, or 403 if CSRF runs first)', async () => {
     const res = await request(app).post('/api/v1/push/tokens').send({ token: TOKEN_A });
-    expect(res.status).toBe(401);
+    // Bearer-authed calls skip CSRF; a no-credentials POST is blocked by whichever
+    // guard runs first — CSRF (403, as in CI) or auth (401, CSRF off locally).
+    expect([401, 403]).toContain(res.status);
   });
 
   test('deletes the caller\'s own token', async () => {
