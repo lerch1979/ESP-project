@@ -175,7 +175,18 @@
     "markAllRead": "Mind olvasott"
   },
   "profile": {
-    "language": "Nyelv"
+    "language": "Nyelv",
+    "photo": {
+      "change": "Profilkép módosítása",
+      "add": "Profilkép hozzáadása",
+      "takePhoto": "Fénykép készítése",
+      "chooseGallery": "Választás a galériából",
+      "remove": "Profilkép eltávolítása",
+      "adminCanSee": "Ezt a képet az adminisztrátorok láthatják.",
+      "uploadError": "A profilkép feltöltése nem sikerült.",
+      "permTitle": "Engedély szükséges",
+      "permBody": "Engedélyezd a kamera/galéria hozzáférést a beállításokban."
+    }
   },
   "settings": {
     "title": "Beállítások",

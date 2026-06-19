@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
   Alert,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import i18n from '../../i18n';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../contexts/AuthContext';
-import { userAPI } from '../../services/api';
+import { userAPI, profileAPI, UPLOADS_BASE_URL } from '../../services/api';
 import { setItem } from '../../services/storage';
 
 const LANGUAGES = [
@@ -27,6 +31,78 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { t, i18n: i18nInstance } = useTranslation();
   const currentLang = i18nInstance.language || 'hu';
+
+  // Profile photo — self-scoped (own employee). hasEmployee gates the UI so a
+  // staff user with no employee row doesn't see a broken photo control.
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [hasEmployee, setHasEmployee] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    profileAPI.getMyEmployee()
+      .then((r) => { if (active) { setHasEmployee(true); setPhotoUrl(r?.data?.profile_photo_url || null); } })
+      .catch(() => { if (active) setHasEmployee(false); });
+    return () => { active = false; };
+  }, []);
+
+  const pick = useCallback(async (source) => {
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(t('profile.photo.permTitle'), t('profile.photo.permBody'));
+        return;
+      }
+      const opts = { allowsEditing: true, aspect: [1, 1], quality: 1 };
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync({ ...opts, mediaTypes: ['images'] });
+      if (result.canceled || !result.assets || !result.assets[0]) return;
+
+      setUploading(true);
+      // Client-side downscale + compress so the upload stays small (~tens of KB);
+      // the server re-resizes to canonical thumb/orig sizes too.
+      const manip = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      const res = await profileAPI.uploadPhoto(manip.uri);
+      setPhotoUrl(res?.data?.profile_photo_url || null);
+    } catch (e) {
+      console.warn('[profile] photo upload failed:', e?.message || e);
+      Alert.alert(t('common.error'), t('profile.photo.uploadError'));
+    } finally {
+      setUploading(false);
+    }
+  }, [t]);
+
+  const removePhoto = useCallback(async () => {
+    try {
+      setUploading(true);
+      await profileAPI.deletePhoto();
+      setPhotoUrl(null);
+    } catch (e) {
+      Alert.alert(t('common.error'), t('profile.photo.uploadError'));
+    } finally {
+      setUploading(false);
+    }
+  }, [t]);
+
+  const openPhotoOptions = useCallback(() => {
+    if (uploading) return;
+    const buttons = [
+      { text: t('profile.photo.takePhoto'), onPress: () => pick('camera') },
+      { text: t('profile.photo.chooseGallery'), onPress: () => pick('library') },
+    ];
+    if (photoUrl) {
+      buttons.push({ text: t('profile.photo.remove'), style: 'destructive', onPress: removePhoto });
+    }
+    buttons.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(t(photoUrl ? 'profile.photo.change' : 'profile.photo.add'), undefined, buttons);
+  }, [uploading, photoUrl, pick, removePhoto, t]);
 
   const handleLogout = () => {
     Alert.alert(t('menu.logout'), t('settings.logoutConfirm'), [
@@ -61,13 +137,35 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.headerCard}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={40} color={colors.primary} />
-        </View>
+        <TouchableOpacity
+          onPress={openPhotoOptions}
+          disabled={uploading || !hasEmployee}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t(photoUrl ? 'profile.photo.change' : 'profile.photo.add')}
+        >
+          <View style={styles.avatar}>
+            {uploading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : photoUrl ? (
+              <Image source={{ uri: `${UPLOADS_BASE_URL}${photoUrl}` }} style={styles.avatarImg} />
+            ) : (
+              <Ionicons name="person" size={40} color={colors.primary} />
+            )}
+            {hasEmployee && !uploading && (
+              <View style={styles.editBadge}>
+                <Ionicons name="camera" size={14} color={colors.white} />
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
         <Text style={styles.name}>
           {user.lastName} {user.firstName}
         </Text>
         <Text style={styles.email}>{user.email}</Text>
+        {hasEmployee && (
+          <Text style={styles.photoNotice}>{t('profile.photo.adminCanSee')}</Text>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -156,6 +254,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    position: 'relative',
+  },
+  avatarImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  editBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  photoNotice: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 12,
   },
   name: {
     fontSize: 22,

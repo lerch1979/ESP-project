@@ -36,6 +36,13 @@
         {
           "color": "#1c1c1e"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A $(PRODUCT_NAME) hozzáfér a fotóidhoz, hogy profilképet állíthass be.",
+          "cameraPermission": "A $(PRODUCT_NAME) használja a kamerát, hogy profilképet készíthess."
+        }
       ]
     ],
     "extra": {

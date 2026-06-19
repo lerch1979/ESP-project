@@ -175,7 +175,18 @@
     "markAllRead": "Markahan lahat na nabasa"
   },
   "profile": {
-    "language": "Wika"
+    "language": "Wika",
+    "photo": {
+      "change": "Palitan ang larawan",
+      "add": "Magdagdag ng larawan",
+      "takePhoto": "Kumuha ng larawan",
+      "chooseGallery": "Pumili mula sa gallery",
+      "remove": "Alisin ang larawan",
+      "adminCanSee": "Nakikita ng mga administrator ang larawang ito.",
+      "uploadError": "Hindi ma-upload ang larawan.",
+      "permTitle": "Kailangan ng pahintulot",
+      "permBody": "Payagan ang access sa camera/gallery sa settings."
+    }
   },
   "settings": {
     "title": "Mga Setting",

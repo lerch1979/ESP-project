@@ -366,6 +366,28 @@ export const pushAPI = {
   },
 };
 
+// Resident self profile (own employee row) — incl. profile photo set/remove.
+// Self-scoped server-side (employees.user_id = caller). Build the displayable
+// photo URL as `${UPLOADS_BASE_URL}${profile_photo_url}`.
+export const profileAPI = {
+  getMyEmployee: async () => {
+    const response = await api.get('/employees/my');
+    return response.data;
+  },
+  uploadPhoto: async (uri) => {
+    const form = new FormData();
+    form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' });
+    const response = await api.post('/employees/my/photo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  deletePhoto: async () => {
+    const response = await api.delete('/employees/my/photo');
+    return response.data;
+  },
+};
+
 // Google Calendar API
 export const googleCalendarAPI = {
   getStatus: async () => {

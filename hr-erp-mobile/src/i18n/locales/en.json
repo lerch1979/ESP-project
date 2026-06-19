@@ -175,7 +175,18 @@
     "markAllRead": "Mark all read"
   },
   "profile": {
-    "language": "Language"
+    "language": "Language",
+    "photo": {
+      "change": "Change photo",
+      "add": "Add photo",
+      "takePhoto": "Take photo",
+      "chooseGallery": "Choose from gallery",
+      "remove": "Remove photo",
+      "adminCanSee": "This photo is visible to administrators.",
+      "uploadError": "Could not upload the photo.",
+      "permTitle": "Permission needed",
+      "permBody": "Allow camera/gallery access in settings."
+    }
   },
   "settings": {
     "title": "Settings",

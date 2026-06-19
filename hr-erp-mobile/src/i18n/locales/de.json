@@ -175,7 +175,18 @@
     "markAllRead": "Alle als gelesen markieren"
   },
   "profile": {
-    "language": "Sprache"
+    "language": "Sprache",
+    "photo": {
+      "change": "Foto ändern",
+      "add": "Foto hinzufügen",
+      "takePhoto": "Foto aufnehmen",
+      "chooseGallery": "Aus Galerie wählen",
+      "remove": "Foto entfernen",
+      "adminCanSee": "Dieses Foto ist für Administratoren sichtbar.",
+      "uploadError": "Das Foto konnte nicht hochgeladen werden.",
+      "permTitle": "Berechtigung erforderlich",
+      "permBody": "Erlaube den Kamera-/Galeriezugriff in den Einstellungen."
+    }
   },
   "settings": {
     "title": "Einstellungen",
