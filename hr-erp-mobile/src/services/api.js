@@ -377,10 +377,15 @@ export const profileAPI = {
   uploadPhoto: async (uri) => {
     const form = new FormData();
     form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' });
-    // NOTE: do NOT set Content-Type manually — React Native's fetch/XHR must set
-    // `multipart/form-data; boundary=...` itself; a hand-set header drops the
-    // boundary and the server can't parse the file.
-    const response = await api.post('/employees/my/photo', form, { timeout: 30000 });
+    // MUST set multipart/form-data here: the axios instance defaults to
+    // 'application/json', which would make multer skip the file (→ req.file
+    // undefined → "photo required"). React Native's networking appends the
+    // boundary to this header when the body is FormData. Matches the working
+    // employeeAPI.uploadPhoto.
+    const response = await api.post('/employees/my/photo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
     return response.data;
   },
   deletePhoto: async () => {
