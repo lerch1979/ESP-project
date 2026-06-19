@@ -6,6 +6,39 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-06-19 — push notifications v1 (chat reply + visa/contract expiry), DR hardening, iOS assessment
+
+Three threads: shipped push notifications v1 end-to-end (verified on real hardware), hardened backup/DR (secrets → Bitwarden, orchestration kit version-controlled), and produced an iOS feasibility decision doc. Also recorded 4 ötlettár items.
+
+### ✨ Push notifications v1 — SHIPPED + verified on device (build #9)
+First roadmap feature from `docs/BACKLOG.md §1`. Built as a NEW delivery channel on EXISTING notification triggers (purely additive, fire-and-forget — can't break flows).
+- **Backend** (commits 3a1a218e + 08aca280 + e62ea1f1; CI green; redeployed to prod):
+  - mig 125 `user_push_tokens` (one row/device, unique token, cascade). **Applied to prod DIRECTLY via psql** (the migrate runner is blocked at 093 on prod) — note for DR: future dumps include the table, so restore is fine.
+  - `pushNotification.service.js` — Expo send via **expo-server-sdk v3 (CJS — v6 is ESM and breaks jest)**, per-recipient localization (hu/en/uk/tl/de) for `ticket_message` + `expiry_alert`, chunking, dead-token prune on `DeviceNotRegistered`.
+  - `inAppNotification.notify()` gained an optional `push` arg (the single choke point all triggers funnel through). Wired `push:true` into the ticket-reply fanout + a NEW resident-facing visa/contract alert in `expiryMonitor` (links to `/calendar`; was admin-only).
+  - `POST/DELETE /push/tokens` (auth, self-scoped upsert/delete). Tests: `pushTokens.test.js` (1258 total green). CI quirk fixed: unauth POST is 403 (CSRF) in CI vs 401 locally — assert either.
+  - FCM: Firebase project `hr-erp-77ad6`, `google-services.json` committed (no private_key; needed for the git-based EAS build), FCM V1 service-account key uploaded to Expo credentials (kept OUT of git; user has it).
+- **Mobile** (build #9, gold icon verified): `expo-notifications/device/constants`; `src/services/push.js` registers the Expo token (permission + Android channel + projectId) on login/resume, unregisters on logout; `AppNavigator` tap-to-navigate (chat→TicketDetail, expiry→Calendar) for foreground + cold-start; `app.json` expo-notifications plugin + `android.googleServicesFile`.
+- **Verified on real hardware** (test resident, device "Power Armor 13"): token registered; chat-reply push + visa-expiry push BOTH land on the lock screen and tap-route correctly. Texts (hu): "Új üzenet — #9001-TESZT" / "Vízum lejárat — A vízumod 10 nap múlva lejár."
+- ⚠️ **Test-harness gotcha** (not a prod bug): manually triggering `runDaily` with `process.exit(0)` kills the fire-and-forget push before it reaches Expo — add an exit grace delay. Prod cron runs in the always-on server, so unaffected. To re-fire an expiry test, `DELETE FROM expiry_alert_log WHERE entity_id=<emp> AND field='visa'` first (idempotency bucket).
+- **iOS push:** the send path is platform-agnostic; iOS needs only an APNs key in Expo creds (no code change). See iOS doc below.
+
+### 🔒 DR / backup hardening
+- Secrets (ENCRYPTION_KEY, DB_PASSWORD, JWT_SECRET, ANTHROPIC_API_KEY, …) → **Bitwarden** (were only on server + Mac `.env`; closed the "undecryptable backups" risk).
+- **`deploy/` kit version-controlled** (commit 0e74e1ae): `docker-compose.prod.yml` + `Caddyfile` + `backup.sh` + `.env.production.example` + `DISASTER_RECOVERY.md` (were server-only). Laptop + Bitwarden alone can now rebuild anywhere. Restore-tested a dump (287 employees). Storage Box offsite leg intentionally skipped (Hetzner is temporary); `backup.env` staged ready. Time Machine still off = the one remaining local-resilience gap.
+
+### 📋 Backlog / ötlettár (`docs/BACKLOG.md §1`, record-only)
+Push notifications (T1, **DONE**), show-password login toggle (T1, scope confirmed), biometric login (T2), profile photo resident-set/admin-visible (T2, with storage/resize/GDPR notes). §2 keeps the gated medical-events item.
+
+### 🍏 iOS feasibility — decision: defer to AFTER the Android feature set
+Expo/RN is already cross-platform (code has iOS branches; `.ics` works better on iOS). Distribution answer: **TestFlight** (≤10,000 email-invited testers, light beta review — NO public App Store needed for the pilot; enterprise program forbids external users). Needs Apple Developer ($99/yr; org = D-U-N-S, the long pole) + one APNs key (Expo relays, no backend change). ~1–2 days eng once the account exists. **Recommendation: finish Android trio (push✓ → show-password → profile → biometrics) first, but start the Apple Developer account application NOW in parallel.**
+
+### Next
+- Continue the roadmap one-at-a-time: show-password toggle (quick) or profile photo next (user's call).
+- Test data still seeded on prod (`[TESZT]` events + push token on test resident) — fine to leave for ongoing testing.
+
+---
+
 ## SESSION 2026-06-18 — resident calendar: close alignment gaps (inspections + shifts) + List⇄Month grid
 
 Calendar alignment audit (prior session) found 4 gaps between the admin aggregator and the resident feed. This session closed two, confirmed one, and gated one on compliance — then built the grid view. Backend redeployed; mobile EAS build #7 running.
