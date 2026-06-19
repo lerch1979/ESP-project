@@ -89,6 +89,26 @@ record** → **admins see it** on the resident's profile in the HR-ERP admin UI.
   existing ticket-attachment upload pattern on the server if it fits.
 
 **Priority:** v2 — nice humanizing feature, after push + show-password.
+**Status:** ✅ built 2026-06-19 (resident-set, self-scoped; admin display already existed). See the hardening item below.
+
+## Hardening (whole-system, not feature-specific)
+
+### 5. Auth-gate `/uploads/employees/*` photo serving
+**What:** Profile photos currently serve via **public `express.static`** at
+`/uploads/employees/<uuid>.jpg` (unguessable UUID filename, no auth). This is the
+**existing design** — it covers BOTH admin-uploaded and resident-set photos
+(resident upload deliberately kept consistent with it, not a new pattern).
+
+**Why backlog:** moving photo serving behind an auth gate (e.g. a streamed,
+permission-checked route like ticket attachments use) is a **whole-system
+hardening** — it touches the **admin display** (`UPLOADS_BASE_URL + profile_photo_url`
+via `<img>`, which can't send a Bearer token) and the mobile display, not just
+this feature. Needs a coherent approach (signed URLs, or blob-fetch in the admin,
+or cookie auth on `/uploads`). Don't bolt a one-off onto profile photos; do it
+once for all employee photos.
+
+**Priority:** hardening — schedule deliberately; security-by-obscurity (UUID
+filenames) holds in the interim.
 
 ---
 

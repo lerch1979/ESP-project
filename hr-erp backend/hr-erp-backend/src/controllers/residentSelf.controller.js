@@ -15,10 +15,15 @@
  * other tenants' data — do not loosen these WHERE clauses.
  */
 
+const path = require('path');
+const fs = require('fs');
+const sharp = require('sharp');
 const { query } = require('../database/connection');
+const { logger } = require('../utils/logger');
 const categoryAI = require('../services/categoryAI.service');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMP_UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'employees');
 
 // Min confidence to pre-select a category. Below this, return null (manual pick)
 // so the resident never sees a visibly-wrong guess.
@@ -190,4 +195,116 @@ const suggestMyCategory = async (req, res) => {
   }
 };
 
-module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories, suggestMyCategory };
+// ============================================================================
+// Resident profile photo — SELF-SCOPED (the caller's OWN employee row only,
+// resolved by employees.user_id = req.user.id; a resident can never touch
+// another resident's photo). Reuses the same sharp pipeline + on-disk layout
+// as the admin uploader (uploads/employees/<thumb|orig>_<ts>.jpg, in the
+// backed-up uploads_data volume). The thumbnail URL is stored in
+// employees.profile_photo_url, which the admin UI already renders.
+//
+// GDPR: PROFILE PICTURE ONLY. The image is display-only and is NEVER run
+// through face-recognition or any biometric processing — this preserves the
+// "no biometrics" compliance positioning. Upload is OPTIONAL; the resident is
+// told (in-app) that administrators can see it.
+// ============================================================================
+
+// GET /employees/my — the caller's own employee basics + current photo URL.
+const getMyEmployee = async (req, res) => {
+  try {
+    const r = await query(
+      'SELECT id, first_name, last_name, profile_photo_url FROM employees WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    if (r.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Nincs munkavállalói profil' });
+    }
+    return res.json({ success: true, data: r.rows[0] });
+  } catch (err) {
+    logger.error('[residentSelf.getMyEmployee]', err.message);
+    return res.status(500).json({ success: false, message: 'Profil betöltési hiba' });
+  }
+};
+
+// POST /employees/my/photo — self-scoped upload (multipart field 'photo').
+const uploadMyPhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Kép feltöltése kötelező' });
+    }
+    const emp = await query(
+      'SELECT id, profile_photo_url FROM employees WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    if (emp.rows.length === 0) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ success: false, message: 'Nincs munkavállalói profil' });
+    }
+    const employeeId = emp.rows[0].id;
+    const oldPhotoUrl = emp.rows[0].profile_photo_url;
+    const timestamp = Date.now();
+
+    const thumbFilename = `thumb_${timestamp}.jpg`;
+    await sharp(req.file.path)
+      .resize(300, 300, { fit: 'cover' })
+      .jpeg({ quality: 80 })
+      .toFile(path.join(EMP_UPLOAD_DIR, thumbFilename));
+
+    const origFilename = `orig_${timestamp}.jpg`;
+    await sharp(req.file.path)
+      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toFile(path.join(EMP_UPLOAD_DIR, origFilename));
+
+    fs.unlink(req.file.path, () => {});
+
+    if (oldPhotoUrl) {
+      const oldThumb = path.join(__dirname, '..', '..', oldPhotoUrl);
+      fs.unlink(oldThumb, () => {});
+      fs.unlink(oldThumb.replace('thumb_', 'orig_'), () => {});
+    }
+
+    const profilePhotoUrl = `/uploads/employees/${thumbFilename}`;
+    await query(
+      'UPDATE employees SET profile_photo_url = $1, updated_at = NOW() WHERE id = $2',
+      [profilePhotoUrl, employeeId]
+    );
+    logger.info('Saját profilkép feltöltve', { employeeId });
+    return res.json({ success: true, data: { profile_photo_url: profilePhotoUrl } });
+  } catch (err) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    logger.error('[residentSelf.uploadMyPhoto]', err.message);
+    return res.status(500).json({ success: false, message: 'Profilkép feltöltési hiba' });
+  }
+};
+
+// DELETE /employees/my/photo — self-scoped remove.
+const deleteMyPhoto = async (req, res) => {
+  try {
+    const emp = await query(
+      'SELECT id, profile_photo_url FROM employees WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    if (emp.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Nincs munkavállalói profil' });
+    }
+    const photoUrl = emp.rows[0].profile_photo_url;
+    if (!photoUrl) {
+      return res.status(400).json({ success: false, message: 'Nincs profilkép' });
+    }
+    const thumbPath = path.join(__dirname, '..', '..', photoUrl);
+    fs.unlink(thumbPath, () => {});
+    fs.unlink(thumbPath.replace('thumb_', 'orig_'), () => {});
+    await query(
+      'UPDATE employees SET profile_photo_url = NULL, updated_at = NOW() WHERE id = $1',
+      [emp.rows[0].id]
+    );
+    logger.info('Saját profilkép törölve', { employeeId: emp.rows[0].id });
+    return res.json({ success: true, message: 'Profilkép törölve' });
+  } catch (err) {
+    logger.error('[residentSelf.deleteMyPhoto]', err.message);
+    return res.status(500).json({ success: false, message: 'Profilkép törlési hiba' });
+  }
+};
+
+module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories, suggestMyCategory, getMyEmployee, uploadMyPhoto, deleteMyPhoto };
