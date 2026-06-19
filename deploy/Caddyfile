@@ -1,0 +1,19 @@
+# app.housingsolutions.hu — single domain, path-routed (API + admin under one host).
+# Auto-TLS: Caddy fetches a Let's Encrypt cert on first start (needs :80 open + DNS propagated).
+# HTTP->HTTPS redirect is automatic for a bare-domain site address.
+app.housingsolutions.hu {
+	encode gzip
+
+	# Backend (Node, :3001): REST API under /api/*, the root /health probe, and the
+	# public accountant page (mounted at /public/accountant, outside /api/v1).
+	@backend path /api/* /public/* /health
+	handle @backend {
+		reverse_proxy backend:3001
+	}
+
+	# Everything else -> admin SPA (nginx static, :80); nginx serves index.html for
+	# client-side routes.
+	handle {
+		reverse_proxy admin:80
+	}
+}
