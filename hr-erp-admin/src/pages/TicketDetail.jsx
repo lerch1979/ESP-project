@@ -19,6 +19,7 @@ import {
   Chip,
   LinearProgress,
   Tooltip,
+  Link,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -36,6 +37,7 @@ import { toast } from 'react-toastify';
 import UserAvatar from '../components/common/UserAvatar';
 import { LanguageBadge, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '../utils/languageBadges';
 import EditTicketModal from '../components/EditTicketModal';
+import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import RelatedTasksList from '../components/RelatedTasksList';
 import TicketChat from '../components/TicketChat';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +48,7 @@ function TicketDetail() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [ticket, setTicket] = useState(null);
+  const [profileEmpId, setProfileEmpId] = useState(null); // submitter's employee profile modal
   const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -379,6 +382,13 @@ function TicketDetail() {
         ticket={ticket}
         onClose={() => setEditOpen(false)}
         onSuccess={() => { loadTicket(); }}
+      />
+
+      {/* Submitter's employee profile (with photo + details) — opened from "Beküldő" */}
+      <EmployeeDetailModal
+        open={!!profileEmpId}
+        employeeId={profileEmpId}
+        onClose={() => setProfileEmpId(null)}
       />
 
       {/* Fordítási értesítő */}
@@ -835,7 +845,19 @@ function TicketDetail() {
                   Beküldő
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  {ticket.created_by_name || '-'}
+                  {ticket.reporter_employee_id ? (
+                    <Link
+                      component="button"
+                      type="button"
+                      underline="hover"
+                      onClick={() => setProfileEmpId(ticket.reporter_employee_id)}
+                      sx={{ textAlign: 'left', cursor: 'pointer', fontSize: 'inherit' }}
+                    >
+                      {ticket.created_by_name || '-'}
+                    </Link>
+                  ) : (
+                    ticket.created_by_name || '-'
+                  )}
                 </Typography>
               </Box>
             </Stack>

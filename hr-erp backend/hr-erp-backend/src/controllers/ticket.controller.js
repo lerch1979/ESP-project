@@ -244,6 +244,7 @@ const getTicketById = async (req, res) => {
         -- Reporter's housing: resident self-reports carry no linked_employee_id,
         -- so derive the accommodation from who created the ticket
         -- (created_by -> employees.user_id). Staff need this to dispatch repairs.
+        remp.id               as reporter_employee_id,
         remp.accommodation_id as reporter_accommodation_id,
         remp.room_number      as reporter_room_number,
         racc.name             as reporter_accommodation_name,

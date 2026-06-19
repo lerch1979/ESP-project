@@ -185,7 +185,9 @@
       "adminCanSee": "Ezt a képet az adminisztrátorok láthatják.",
       "uploadError": "A profilkép feltöltése nem sikerült.",
       "permTitle": "Engedély szükséges",
-      "permBody": "Engedélyezd a kamera/galéria hozzáférést a beállításokban."
+      "permBody": "Engedélyezd a kamera/galéria hozzáférést a beállításokban.",
+      "upload": "Feltöltés",
+      "discard": "Elvetés"
     }
   },
   "settings": {

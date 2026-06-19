@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const [photoUrl, setPhotoUrl] = useState(null);
   const [hasEmployee, setHasEmployee] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingUri, setPendingUri] = useState(null); // picked+resized, awaiting confirm
 
   useEffect(() => {
     let active = true;
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
     return () => { active = false; };
   }, []);
 
+  // Step 1: pick + resize → stage a PREVIEW (no upload yet).
   const pick = useCallback(async (source) => {
     try {
       const perm = source === 'camera'
@@ -61,23 +63,39 @@ export default function ProfileScreen() {
         : await ImagePicker.launchImageLibraryAsync({ ...opts, mediaTypes: ['images'] });
       if (result.canceled || !result.assets || !result.assets[0]) return;
 
-      setUploading(true);
-      // Client-side downscale + compress so the upload stays small (~tens of KB);
-      // the server re-resizes to canonical thumb/orig sizes too.
+      // Client-side downscale + compress so the upload stays small; the server
+      // re-resizes to canonical thumb/orig too.
       const manip = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [{ resize: { width: 1024 } }],
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
-      const res = await profileAPI.uploadPhoto(manip.uri);
-      setPhotoUrl(res?.data?.profile_photo_url || null);
+      setPendingUri(manip.uri); // → preview + explicit Upload button
     } catch (e) {
-      console.warn('[profile] photo upload failed:', e?.message || e);
+      console.warn('[profile] photo pick failed:', e?.message || e);
       Alert.alert(t('common.error'), t('profile.photo.uploadError'));
+    }
+  }, [t]);
+
+  // Step 2: explicit confirm → actually upload the staged preview.
+  const confirmUpload = useCallback(async () => {
+    if (!pendingUri) return;
+    try {
+      setUploading(true);
+      const res = await profileAPI.uploadPhoto(pendingUri);
+      setPhotoUrl(res?.data?.profile_photo_url || null);
+      setPendingUri(null);
+    } catch (e) {
+      const detail = e?.response?.data?.message || e?.message || String(e);
+      console.warn('[profile] photo upload failed:', detail);
+      Alert.alert(t('common.error'), `${t('profile.photo.uploadError')}\n\n${detail}`);
+      // keep pendingUri so the user can retry without re-picking
     } finally {
       setUploading(false);
     }
-  }, [t]);
+  }, [pendingUri, t]);
+
+  const discardPending = useCallback(() => setPendingUri(null), []);
 
   const removePhoto = useCallback(async () => {
     try {
@@ -139,7 +157,7 @@ export default function ProfileScreen() {
       <View style={styles.headerCard}>
         <TouchableOpacity
           onPress={openPhotoOptions}
-          disabled={uploading || !hasEmployee}
+          disabled={uploading || !hasEmployee || !!pendingUri}
           activeOpacity={0.8}
           accessibilityRole="button"
           accessibilityLabel={t(photoUrl ? 'profile.photo.change' : 'profile.photo.add')}
@@ -147,12 +165,14 @@ export default function ProfileScreen() {
           <View style={styles.avatar}>
             {uploading ? (
               <ActivityIndicator color={colors.primary} />
+            ) : pendingUri ? (
+              <Image source={{ uri: pendingUri }} style={styles.avatarImg} />
             ) : photoUrl ? (
               <Image source={{ uri: `${UPLOADS_BASE_URL}${photoUrl}` }} style={styles.avatarImg} />
             ) : (
               <Ionicons name="person" size={40} color={colors.primary} />
             )}
-            {hasEmployee && !uploading && (
+            {hasEmployee && !uploading && !pendingUri && (
               <View style={styles.editBadge}>
                 <Ionicons name="camera" size={14} color={colors.white} />
               </View>
@@ -163,8 +183,30 @@ export default function ProfileScreen() {
           {user.lastName} {user.firstName}
         </Text>
         <Text style={styles.email}>{user.email}</Text>
-        {hasEmployee && (
-          <Text style={styles.photoNotice}>{t('profile.photo.adminCanSee')}</Text>
+
+        {/* Preview → confirm step: an explicit Upload button (and Discard). */}
+        {pendingUri ? (
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.uploadBtn, uploading && styles.previewBtnDisabled]}
+              onPress={confirmUpload}
+              disabled={uploading}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="cloud-upload-outline" size={18} color={colors.white} />
+              <Text style={styles.uploadBtnText}>{t('profile.photo.upload')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.discardBtn]}
+              onPress={discardPending}
+              disabled={uploading}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.discardBtnText}>{t('profile.photo.discard')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          hasEmployee && <Text style={styles.photoNotice}>{t('profile.photo.adminCanSee')}</Text>
         )}
       </View>
 
@@ -281,6 +323,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 12,
   },
+  previewActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    alignItems: 'center',
+  },
+  previewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+  },
+  previewBtnDisabled: { opacity: 0.6 },
+  uploadBtn: { backgroundColor: colors.primary },
+  uploadBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  discardBtn: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  discardBtnText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
   name: {
     fontSize: 22,
     fontWeight: '700',

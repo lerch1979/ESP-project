@@ -185,7 +185,9 @@
       "adminCanSee": "Dieses Foto ist für Administratoren sichtbar.",
       "uploadError": "Das Foto konnte nicht hochgeladen werden.",
       "permTitle": "Berechtigung erforderlich",
-      "permBody": "Erlaube den Kamera-/Galeriezugriff in den Einstellungen."
+      "permBody": "Erlaube den Kamera-/Galeriezugriff in den Einstellungen.",
+      "upload": "Hochladen",
+      "discard": "Verwerfen"
     }
   },
   "settings": {

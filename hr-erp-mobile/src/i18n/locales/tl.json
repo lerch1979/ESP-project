@@ -185,7 +185,9 @@
       "adminCanSee": "Nakikita ng mga administrator ang larawang ito.",
       "uploadError": "Hindi ma-upload ang larawan.",
       "permTitle": "Kailangan ng pahintulot",
-      "permBody": "Payagan ang access sa camera/gallery sa settings."
+      "permBody": "Payagan ang access sa camera/gallery sa settings.",
+      "upload": "I-upload",
+      "discard": "Itapon"
     }
   },
   "settings": {

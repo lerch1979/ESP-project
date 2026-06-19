@@ -185,7 +185,9 @@
       "adminCanSee": "This photo is visible to administrators.",
       "uploadError": "Could not upload the photo.",
       "permTitle": "Permission needed",
-      "permBody": "Allow camera/gallery access in settings."
+      "permBody": "Allow camera/gallery access in settings.",
+      "upload": "Upload",
+      "discard": "Discard"
     }
   },
   "settings": {
