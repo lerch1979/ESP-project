@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1002276249815",
+    "project_id": "hr-erp-77ad6",
+    "storage_bucket": "hr-erp-77ad6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1002276249815:android:0ff324e3ed5253b0365092",
+        "android_client_info": {
+          "package_name": "hu.housingsolutions.hrerp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmwV-lDXswV31W8lFcBky5eVxVg514_Yc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

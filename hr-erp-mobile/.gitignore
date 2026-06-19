@@ -34,6 +34,13 @@ yarn-error.*
 .env
 .env*.local
 
+# Firebase FCM service-account PRIVATE KEY — secret, never commit (uploaded to
+# Expo credentials instead). google-services.json IS committed on purpose (it's
+# the Android config the EAS git build needs; its API key is package-restricted).
+*firebase-adminsdk*.json
+*-service-account*.json
+fcm-*.json
+
 # typescript
 *.tsbuildinfo
 
