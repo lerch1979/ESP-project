@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Image,
+  Switch,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -28,9 +29,18 @@ const LANGUAGES = [
 ];
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, biometricAvailable, biometricEnabled, enableBiometric, disableBiometric } = useAuth();
   const { t, i18n: i18nInstance } = useTranslation();
   const currentLang = i18nInstance.language || 'hu';
+
+  const toggleBiometric = async (next) => {
+    if (next) {
+      const ok = await enableBiometric();
+      if (!ok) Alert.alert(t('biometric.enableTitle'), t('biometric.unavailable'));
+    } else {
+      await disableBiometric();
+    }
+  };
 
   // Profile photo — self-scoped (own employee). hasEmployee gates the UI so a
   // staff user with no employee row doesn't see a broken photo control.
@@ -251,6 +261,26 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Biometric login toggle — only when the device supports it. */}
+      {biometricAvailable && (
+        <View style={styles.bioCard}>
+          <View style={styles.bioRow}>
+            <View style={styles.bioRowLeft}>
+              <Ionicons name="finger-print" size={22} color={colors.primary} />
+              <View style={styles.bioTextWrap}>
+                <Text style={styles.bioLabel}>{t('biometric.toggleLabel')}</Text>
+                <Text style={styles.bioHint}>{t('biometric.toggleHint')}</Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={toggleBiometric}
+              trackColor={{ true: colors.primary }}
+            />
+          </View>
+        </View>
+      )}
+
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
         <Ionicons name="log-out-outline" size={20} color={colors.white} />
         <Text style={styles.logoutText}>{t('menu.logout')}</Text>
@@ -382,6 +412,23 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
+  bioCard: {
+    backgroundColor: colors.white,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  bioRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bioRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 12 },
+  bioTextWrap: { flex: 1 },
+  bioLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
+  bioHint: { fontSize: 12, color: colors.textLight, marginTop: 2 },
   langCard: {
     backgroundColor: colors.white,
     marginHorizontal: 16,

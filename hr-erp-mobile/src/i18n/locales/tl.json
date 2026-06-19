@@ -260,5 +260,17 @@
     "viewList": "Listahan",
     "viewMonth": "Buwan",
     "tapDay": "I-tap ang isang araw para makita ang mga kaganapan"
+  },
+  "biometric": {
+    "enableTitle": "Biometric login",
+    "enablePrompt": "I-enable ang fingerprint/Face login? Hindi mo na kailangang mag-type ng password sa susunod.",
+    "enable": "I-enable",
+    "notNow": "Hindi muna",
+    "unlockPrompt": "Mag-login gamit ang fingerprint o mukha",
+    "unlockButton": "Mag-login gamit ang biometrics",
+    "toggleLabel": "Biometric login",
+    "toggleHint": "Mag-login gamit ang fingerprint o mukha, walang password.",
+    "unavailable": "Walang naka-set up na biometrics sa device na ito.",
+    "failed": "Nabigo ang biometric authentication."
   }
 }

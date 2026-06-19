@@ -22,12 +22,33 @@ const LANGS = [
 ];
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const {
+    login, biometricAvailable, biometricEnabled, shouldOfferBiometric,
+    enableBiometric, disableBiometric, unlockWithBiometric,
+  } = useAuth();
   const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // After a successful password login, offer to enable biometric login (once).
+  const offerBiometric = () => {
+    if (!shouldOfferBiometric) return;
+    Alert.alert(
+      t('biometric.enableTitle'),
+      t('biometric.enablePrompt'),
+      [
+        { text: t('biometric.notNow'), style: 'cancel', onPress: () => { disableBiometric(); } },
+        { text: t('biometric.enable'), onPress: () => { enableBiometric(); } },
+      ]
+    );
+  };
+
+  const handleBiometricUnlock = async () => {
+    const ok = await unlockWithBiometric();
+    if (!ok) Alert.alert(t('biometric.enableTitle'), t('biometric.failed'));
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -38,6 +59,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim(), password);
+      offerBiometric();
     } catch (error) {
       console.error('[Login] Error:', error.message, error.code);
       let message;
@@ -137,6 +159,20 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>{t('login.button')}</Text>
           )}
         </TouchableOpacity>
+
+        {/* Biometric retry — shown when enabled (e.g. after cancelling the
+            launch prompt). Unlocks the token already stored on the device. */}
+        {biometricAvailable && biometricEnabled && (
+          <TouchableOpacity
+            style={styles.bioButton}
+            onPress={handleBiometricUnlock}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="finger-print" size={20} color={colors.primary} />
+            <Text style={styles.bioButtonText}>{t('biometric.unlockButton')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -240,6 +276,22 @@ const styles = StyleSheet.create({
   eyeButton: {
     paddingHorizontal: 14,
     paddingVertical: 14,
+  },
+  bioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  bioButtonText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: colors.primary,

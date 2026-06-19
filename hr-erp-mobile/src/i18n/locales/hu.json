@@ -260,5 +260,17 @@
     "viewList": "Lista",
     "viewMonth": "Hónap",
     "tapDay": "Koppints egy napra az események megtekintéséhez"
+  },
+  "biometric": {
+    "enableTitle": "Biometrikus belépés",
+    "enablePrompt": "Bekapcsolod az ujjlenyomatos/arcfelismeréses belépést? A jelszavadat nem kell többé beírnod.",
+    "enable": "Bekapcsolás",
+    "notNow": "Most nem",
+    "unlockPrompt": "Belépés ujjlenyomattal vagy arccal",
+    "unlockButton": "Belépés biometrikusan",
+    "toggleLabel": "Biometrikus belépés",
+    "toggleHint": "Ujjlenyomattal vagy arccal lépj be jelszó nélkül.",
+    "unavailable": "Nincs beállítva biometrikus azonosító az eszközön.",
+    "failed": "A biometrikus azonosítás nem sikerült."
   }
 }

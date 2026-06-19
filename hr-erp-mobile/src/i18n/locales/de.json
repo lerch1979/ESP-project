@@ -260,5 +260,17 @@
     "viewList": "Liste",
     "viewMonth": "Monat",
     "tapDay": "Tippe auf einen Tag, um die Termine zu sehen"
+  },
+  "biometric": {
+    "enableTitle": "Biometrische Anmeldung",
+    "enablePrompt": "Anmeldung per Fingerabdruck/Gesicht aktivieren? Du musst dein Passwort dann nicht mehr eingeben.",
+    "enable": "Aktivieren",
+    "notNow": "Jetzt nicht",
+    "unlockPrompt": "Mit Fingerabdruck oder Gesicht anmelden",
+    "unlockButton": "Mit Biometrie anmelden",
+    "toggleLabel": "Biometrische Anmeldung",
+    "toggleHint": "Mit Fingerabdruck oder Gesicht ohne Passwort anmelden.",
+    "unavailable": "Auf diesem Gerät ist keine Biometrie eingerichtet.",
+    "failed": "Biometrische Authentifizierung fehlgeschlagen."
   }
 }

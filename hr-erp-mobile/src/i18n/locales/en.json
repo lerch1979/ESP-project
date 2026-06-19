@@ -260,5 +260,17 @@
     "viewList": "List",
     "viewMonth": "Month",
     "tapDay": "Tap a day to see its events"
+  },
+  "biometric": {
+    "enableTitle": "Biometric login",
+    "enablePrompt": "Enable fingerprint/Face login? You won’t need to type your password next time.",
+    "enable": "Enable",
+    "notNow": "Not now",
+    "unlockPrompt": "Log in with fingerprint or face",
+    "unlockButton": "Log in with biometrics",
+    "toggleLabel": "Biometric login",
+    "toggleHint": "Log in with fingerprint or face, no password.",
+    "unavailable": "No biometrics are set up on this device.",
+    "failed": "Biometric authentication failed."
   }
 }

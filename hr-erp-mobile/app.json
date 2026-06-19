@@ -43,6 +43,12 @@
           "photosPermission": "A $(PRODUCT_NAME) hozzáfér a fotóidhoz, hogy profilképet állíthass be.",
           "cameraPermission": "A $(PRODUCT_NAME) használja a kamerát, hogy profilképet készíthess."
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "A $(PRODUCT_NAME) Face ID-t használ a gyors, biztonságos belépéshez."
+        }
       ]
     ],
     "extra": {
