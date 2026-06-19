@@ -100,6 +100,8 @@
     "subtitle": "Login",
     "email": "Email address",
     "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "button": "Login",
     "loading": "Logging in...",
     "error": "Invalid email or password"

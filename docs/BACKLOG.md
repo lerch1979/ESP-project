@@ -15,19 +15,28 @@ explicit go-ahead.**
 
 ## Tier 1 — high value / quick wins (do early)
 
-### 1. Push notifications (resident) — Tier 1, HIGH value, do early
+### 1. Push notifications (resident) — Tier 1, HIGH value  ✅ v1 DONE (2026-06-19)
 **What:** Native push to the resident's phone for:
-- a **chat reply received** (staff answered their ticket thread),
-- an **upcoming repair / inspection** (from the calendar feed),
-- a **visa / contract expiry reminder**.
+- a **chat reply received** (staff answered their ticket thread) — ✅ v1, shipped + verified on device,
+- a **visa / contract expiry reminder** — ✅ v1, shipped + verified on device,
+- an **upcoming repair / inspection** (from the calendar feed) — ⏭ **v1.1, NOT built** (see below).
 
 **Why:** Brings the chat + calendar "to life" — the resident no longer has to
 open the app to discover a reply or a due date. High engagement lever.
 
-**Feasibility:** Now practical — we ship a **standalone app** (EAS build), so
-**Expo push notifications** are available (`expo-notifications` + Expo push
-tokens; store the token per device, send via Expo's push service). Server-side:
-trigger on new ticket message, and on calendar-derived events approaching.
+**v1 (DONE):** Expo push as an additive delivery channel on existing triggers —
+`user_push_tokens` table, `pushNotification.service.js` (localized hu/en/uk/tl/de,
+chunking, dead-token prune), `POST/DELETE /push/tokens`, wired into the ticket-
+reply fanout + a resident-facing expiry alert. Mobile registers on login / taps
+route to the ticket or calendar. FCM configured; verified on real hardware.
+
+**v1.1 — upcoming repair / inspection push (deferred, keep on backlog):**
+Needs a **NEW daily cron** that scans each resident's upcoming derived calendar
+events (shift / inspection / ticket due_date in the next N days) and pushes —
+the calendar is a pure aggregator with no events table, so there's no existing
+"upcoming event" trigger to hang it on (unlike chat/expiry, which reused
+existing fanout/cron). Build after the rest of the Android trio. Reuse
+`inAppNotification.notify({ push: { vars } })` + a new `upcoming_event` template.
 
 **Priority:** HIGH — do early (first of these three).
 

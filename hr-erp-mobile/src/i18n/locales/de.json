@@ -100,6 +100,8 @@
     "subtitle": "Anmelden",
     "email": "E-Mail-Adresse",
     "password": "Passwort",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort ausblenden",
     "button": "Anmelden",
     "loading": "Anmeldung...",
     "error": "Ungültige E-Mail oder Passwort"

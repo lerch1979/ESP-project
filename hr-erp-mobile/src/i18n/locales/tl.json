@@ -100,6 +100,8 @@
     "subtitle": "Mag-login",
     "email": "Email address",
     "password": "Password",
+    "showPassword": "Ipakita ang password",
+    "hidePassword": "Itago ang password",
     "button": "Mag-login",
     "loading": "Naglo-login...",
     "error": "Mali ang email o password"
