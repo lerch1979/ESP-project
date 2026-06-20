@@ -4,9 +4,11 @@
 app.housingsolutions.hu {
 	encode gzip
 
-	# Backend (Node, :3001): REST API under /api/*, the root /health probe, and the
-	# public accountant page (mounted at /public/accountant, outside /api/v1).
-	@backend path /api/* /public/* /health
+	# Backend (Node, :3001): REST API under /api/*, the root /health probe, the
+	# public accountant page (/public/accountant, outside /api/v1), and uploaded
+	# files (/uploads/* — served by the backend's express.static; the admin nginx
+	# has no upload files, so these MUST go to the backend or they 404).
+	@backend path /api/* /public/* /health /uploads/*
 	handle @backend {
 		reverse_proxy backend:3001
 	}
