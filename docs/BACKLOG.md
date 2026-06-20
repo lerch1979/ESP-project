@@ -155,3 +155,59 @@ continue to see both in the staff aggregator — that processing has its own
 existing basis and is out of scope for this item.)
 
 ---
+
+# §3 — Strategic direction: BI + AI agents (phased, AFTER the trio + real data)
+
+The big forward direction once the Android feature trio is done. **Record-only —
+do not build.** Two distinct tracks; BI is lower-risk and comes first.
+
+## ⚠️ CRITICAL PREREQUISITE — real data
+Both tracks are **useless on empty test data** — dashboards and agents on seed
+data produce meaningless output. The hard sequence is:
+1. **(a)** Finish the Android feature trio (push ✓ / show-password ✓ / profile
+   photo ✓ / biometrics ✓ — essentially done).
+2. **(b)** Load **real HR data** + run a **small live pilot** → real data starts
+   accumulating (occupancy, tickets, status-history, expiries).
+3. **(c)** THEN build the **BI / dashboards** track (track 1).
+4. **(d)** THEN the **Compliance Watchdog** agent (track 2, first agent).
+5. **(e)** THEN the remaining agents, **one at a time**.
+
+Nothing in §3 starts before step (b) has produced a meaningful data volume.
+
+## Track 1 — BI / dashboards (non-AI, lower-risk, comes sooner)
+**What:** Admin dashboards + reports over **existing** data — occupancy, ticket
+trends / SLA, upcoming visa/contract expiries, accommodation utilization.
+
+**Why first:** Tangible value, **no AI Act exposure** (pure analytics on data we
+already hold), and it surfaces the data quality that the agents will later need.
+Kicks in as soon as real HR data is loaded (step c).
+
+**Feasibility:** Reuses existing tables (tickets, employees, accommodations,
+`entity_status_history`, expiry data). No new AI infra. Could start with a few
+read-only admin dashboard pages.
+
+## Track 2 — AI agents (the bigger system, phased, careful)
+Per the existing **HR-ERP-AI-Agent architecture**. Build **one agent at a time**,
+each gated on the previous proving out on real data.
+
+**Order:**
+1. **Compliance Watchdog — FIRST (smallest safe first agent).** Its deterministic
+   core is the **already-working visa/contract expiry monitor** — so we start from
+   proven, deterministic logic and layer agent reasoning carefully on top.
+2. **Efficiency Agent — second.** Uses **`entity_status_history`** (the data clock
+   is *already ticking* — every ticket status change is timestamped now), so by
+   the time we build it there's real process-timing history to analyze.
+3. **Financial / Controlling — third.** Permanent **L1 ceiling** (assist/advise
+   only; never autonomous action on money).
+
+**Non-negotiable guardrails (carry through every agent):**
+- **Measure the PROCESS, not individuals** (AI Act — avoid profiling/scoring of
+  people; analyze workflow/throughput, not worker performance ranking).
+- **L1 zone** for anything touching **money, contracts, or authority** — the agent
+  advises; a human decides and acts.
+- **GDPR** throughout (lawful basis, data minimization, no special-category data
+  without the §2 gate).
+
+**Status:** strategic backlog. Revisit after step (b) — real data + pilot.
+
+---
