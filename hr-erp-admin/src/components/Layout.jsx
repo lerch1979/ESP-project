@@ -93,6 +93,7 @@ const TRANSITION = 'width 0.3s ease, margin-left 0.3s ease';
 const buildMenuItems = (t) => [
   // ─── Main navigation ─────────────────────────────────
   { text: t('nav.dashboard'), icon: <HomeIcon />, path: '/dashboard', permission: 'dashboard.view' },
+  { text: 'Insights', icon: <BarChartIcon />, path: '/insights', permission: 'dashboard.view' },
   // Unified Teendők — replaces the old "Feladataim" + "GTD" split. Legacy
   // routes (/my-tasks, /gtd) still resolve for now, just no longer in the menu.
   {

@@ -259,6 +259,14 @@ export const dashboardAPI = {
   },
 };
 
+// BI Insights — read-only aggregate analytics (one cached call powers the page).
+export const analyticsAPI = {
+  getOverview: async () => {
+    const response = await api.get('/analytics/overview');
+    return response.data;
+  },
+};
+
 // GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).
 export const anonymizationAPI = {
   getConfig: async () => (await api.get('/anonymization/config')).data,

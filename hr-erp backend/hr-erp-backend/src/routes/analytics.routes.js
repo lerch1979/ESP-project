@@ -3,8 +3,22 @@ const router = express.Router();
 const { query } = require('../database/connection');
 const { authenticateToken } = require('../middleware/auth');
 const { logger } = require('../utils/logger');
+const analyticsService = require('../services/analytics.service');
 
 router.use(authenticateToken);
+
+// GET /api/v1/analytics/overview — BI Insights page (read-only, aggregate metrics:
+// occupancy, expiry horizon, ticket age/SLA/throughput, workforce composition,
+// accommodation utilization). One cached call powers the whole page.
+router.get('/overview', async (req, res) => {
+  try {
+    const data = await analyticsService.getOperationalInsights();
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('Analytics overview error:', error.message);
+    res.status(500).json({ success: false, message: 'Hiba történt' });
+  }
+});
 
 // GET /api/v1/analytics/pulse/overview — contractor pulse summary
 router.get('/pulse/overview', async (req, res) => {

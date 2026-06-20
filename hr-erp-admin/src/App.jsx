@@ -24,6 +24,7 @@ const ExpiryMonitor = lazy(() => import('./pages/ExpiryMonitor'));
 const GDPRAnonymization = lazy(() => import('./pages/GDPRAnonymization'));
 const ResidentImport = lazy(() => import('./pages/ResidentImport'));
 const Reports = lazy(() => import('./pages/Reports'));
+const Insights = lazy(() => import('./pages/Insights'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const Documents = lazy(() => import('./pages/Documents'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -145,6 +146,7 @@ function App() {
             <Route path="/" element={<PrivateRoute />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<PermissionGuard permission="dashboard.view"><Dashboard /></PermissionGuard>} />
+              <Route path="insights" element={<PermissionGuard permission="dashboard.view"><Insights /></PermissionGuard>} />
               <Route path="my-tasks" element={<PermissionGuard permission="dashboard.view"><MyTasks /></PermissionGuard>} />
               {/* Unified tasks + GTD kanban view */}
               <Route path="teendok" element={<PermissionGuard permission="dashboard.view"><UnifiedTasks /></PermissionGuard>} />
