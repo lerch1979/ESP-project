@@ -267,6 +267,19 @@ export const analyticsAPI = {
   },
 };
 
+// Billing — option-C per-client rates + per-worker billing_client + draft runs.
+export const billingAPI = {
+  listRates: async () => (await api.get('/billing/rates')).data,
+  createRate: async (body) => (await api.post('/billing/rates', body)).data,
+  updateRate: async (id, body) => (await api.put(`/billing/rates/${id}`, body)).data,
+  deleteRate: async (id) => (await api.delete(`/billing/rates/${id}`)).data,
+  setEmployeeClient: async (id, billing_client_id) => (await api.put(`/billing/employees/${id}/client`, { billing_client_id })).data,
+  bulkSetEmployeeClient: async (employee_ids, billing_client_id) => (await api.post('/billing/employees/bulk-client', { employee_ids, billing_client_id })).data,
+  runDraft: async (month) => (await api.post('/billing/runs', { month })).data,
+  listRuns: async () => (await api.get('/billing/runs')).data,
+  getRunBillings: async (id) => (await api.get(`/billing/runs/${id}/billings`)).data,
+};
+
 // GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).
 export const anonymizationAPI = {
   getConfig: async () => (await api.get('/anonymization/config')).data,

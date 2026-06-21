@@ -36,7 +36,7 @@ import {
   SwapHoriz as StatusIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { employeesAPI, exportAPI, reportsAPI, roomsAPI, UPLOADS_BASE_URL } from '../services/api';
+import { employeesAPI, exportAPI, reportsAPI, roomsAPI, billingAPI, contractorsAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateEmployeeModal from '../components/CreateEmployeeModal';
 import EmployeeBulkImportModal from '../components/EmployeeBulkImportModal';
@@ -114,6 +114,30 @@ function Employees() {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  // Bulk "set billing client" (who pays for housing — drives billing).
+  const [billingClientDialogOpen, setBillingClientDialogOpen] = useState(false);
+  const [bulkBillingClientId, setBulkBillingClientId] = useState('');
+  const [billingClients, setBillingClients] = useState([]);
+  useEffect(() => {
+    contractorsAPI.getAll().then((r) => {
+      const list = Array.isArray(r) ? r : (r?.data ?? r?.contractors ?? []);
+      setBillingClients(list);
+    }).catch(() => {});
+  }, []);
+  const handleBulkBillingClient = async () => {
+    setBulkActionLoading(true);
+    try {
+      await billingAPI.bulkSetEmployeeClient(selectedIds, bulkBillingClientId || null);
+      setBillingClientDialogOpen(false);
+      setSelectedIds([]);
+      setBulkBillingClientId('');
+      loadEmployees();
+    } catch (e) {
+      // surfaced by the toast layer if present
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkStatusId, setBulkStatusId] = useState('');
   const [statuses, setStatuses] = useState([]);
@@ -647,6 +671,14 @@ function Employees() {
           <Button
             size="small"
             variant="outlined"
+            onClick={() => setBillingClientDialogOpen(true)}
+            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+          >
+            Számlázási ügyfél
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
             startIcon={<DownloadIcon />}
             onClick={handleBulkExport}
             disabled={bulkActionLoading}
@@ -676,6 +708,29 @@ function Employees() {
       )}
 
       {/* Bulk Status Change Dialog */}
+      <Dialog open={billingClientDialogOpen} onClose={() => setBillingClientDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Számlázási ügyfél beállítása</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {selectedIds.length} munkavállaló számlázási ügyfele (ki fizet a szállásért):
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel>Számlázási ügyfél</InputLabel>
+            <Select value={bulkBillingClientId} onChange={(e) => setBulkBillingClientId(e.target.value)} label="Számlázási ügyfél">
+              <MenuItem value=""><em>(nincs / törlés)</em></MenuItem>
+              {billingClients.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBillingClientDialogOpen(false)}>Mégsem</Button>
+          <Button variant="contained" onClick={handleBulkBillingClient} disabled={bulkActionLoading}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+            {bulkActionLoading ? <CircularProgress size={20} /> : 'Mentés'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Tömeges státusz váltás</DialogTitle>
         <DialogContent>

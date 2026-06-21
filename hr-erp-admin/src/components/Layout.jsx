@@ -122,6 +122,7 @@ const buildMenuItems = (t) => [
       { text: t('nav.emailInvoices'), icon: <EmailIcon />, path: '/email-inbox', permission: 'settings.edit' },
       { text: 'Besorolási szabályok', icon: <RuleIcon />, path: '/finance/classification-rules', permission: 'settings.edit' },
       { text: t('nav.invoiceReports'), icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
+      { text: 'Számlázási díjak', icon: <MonetizationOnIcon />, path: '/billing-rates', permission: 'settings.edit' },
       { text: 'Szállás könyvelés', icon: <BarChartIcon />, path: '/admin/billing', permission: 'settings.edit' },
       { text: t('nav.salaryTransparency'), icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
     ],
