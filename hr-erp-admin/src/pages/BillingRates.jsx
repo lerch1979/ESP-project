@@ -7,7 +7,12 @@ import { Delete as DeleteIcon, PlayArrow as RunIcon } from '@mui/icons-material'
 import { billingAPI, contractorsAPI, accommodationsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
-const arr = (res) => (Array.isArray(res) ? res : (res?.data ?? res?.contractors ?? res?.accommodations ?? []));
+const arr = (res) => {
+  if (Array.isArray(res)) return res;
+  const d = res?.data ?? res;
+  if (Array.isArray(d)) return d;
+  return d?.contractors ?? d?.accommodations ?? d?.rows ?? [];
+};
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString('hu-HU') + ' Ft');
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -61,7 +66,8 @@ export default function BillingRates() {
   const runDraft = async () => {
     setRunning(true); setRunResult(null);
     try {
-      const summary = (await billingAPI.runDraft(month)).data || (await billingAPI.runDraft(month));
+      const res = await billingAPI.runDraft(month);
+      const summary = res?.data || res;
       const billings = arr(await billingAPI.getRunBillings(summary.run_id));
       setRunResult({ summary, billings });
       toast.success('Vázlat számlázás kész');

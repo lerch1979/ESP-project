@@ -120,7 +120,8 @@ function Employees() {
   const [billingClients, setBillingClients] = useState([]);
   useEffect(() => {
     contractorsAPI.getAll().then((r) => {
-      const list = Array.isArray(r) ? r : (r?.data ?? r?.contractors ?? []);
+      const d = r?.data ?? r;
+      const list = Array.isArray(d) ? d : (d?.contractors ?? []);
       setBillingClients(list);
     }).catch(() => {});
   }, []);
