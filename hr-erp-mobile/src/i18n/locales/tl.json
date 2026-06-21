@@ -83,7 +83,10 @@
     "logout": "Mag-logout",
     "allGood": "Maayos lahat!",
     "contractor": "Kontratista",
-    "roles": "Mga tungkulin"
+    "roles": "Mga tungkulin",
+    "chatbot": "Chatbot",
+    "chatbotHistory": "Mga nakaraang usapan",
+    "faq": "FAQ"
   },
   "attach": {
     "photos": "Mga larawan",

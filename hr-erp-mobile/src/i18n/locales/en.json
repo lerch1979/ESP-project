@@ -83,7 +83,10 @@
     "logout": "Log out",
     "allGood": "All good!",
     "contractor": "Contractor",
-    "roles": "Roles"
+    "roles": "Roles",
+    "chatbot": "Chatbot",
+    "chatbotHistory": "Past conversations",
+    "faq": "FAQ"
   },
   "attach": {
     "photos": "Photos",

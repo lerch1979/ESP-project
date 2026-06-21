@@ -83,7 +83,10 @@
     "logout": "Kijelentkezés",
     "allGood": "Minden rendben van!",
     "contractor": "Alvállalkozó",
-    "roles": "Szerepkörök"
+    "roles": "Szerepkörök",
+    "chatbot": "Chatbot",
+    "chatbotHistory": "Korábbi beszélgetések",
+    "faq": "GYIK"
   },
   "attach": {
     "photos": "Fotók",

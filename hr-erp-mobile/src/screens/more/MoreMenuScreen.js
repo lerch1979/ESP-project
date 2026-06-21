@@ -8,7 +8,12 @@ import { useTranslation } from 'react-i18next';
 
 // Menu item keys a resident (accommodated_employee) may see — everything else
 // is staff-only and hidden.
-const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile'];
+// Added 2026-06-21 (feature-audit priority #1): the chatbot + FAQ are built in all
+// layers and resident-accessible (public /faq/*, auth-only /conversations/*), so
+// they are surfaced. NOT surfaced yet: documents/videos (permission-gated →
+// would 403 for residents), wellbeing/CarePath (GDPR Art 9 health data — needs
+// compliance review), projects/tasks/invoices (relevance/scope review).
+const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile', 'chatbot', 'chatbotHistory', 'faq'];
 
 const menuSections = [
   {

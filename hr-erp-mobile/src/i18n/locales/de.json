@@ -83,7 +83,10 @@
     "logout": "Abmelden",
     "allGood": "Alles in Ordnung!",
     "contractor": "Auftragnehmer",
-    "roles": "Rollen"
+    "roles": "Rollen",
+    "chatbot": "Chatbot",
+    "chatbotHistory": "Frühere Unterhaltungen",
+    "faq": "FAQ"
   },
   "attach": {
     "photos": "Fotos",

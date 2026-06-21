@@ -83,7 +83,10 @@
     "logout": "Вийти",
     "allGood": "Все гаразд!",
     "contractor": "Підрядник",
-    "roles": "Ролі"
+    "roles": "Ролі",
+    "chatbot": "Чат-бот",
+    "chatbotHistory": "Минулі розмови",
+    "faq": "Часті питання"
   },
   "attach": {
     "photos": "Фото",
