@@ -659,6 +659,9 @@ const convert = async (req, res) => {
       vendor_name:       req.body.vendor_name       || draft.vendor_name       || null,
       vendor_tax_number: req.body.vendor_tax_number || draft.vendor_tax_number || null,
       invoice_number:    req.body.invoice_number    || draft.invoice_number    || null,
+      // Cost center: the human's override wins; else fall back to the AI's
+      // suggested_cost_center_id so the classification isn't lost on Convert.
+      cost_center_id:    req.body.cost_center_id    || draft.suggested_cost_center_id || null,
       invoice_date:      req.body.invoice_date      || dateToISODate(draft.invoice_date),
       performance_date:  req.body.performance_date
                        || dateToISODate(draft.performance_date)

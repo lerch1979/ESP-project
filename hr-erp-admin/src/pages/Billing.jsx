@@ -1288,19 +1288,26 @@ function DraftsTab() {
     amount: '',
     vat_rate: '27',
     notes: '',
+    cost_center_id: '',
   });
   const [billingMonthManual, setBillingMonthManual] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [accommodations, setAccommodations] = useState([]);
+  const [costCenters, setCostCenters] = useState([]);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await accommodationsAPI.getAll({ limit: 500 });
-        const list = res?.accommodations || res?.data?.accommodations || res?.data || [];
-        setAccommodations(Array.isArray(list) ? list : []);
+        const [accRes, ccRes] = await Promise.all([
+          accommodationsAPI.getAll({ limit: 500 }),
+          costCentersAPI.getAll({ limit: 500, is_active: 'true' }),
+        ]);
+        const accs = accRes?.accommodations || accRes?.data?.accommodations || accRes?.data || [];
+        setAccommodations(Array.isArray(accs) ? accs : []);
+        const ccs = ccRes?.costCenters || ccRes?.data?.costCenters || ccRes?.data || ccRes?.cost_centers || [];
+        setCostCenters(Array.isArray(ccs) ? ccs : []);
       } catch (e) { /* silent */ }
     })();
   }, []);
@@ -1338,6 +1345,9 @@ function DraftsTab() {
       amount: '',
       vat_rate: '27',
       notes: d.description ? String(d.description).slice(0, 200) : '',
+      // Default the cost center to the AI's suggestion — one click when right,
+      // change it when wrong (the human override).
+      cost_center_id: d.suggestedCostCenter?.id || '',
     });
     setBillingMonthManual(false);
     setError('');
@@ -1388,6 +1398,7 @@ function DraftsTab() {
         amount: amt,
         vat_rate: form.vat_rate === '' ? null : Number(form.vat_rate),
         notes: form.notes || null,
+        cost_center_id: form.cost_center_id || null, // human override; backend falls back to the AI suggestion
         // Server adds source='email_ocr' + merges draft vendor/invoice metadata
       });
       toast.success('Költség létrehozva a piszkozatból');
@@ -1522,6 +1533,28 @@ function DraftsTab() {
               >
                 {CATEGORIES.map((c) => (
                   <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                select fullWidth size="small"
+                label="Költséghely"
+                value={form.cost_center_id}
+                onChange={(e) => setForm({ ...form, cost_center_id: e.target.value })}
+                helperText={
+                  draft?.suggestedCostCenter?.id
+                    ? `AI javaslat: ${draft.suggestedCostCenter.code ? draft.suggestedCostCenter.code + ' · ' : ''}${draft.suggestedCostCenter.name}`
+                      + (draft.costCenterConfidence != null ? ` (${Math.round(draft.costCenterConfidence * 100)}% biztos)` : '')
+                      + (form.cost_center_id !== (draft.suggestedCostCenter.id || '') ? ' — felülírva' : '')
+                    : 'Az AI nem javasolt költséghelyet — válassz kézzel'
+                }
+              >
+                <MenuItem value="">— Nincs költséghely —</MenuItem>
+                {costCenters.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.code ? `${c.code} · ${c.name}` : c.name}
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
