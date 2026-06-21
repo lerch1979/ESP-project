@@ -2147,11 +2147,15 @@ function ProfitTab() {
 // live accommodation_id FK, so it auto-tracks added/closed accommodations.
 // ────────────────────────────────────────────────────────────────────────
 const OPCOST_CATS = [
-  { key: 'rezsi', label: 'Rezsi' },
-  { key: 'karbantartas', label: 'Karbantartás' },
-  { key: 'takaritas', label: 'Takarítás' },
-  { key: 'egyeb', label: 'Egyéb' },
+  { key: 'rezsi', label: 'Rezsi', short: 'Rezsi' },
+  { key: 'karbantartas', label: 'Karbantartás', short: 'Karbant.' },
+  { key: 'takaritas', label: 'Takarítás', short: 'Takarít.' },
+  { key: 'egyeb', label: 'Egyéb', short: 'Egyéb' },
 ];
+
+// Compact grouped number (no currency suffix) so all 8 columns — including
+// Ft/lakónap — fit without horizontal scrolling. Unit is stated in a caption.
+const fmtNum = (n) => (n == null ? '—' : Number(n).toLocaleString('hu-HU'));
 
 function OperatingCostsTab() {
   const [month, setMonth] = useState(currentMonth());
@@ -2251,46 +2255,59 @@ function OperatingCostsTab() {
           <Typography color="text.secondary">Nincs üzemeltetési költség erre a hónapra.</Typography>
         </Paper>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+          <Table
+            size="small"
+            sx={{
+              width: '100%',
+              tableLayout: 'fixed',
+              '& th, & td': { px: 1, py: 0.75, whiteSpace: 'nowrap' },
+              '& td:not(:first-of-type), & th:not(:first-of-type)': { fontVariantNumeric: 'tabular-nums' },
+            }}
+          >
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Szállás</TableCell>
+                <TableCell sx={{ fontWeight: 700, width: '22%' }}>Szállás</TableCell>
                 {OPCOST_CATS.map((c) => (
-                  <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{c.label}</TableCell>
+                  <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{c.short}</TableCell>
                 ))}
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Összes</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>Lakónap</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>Ft / lakónap</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>Ft/lakónap</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.accommodation_id} hover>
-                  <TableCell>{r.accommodation_name || '—'}</TableCell>
+                  <TableCell sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.accommodation_name || '—'}>
+                    {r.accommodation_name || '—'}
+                  </TableCell>
                   {OPCOST_CATS.map((c) => (
-                    <TableCell key={c.key} align="right">{fmtMoney(r.expenses?.[c.key] || 0)}</TableCell>
+                    <TableCell key={c.key} align="right">{fmtNum(r.expenses?.[c.key] || 0)}</TableCell>
                   ))}
-                  <TableCell align="right" sx={{ color: COLOR_EXPENSE, fontWeight: 600 }}>{fmtMoney(r.expenses?.total || 0)}</TableCell>
+                  <TableCell align="right" sx={{ color: COLOR_EXPENSE, fontWeight: 600 }}>{fmtNum(r.expenses?.total || 0)}</TableCell>
                   <TableCell align="right">{r.occupant_nights}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>{r.cost_per_night == null ? '—' : fmtMoney(r.cost_per_night)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{r.cost_per_night == null ? '—' : fmtNum(r.cost_per_night)}</TableCell>
                 </TableRow>
               ))}
               {summary && rows.length > 0 && (
                 <TableRow sx={{ '& td': { fontWeight: 700, borderTop: '2px solid #e5e7eb' } }}>
                   <TableCell>ÖSSZESEN</TableCell>
                   {OPCOST_CATS.map((c) => (
-                    <TableCell key={c.key} align="right">{fmtMoney(summary.by_category?.[c.key] || 0)}</TableCell>
+                    <TableCell key={c.key} align="right">{fmtNum(summary.by_category?.[c.key] || 0)}</TableCell>
                   ))}
-                  <TableCell align="right" sx={{ color: COLOR_EXPENSE }}>{fmtMoney(summary.total_cost || 0)}</TableCell>
+                  <TableCell align="right" sx={{ color: COLOR_EXPENSE }}>{fmtNum(summary.total_cost || 0)}</TableCell>
                   <TableCell align="right">{summary.total_occupant_nights}</TableCell>
-                  <TableCell align="right">{summary.cost_per_night == null ? '—' : fmtMoney(summary.cost_per_night)}</TableCell>
+                  <TableCell align="right">{summary.cost_per_night == null ? '—' : fmtNum(summary.cost_per_night)}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+        Az összegek forintban (Ft). „Ft/lakónap” = összes költség ÷ lakónapok.
+      </Typography>
     </Box>
   );
 }

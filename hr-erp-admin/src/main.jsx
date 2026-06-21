@@ -30,6 +30,20 @@ const updateSW = registerSW({
   },
 });
 
+// Graceful recovery from a stale-shell chunk 404. Vite fires
+// `vite:preloadError` when a lazy import() fails (e.g. a returning client on an
+// old index.html requests a chunk hash removed by a newer deploy). Reload once
+// to fetch the fresh shell instead of crashing to the error page. Guarded by a
+// short-lived flag so a genuinely-missing chunk can't loop.
+window.addEventListener('vite:preloadError', (event) => {
+  const last = Number(sessionStorage.getItem('chunkReloadAt') || 0);
+  if (Date.now() - last > 10000) {
+    sessionStorage.setItem('chunkReloadAt', String(Date.now()));
+    event.preventDefault();
+    window.location.reload();
+  }
+});
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary

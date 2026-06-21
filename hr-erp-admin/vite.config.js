@@ -41,6 +41,12 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Evict precaches from prior deploys + let the new SW take control
+        // immediately, so a new release never serves the old app shell (which
+        // would reference chunk hashes that 404 → dynamic-import crash).
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https?:.*\/api\/.*/i,
