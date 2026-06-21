@@ -103,3 +103,29 @@ The night-counting and pro-rata math are **correct and fully auditable**.
 4. **Automation later:** wire Számlázz.hu/Billingo for invoice *sending* (still
    human-triggered) + VAT/discount templates (engine already anticipates a
    template post-pass over the JSONB).
+
+---
+
+## DECISION (CONFIRMED 2026-06-20) — Option C + billing_client + true margin
+
+**Pricing = Option C: fixed negotiated per-night rate per CLIENT.**
+`revenue = worker-nights × client_rate`. Margin over actual cost = profit.
+
+**The billable client is per-WORKER, decoupled from workplace:**
+- `employees.workplace` (existing, 283/286 populated) = **where they work** (Autoliv) — informational only; feeds Insights, NOT billing.
+- **`employees.billing_client_id`** (NEW, uuid → contractors, nullable) = **who pays for housing** (Man at Work OR Autoliv). **Drives billing.** Set per worker.
+- `employees.contractor_id` left untouched (tenancy/access meaning, wired across 9+ files — do NOT overload).
+- Two workers at the same workplace can bill to different clients via `billing_client_id`.
+
+**Rate model — `client_night_rates`:** per `contractor_id` (+ optional `accommodation_id` override; NULL = client default), `rate_per_night`, effective-dated (`valid_from`/`valid_to`). Resolution: accommodation-specific over client-default, within the date window.
+
+**Engine (option C):** for each occupancy_snapshot row → employee → `billing_client_id` → resolved rate. Group by **(billing_client_id, accommodation, month)**:
+- `revenue` = Σ resolved rate (= employee-days × rate when constant)
+- `cost` = **rent allocation (`per_occupant_daily_share`) + operating `accommodation_expenses`** (the latter allocated pro-rata by the group's employee-days share of the accommodation) — **TRUE margin, not rent-only**
+- `margin = revenue − cost`
+- `accommodation_billings`: `total_amount` = revenue, `cost_amount`, `margin_amount`.
+
+**Unchanged:** night-counting (snapshots) + the L1 human-finalize gate. Rates & billing_client are human-set config.
+**cost_centers:** stays a dormant optional taxonomy — NOT wired into billing; `accommodation_expenses` is the cost source.
+
+**Bulk-populate billing_client:** (1) import column "Számlázási ügyfél" mapped to a contractor by name; (2) Employees-list multi-select → "Set billing client".

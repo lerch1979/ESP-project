@@ -84,6 +84,7 @@ const adminRoutes = require('./routes/admin.routes');
 const aiAssistantRoutes = require('./routes/aiAssistant.routes');
 const inspectionExportRoutes = require('./routes/inspectionExport.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const billingRoutes = require('./routes/billing.routes');
 const gtdRoutes = require('./routes/gtd.routes');
 const googleCalendarController = require('./controllers/google-calendar.controller');
 const { startScheduler } = require('./services/report-scheduler.service');
@@ -434,6 +435,7 @@ app.use(`${API_PREFIX}/inspection-exports`, inspectionExportRoutes);
 const { authenticateToken } = require('./middleware/auth');
 app.post(`${API_PREFIX}/translate`, authenticateToken, translationRoutes.translateHandler);
 app.use(`${API_PREFIX}/analytics`, analyticsRoutes);
+app.use(`${API_PREFIX}/billing`, billingRoutes);
 app.use(`${API_PREFIX}/gtd`, gtdRoutes);
 
 // Google OAuth callback (root-level, before 404 handler)
