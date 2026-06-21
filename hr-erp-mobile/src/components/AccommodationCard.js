@@ -1,18 +1,25 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
 import StatusBadge from './StatusBadge';
 
-const typeLabels = {
-  studio: 'Stúdió',
-  '1br': '1 szobás',
-  '2br': '2 szobás',
-  '3br': '3 szobás',
-  dormitory: 'Munkásszálló',
+export const TYPE_KEY = {
+  studio: 'accType.studio',
+  '1br': 'accType.br1',
+  '2br': 'accType.br2',
+  '3br': 'accType.br3',
+  dormitory: 'accType.dormitory',
+};
+export const STATUS_KEY = {
+  available: 'accStatus.available',
+  occupied: 'accStatus.occupied',
+  maintenance: 'accStatus.maintenance',
 };
 
 export default function AccommodationCard({ accommodation, onPress }) {
+  const { t } = useTranslation();
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconContainer}>
@@ -23,16 +30,16 @@ export default function AccommodationCard({ accommodation, onPress }) {
         <Text style={styles.address} numberOfLines={1}>{accommodation.address}</Text>
         <View style={styles.meta}>
           <Text style={styles.type}>
-            {typeLabels[accommodation.type] || accommodation.type}
+            {TYPE_KEY[accommodation.type] ? t(TYPE_KEY[accommodation.type]) : accommodation.type}
           </Text>
           <Text style={styles.capacity}>
             <Ionicons name="people-outline" size={12} color={colors.textLight} />{' '}
-            {accommodation.capacity} fő
+            {t('accommodation.people', { count: accommodation.capacity })}
           </Text>
         </View>
       </View>
       <StatusBadge
-        label={accommodation.status === 'available' ? 'Szabad' : accommodation.status === 'occupied' ? 'Foglalt' : 'Karbantartás'}
+        label={t(STATUS_KEY[accommodation.status] || 'accStatus.maintenance')}
         slug={accommodation.status}
       />
     </TouchableOpacity>

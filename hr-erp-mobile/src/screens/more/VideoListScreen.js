@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
 import { videosAPI } from '../../services/api';
 import SearchBar from '../../components/SearchBar';
@@ -9,16 +10,17 @@ import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 
 const CATEGORY_OPTIONS = [
-  { value: null, label: 'Összes' },
-  { value: 'munkabiztonság', label: 'Munkabiztonság' },
-  { value: 'beilleszkedés', label: 'Beilleszkedés' },
-  { value: 'nyelvi_kurzus', label: 'Nyelvi kurzus' },
-  { value: 'adminisztráció', label: 'Adminisztráció' },
-  { value: 'szakmai_kepzes', label: 'Szakmai képzés' },
-  { value: 'ceg_info', label: 'Céginformáció' },
+  { value: null, labelKey: 'videoCat.all' },
+  { value: 'munkabiztonság', labelKey: 'videoCat.workSafety' },
+  { value: 'beilleszkedés', labelKey: 'videoCat.integration' },
+  { value: 'nyelvi_kurzus', labelKey: 'videoCat.languageCourse' },
+  { value: 'adminisztráció', labelKey: 'videoCat.admin' },
+  { value: 'szakmai_kepzes', labelKey: 'videoCat.professional' },
+  { value: 'ceg_info', labelKey: 'videoCat.companyInfo' },
 ];
 
 export default function VideoListScreen({ navigation }) {
+  const { t } = useTranslation();
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -53,7 +55,7 @@ export default function VideoListScreen({ navigation }) {
       setHasMore(newVideos.length === 12);
       setPage(pageNum);
     } catch (err) {
-      setError('Videók betöltése sikertelen');
+      setError(t('video.loadFailedList'));
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -89,8 +91,8 @@ export default function VideoListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <SearchBar placeholder="Keresés videók között..." onSearch={setSearch} />
-      <FilterChips options={CATEGORY_OPTIONS} selected={category} onSelect={setCategory} />
+      <SearchBar placeholder={t('video.search')} onSearch={setSearch} />
+      <FilterChips options={CATEGORY_OPTIONS.map((o) => ({ label: t(o.labelKey), value: o.value }))} selected={category} onSelect={setCategory} />
 
       {loading ? (
         <View style={styles.centerLoader}>
@@ -99,7 +101,7 @@ export default function VideoListScreen({ navigation }) {
       ) : error ? (
         <ErrorState message={error} onRetry={() => loadVideos(1)} />
       ) : videos.length === 0 ? (
-        <EmptyState icon="videocam-outline" message="Nincs találat" />
+        <EmptyState icon="videocam-outline" message={t('common.noResults')} />
       ) : (
         <FlatList
           data={videos}

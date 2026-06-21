@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
 
-export default function SearchBar({ placeholder = 'Keresés...', onSearch }) {
+export default function SearchBar({ placeholder, onSearch }) {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const timerRef = useRef(null);
 
@@ -25,7 +27,7 @@ export default function SearchBar({ placeholder = 'Keresés...', onSearch }) {
         style={styles.input}
         value={text}
         onChangeText={handleChange}
-        placeholder={placeholder}
+        placeholder={placeholder || t('common.searchPlaceholder')}
         placeholderTextColor={colors.textLight}
         autoCorrect={false}
       />

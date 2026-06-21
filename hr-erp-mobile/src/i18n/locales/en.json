@@ -54,7 +54,11 @@
     "statusClosed": "Conversation closed",
     "lblActive": "Active",
     "lblEscalated": "Escalated",
-    "lblClosed": "Closed"
+    "lblClosed": "Closed",
+    "convTitle": "Conversation",
+    "msgCount": "{{count}} messages",
+    "noConv": "No conversations",
+    "startNewSub": "Start a new conversation with the chatbot!"
   },
   "category": {
     "viz-csotores": "Water/leak",
@@ -284,7 +288,9 @@
     "low": "Low",
     "medium": "Medium",
     "high": "High",
-    "critical": "Critical"
+    "critical": "Critical",
+    "searchPlaceholder": "Search...",
+    "noResults": "No results"
   },
   "calendar": {
     "title": "Calendar",
@@ -339,5 +345,71 @@
     "accommodation": "Accommodation",
     "video": "Video",
     "assistant": "Chatbot Assistant"
+  },
+  "accType": {
+    "studio": "Studio",
+    "br1": "1 room",
+    "br2": "2 rooms",
+    "br3": "3 rooms",
+    "dormitory": "Dormitory"
+  },
+  "accStatus": {
+    "available": "Available",
+    "occupied": "Occupied",
+    "maintenance": "Under maintenance"
+  },
+  "accommodation": {
+    "type": "Type",
+    "capacity": "Capacity",
+    "people": "{{count}} people",
+    "monthlyRent": "Monthly rent",
+    "currentContractor": "Current contractor",
+    "notes": "Notes",
+    "search": "Search accommodation..."
+  },
+  "videoCat": {
+    "all": "All",
+    "workSafety": "Work safety",
+    "integration": "Integration",
+    "languageCourse": "Language course",
+    "admin": "Administration",
+    "professional": "Professional training",
+    "companyInfo": "Company info"
+  },
+  "video": {
+    "search": "Search videos...",
+    "loadFailedList": "Failed to load videos",
+    "loadFailedOne": "Failed to load the video",
+    "notFound": "Video not found",
+    "watched": "Watched"
+  },
+  "calEvent": {
+    "checkin": "Check-in",
+    "checkout": "Check-out",
+    "visa_expiry": "Visa expiry",
+    "contract_expiry": "Contract expiry",
+    "ticket_deadline": "Ticket deadline",
+    "shift": "Shift",
+    "medical_appointment": "Medical appointment",
+    "personal_event": "Personal event"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions (FAQ)",
+    "search": "Search the questions...",
+    "tryOther": "Try a different search term",
+    "other": "Other",
+    "questionsCount": "{{count}} questions",
+    "noQuestions": "No questions in this category.",
+    "text": "Text",
+    "video": "Video",
+    "cta": "Can't find the answer?",
+    "searchInFaq": "Search the FAQ...",
+    "noCategories": "No categories available",
+    "soonTitle": "Coming soon",
+    "soonBody": "Video answers will be available soon."
+  },
+  "ticket": {
+    "newTicket": "New ticket",
+    "detail": "Ticket"
   }
 }

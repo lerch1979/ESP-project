@@ -7,27 +7,17 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { accommodationsAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import StatusBadge from '../../components/StatusBadge';
+import { TYPE_KEY, STATUS_KEY } from '../../components/AccommodationCard';
 import LoadingScreen from '../../components/LoadingScreen';
 import ErrorState from '../../components/ErrorState';
-
-const typeLabels = {
-  studio: 'Stúdió',
-  '1br': '1 szobás',
-  '2br': '2 szobás',
-  '3br': '3 szobás',
-  dormitory: 'Munkásszálló',
-};
-
-const statusLabels = {
-  available: 'Szabad',
-  occupied: 'Foglalt',
-  maintenance: 'Karbantartás alatt',
-};
+import { formatMoney } from '../../utils/locale';
 
 export default function AccommodationDetailScreen({ route }) {
+  const { t, i18n } = useTranslation();
   const { id } = route.params;
   const [accommodation, setAccommodation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +30,7 @@ export default function AccommodationDetailScreen({ route }) {
       const response = await accommodationsAPI.getById(id);
       setAccommodation(response.data.accommodation);
     } catch {
-      setError('Nem sikerült betölteni az adatokat');
+      setError(t('common.errorOccurred'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,7 +62,7 @@ export default function AccommodationDetailScreen({ route }) {
             <Ionicons name="home" size={28} color={colors.primary} />
           </View>
           <StatusBadge
-            label={statusLabels[accommodation.status] || accommodation.status}
+            label={t(STATUS_KEY[accommodation.status] || 'accStatus.maintenance')}
             slug={accommodation.status}
           />
         </View>
@@ -82,15 +72,15 @@ export default function AccommodationDetailScreen({ route }) {
 
         <View style={styles.divider} />
 
-        <InfoRow label="Típus" value={typeLabels[accommodation.type] || accommodation.type} />
-        <InfoRow label="Kapacitás" value={`${accommodation.capacity} fő`} />
-        <InfoRow label="Havi bérleti díj" value={accommodation.monthly_rent ? `${Number(accommodation.monthly_rent).toLocaleString('hu-HU')} Ft` : '-'} />
-        <InfoRow label="Jelenlegi alvállalkozó" value={accommodation.current_contractor_name || '-'} />
+        <InfoRow label={t('accommodation.type')} value={TYPE_KEY[accommodation.type] ? t(TYPE_KEY[accommodation.type]) : accommodation.type} />
+        <InfoRow label={t('accommodation.capacity')} value={t('accommodation.people', { count: accommodation.capacity })} />
+        <InfoRow label={t('accommodation.monthlyRent')} value={accommodation.monthly_rent ? formatMoney(accommodation.monthly_rent, i18n.language) : '-'} />
+        <InfoRow label={t('accommodation.currentContractor')} value={accommodation.current_contractor_name || '-'} />
 
         {accommodation.notes && (
           <>
             <View style={styles.divider} />
-            <Text style={styles.notesLabel}>Megjegyzések</Text>
+            <Text style={styles.notesLabel}>{t('accommodation.notes')}</Text>
             <Text style={styles.notes}>{accommodation.notes}</Text>
           </>
         )}

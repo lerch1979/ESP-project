@@ -76,7 +76,7 @@ export default function ChatbotConversationListScreen({ navigation }) {
         <View style={styles.cardHeader}>
           <View style={styles.titleRow}>
             <Ionicons name={status.icon} size={20} color={status.color} />
-            <Text style={styles.title} numberOfLines={1}>{item.title || 'Beszélgetés'}</Text>
+            <Text style={styles.title} numberOfLines={1}>{item.title || t('chat.convTitle')}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
             <Text style={[styles.statusText, { color: status.color }]}>{t(status.labelKey)}</Text>
@@ -87,7 +87,7 @@ export default function ChatbotConversationListScreen({ navigation }) {
         )}
         <View style={styles.cardFooter}>
           <Text style={styles.date}>{date}</Text>
-          <Text style={styles.messageCount}>{item.message_count || 0} üzenet</Text>
+          <Text style={styles.messageCount}>{t('chat.msgCount', { count: item.message_count || 0 })}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -112,8 +112,8 @@ export default function ChatbotConversationListScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="chatbubbles-outline" size={64} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>Nincs beszélgetés</Text>
-            <Text style={styles.emptySubtitle}>Indítson új beszélgetést a chatbottal!</Text>
+            <Text style={styles.emptyTitle}>{t('chat.noConv')}</Text>
+            <Text style={styles.emptySubtitle}>{t('chat.startNewSub')}</Text>
           </View>
         }
       />

@@ -2,17 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
 import { videosAPI } from '../../services/api';
-
-const CATEGORY_LABELS = {
-  munkabiztonság: 'Munkabiztonság',
-  beilleszkedés: 'Beilleszkedés',
-  nyelvi_kurzus: 'Nyelvi kurzus',
-  adminisztráció: 'Adminisztráció',
-  szakmai_kepzes: 'Szakmai képzés',
-  ceg_info: 'Céginformáció',
-};
+import { VIDEO_CAT_KEY } from '../../components/VideoCard';
+import { formatDate } from '../../utils/locale';
 
 const CATEGORY_COLORS = {
   munkabiztonság: '#dc2626',
@@ -45,6 +39,7 @@ function getEmbedUrl(url) {
 }
 
 export default function VideoDetailScreen({ route }) {
+  const { t, i18n } = useTranslation();
   const { videoId } = route.params;
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +58,7 @@ export default function VideoDetailScreen({ route }) {
       // Record view
       videosAPI.recordView(videoId).catch(() => {});
     } catch (err) {
-      setError('Videó betöltése sikertelen');
+      setError(t('video.loadFailedOne'));
     } finally {
       setLoading(false);
     }
@@ -91,9 +86,9 @@ export default function VideoDetailScreen({ route }) {
     return (
       <View style={styles.centerLoader}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.textLight} />
-        <Text style={styles.errorText}>{error || 'Videó nem található'}</Text>
+        <Text style={styles.errorText}>{error || t('video.notFound')}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadVideo}>
-          <Text style={styles.retryText}>Újra</Text>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -129,7 +124,7 @@ export default function VideoDetailScreen({ route }) {
         <View style={styles.metaRow}>
           <View style={[styles.categoryChip, { backgroundColor: catColor + '18' }]}>
             <Text style={[styles.categoryText, { color: catColor }]}>
-              {CATEGORY_LABELS[video.category] || video.category}
+              {VIDEO_CAT_KEY[video.category] ? t(VIDEO_CAT_KEY[video.category]) : video.category}
             </Text>
           </View>
           <View style={styles.metaItem}>
@@ -147,14 +142,14 @@ export default function VideoDetailScreen({ route }) {
         ) : null}
 
         <Text style={styles.date}>
-          {new Date(video.created_at).toLocaleDateString('hu-HU')}
+          {formatDate(video.created_at, i18n.language)}
         </Text>
       </View>
 
       {/* Mark completed button */}
       <TouchableOpacity style={styles.completedButton} onPress={handleMarkCompleted} activeOpacity={0.7}>
         <Ionicons name="checkmark-circle" size={20} color={colors.white} />
-        <Text style={styles.completedButtonText}>Megtekintve</Text>
+        <Text style={styles.completedButtonText}>{t('video.watched')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

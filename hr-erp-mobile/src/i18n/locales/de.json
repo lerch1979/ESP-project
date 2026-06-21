@@ -54,7 +54,11 @@
     "statusClosed": "Unterhaltung geschlossen",
     "lblActive": "Aktiv",
     "lblEscalated": "Eskaliert",
-    "lblClosed": "Geschlossen"
+    "lblClosed": "Geschlossen",
+    "convTitle": "Unterhaltung",
+    "msgCount": "{{count}} Nachrichten",
+    "noConv": "Keine Unterhaltungen",
+    "startNewSub": "Starte eine neue Unterhaltung mit dem Chatbot!"
   },
   "category": {
     "viz-csotores": "Wasser/Leck",
@@ -284,7 +288,9 @@
     "low": "Niedrig",
     "medium": "Mittel",
     "high": "Hoch",
-    "critical": "Kritisch"
+    "critical": "Kritisch",
+    "searchPlaceholder": "Suchen...",
+    "noResults": "Keine Ergebnisse"
   },
   "calendar": {
     "title": "Kalender",
@@ -339,5 +345,71 @@
     "accommodation": "Unterkunft",
     "video": "Video",
     "assistant": "Chatbot-Assistent"
+  },
+  "accType": {
+    "studio": "Studio",
+    "br1": "1 Zimmer",
+    "br2": "2 Zimmer",
+    "br3": "3 Zimmer",
+    "dormitory": "Wohnheim"
+  },
+  "accStatus": {
+    "available": "Frei",
+    "occupied": "Belegt",
+    "maintenance": "In Wartung"
+  },
+  "accommodation": {
+    "type": "Typ",
+    "capacity": "Kapazität",
+    "people": "{{count}} Personen",
+    "monthlyRent": "Monatsmiete",
+    "currentContractor": "Aktueller Auftragnehmer",
+    "notes": "Anmerkungen",
+    "search": "Unterkunft suchen..."
+  },
+  "videoCat": {
+    "all": "Alle",
+    "workSafety": "Arbeitssicherheit",
+    "integration": "Eingliederung",
+    "languageCourse": "Sprachkurs",
+    "admin": "Verwaltung",
+    "professional": "Fachausbildung",
+    "companyInfo": "Firmeninfo"
+  },
+  "video": {
+    "search": "Videos suchen...",
+    "loadFailedList": "Videos konnten nicht geladen werden",
+    "loadFailedOne": "Video konnte nicht geladen werden",
+    "notFound": "Video nicht gefunden",
+    "watched": "Angesehen"
+  },
+  "calEvent": {
+    "checkin": "Check-in",
+    "checkout": "Check-out",
+    "visa_expiry": "Visum-Ablauf",
+    "contract_expiry": "Vertragsende",
+    "ticket_deadline": "Ticket-Frist",
+    "shift": "Schicht",
+    "medical_appointment": "Arzttermin",
+    "personal_event": "Persönlicher Termin"
+  },
+  "faq": {
+    "title": "Häufige Fragen (FAQ)",
+    "search": "Fragen durchsuchen...",
+    "tryOther": "Anderen Suchbegriff versuchen",
+    "other": "Sonstiges",
+    "questionsCount": "{{count}} Fragen",
+    "noQuestions": "Keine Fragen in dieser Kategorie.",
+    "text": "Text",
+    "video": "Video",
+    "cta": "Antwort nicht gefunden?",
+    "searchInFaq": "FAQ durchsuchen...",
+    "noCategories": "Keine Kategorien verfügbar",
+    "soonTitle": "Demnächst",
+    "soonBody": "Video-Antworten sind bald verfügbar."
+  },
+  "ticket": {
+    "newTicket": "Neues Ticket",
+    "detail": "Ticket"
   }
 }

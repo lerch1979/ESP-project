@@ -83,7 +83,7 @@ export default function FAQScreen() {
 
     // Add "Egyéb" pseudo-category for entries without a category
     if (entriesByCategory['uncategorized']?.length > 0) {
-      return [...base, { id: 'uncategorized', name: 'Egyéb', icon: 'help', color: '#94a3b8' }];
+      return [...base, { id: 'uncategorized', name: t('faq.other'), icon: 'help', color: '#94a3b8' }];
     }
     return base;
   }, [categories, entriesByCategory, search]);
@@ -99,7 +99,7 @@ export default function FAQScreen() {
   };
 
   const handleVideoPress = () => {
-    Alert.alert('Hamarosan', 'A videós válaszok funkció hamarosan elérhető lesz.');
+    Alert.alert(t('faq.soonTitle'), t('faq.soonBody'));
   };
 
   const handleNavigateToTicket = () => {
@@ -122,7 +122,7 @@ export default function FAQScreen() {
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => fetchData()} activeOpacity={0.7}>
           <Ionicons name="refresh-outline" size={18} color={colors.white} />
-          <Text style={styles.retryButtonText}>Újrapróbálás</Text>
+          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -136,7 +136,7 @@ export default function FAQScreen() {
           <Ionicons name="search-outline" size={18} color={colors.textLight} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Keresés a kérdések között..."
+            placeholder={t('faq.search')}
             placeholderTextColor={colors.textLight}
             value={search}
             onChangeText={setSearch}
@@ -159,13 +159,13 @@ export default function FAQScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <Text style={styles.headerTitle}>Gyakran Ismételt Kérdések (FAQ)</Text>
+        <Text style={styles.headerTitle}>{t('faq.title')}</Text>
 
         {visibleCategories.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>Nincs találat</Text>
-            <Text style={styles.emptySubtitle}>Próbáljon más keresőkifejezést</Text>
+            <Text style={styles.emptyTitle}>{t('common.noResults')}</Text>
+            <Text style={styles.emptySubtitle}>{t('faq.tryOther')}</Text>
           </View>
         ) : (
           visibleCategories.map((category) => {
@@ -189,7 +189,7 @@ export default function FAQScreen() {
                     <View style={styles.categoryInfo}>
                       <Text style={styles.categoryName}>{category.name}</Text>
                       <Text style={styles.categoryCount}>
-                        {catEntries.length} kérdés
+                        {t('faq.questionsCount', { count: catEntries.length })}
                       </Text>
                     </View>
                   </View>
@@ -204,7 +204,7 @@ export default function FAQScreen() {
                 {isExpanded && (
                   <View style={styles.entriesContainer}>
                     {catEntries.length === 0 ? (
-                      <Text style={styles.noEntriesText}>Nincs kérdés ebben a kategóriában.</Text>
+                      <Text style={styles.noEntriesText}>{t('faq.noQuestions')}</Text>
                     ) : (
                       catEntries.map((entry) => (
                         <View key={entry.id} style={styles.entryCard}>
@@ -235,7 +235,7 @@ export default function FAQScreen() {
                                   onPress={() => {}}
                                 >
                                   <Text style={styles.textButtonIcon}>📖</Text>
-                                  <Text style={styles.textButtonLabel}>Szöveg</Text>
+                                  <Text style={styles.textButtonLabel}>{t('faq.text')}</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
@@ -244,7 +244,7 @@ export default function FAQScreen() {
                                   onPress={handleVideoPress}
                                 >
                                   <Text style={styles.textButtonIcon}>🎥</Text>
-                                  <Text style={[styles.textButtonLabel, styles.videoLabelDisabled]}>Videó</Text>
+                                  <Text style={[styles.textButtonLabel, styles.videoLabelDisabled]}>{t('faq.video')}</Text>
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -261,7 +261,7 @@ export default function FAQScreen() {
 
         {/* Ticket creation CTA */}
         <View style={styles.ctaSection}>
-          <Text style={styles.ctaText}>Nem találod a választ?</Text>
+          <Text style={styles.ctaText}>{t('faq.cta')}</Text>
           <TouchableOpacity
             style={styles.ctaButton}
             onPress={handleNavigateToTicket}

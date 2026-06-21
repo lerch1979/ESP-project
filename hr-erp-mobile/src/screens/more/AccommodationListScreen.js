@@ -13,10 +13,10 @@ import ErrorState from '../../components/ErrorState';
 import EmptyState from '../../components/EmptyState';
 
 const statusFilters = [
-  { label: 'Mind', value: null },
-  { label: 'Szabad', value: 'available' },
-  { label: 'Foglalt', value: 'occupied' },
-  { label: 'Karbantartás', value: 'maintenance' },
+  { labelKey: 'common.all', value: null },
+  { labelKey: 'accStatus.available', value: 'available' },
+  { labelKey: 'accStatus.occupied', value: 'occupied' },
+  { labelKey: 'accStatus.maintenance', value: 'maintenance' },
 ];
 
 export default function AccommodationListScreen({ navigation }) {
@@ -63,7 +63,7 @@ export default function AccommodationListScreen({ navigation }) {
         setHasMore(pageNum < response.data.pagination.totalPages);
         setPage(pageNum);
       } catch {
-        setError(resident ? t('roomView.loadError') : 'Nem sikerült betölteni a szálláshelyeket');
+        setError(resident ? t('roomView.loadError') : t('common.errorOccurred'));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -99,8 +99,8 @@ export default function AccommodationListScreen({ navigation }) {
     <View style={styles.container}>
       {!resident && (
         <>
-          <SearchBar placeholder="Szálláshely keresése..." onSearch={setSearch} />
-          <FilterChips options={statusFilters} selected={statusFilter} onSelect={setStatusFilter} />
+          <SearchBar placeholder={t('accommodation.search')} onSearch={setSearch} />
+          <FilterChips options={statusFilters.map((s) => ({ label: t(s.labelKey), value: s.value }))} selected={statusFilter} onSelect={setStatusFilter} />
         </>
       )}
       <FlatList
@@ -117,7 +117,7 @@ export default function AccommodationListScreen({ navigation }) {
         }
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
-        ListEmptyComponent={<EmptyState icon="home-outline" message={resident ? t('roomView.empty') : 'Nincs találat'} />}
+        ListEmptyComponent={<EmptyState icon="home-outline" message={resident ? t('roomView.empty') : t('common.noResults')} />}
         contentContainerStyle={accommodations.length === 0 && styles.emptyContainer}
       />
     </View>

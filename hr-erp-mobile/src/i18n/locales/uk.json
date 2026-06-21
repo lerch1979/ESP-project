@@ -54,7 +54,11 @@
     "statusClosed": "Розмову закрито",
     "lblActive": "Активна",
     "lblEscalated": "Передано",
-    "lblClosed": "Закрито"
+    "lblClosed": "Закрито",
+    "convTitle": "Розмова",
+    "msgCount": "{{count}} повідомлень",
+    "noConv": "Немає розмов",
+    "startNewSub": "Почніть нову розмову з чат-ботом!"
   },
   "category": {
     "viz-csotores": "Вода/протікання",
@@ -284,7 +288,9 @@
     "low": "Низький",
     "medium": "Середній",
     "high": "Високий",
-    "critical": "Критичний"
+    "critical": "Критичний",
+    "searchPlaceholder": "Пошук...",
+    "noResults": "Немає результатів"
   },
   "calendar": {
     "title": "Календар",
@@ -339,5 +345,71 @@
     "accommodation": "Житло",
     "video": "Відео",
     "assistant": "Чат-помічник"
+  },
+  "accType": {
+    "studio": "Студія",
+    "br1": "1 кімната",
+    "br2": "2 кімнати",
+    "br3": "3 кімнати",
+    "dormitory": "Гуртожиток"
+  },
+  "accStatus": {
+    "available": "Вільне",
+    "occupied": "Зайнято",
+    "maintenance": "На обслуговуванні"
+  },
+  "accommodation": {
+    "type": "Тип",
+    "capacity": "Місткість",
+    "people": "{{count}} осіб",
+    "monthlyRent": "Місячна оренда",
+    "currentContractor": "Поточний підрядник",
+    "notes": "Примітки",
+    "search": "Пошук житла..."
+  },
+  "videoCat": {
+    "all": "Усі",
+    "workSafety": "Безпека праці",
+    "integration": "Інтеграція",
+    "languageCourse": "Мовний курс",
+    "admin": "Адміністрація",
+    "professional": "Професійне навчання",
+    "companyInfo": "Про компанію"
+  },
+  "video": {
+    "search": "Пошук відео...",
+    "loadFailedList": "Не вдалося завантажити відео",
+    "loadFailedOne": "Не вдалося завантажити відео",
+    "notFound": "Відео не знайдено",
+    "watched": "Переглянуто"
+  },
+  "calEvent": {
+    "checkin": "Заїзд",
+    "checkout": "Виїзд",
+    "visa_expiry": "Закінчення візи",
+    "contract_expiry": "Закінчення договору",
+    "ticket_deadline": "Термін заявки",
+    "shift": "Зміна",
+    "medical_appointment": "Медичний огляд",
+    "personal_event": "Особиста подія"
+  },
+  "faq": {
+    "title": "Часті запитання (FAQ)",
+    "search": "Пошук у запитаннях...",
+    "tryOther": "Спробуйте інший запит",
+    "other": "Інше",
+    "questionsCount": "{{count}} запитань",
+    "noQuestions": "У цій категорії немає запитань.",
+    "text": "Текст",
+    "video": "Відео",
+    "cta": "Не знаходите відповідь?",
+    "searchInFaq": "Пошук у FAQ...",
+    "noCategories": "Немає доступних категорій",
+    "soonTitle": "Незабаром",
+    "soonBody": "Відеовідповіді скоро будуть доступні."
+  },
+  "ticket": {
+    "newTicket": "Нова заявка",
+    "detail": "Заявка"
   }
 }

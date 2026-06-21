@@ -1,15 +1,17 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
 
-const CATEGORY_LABELS = {
-  munkabiztonság: 'Munkabiztonság',
-  beilleszkedés: 'Beilleszkedés',
-  nyelvi_kurzus: 'Nyelvi kurzus',
-  adminisztráció: 'Adminisztráció',
-  szakmai_kepzes: 'Szakmai képzés',
-  ceg_info: 'Céginformáció',
+// Shared video-category slug → i18n key map (reused by VideoList/VideoDetail).
+export const VIDEO_CAT_KEY = {
+  'munkabiztonság': 'videoCat.workSafety',
+  'beilleszkedés': 'videoCat.integration',
+  nyelvi_kurzus: 'videoCat.languageCourse',
+  'adminisztráció': 'videoCat.admin',
+  szakmai_kepzes: 'videoCat.professional',
+  ceg_info: 'videoCat.companyInfo',
 };
 
 const CATEGORY_COLORS = {
@@ -36,6 +38,7 @@ function getYouTubeThumbnail(url) {
 }
 
 export default function VideoCard({ video, onPress }) {
+  const { t } = useTranslation();
   const thumbnail = video.thumbnail_url || getYouTubeThumbnail(video.url);
   const catColor = CATEGORY_COLORS[video.category] || '#94a3b8';
 
@@ -63,7 +66,7 @@ export default function VideoCard({ video, onPress }) {
         <View style={styles.meta}>
           <View style={[styles.categoryChip, { backgroundColor: catColor + '18' }]}>
             <Text style={[styles.categoryText, { color: catColor }]}>
-              {CATEGORY_LABELS[video.category] || video.category}
+              {VIDEO_CAT_KEY[video.category] ? t(VIDEO_CAT_KEY[video.category]) : video.category}
             </Text>
           </View>
           <View style={styles.viewCount}>

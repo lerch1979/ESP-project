@@ -54,7 +54,11 @@
     "statusClosed": "Sarado na ang usapan",
     "lblActive": "Aktibo",
     "lblEscalated": "Na-escalate",
-    "lblClosed": "Sarado"
+    "lblClosed": "Sarado",
+    "convTitle": "Usapan",
+    "msgCount": "{{count}} mensahe",
+    "noConv": "Walang usapan",
+    "startNewSub": "Magsimula ng bagong usapan sa chatbot!"
   },
   "category": {
     "viz-csotores": "Tubig/tagas",
@@ -284,7 +288,9 @@
     "low": "Mababa",
     "medium": "Katamtaman",
     "high": "Mataas",
-    "critical": "Kritikal"
+    "critical": "Kritikal",
+    "searchPlaceholder": "Maghanap...",
+    "noResults": "Walang resulta"
   },
   "calendar": {
     "title": "Kalendaryo",
@@ -339,5 +345,71 @@
     "accommodation": "Tirahan",
     "video": "Video",
     "assistant": "Chatbot Assistant"
+  },
+  "accType": {
+    "studio": "Studio",
+    "br1": "1 kwarto",
+    "br2": "2 kwarto",
+    "br3": "3 kwarto",
+    "dormitory": "Dormitoryo"
+  },
+  "accStatus": {
+    "available": "Bakante",
+    "occupied": "Okupado",
+    "maintenance": "May maintenance"
+  },
+  "accommodation": {
+    "type": "Uri",
+    "capacity": "Kapasidad",
+    "people": "{{count}} tao",
+    "monthlyRent": "Buwanang upa",
+    "currentContractor": "Kasalukuyang kontratista",
+    "notes": "Mga tala",
+    "search": "Maghanap ng tirahan..."
+  },
+  "videoCat": {
+    "all": "Lahat",
+    "workSafety": "Kaligtasan sa trabaho",
+    "integration": "Pag-angkop",
+    "languageCourse": "Kursong wika",
+    "admin": "Administrasyon",
+    "professional": "Propesyonal na pagsasanay",
+    "companyInfo": "Impormasyon ng kumpanya"
+  },
+  "video": {
+    "search": "Maghanap ng video...",
+    "loadFailedList": "Nabigong i-load ang mga video",
+    "loadFailedOne": "Nabigong i-load ang video",
+    "notFound": "Hindi nakita ang video",
+    "watched": "Napanood na"
+  },
+  "calEvent": {
+    "checkin": "Check-in",
+    "checkout": "Check-out",
+    "visa_expiry": "Pag-expire ng visa",
+    "contract_expiry": "Pag-expire ng kontrata",
+    "ticket_deadline": "Deadline ng ticket",
+    "shift": "Shift",
+    "medical_appointment": "Medikal na appointment",
+    "personal_event": "Personal na kaganapan"
+  },
+  "faq": {
+    "title": "Mga Madalas Itanong (FAQ)",
+    "search": "Maghanap sa mga tanong...",
+    "tryOther": "Sumubok ng ibang termino",
+    "other": "Iba pa",
+    "questionsCount": "{{count}} tanong",
+    "noQuestions": "Walang tanong sa kategoryang ito.",
+    "text": "Teksto",
+    "video": "Video",
+    "cta": "Hindi mahanap ang sagot?",
+    "searchInFaq": "Maghanap sa FAQ...",
+    "noCategories": "Walang available na kategorya",
+    "soonTitle": "Malapit na",
+    "soonBody": "Malapit nang available ang mga video na sagot."
+  },
+  "ticket": {
+    "newTicket": "Bagong ticket",
+    "detail": "Ticket"
   }
 }

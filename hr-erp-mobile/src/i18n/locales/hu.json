@@ -54,7 +54,11 @@
     "statusClosed": "Beszélgetés lezárva",
     "lblActive": "Aktív",
     "lblEscalated": "Eszkalált",
-    "lblClosed": "Lezárt"
+    "lblClosed": "Lezárt",
+    "convTitle": "Beszélgetés",
+    "msgCount": "{{count}} üzenet",
+    "noConv": "Nincs beszélgetés",
+    "startNewSub": "Indítson új beszélgetést a chatbottal!"
   },
   "category": {
     "viz-csotores": "Víz/csőtörés",
@@ -284,7 +288,9 @@
     "low": "Alacsony",
     "medium": "Közepes",
     "high": "Magas",
-    "critical": "Kritikus"
+    "critical": "Kritikus",
+    "searchPlaceholder": "Keresés...",
+    "noResults": "Nincs találat"
   },
   "calendar": {
     "title": "Naptár",
@@ -339,5 +345,71 @@
     "accommodation": "Szálláshely",
     "video": "Videó",
     "assistant": "Chatbot Asszisztens"
+  },
+  "accType": {
+    "studio": "Stúdió",
+    "br1": "1 szobás",
+    "br2": "2 szobás",
+    "br3": "3 szobás",
+    "dormitory": "Munkásszálló"
+  },
+  "accStatus": {
+    "available": "Szabad",
+    "occupied": "Foglalt",
+    "maintenance": "Karbantartás alatt"
+  },
+  "accommodation": {
+    "type": "Típus",
+    "capacity": "Kapacitás",
+    "people": "{{count}} fő",
+    "monthlyRent": "Havi bérleti díj",
+    "currentContractor": "Jelenlegi alvállalkozó",
+    "notes": "Megjegyzések",
+    "search": "Szálláshely keresése..."
+  },
+  "videoCat": {
+    "all": "Összes",
+    "workSafety": "Munkabiztonság",
+    "integration": "Beilleszkedés",
+    "languageCourse": "Nyelvi kurzus",
+    "admin": "Adminisztráció",
+    "professional": "Szakmai képzés",
+    "companyInfo": "Céginformáció"
+  },
+  "video": {
+    "search": "Keresés videók között...",
+    "loadFailedList": "Videók betöltése sikertelen",
+    "loadFailedOne": "Videó betöltése sikertelen",
+    "notFound": "Videó nem található",
+    "watched": "Megtekintve"
+  },
+  "calEvent": {
+    "checkin": "Bejelentkezés",
+    "checkout": "Kijelentkezés",
+    "visa_expiry": "Vízum lejárat",
+    "contract_expiry": "Szerződés lejárat",
+    "ticket_deadline": "Jegy határidő",
+    "shift": "Műszak",
+    "medical_appointment": "Orvosi vizsgálat",
+    "personal_event": "Személyes esemény"
+  },
+  "faq": {
+    "title": "Gyakran Ismételt Kérdések (FAQ)",
+    "search": "Keresés a kérdések között...",
+    "tryOther": "Próbáljon más keresőkifejezést",
+    "other": "Egyéb",
+    "questionsCount": "{{count}} kérdés",
+    "noQuestions": "Nincs kérdés ebben a kategóriában.",
+    "text": "Szöveg",
+    "video": "Videó",
+    "cta": "Nem találod a választ?",
+    "searchInFaq": "Keresés a GYIK-ben...",
+    "noCategories": "Nincs elérhető kategória",
+    "soonTitle": "Hamarosan",
+    "soonBody": "A videós válaszok funkció hamarosan elérhető lesz."
+  },
+  "ticket": {
+    "newTicket": "Új hibajegy",
+    "detail": "Hibajegy"
   }
 }

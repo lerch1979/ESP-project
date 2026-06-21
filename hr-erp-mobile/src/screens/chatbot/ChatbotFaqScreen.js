@@ -4,11 +4,13 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chatbotAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import FaqCategoryCard from '../../components/FaqCategoryCard';
 
 export default function ChatbotFaqScreen() {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState([]);
   const [entries, setEntries] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -100,7 +102,7 @@ export default function ChatbotFaqScreen() {
           <Ionicons name="search-outline" size={18} color={colors.textLight} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Keresés a kérdések között..."
+            placeholder={t('faq.search')}
             placeholderTextColor={colors.textLight}
             value={search}
             onChangeText={setSearch}
@@ -145,8 +147,8 @@ export default function ChatbotFaqScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="search-outline" size={48} color={colors.textLight} />
-              <Text style={styles.emptyTitle}>Nincs találat</Text>
-              <Text style={styles.emptySubtitle}>Próbáljon más keresőkifejezést</Text>
+              <Text style={styles.emptyTitle}>{t('common.noResults')}</Text>
+              <Text style={styles.emptySubtitle}>{t('faq.tryOther')}</Text>
             </View>
           }
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
@@ -162,7 +164,7 @@ export default function ChatbotFaqScreen() {
         <Ionicons name="search-outline" size={18} color={colors.textLight} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Keresés a GYIK-ben..."
+          placeholder={t('faq.searchInFaq')}
           placeholderTextColor={colors.textLight}
           value={search}
           onChangeText={setSearch}
@@ -183,7 +185,7 @@ export default function ChatbotFaqScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="help-circle-outline" size={48} color={colors.textLight} />
-            <Text style={styles.emptyTitle}>Nincs elérhető kategória</Text>
+            <Text style={styles.emptyTitle}>{t('faq.noCategories')}</Text>
           </View>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
