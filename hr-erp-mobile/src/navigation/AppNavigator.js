@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
+import { getItem, setItem } from '../services/storage';
 import LoadingScreen from '../components/LoadingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -38,13 +38,13 @@ export default function AppNavigator() {
 
   useEffect(() => {
     if (!user) { setNeedsOnboarding(null); return; }
-    AsyncStorage.getItem(ONBOARDING_FLAG)
+    getItem(ONBOARDING_FLAG)
       .then((v) => setNeedsOnboarding(v !== '1'))
       .catch(() => setNeedsOnboarding(false));
   }, [user]);
 
   const finishOnboarding = () => {
-    AsyncStorage.setItem(ONBOARDING_FLAG, '1').catch(() => {});
+    setItem(ONBOARDING_FLAG, '1').catch(() => {});
     setNeedsOnboarding(false);
   };
 
