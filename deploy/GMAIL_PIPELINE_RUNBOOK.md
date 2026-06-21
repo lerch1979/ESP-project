@@ -115,3 +115,16 @@ The cron lives in `server.js` (gated on `GMAIL_POLLING_ENABLED===true && GMAIL_R
 Set `GMAIL_POLLING_ENABLED=false` (or remove it) in `.env.production` + restart backend.
 Logs: `📧 Gmail universal polling held off`. Nothing is deleted; drafts already
 converted stay in `accommodation_expenses`.
+
+---
+
+## Backlog — DO NOT build yet (gated on trust)
+**Relax the confirm step: auto-approve high-confidence classifications.** Once the
+rule/AI cost-center classifier is *proven reliable across many real invoices*,
+let drafts with `cost_center_confidence ≥ 0.70` auto-convert (or land pre-approved),
+and keep only low-confidence ones in human review. **Preconditions before building:**
+1. The human override (editable Költséghely in Convert, shipped 2026-06-21) must be
+   working and used in practice.
+2. Trust must build — review a meaningful sample of real invoices and confirm the
+   classifier's high-confidence picks are actually correct at that threshold.
+Not now. The override + a track record come first; only then revisit the threshold.
