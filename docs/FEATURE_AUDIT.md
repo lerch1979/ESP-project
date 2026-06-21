@@ -68,8 +68,8 @@
 ---
 
 ## Priority list (work through systematically)
-1. **Unhide the resident features** (mobile menu) — highest value, lowest effort. *(In progress — compliance-gated; see below.)*
-2. **Cost-tracking decision** — deprecate the dormant `cost_centers`/invoice pipeline or unify (the one real data-duplication risk).
+1. ✅ **Unhide resident features** (mobile menu) — DONE 2026-06-21 (chatbot+FAQ surfaced; docs/videos & health features correctly NOT surfaced). Rides next EAS build (batched — not built yet).
+2. 🔄 **Cost-tracking decision** — IN PROGRESS (2026-06-21). Recommendation: deprecate the dead **invoice-classification/OCR pipeline**, KEEP `cost_centers` as an active accounting taxonomy (used by accountant export + projects). See below + `ARCH_COST_TRACKING_OPTIONS.md`.
 3. **Task-management consolidation** — pick one of MyTasks / UnifiedTasks / GTD / AllTasks.
 4. **Delete the ~12 orphan services** + `BrunoTest`; wire or drop `admin/Workplaces`.
 5. **Promote the DRY-RUN payroll cron / confirm Gmail-poller disposition.**
@@ -83,7 +83,7 @@ Verified each hidden feature's resident endpoint before surfacing:
   - **Documents** (`/documents` requires `documents.view`)
   - **Videos** (`/videos` requires `videos.view`)
   - *(These looked harmless but aren't reachable by residents today — the quick check caught it.)*
-- 🛑 **FLAGGED — GDPR Art 9 / decide separately with the compliance lens:**
+- 🛑 **FLAGGED — GDPR Art 9 / decide separately with the compliance lens — ⏳ PENDING focused session (do NOT surface meanwhile):**
   - **WellMind / Wellbeing** — pulse (mood/stress/sleep), assessments → mental-health/special-category data. Same Art 9 gate as medical calendar events.
   - **CarePath** — care cases/providers/bookings → health-services data.
 - ⚠️ **FLAGGED — relevance/scope review:** Projects/Tasks (staff-oriented), Invoices (resident-own vs company scope), Google Calendar (staff OAuth — leave hidden).
