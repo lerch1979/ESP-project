@@ -96,7 +96,11 @@ export default function ResidentHomeScreen({ navigation }) {
             label={t('settings.profile')}
             onPress={() => navigation.navigate('More', { screen: 'Profile' })}
           />
-          <View style={styles.spacer} />
+          <ActionCard
+            icon="chatbubbles-outline"
+            label={t('resident.help')}
+            onPress={() => navigation.navigate('More', { screen: 'ChatbotChat' })}
+          />
         </View>
       </View>
       <View style={{ height: 24 }} />

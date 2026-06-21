@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import MoreMenuScreen from '../screens/more/MoreMenuScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import AccommodationListScreen from '../screens/more/AccommodationListScreen';
@@ -44,6 +45,7 @@ import { colors } from '../constants/colors';
 const Stack = createNativeStackNavigator();
 
 export default function MoreStackNavigator() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator
       screenOptions={{
@@ -52,20 +54,20 @@ export default function MoreStackNavigator() {
         headerTitleStyle: { fontWeight: '600' },
       }}
     >
-      <Stack.Screen name="MoreMenu" component={MoreMenuScreen} options={{ title: 'Tovabbiak' }} />
-      <Stack.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Naptar' }} />
-      <Stack.Screen name="AccommodationList" component={AccommodationListScreen} options={{ title: 'Szálláshelyek' }} />
-      <Stack.Screen name="AccommodationDetail" component={AccommodationDetailScreen} options={{ title: 'Szálláshely' }} />
+      <Stack.Screen name="MoreMenu" component={MoreMenuScreen} options={{ title: t('nav.more') }} />
+      <Stack.Screen name="Calendar" component={CalendarScreen} options={{ title: t('nav.calendar') }} />
+      <Stack.Screen name="AccommodationList" component={AccommodationListScreen} options={{ title: t('menu.accommodations') }} />
+      <Stack.Screen name="AccommodationDetail" component={AccommodationDetailScreen} options={{ title: t('screens.accommodation') }} />
       <Stack.Screen name="DocumentList" component={DocumentListScreen} options={{ title: 'Dokumentumok' }} />
       <Stack.Screen name="DocumentDetail" component={DocumentDetailScreen} options={{ title: 'Dokumentum' }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profil' }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t('menu.profile') }} />
       <Stack.Screen name="GoogleCalendar" component={GoogleCalendarScreen} options={{ title: 'Google Naptár' }} />
-      <Stack.Screen name="VideoList" component={VideoListScreen} options={{ title: 'Videók' }} />
-      <Stack.Screen name="VideoDetail" component={VideoDetailScreen} options={{ title: 'Videó' }} />
-      <Stack.Screen name="ChatbotList" component={ChatbotConversationListScreen} options={{ title: 'Chatbot' }} />
-      <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: 'Chatbot Asszisztens' }} />
-      <Stack.Screen name="ChatbotFaq" component={ChatbotFaqScreen} options={{ title: 'GYIK' }} />
-      <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: 'FAQ / GYIK' }} />
+      <Stack.Screen name="VideoList" component={VideoListScreen} options={{ title: t('menu.videos') }} />
+      <Stack.Screen name="VideoDetail" component={VideoDetailScreen} options={{ title: t('screens.video') }} />
+      <Stack.Screen name="ChatbotList" component={ChatbotConversationListScreen} options={{ title: t('menu.chatbot') }} />
+      <Stack.Screen name="ChatbotChat" component={ChatbotChatScreen} options={{ title: t('screens.assistant') }} />
+      <Stack.Screen name="ChatbotFaq" component={ChatbotFaqScreen} options={{ title: t('menu.faq') }} />
+      <Stack.Screen name="FAQ" component={FAQScreen} options={{ title: t('menu.faq') }} />
       <Stack.Screen name="Projects" component={ProjectListScreen} options={{ title: 'Projektek' }} />
       <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ title: 'Projekt' }} />
       <Stack.Screen name="MyTasks" component={TaskListScreen} options={{ title: 'Feladataim' }} />

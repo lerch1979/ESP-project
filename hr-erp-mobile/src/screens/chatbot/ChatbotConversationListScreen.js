@@ -3,16 +3,19 @@ import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chatbotAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
+import { localeTag } from '../../utils/locale';
 
 const STATUS_CONFIG = {
-  active: { label: 'Aktív', color: colors.success, icon: 'chatbubble-ellipses-outline' },
-  escalated: { label: 'Eszkalált', color: colors.warning, icon: 'alert-circle-outline' },
-  closed: { label: 'Lezárt', color: colors.textLight, icon: 'checkmark-circle-outline' },
+  active: { labelKey: 'chat.lblActive', color: colors.success, icon: 'chatbubble-ellipses-outline' },
+  escalated: { labelKey: 'chat.lblEscalated', color: colors.warning, icon: 'alert-circle-outline' },
+  closed: { labelKey: 'chat.lblClosed', color: colors.textLight, icon: 'checkmark-circle-outline' },
 };
 
 export default function ChatbotConversationListScreen({ navigation }) {
+  const { t, i18n } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,7 +27,7 @@ export default function ChatbotConversationListScreen({ navigation }) {
       const response = await chatbotAPI.getConversations({ limit: 50 });
       setConversations(response.data || []);
     } catch (err) {
-      setError('Nem sikerült betölteni a beszélgetéseket');
+      setError(t('chat.errLoad'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -54,14 +57,14 @@ export default function ChatbotConversationListScreen({ navigation }) {
         navigation.navigate('ChatbotChat', { conversationId: response.data.id });
       }
     } catch (err) {
-      setError('Nem sikerült új beszélgetést indítani');
+      setError(t('chat.errStart'));
     }
   };
 
   const renderItem = ({ item }) => {
     const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.active;
     const date = item.updated_at
-      ? new Date(item.updated_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      ? new Date(item.updated_at).toLocaleDateString(localeTag(i18n.language), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
       : '';
 
     return (
@@ -76,7 +79,7 @@ export default function ChatbotConversationListScreen({ navigation }) {
             <Text style={styles.title} numberOfLines={1}>{item.title || 'Beszélgetés'}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+            <Text style={[styles.statusText, { color: status.color }]}>{t(status.labelKey)}</Text>
           </View>
         </View>
         {item.last_message && (

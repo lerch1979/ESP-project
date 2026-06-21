@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
+import { localeTag } from '../utils/locale';
 
 export default function ChatbotBubble({
   message,
@@ -10,6 +12,7 @@ export default function ChatbotBubble({
   onFeedback,
   feedbackEnabled,
 }) {
+  const { i18n } = useTranslation();
   const { sender_type, message_type, content, metadata, created_at, helpful } = message;
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [localFeedback, setLocalFeedback] = useState(
@@ -21,7 +24,7 @@ export default function ChatbotBubble({
   const isBot = sender_type === 'bot';
 
   const time = created_at
-    ? new Date(created_at).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(created_at).toLocaleTimeString(localeTag(i18n.language), { hour: '2-digit', minute: '2-digit' })
     : '';
 
   const handleFeedback = async (isHelpful) => {

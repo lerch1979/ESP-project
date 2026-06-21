@@ -5,17 +5,19 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { chatbotAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 import ChatbotBubble from '../../components/ChatbotBubble';
 
 const MAX_CHARS = 500;
 
+// text resolved via t('chat.<key>') at render so quick-questions are localized.
 const QUICK_QUESTIONS = [
-  { id: 'q1', text: 'Hogyan kérhetek szabadságot?', icon: 'calendar-outline' },
-  { id: 'q2', text: 'Mikor kapom a fizetést?', icon: 'cash-outline' },
-  { id: 'q3', text: 'Kinek jelentsem a lakásproblémát?', icon: 'home-outline' },
-  { id: 'q4', text: 'Mik a közösségi szabályok?', icon: 'people-outline' },
+  { id: 'q1', key: 'q1', icon: 'calendar-outline' },
+  { id: 'q2', key: 'q2', icon: 'cash-outline' },
+  { id: 'q3', key: 'q3', icon: 'home-outline' },
+  { id: 'q4', key: 'q4', icon: 'people-outline' },
 ];
 
 const FAQ_ICON_MAP = {
@@ -31,7 +33,7 @@ const FAQ_ICON_MAP = {
   calendar: 'calendar-outline',
 };
 
-function TypingIndicator() {
+function TypingIndicator({ label }) {
   return (
     <View style={styles.typingRow}>
       <View style={styles.typingAvatar}>
@@ -39,13 +41,14 @@ function TypingIndicator() {
       </View>
       <View style={styles.typingBubble}>
         <ActivityIndicator size="small" color={colors.textSecondary} />
-        <Text style={styles.typingText}>Válasz írása...</Text>
+        <Text style={styles.typingText}>{label}</Text>
       </View>
     </View>
   );
 }
 
 export default function ChatbotChatScreen({ route, navigation }) {
+  const { t, i18n } = useTranslation();
   const conversationIdParam = route.params?.conversationId;
 
   const [conversationId, setConversationId] = useState(conversationIdParam || null);
@@ -67,7 +70,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
   useEffect(() => {
     const init = async () => {
       try {
-        const faqRes = await chatbotAPI.getFaqCategories();
+        const faqRes = await chatbotAPI.getFaqCategories({ lang: i18n.language });
         setFaqCategories(faqRes.data || []);
       } catch (err) {
         console.error('[Chatbot] Failed to load FAQ categories:', err);
@@ -85,7 +88,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           }
         } catch (err) {
           console.error('[Chatbot] Failed to create conversation:', err);
-          setError('Nem sikerült új beszélgetést indítani. Próbálja újra!');
+          setError(t('chat.errStart'));
         }
       }
       setLoading(false);
@@ -100,7 +103,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
       setMessages(response.data || []);
     } catch (err) {
       console.error('[Chatbot] Failed to load messages:', err);
-      setError('Nem sikerült betölteni az üzeneteket');
+      setError(t('chat.errLoad'));
     }
   };
 
@@ -141,7 +144,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         });
       }
     } catch (err) {
-      setError('Nem sikerült elküldeni az üzenetet. Próbálja újra!');
+      setError(t('chat.errSend'));
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
       setInputText(text); // Restore input so user can retry
     } finally {
@@ -150,7 +153,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
   };
 
   const handleQuickQuestion = (question) => {
-    handleSend(question.text);
+    handleSend(t(`chat.${question.key}`));
   };
 
   const handleFaqChipPress = async (category) => {
@@ -181,7 +184,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         });
       }
     } catch (err) {
-      setError('Nem sikerült feldolgozni a választást');
+      setError(t('chat.errOption'));
     } finally {
       setSending(false);
     }
@@ -210,7 +213,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         });
       }
     } catch (err) {
-      setError('Nem sikerült feldolgozni a javaslatot');
+      setError(t('chat.errSuggestion'));
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
     } finally {
       setSending(false);
@@ -223,12 +226,12 @@ export default function ChatbotChatScreen({ route, navigation }) {
       // If not helpful, offer to escalate
       if (!helpful && conversationStatus === 'active') {
         Alert.alert(
-          'Sajnáljuk!',
-          'Szeretne hibajegyet létrehozni, hogy egy munkatársunk segítsen?',
+          t('chat.sorryTitle'),
+          t('chat.sorryBody'),
           [
-            { text: 'Nem', style: 'cancel' },
+            { text: t('common.no'), style: 'cancel' },
             {
-              text: 'Hibajegy létrehozása',
+              text: t('chat.createTicket'),
               onPress: () => handleEscalate(),
             },
           ]
@@ -242,22 +245,22 @@ export default function ChatbotChatScreen({ route, navigation }) {
 
   const handleEscalate = () => {
     Alert.alert(
-      'Beszélj emberrel',
-      'Szeretné továbbítani a kérdését egy munkatársunknak? Automatikusan hibajegy jön létre.',
+      t('chat.escalateTitle'),
+      t('chat.escalateBody'),
       [
-        { text: 'Mégse', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Továbbítás',
+          text: t('chat.forward'),
           onPress: async () => {
             try {
               const response = await chatbotAPI.escalateConversation(conversationId);
               if (response.success) {
                 setConversationStatus('escalated');
                 fetchMessages(conversationId);
-                Alert.alert('Sikeres', `Hibajegy létrehozva: ${response.data.ticketNumber}`);
+                Alert.alert(t('chat.successTitle'), t('chat.escalatedToast', { number: response.data.ticketNumber }));
               }
             } catch (err) {
-              setError('Nem sikerült az eszkaláció');
+              setError(t('chat.errEscalate'));
             }
           },
         },
@@ -267,12 +270,12 @@ export default function ChatbotChatScreen({ route, navigation }) {
 
   const handleClose = () => {
     Alert.alert(
-      'Beszélgetés lezárása',
-      'Biztosan le szeretné zárni a beszélgetést?',
+      t('chat.closeTitle'),
+      t('chat.closeBody'),
       [
-        { text: 'Mégse', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Lezárás',
+          text: t('chat.closeAction'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -280,7 +283,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
               setConversationStatus('closed');
               fetchMessages(conversationId);
             } catch (err) {
-              setError('Nem sikerült lezárni a beszélgetést');
+              setError(t('chat.errClose'));
             }
           },
         },
@@ -299,7 +302,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
         }
         setLoading(false);
       }).catch(() => {
-        setError('Nem sikerült újra csatlakozni');
+        setError(t('chat.errReconnect'));
         setLoading(false);
       });
     } else {
@@ -351,7 +354,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Betöltés...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -369,14 +372,14 @@ export default function ChatbotChatScreen({ route, navigation }) {
             <View style={styles.welcomeIcon}>
               <Ionicons name="chatbubble-ellipses" size={32} color={colors.info} />
             </View>
-            <Text style={styles.welcomeTitle}>Szia! Miben segíthetek?</Text>
+            <Text style={styles.welcomeTitle}>{t('chat.welcomeTitle')}</Text>
             <Text style={styles.welcomeSubtitle}>
-              Válaszolj gyorsan a leggyakoribb kérdésekre, vagy írj saját kérdést!
+              {t('chat.welcomeSubtitle')}
             </Text>
           </View>
 
           {/* Quick questions */}
-          <Text style={styles.quickTitle}>Gyors kérdések</Text>
+          <Text style={styles.quickTitle}>{t('chat.quickQuestions')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -390,7 +393,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
                 activeOpacity={0.7}
               >
                 <Ionicons name={q.icon} size={20} color={colors.info} />
-                <Text style={styles.quickText} numberOfLines={2}>{q.text}</Text>
+                <Text style={styles.quickText} numberOfLines={2}>{t(`chat.${q.key}`)}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -398,7 +401,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           {/* FAQ category chips */}
           {faqCategories.length > 0 && (
             <>
-              <Text style={styles.quickTitle}>Kategóriák</Text>
+              <Text style={styles.quickTitle}>{t('chat.categories')}</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -439,11 +442,11 @@ export default function ChatbotChatScreen({ route, navigation }) {
             messages.length === 0 && styles.emptyMessageList,
           ]}
           keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={sending ? <TypingIndicator /> : null}
+          ListHeaderComponent={sending ? <TypingIndicator label={t('chat.typing')} /> : null}
           ListEmptyComponent={
             <View style={styles.emptyChat}>
               <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.textLight} />
-              <Text style={styles.emptyChatText}>Kezdd el a beszélgetést!</Text>
+              <Text style={styles.emptyChatText}>{t('chat.start')}</Text>
             </View>
           }
         />
@@ -474,7 +477,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           activeOpacity={0.7}
         >
           <Ionicons name="person-outline" size={18} color={colors.warning} />
-          <Text style={styles.escalateText}>Beszélj emberrel</Text>
+          <Text style={styles.escalateText}>{t('chat.talkToHuman')}</Text>
         </TouchableOpacity>
       )}
 
@@ -485,7 +488,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={handleRetry} style={styles.retryButton}>
             <Ionicons name="refresh-outline" size={16} color={colors.info} />
-            <Text style={styles.retryText}>Újra</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -496,7 +499,7 @@ export default function ChatbotChatScreen({ route, navigation }) {
           <TextInput
             ref={inputRef}
             style={styles.textInput}
-            placeholder="Írj egy üzenetet..."
+            placeholder={t('chat.placeholder')}
             placeholderTextColor={colors.textLight}
             value={inputText}
             onChangeText={(text) => setInputText(text.slice(0, MAX_CHARS))}
@@ -539,8 +542,8 @@ export default function ChatbotChatScreen({ route, navigation }) {
           />
           <Text style={styles.closedText}>
             {conversationStatus === 'escalated'
-              ? 'Beszélgetés eszkalálva - hibajegy létrehozva'
-              : 'Beszélgetés lezárva'}
+              ? t('chat.statusEscalated')
+              : t('chat.statusClosed')}
           </Text>
         </View>
       )}

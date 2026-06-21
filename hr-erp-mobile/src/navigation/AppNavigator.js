@@ -1,12 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingScreen from '../components/LoadingScreen';
 import LoginScreen from '../screens/LoginScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import MainTabNavigator from './MainTabNavigator';
 import { routeForNotification } from '../services/push';
+
+const ONBOARDING_FLAG = 'hasSeenOnboarding';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -29,6 +33,20 @@ function navigateFromData(data, attempt = 0) {
 
 export default function AppNavigator() {
   const { user, isLoading } = useAuth();
+  // null = not yet determined; true/false once the flag is read.
+  const [needsOnboarding, setNeedsOnboarding] = useState(null);
+
+  useEffect(() => {
+    if (!user) { setNeedsOnboarding(null); return; }
+    AsyncStorage.getItem(ONBOARDING_FLAG)
+      .then((v) => setNeedsOnboarding(v !== '1'))
+      .catch(() => setNeedsOnboarding(false));
+  }, [user]);
+
+  const finishOnboarding = () => {
+    AsyncStorage.setItem(ONBOARDING_FLAG, '1').catch(() => {});
+    setNeedsOnboarding(false);
+  };
 
   useEffect(() => {
     // Tapped while the app is running/backgrounded.
@@ -42,17 +60,23 @@ export default function AppNavigator() {
     return () => sub.remove();
   }, []);
 
-  if (isLoading) {
+  // Wait for auth, and (once logged in) for the onboarding flag, to avoid a
+  // flash of Main before the welcome.
+  if (isLoading || (user && needsOnboarding === null)) {
     return <LoadingScreen />;
   }
 
   return (
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <Stack.Screen name="Main" component={MainTabNavigator} />
-        ) : (
+        {!user ? (
           <Stack.Screen name="Login" component={LoginScreen} />
+        ) : needsOnboarding ? (
+          <Stack.Screen name="Onboarding">
+            {(props) => <OnboardingScreen {...props} onDone={finishOnboarding} />}
+          </Stack.Screen>
+        ) : (
+          <Stack.Screen name="Main" component={MainTabNavigator} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
