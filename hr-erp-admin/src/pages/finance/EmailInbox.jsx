@@ -18,7 +18,7 @@ import {
   Warning as WarningIcon, Send as SendIcon,
   Inbox as InboxIcon,
 } from '@mui/icons-material';
-import { invoiceDraftsAPI, costCentersAPI, emailInboxAPI } from '../../services/api';
+import { invoiceDraftsAPI, costCentersAPI, emailInboxAPI, accommodationsAPI } from '../../services/api';
 import { toast } from 'react-toastify';
 import DraftReviewModal from '../../components/finance/DraftReviewModal';
 import DocumentReviewModal from '../../components/finance/DocumentReviewModal';
@@ -29,6 +29,7 @@ import DocumentReviewModal from '../../components/finance/DocumentReviewModal';
 
 const DRAFT_STATUSES = {
   pending: { label: 'Jóváhagyásra vár', color: 'warning', icon: <PendingIcon fontSize="small" /> },
+  converted: { label: 'Konvertálva', color: 'info', icon: <ApprovedIcon fontSize="small" /> },
   approved: { label: 'Jóváhagyva', color: 'success', icon: <ApprovedIcon fontSize="small" /> },
   rejected: { label: 'Elutasítva', color: 'error', icon: <RejectedIcon fontSize="small" /> },
   ocr_failed: { label: 'OCR sikertelen', color: 'default', icon: <FailedIcon fontSize="small" /> },
@@ -108,6 +109,7 @@ export default function EmailInbox() {
   const [draftStats, setDraftStats] = useState(null);
   const [costCenters, setCostCenters] = useState([]);
   const [costCenterTree, setCostCenterTree] = useState([]);
+  const [accommodations, setAccommodations] = useState([]);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewDraft, setReviewDraft] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -140,12 +142,15 @@ export default function EmailInbox() {
 
   const loadLookups = useCallback(async () => {
     try {
-      const [ccRes, treeRes] = await Promise.all([
+      const [ccRes, treeRes, accRes] = await Promise.all([
         costCentersAPI.getAll({ limit: 500 }),
         costCentersAPI.getTree({ is_active: 'true' }),
+        accommodationsAPI.getAll({ limit: 500 }),
       ]);
       if (ccRes.success) setCostCenters(ccRes.data);
       if (treeRes.success) setCostCenterTree(treeRes.data);
+      const accs = accRes?.accommodations || accRes?.data?.accommodations || accRes?.data || [];
+      setAccommodations(Array.isArray(accs) ? accs : []);
     } catch (e) { /* silent */ }
   }, []);
 
@@ -300,12 +305,14 @@ export default function EmailInbox() {
     finally { setDraftUploading(false); if (draftFileRef.current) draftFileRef.current.value = ''; }
   };
 
-  const handleApprove = async (id, data) => {
+  // Convert IS the approval: confirm accommodation + category + cost center,
+  // then it lands in accommodation_expenses (replaces the retired approve()).
+  const handleConvert = async (id, data) => {
     setReviewLoading(true);
     try {
-      const res = await invoiceDraftsAPI.approve(id, data);
-      if (res.success) { toast.success('Számla jóváhagyva'); setReviewOpen(false); loadDrafts(); loadDraftStats(); }
-    } catch (e) { toast.error(e.response?.data?.message || 'Hiba a jóváhagyás során'); }
+      const res = await invoiceDraftsAPI.convert(id, data);
+      if (res.success) { toast.success('Számla konvertálva költséggé'); setReviewOpen(false); loadDrafts(); loadDraftStats(); }
+    } catch (e) { toast.error(e.response?.data?.message || 'Hiba a konvertálás során'); }
     finally { setReviewLoading(false); }
   };
 
@@ -535,7 +542,8 @@ export default function EmailInbox() {
           </Paper>
 
           <DraftReviewModal open={reviewOpen} onClose={() => setReviewOpen(false)} draft={reviewDraft}
-            onApprove={handleApprove} onReject={handleReject} onReOCR={handleReOCR} onUpdate={handleDraftUpdate}
+            onConvert={handleConvert} onReject={handleReject} onReOCR={handleReOCR} onUpdate={handleDraftUpdate}
+            accommodations={accommodations}
             costCenters={costCenters} costCenterTree={costCenterTree} loading={reviewLoading} />
         </>
       )}

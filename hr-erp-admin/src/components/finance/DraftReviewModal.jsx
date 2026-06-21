@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Chip, Link, TextField, Stack, Divider, Alert,
+  Button, Chip, Link, TextField, MenuItem, Stack, Divider, Alert,
   CircularProgress, LinearProgress, Tooltip, IconButton,
 } from '@mui/material';
 import {
@@ -23,6 +23,14 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('hu-HU');
 };
+
+// Expense categories — mirrors accommodation_expenses.category (see Billing.jsx).
+const CONVERT_CATEGORIES = [
+  { value: 'rezsi',        label: 'Rezsi' },
+  { value: 'karbantartas', label: 'Karbantartás' },
+  { value: 'takaritas',    label: 'Takarítás' },
+  { value: 'egyeb',        label: 'Egyéb' },
+];
 
 function Field({ label, value, fullWidth }) {
   return (
@@ -65,13 +73,19 @@ function FilePreview({ filePath }) {
 }
 
 export default function DraftReviewModal({
-  open, onClose, draft, onApprove, onReject, onReOCR, onUpdate,
-  costCenters = [], costCenterTree = [], loading = false,
+  open, onClose, draft, onReject, onReOCR, onUpdate, onConvert,
+  accommodations = [], costCenters = [], costCenterTree = [], loading = false,
 }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [costCenterId, setCostCenterId] = useState('');
+  // Fields required to convert the draft into an accommodation_expenses row.
+  const [convertForm, setConvertForm] = useState({
+    accommodation_id: '', category: 'rezsi', billing_month: '',
+    performance_date: '', amount: '', vat_rate: '27',
+  });
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     if (draft) {
@@ -88,6 +102,16 @@ export default function DraftReviewModal({
         description: draft.description || '',
       });
       setCostCenterId(draft.suggestedCostCenter?.id || '');
+      const perfRaw = draft.performanceDate || draft.invoiceDate;
+      const perfISO = perfRaw ? String(perfRaw).substring(0, 10) : '';
+      setConvertForm({
+        accommodation_id: '',
+        category: 'rezsi',
+        billing_month: perfISO ? perfISO.substring(0, 7) : '',
+        performance_date: perfISO,
+        amount: draft.grossAmount ?? '',
+        vat_rate: '27',
+      });
       setEditing(false);
     }
   }, [draft, open]);
@@ -96,6 +120,7 @@ export default function DraftReviewModal({
 
   const isPending = draft.status === 'pending';
   const isFailed = draft.status === 'ocr_failed';
+  const isConverted = draft.status === 'converted' || draft.status === 'approved';
   const canEdit = isPending || isFailed;
   const confidence = draft.costCenterConfidence;
 
@@ -121,9 +146,32 @@ export default function DraftReviewModal({
     }
   };
 
-  const handleApprove = () => {
-    onApprove(draft.id, { costCenterId: costCenterId || undefined });
+  // Convert IS the approval step: the human confirms accommodation +
+  // category + cost center here, and it lands in accommodation_expenses
+  // (the cost source for the billing/margin model). Replaces the retired
+  // approve() path (which fed the dormant invoices table → HTTP 410).
+  const handleConvert = async () => {
+    setConverting(true);
+    try {
+      await onConvert(draft.id, {
+        accommodation_id: convertForm.accommodation_id,
+        category: convertForm.category,
+        billing_month: convertForm.billing_month || null,
+        performance_date: convertForm.performance_date || null,
+        amount: convertForm.amount === '' ? null : Number(convertForm.amount),
+        vat_rate: convertForm.vat_rate === '' ? null : Number(convertForm.vat_rate),
+        cost_center_id: costCenterId || null,
+        notes: form.description || null,
+      });
+    } finally {
+      setConverting(false);
+    }
   };
+
+  const convertReady = !!convertForm.accommodation_id
+    && !!convertForm.category
+    && convertForm.amount !== '' && Number(convertForm.amount) > 0
+    && (!!convertForm.billing_month || !!convertForm.performance_date);
 
   const confidenceColor = confidence >= 70 ? '#10b981' : confidence >= 40 ? '#f59e0b' : '#ef4444';
 
@@ -136,10 +184,13 @@ export default function DraftReviewModal({
           <Box sx={{ flex: 1 }} />
           <Chip
             label={draft.status === 'pending' ? 'Jóváhagyásra vár' :
+              draft.status === 'converted' ? 'Konvertálva' :
               draft.status === 'approved' ? 'Jóváhagyva' :
-              draft.status === 'rejected' ? 'Elutasítva' : 'OCR sikertelen'}
+              draft.status === 'rejected' ? 'Elutasítva' :
+              draft.status === 'ocr_failed' ? 'OCR sikertelen' : draft.status}
             size="small"
             color={draft.status === 'pending' ? 'warning' :
+              draft.status === 'converted' ? 'info' :
               draft.status === 'approved' ? 'success' :
               draft.status === 'rejected' ? 'error' : 'default'}
           />
@@ -302,6 +353,75 @@ export default function DraftReviewModal({
                 </Box>
               )}
             </Box>
+
+            {/* Convert → accommodation_expenses. The accommodation + category
+                are required by the cost model; the cost center above carries
+                the (overridable) AI pick. Confirming here = approving. */}
+            {isPending && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#15803d', mb: 1.5 }}>
+                  Konvertálás költséggé
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                  <TextField
+                    select size="small" required label="Szállás"
+                    value={convertForm.accommodation_id}
+                    onChange={(e) => setConvertForm({ ...convertForm, accommodation_id: e.target.value })}
+                    sx={{ gridColumn: '1 / -1' }}
+                  >
+                    {accommodations.map((a) => (
+                      <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    select size="small" required label="Kategória"
+                    value={convertForm.category}
+                    onChange={(e) => setConvertForm({ ...convertForm, category: e.target.value })}
+                  >
+                    {CONVERT_CATEGORIES.map((c) => (
+                      <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    size="small" required label="Bruttó összeg (Ft)" type="number"
+                    inputProps={{ min: 0, step: 1 }}
+                    value={convertForm.amount}
+                    onChange={(e) => setConvertForm({ ...convertForm, amount: e.target.value })}
+                  />
+                  <TextField
+                    size="small" label="Teljesítés dátum" type="date"
+                    value={convertForm.performance_date}
+                    onChange={(e) => setConvertForm({ ...convertForm, performance_date: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small" label="Számlázási hónap" type="month"
+                    value={convertForm.billing_month}
+                    onChange={(e) => setConvertForm({ ...convertForm, billing_month: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    select size="small" label="ÁFA kulcs"
+                    value={convertForm.vat_rate}
+                    onChange={(e) => setConvertForm({ ...convertForm, vat_rate: e.target.value })}
+                    sx={{ gridColumn: '1 / -1' }}
+                  >
+                    <MenuItem value="">— Nincs megadva —</MenuItem>
+                    <MenuItem value="27">27% (standard)</MenuItem>
+                    <MenuItem value="18">18%</MenuItem>
+                    <MenuItem value="5">5%</MenuItem>
+                    <MenuItem value="0">0% / AAM</MenuItem>
+                  </TextField>
+                </Box>
+              </Box>
+            )}
+
+            {isConverted && (
+              <Alert severity="success" sx={{ mt: 2 }}>
+                Ez a piszkozat már költséggé lett konvertálva (accommodation_expenses).
+                A költséghely utólag a Szállás könyvelés → Költségek nézetben módosítható.
+              </Alert>
+            )}
           </>
         )}
 
@@ -328,14 +448,18 @@ export default function DraftReviewModal({
         {isPending && (
           <>
             <Button variant="outlined" color="error" startIcon={<RejectIcon />}
-              onClick={() => onReject(draft.id)}>
+              onClick={() => onReject(draft.id)} disabled={converting}>
               Elutasítás
             </Button>
-            <Button variant="contained" color="success" startIcon={<ApproveIcon />}
-              onClick={handleApprove}
-              disabled={!costCenterId}>
-              Jóváhagyás
-            </Button>
+            <Tooltip title={convertReady ? '' : 'Add meg a szállást, kategóriát és a bruttó összeget'}>
+              <span>
+                <Button variant="contained" color="success" startIcon={<ApproveIcon />}
+                  onClick={handleConvert}
+                  disabled={!convertReady || converting}>
+                  {converting ? <CircularProgress size={20} /> : 'Konvertálás költséggé'}
+                </Button>
+              </span>
+            </Tooltip>
           </>
         )}
       </DialogActions>
