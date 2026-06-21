@@ -41,7 +41,8 @@
 |---|---|---|---|
 | Occupancy→billing + option-C per-client rates + margin | backend ✓ admin ✓ | Working | shipped 2026-06-20/21 |
 | accommodation_expenses (cost) + profit | backend ✓ admin ✓ | Working | the cost source |
-| **cost_centers + invoice-classification + Gmail pipeline** | backend ✓ admin ✓ | **DORMANT** | 0 invoices ever; duplicate of expenses — open decision (`ARCH_COST_TRACKING_OPTIONS.md`) |
+| **Email-invoice OCR → auto-classify → draft → `accommodation_expenses`** | backend ✓ admin ✓ | **PAUSED (enable candidate)** | NOT dead — built + migrated to feed `accommodation_expenses` via `convert()` (mig 115), then paused (poller env-gated off + stale Gmail token). Claude OCR + rule classifier + draft→expense bridge all wired. Enable ≈ 1 flag + token re-auth. See `ARCH_COST_TRACKING_OPTIONS.md` |
+| **cost_centers** (accounting taxonomy) | backend ✓ admin ✓ | **Keep (active)** | used by accountant export + projects; orthogonal to per-accommodation cost (not a duplicate of `accommodation_expenses`) |
 | Salary / payroll deductions | backend ✓ admin ✓ | Working (cron DRY-RUN) | promote when ready |
 
 ### Notifications / Analytics / Integrations / AI
@@ -69,7 +70,7 @@
 
 ## Priority list (work through systematically)
 1. ✅ **Unhide resident features** (mobile menu) — DONE 2026-06-21 (chatbot+FAQ surfaced; docs/videos & health features correctly NOT surfaced). Rides next EAS build (batched — not built yet).
-2. 🔄 **Cost-tracking decision** — IN PROGRESS (2026-06-21). Recommendation: deprecate the dead **invoice-classification/OCR pipeline**, KEEP `cost_centers` as an active accounting taxonomy (used by accountant export + projects). See below + `ARCH_COST_TRACKING_OPTIONS.md`.
+2. 🔄 **Cost-tracking decision** — IN PROGRESS (2026-06-21). **CORRECTED finding: the email-invoice/OCR pipeline is an ENABLE candidate, NOT deprecate.** A deep read showed it was *paused mid-migration*, not dead: it already feeds **`accommodation_expenses`** (the cost source for billing/margin) via the `convert()` bridge built 2026-06-10 (mig 115). Activation ≈ one env flag (`GMAIL_POLLING_ENABLED`) + a Gmail token re-auth. `cost_centers` stays (active accounting taxonomy: accountant export + projects). See `ARCH_COST_TRACKING_OPTIONS.md` for the decision + pilot plan.
 3. **Task-management consolidation** — pick one of MyTasks / UnifiedTasks / GTD / AllTasks.
 4. **Delete the ~12 orphan services** + `BrunoTest`; wire or drop `admin/Workplaces`.
 5. **Promote the DRY-RUN payroll cron / confirm Gmail-poller disposition.**

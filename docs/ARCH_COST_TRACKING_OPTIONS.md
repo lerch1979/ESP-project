@@ -1,8 +1,15 @@
 # Cost Tracking Unification — Architectural Options
 
-**Status:** open decision, awaiting user choice
-**Author:** synthesis from 2026-05-21 audit
-**Companion:** `PROJECT_STATE.md` → "Known overlaps" + earlier audit findings
+**Status:** ✅ RESOLVED 2026-06-21 — see "## DECISION (2026-06-21)" at the bottom.
+**Short version:** the old "duplicate" framing below is **superseded**. The email-OCR
+pipeline was NOT abandoned — it was **migrated to feed `accommodation_expenses`**
+(the `invoice_drafts → accommodation_expenses` `convert()` bridge, mig 115, built
+2026-06-10) and then **paused** (poller env-gated off + stale Gmail token). It is an
+**ENABLE candidate**, not a deprecate one. `cost_centers` stays (active accounting
+taxonomy). Read the bottom section first; the A/B/C options below are historical.
+
+**Author:** synthesis from 2026-05-21 audit (options A/B/C now historical)
+**Companion:** `PROJECT_STATE.md` → "Known overlaps" + `docs/FEATURE_AUDIT.md`
 
 ---
 
@@ -170,3 +177,39 @@ pipeline's Gmail poller produces more orphan drafts.
 4. **Should we verify and disable the Gmail poller now?** (recommended yes regardless of option chosen)
 
 Once we have answers to these, I can execute the chosen path. **No code changes made yet** — this doc is the proposal.
+
+---
+
+# DECISION (2026-06-21) — ENABLE the email-OCR cost pipeline (don't deprecate)
+
+**Context corrected.** A deep code read (FEATURE_AUDIT) showed the email-invoice
+pipeline is **not abandoned** — it was **migrated to feed `accommodation_expenses`**
+(`invoice_drafts → accommodation_expenses` via `convert()`, mig 115, built
+2026-06-10) and then **paused** (poller env-gated off + a stale Gmail token). It is
+the **automated cost-side feed** for the billing/margin model (revenue = nights ×
+rate is already automated; this automates cost). **Verdict: enable via a careful
+pilot.**
+
+## What's kept / what changes
+- **KEEP `cost_centers`** — active accounting taxonomy (accountant export + projects). Not a duplicate of `accommodation_expenses`.
+- **`accommodation_expenses`** stays the single source of truth for per-accommodation cost (billing/margin reads it).
+- **Retired the legacy `approve()` → `invoices` path** (2026-06-21) — returns HTTP 410; reviewers use **Convert → accommodation_expenses** only. (Admin Billing.jsx Tab 2 already used Convert.)
+- **The 5 historical drafts are already `converted`** (5/5 linked to `accommodation_expenses`) — real forwarded supplier invoices (gas/utilities/lighting). Proof the pipeline works end-to-end. Nothing to dispose.
+
+## How the pipeline works (summary)
+email (poller, `is:unread`) → Claude OCR (`claudeOCR.extractInvoiceData`) → rule
+classifier (cost-center + confidence) → `invoice_drafts` (pending/needs_review) →
+**human reviews + picks the accommodation** → **Convert** (`convert()` →
+`expenseService.create()` → `INSERT INTO accommodation_expenses`, source='email_ocr',
+PDF attached). Human-in-the-loop; only known vendors auto-classify, the rest land in review.
+
+## Enable pilot plan (driven by the user — inbox + token are their call)
+1. **Inbox:** dedicated `housingsolutionsszamlazas@gmail.com` (the `get-gmail-token.js` script already targets it; "szamlazas" = invoicing). Invoices are forwarded there.
+2. **Re-auth the Gmail token** (`scripts/get-gmail-token.js`) — fixes the `invalid_grant` blocker; paste the new `GMAIL_REFRESH_TOKEN` into prod `.env`.
+3. **Flip `GMAIL_POLLING_ENABLED=true`** in prod `.env`, restart backend → 5-min poll cron runs.
+4. **Pilot:** forward ONE real supplier invoice → watch it OCR into a draft → review + pick accommodation → Convert → confirm it lands in `accommodation_expenses` AND shows in a billing/margin draft run.
+5. **Tune** classification rules for top vendors over time; everything else stays human-reviewed.
+
+**Not flipped yet** — awaiting the user's inbox confirmation + token re-auth (their decisions).
+
+*(Historical options A/B/C above are superseded by this decision.)*

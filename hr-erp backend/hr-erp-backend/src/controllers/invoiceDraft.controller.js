@@ -297,6 +297,17 @@ const update = async (req, res) => {
  * Approve draft → create final invoice
  */
 const approve = async (req, res) => {
+  // DEPRECATED 2026-06-21 — this wrote drafts into the dormant `invoices` table.
+  // The correct, live path is convert() → accommodation_expenses (the cost source
+  // for the billing/margin model). Retired to remove the foot-gun: reviewers use
+  // "Convert" only. The old implementation is kept below (unreachable) for
+  // reference / possible revival.
+  return res.status(410).json({
+    success: false,
+    message: 'Az "approve" megszűnt. Használd a "Konvertálás" műveletet (convert → accommodation_expenses).',
+    use: 'POST /api/v1/invoice-drafts/:id/convert',
+  });
+  /* eslint-disable no-unreachable */
   try {
     const { id } = req.params;
     const userId = req.user.id;
