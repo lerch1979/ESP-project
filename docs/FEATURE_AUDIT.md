@@ -41,7 +41,7 @@
 |---|---|---|---|
 | Occupancy→billing + option-C per-client rates + margin | backend ✓ admin ✓ | Working | shipped 2026-06-20/21 |
 | accommodation_expenses (cost) + profit | backend ✓ admin ✓ | Working | the cost source |
-| **Email-invoice OCR → auto-classify → draft → `accommodation_expenses`** | backend ✓ admin ✓ | **PAUSED (enable candidate)** | NOT dead — built + migrated to feed `accommodation_expenses` via `convert()` (mig 115), then paused (poller env-gated off + stale Gmail token). Claude OCR + rule classifier + draft→expense bridge all wired. Enable ≈ 1 flag + token re-auth. See `ARCH_COST_TRACKING_OPTIONS.md` |
+| **Email-invoice OCR → draft → `accommodation_expenses`** | backend ✓ admin ✓ | **✅ ENABLED 2026-06-21** (poller live, 5-min cron, token authenticating) | NOT dead — built + migrated to feed `accommodation_expenses` via `convert()` (mig 115), then paused (poller env-gated off + stale Gmail token). Claude OCR + rule classifier + draft→expense bridge all wired. Enable ≈ 1 flag + token re-auth. See `ARCH_COST_TRACKING_OPTIONS.md` |
 | **cost_centers** (accounting taxonomy) | backend ✓ admin ✓ | **Keep (active)** | used by accountant export + projects; orthogonal to per-accommodation cost (not a duplicate of `accommodation_expenses`) |
 | Salary / payroll deductions | backend ✓ admin ✓ | Working (cron DRY-RUN) | promote when ready |
 

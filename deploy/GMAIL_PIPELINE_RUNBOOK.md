@@ -39,14 +39,27 @@ Prereqs (already present in the local `.env`): `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_
 
 ---
 
-## B. Install the token on prod + store the secret
-1. **Bitwarden:** save the new `GMAIL_REFRESH_TOKEN` (it's a secret) in the "HR-ERP prod .env" item.
-2. **Server `.env.production`** — replace the `GMAIL_REFRESH_TOKEN=` line:
+## B. Install the token + OAuth creds on prod + store the secrets
+⚠️ **Prod `.env.production` needs the FULL Gmail set, not just the token.** When the
+pipeline was first enabled (2026-06-21) prod had only `GMAIL_REFRESH_TOKEN` and the
+poll returned **"Gmail not configured"** because `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`
+/ `GMAIL_REDIRECT_URI` were missing (they had only ever lived in the laptop `.env`).
+Required keys on prod: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI`,
+`GMAIL_REFRESH_TOKEN` (+ `ANTHROPIC_API_KEY` for OCR).
+
+1. **Bitwarden:** save **all** of `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` /
+   `GMAIL_REDIRECT_URI` / `GMAIL_REFRESH_TOKEN` in the "HR-ERP prod .env" item (the
+   client creds were previously only on the laptop — DR risk).
+2. **Server `.env.production`** — set/replace `GMAIL_REFRESH_TOKEN=`, and ensure the
+   3 OAuth client vars are present:
    ```
    ssh deploy@167.233.122.3
-   cd ~/hr-erp && nano .env.production      # set GMAIL_REFRESH_TOKEN=<new>
+   cd ~/hr-erp && nano .env.production
+   # GMAIL_CLIENT_ID=... GMAIL_CLIENT_SECRET=... GMAIL_REDIRECT_URI=http://localhost
+   # GMAIL_REFRESH_TOKEN=<new>
    ```
-   *(Edit in place — don't `sed -i` the bind-mounted file blindly; `.env.production` is read by the backend container via `env_file`, picked up on restart.)*
+   *(`.env.production` is read via `env_file` at container start — picked up on restart.
+   sed: it's appended/parsed fresh, so a new inode is fine here, unlike the bind-mounted Caddyfile.)*
 
 ---
 
