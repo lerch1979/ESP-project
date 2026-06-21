@@ -10,7 +10,8 @@
   "resident": {
     "reportIssue": "Problem melden",
     "myTickets": "Meine Tickets",
-    "room": "Zimmer"
+    "room": "Zimmer",
+    "help": "Hilfe"
   },
   "chat": {
     "placeholder": "Nachricht schreiben…",
@@ -86,7 +87,8 @@
     "roles": "Rollen",
     "chatbot": "Chatbot",
     "chatbotHistory": "Frühere Unterhaltungen",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "videos": "Videos"
   },
   "attach": {
     "photos": "Fotos",
@@ -107,7 +109,12 @@
     "hidePassword": "Passwort ausblenden",
     "button": "Anmelden",
     "loading": "Anmeldung...",
-    "error": "Ungültige E-Mail oder Passwort"
+    "error": "Ungültige E-Mail oder Passwort",
+    "errorFields": "Bitte füllen Sie alle Felder aus.",
+    "errorNetwork": "Verbindung zum Server fehlgeschlagen. Prüfen Sie Ihre Netzwerkverbindung.",
+    "errorTimeout": "Der Server antwortet nicht (Zeitüberschreitung).",
+    "errorFailed": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
+    "selectLanguage": "Sprache auswählen"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -275,5 +282,22 @@
     "toggleHint": "Mit Fingerabdruck oder Gesicht ohne Passwort anmelden.",
     "unavailable": "Auf diesem Gerät ist keine Biometrie eingerichtet.",
     "failed": "Biometrische Authentifizierung fehlgeschlagen."
+  },
+  "time": {
+    "justNow": "gerade eben",
+    "minutesAgo": "vor {{count}} Min.",
+    "hoursAgo": "vor {{count}} Std.",
+    "daysAgo": "vor {{count}} Tg."
+  },
+  "onboarding": {
+    "skip": "Überspringen",
+    "next": "Weiter",
+    "start": "Loslegen",
+    "t1": "Willkommen bei Housing Solutions!",
+    "b1": "Erledigen Sie alles rund um Ihre Unterkunft an einem Ort — in Ihrer Sprache.",
+    "t2": "Melden Sie ein Problem in Minuten",
+    "b2": "Etwas kaputt in der Unterkunft? Foto machen, senden und Status verfolgen.",
+    "t3": "Fragen? Fragen Sie den Chat",
+    "b3": "Hilfe-Chat und FAQ sind jederzeit da — und Ihr Kalender zeigt wichtige Termine."
   }
 }

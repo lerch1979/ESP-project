@@ -504,8 +504,8 @@ export const chatbotAPI = {
     const response = await api.post(`/chatbot/conversations/${conversationId}/suggestions`, { kb_id: kbId });
     return response.data;
   },
-  getFaqCategories: async () => {
-    const response = await api.get('/chatbot/faq/categories');
+  getFaqCategories: async (params = {}) => {
+    const response = await api.get('/chatbot/faq/categories', { params });
     return response.data;
   },
   getFaqEntries: async (params = {}) => {

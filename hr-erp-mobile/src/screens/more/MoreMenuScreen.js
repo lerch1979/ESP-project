@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 // they are surfaced. NOT surfaced yet: documents/videos (permission-gated →
 // would 403 for residents), wellbeing/CarePath (GDPR Art 9 health data — needs
 // compliance review), projects/tasks/invoices (relevance/scope review).
-const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile', 'chatbot', 'chatbotHistory', 'faq'];
+const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile', 'chatbot', 'chatbotHistory', 'faq', 'videos'];
 
 const menuSections = [
   {

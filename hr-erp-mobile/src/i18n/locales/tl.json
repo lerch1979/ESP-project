@@ -10,7 +10,8 @@
   "resident": {
     "reportIssue": "Mag-ulat ng problema",
     "myTickets": "Mga tiket ko",
-    "room": "Silid"
+    "room": "Silid",
+    "help": "Tulong"
   },
   "chat": {
     "placeholder": "Magsulat ng mensahe…",
@@ -86,7 +87,8 @@
     "roles": "Mga tungkulin",
     "chatbot": "Chatbot",
     "chatbotHistory": "Mga nakaraang usapan",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "videos": "Mga Video"
   },
   "attach": {
     "photos": "Mga larawan",
@@ -107,7 +109,12 @@
     "hidePassword": "Itago ang password",
     "button": "Mag-login",
     "loading": "Naglo-login...",
-    "error": "Mali ang email o password"
+    "error": "Mali ang email o password",
+    "errorFields": "Pakipunan ang lahat ng patlang.",
+    "errorNetwork": "Hindi makakonekta sa server. Suriin ang iyong koneksyon sa network.",
+    "errorTimeout": "Hindi tumutugon ang server (timeout).",
+    "errorFailed": "Nabigo ang pag-login. Subukan muli.",
+    "selectLanguage": "Pumili ng wika"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -275,5 +282,22 @@
     "toggleHint": "Mag-login gamit ang fingerprint o mukha, walang password.",
     "unavailable": "Walang naka-set up na biometrics sa device na ito.",
     "failed": "Nabigo ang biometric authentication."
+  },
+  "time": {
+    "justNow": "ngayon lang",
+    "minutesAgo": "{{count}} min ang nakalipas",
+    "hoursAgo": "{{count}} oras ang nakalipas",
+    "daysAgo": "{{count}} araw ang nakalipas"
+  },
+  "onboarding": {
+    "skip": "Laktawan",
+    "next": "Susunod",
+    "start": "Magsimula",
+    "t1": "Maligayang pagdating sa Housing Solutions!",
+    "b1": "Asikasuhin ang lahat tungkol sa iyong tirahan sa isang lugar — sa iyong sariling wika.",
+    "t2": "Mag-report ng problema sa ilang minuto",
+    "b2": "May sira sa tirahan? Kumuha ng litrato, ipadala, at subaybayan ang status.",
+    "t3": "May tanong? Magtanong sa chat",
+    "b3": "Ang help chat at FAQ ay available anumang oras — at ipinapakita ng kalendaryo ang mahahalagang petsa."
   }
 }

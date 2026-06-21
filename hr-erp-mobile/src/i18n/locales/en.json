@@ -10,7 +10,8 @@
   "resident": {
     "reportIssue": "Report an issue",
     "myTickets": "My tickets",
-    "room": "Room"
+    "room": "Room",
+    "help": "Help"
   },
   "chat": {
     "placeholder": "Write a message…",
@@ -86,7 +87,8 @@
     "roles": "Roles",
     "chatbot": "Chatbot",
     "chatbotHistory": "Past conversations",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "videos": "Videos"
   },
   "attach": {
     "photos": "Photos",
@@ -107,7 +109,12 @@
     "hidePassword": "Hide password",
     "button": "Login",
     "loading": "Logging in...",
-    "error": "Invalid email or password"
+    "error": "Invalid email or password",
+    "errorFields": "Please fill in all fields.",
+    "errorNetwork": "Couldn't connect to the server. Check your network connection.",
+    "errorTimeout": "The server is not responding (timeout).",
+    "errorFailed": "Login failed. Please try again.",
+    "selectLanguage": "Select your language"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -275,5 +282,22 @@
     "toggleHint": "Log in with fingerprint or face, no password.",
     "unavailable": "No biometrics are set up on this device.",
     "failed": "Biometric authentication failed."
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} h ago",
+    "daysAgo": "{{count}} d ago"
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get started",
+    "t1": "Welcome to Housing Solutions!",
+    "b1": "Handle everything about your accommodation in one place — in your own language.",
+    "t2": "Report an issue in minutes",
+    "b2": "Something broken at your accommodation? Take a photo, send it, and track the status.",
+    "t3": "Questions? Ask the chat",
+    "b3": "The help chat and FAQ are here anytime — and your calendar shows your important dates."
   }
 }

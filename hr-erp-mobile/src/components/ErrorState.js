@@ -1,16 +1,18 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../constants/colors';
 
-export default function ErrorState({ message = 'Hiba történt', onRetry }) {
+export default function ErrorState({ message, onRetry }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
-      <Text style={styles.message}>{message}</Text>
+      <Text style={styles.message}>{message || t('common.errorOccurred')}</Text>
       {onRetry && (
         <TouchableOpacity style={styles.button} onPress={onRetry} activeOpacity={0.7}>
-          <Text style={styles.buttonText}>Újra próbálom</Text>
+          <Text style={styles.buttonText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       )}
     </View>

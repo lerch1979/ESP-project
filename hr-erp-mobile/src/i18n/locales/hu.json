@@ -10,7 +10,8 @@
   "resident": {
     "reportIssue": "Hibát jelentek",
     "myTickets": "Hibajegyeim",
-    "room": "Szoba"
+    "room": "Szoba",
+    "help": "Segítség"
   },
   "chat": {
     "placeholder": "Írj üzenetet…",
@@ -86,7 +87,8 @@
     "roles": "Szerepkörök",
     "chatbot": "Chatbot",
     "chatbotHistory": "Korábbi beszélgetések",
-    "faq": "GYIK"
+    "faq": "GYIK",
+    "videos": "Videók"
   },
   "attach": {
     "photos": "Fotók",
@@ -107,7 +109,12 @@
     "hidePassword": "Jelszó elrejtése",
     "button": "Bejelentkezés",
     "loading": "Bejelentkezés...",
-    "error": "Hibás email vagy jelszó"
+    "error": "Hibás email vagy jelszó",
+    "errorFields": "Kérjük, töltse ki az összes mezőt.",
+    "errorNetwork": "Nem sikerült csatlakozni a szerverhez. Ellenőrizze a hálózati kapcsolatot.",
+    "errorTimeout": "A szerver nem válaszol (időtúllépés).",
+    "errorFailed": "Bejelentkezés sikertelen. Próbálja újra.",
+    "selectLanguage": "Válasszon nyelvet"
   },
   "dashboard": {
     "title": "Kezdőlap",
@@ -275,5 +282,22 @@
     "toggleHint": "Ujjlenyomattal vagy arccal lépj be jelszó nélkül.",
     "unavailable": "Nincs beállítva biometrikus azonosító az eszközön.",
     "failed": "A biometrikus azonosítás nem sikerült."
+  },
+  "time": {
+    "justNow": "most",
+    "minutesAgo": "{{count}} perce",
+    "hoursAgo": "{{count}} órája",
+    "daysAgo": "{{count}} napja"
+  },
+  "onboarding": {
+    "skip": "Kihagyás",
+    "next": "Tovább",
+    "start": "Kezdés",
+    "t1": "Üdvözlünk a Housing Solutions appban!",
+    "b1": "Itt egy helyen intézheted a szállásoddal kapcsolatos ügyeket — a saját nyelveden.",
+    "t2": "Jelents be hibát percek alatt",
+    "b2": "Valami elromlott a szálláson? Készíts fotót, küldd be, és kövesd az állapotát.",
+    "t3": "Kérdésed van? Kérdezd a chatet",
+    "b3": "A súgó chat és a GYIK bármikor segít — a naptáradban pedig látod a fontos dátumokat."
   }
 }

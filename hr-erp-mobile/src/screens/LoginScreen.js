@@ -17,8 +17,10 @@ import { useAuth } from '../contexts/AuthContext';
 
 const LANGS = [
   { code: 'hu', label: 'Magyar' },
+  { code: 'en', label: 'English' },
   { code: 'uk', label: 'Українська' },
   { code: 'tl', label: 'Tagalog' },
+  { code: 'de', label: 'Deutsch' },
 ];
 
 export default function LoginScreen() {
@@ -52,7 +54,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Hiba', 'Kérjük, töltse ki az összes mezőt.');
+      Alert.alert(t('common.error'), t('login.errorFields'));
       return;
     }
 
@@ -64,16 +66,16 @@ export default function LoginScreen() {
       console.error('[Login] Error:', error.message, error.code);
       let message;
       if (error.response?.data?.message) {
-        // Server returned an error message
+        // Server returned an error message (already localized server-side)
         message = error.response.data.message;
       } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-        message = 'Nem sikerült csatlakozni a szerverhez. Ellenőrizze a hálózati kapcsolatot.';
+        message = t('login.errorNetwork');
       } else if (error.code === 'ECONNABORTED') {
-        message = 'A szerver nem válaszol (időtúllépés).';
+        message = t('login.errorTimeout');
       } else {
-        message = 'Bejelentkezés sikertelen. Próbálja újra.';
+        message = t('login.errorFailed');
       }
-      Alert.alert('Hiba', message);
+      Alert.alert(t('common.error'), message);
     } finally {
       setLoading(false);
     }
@@ -90,6 +92,7 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
+        <Text style={styles.langCue}>{t('login.selectLanguage')}</Text>
         <View style={styles.langRow}>
           {LANGS.map((l) => (
             <TouchableOpacity
@@ -208,9 +211,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
+  langCue: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
   langRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 20,
   },

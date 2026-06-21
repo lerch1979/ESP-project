@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { chatbotAPI } from '../../services/api';
 import { colors } from '../../constants/colors';
 
@@ -14,6 +15,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function FAQScreen() {
   const navigation = useNavigation();
+  const { t, i18n } = useTranslation();
 
   const [categories, setCategories] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -30,15 +32,15 @@ export default function FAQScreen() {
       setError(null);
 
       const [catRes, entryRes] = await Promise.all([
-        chatbotAPI.getFaqCategories(),
-        chatbotAPI.getFaqEntries(),
+        chatbotAPI.getFaqCategories({ lang: i18n.language }),
+        chatbotAPI.getFaqEntries({ lang: i18n.language }),
       ]);
 
       setCategories(catRes.data || []);
       setEntries(entryRes.data || []);
     } catch (err) {
       console.error('[FAQ] Failed to load data:', err);
-      setError('Nem sikerült betölteni a GYIK adatokat.');
+      setError(t('common.errorOccurred'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -108,7 +110,7 @@ export default function FAQScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>GYIK betöltése...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }

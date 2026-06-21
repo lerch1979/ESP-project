@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { timeAgo } from '../utils/locale';
 import { colors } from '../constants/colors';
 import api from '../services/api';
 
@@ -30,20 +31,8 @@ const TYPE_COLORS = {
   system: colors.textSecondary,
 };
 
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'most';
-  if (mins < 60) return `${mins} perce`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} órája`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days} napja`;
-  return new Date(dateStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
-}
-
 export default function NotificationsScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -121,7 +110,7 @@ export default function NotificationsScreen({ navigation }) {
             {item.title}
           </Text>
           {item.message && <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>}
-          <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
+          <Text style={styles.notifTime}>{timeAgo(item.created_at, i18n.language, t)}</Text>
         </View>
         {!item.is_read && <View style={styles.unreadDot} />}
       </TouchableOpacity>
