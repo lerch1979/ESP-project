@@ -2601,4 +2601,16 @@ export const profitAPI = {
   },
 };
 
+export const operatingCostsAPI = {
+  byAccommodation: async (params = {}) => {
+    const response = await api.get('/operating-costs/by-accommodation', { params });
+    return response.data;
+  },
+  // Returns a Blob — caller triggers the browser download.
+  exportReport: async (params = {}) => {
+    const response = await api.get('/operating-costs/export', { params, responseType: 'blob' });
+    return response.data;
+  },
+};
+
 export default api;

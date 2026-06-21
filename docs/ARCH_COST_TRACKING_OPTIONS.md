@@ -213,3 +213,15 @@ PDF attached). Human-in-the-loop; only known vendors auto-classify, the rest lan
 **Not flipped yet** — awaiting the user's inbox confirmation + token re-auth (their decisions).
 
 *(Historical options A/B/C above are superseded by this decision.)*
+
+---
+
+## Accommodation-link hardening (2026-06-21)
+
+**Decided + DONE (mig 127 + operating-costs report):**
+- **Option A** — collapsed the ~18 per-accommodation "szálló" cost centers (`OPR-SZALL-*`) into the single generic `OPR-SZALL`. They mirrored accommodations by NAME with no FK / no sync (stale risk) and carried zero expense rows. Per-accommodation cost reporting is driven by `accommodation_expenses.accommodation_id` (live FK), so this loses nothing. 20 classification rules re-pointed to `OPR-SZALL` (their `settlement_name` kept for the OCR matcher below). Szálló CCs soft-retired (`is_active=false`), not deleted.
+- **Cascade safety** — `accommodation_expenses.accommodation_id` FK changed `ON DELETE CASCADE → RESTRICT`, so a hard accommodation delete can't wipe expense history. Closing stays a soft-delete (`is_active=false`): closed accommodations drop from new selectors but remain valid for history.
+- **Per-szálló operating-costs report** — `/api/v1/operating-costs/by-accommodation` + `…/export` (xlsx/pdf), surfaced in Billing → "Üzemeltetési költségek" tab. Per accommodation × category + total + **cost-per-bed-night** (cost ÷ occupant-nights from `occupancy_snapshots`).
+
+**NEXT — backlog, NOT built yet: "OCR suggests the accommodation".**
+Extend Claude OCR to read the **consumption address** ("fogyasztási hely" / "felhasználási hely" — distinct from the supplier's `vendorAddress` it already reads). Fuzzy-match that address against `accommodations.address` + `name` (the settlement-style names — Fertőd, Beled, Röjtökmuzsaj… — make this a strong signal; the 20 re-pointed rules' `settlement_name` values are a ready lookup). Produce a `suggested_accommodation_id` + confidence and **default the Szállás field** in the Convert dialog to it (confirm-instead-of-pick), mirroring the cost-center suggestion. Data ready: all 16 accommodations have addresses. Also consider the **split-across-accommodations** case (one combined utility bill → N expense rows) as a sibling feature. Gate: do after the above is in use.

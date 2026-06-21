@@ -23,7 +23,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'react-toastify';
-import { expensesAPI, profitAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI } from '../services/api';
+import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
 // Constants — match backend CHECK constraint on accommodation_expenses.category
@@ -36,10 +36,10 @@ const CATEGORIES = [
   { value: 'egyeb',        label: 'Egyéb',        color: 'default' },
 ];
 
-const TABS = ['expenses', 'drafts', 'runs', 'billings', 'shares', 'profit'];
+const TABS = ['expenses', 'drafts', 'runs', 'billings', 'shares', 'profit', 'operating_costs'];
 const TAB_LABELS = [
   'Költségek', 'Beérkezett számlák', 'Számlázási futások',
-  'Számlázások', 'Könyvelői hozzáférés', 'Profit dashboard',
+  'Számlázások', 'Könyvelői hozzáférés', 'Profit dashboard', 'Üzemeltetési költségek',
 ];
 
 // ────────────────────────────────────────────────────────────────────────
@@ -2142,6 +2142,160 @@ function ProfitTab() {
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Üzemeltetési költségek — per-szálló operating costs (costs only), category
+// split + cost-per-bed-night, with Excel/PDF export. Driven entirely by the
+// live accommodation_id FK, so it auto-tracks added/closed accommodations.
+// ────────────────────────────────────────────────────────────────────────
+const OPCOST_CATS = [
+  { key: 'rezsi', label: 'Rezsi' },
+  { key: 'karbantartas', label: 'Karbantartás' },
+  { key: 'takaritas', label: 'Takarítás' },
+  { key: 'egyeb', label: 'Egyéb' },
+];
+
+function OperatingCostsTab() {
+  const [month, setMonth] = useState(currentMonth());
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [exporting, setExporting] = useState('');
+
+  useEffect(() => {
+    if (!/^\d{4}-\d{2}$/.test(month)) return undefined;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await operatingCostsAPI.byAccommodation({ month });
+        if (!cancelled) setData(res?.data || null);
+      } catch (e) {
+        if (!cancelled) toast.error('Üzemeltetési költség lekérdezés sikertelen');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [month, refreshKey]);
+
+  const handleExport = async (format) => {
+    setExporting(format);
+    try {
+      const blob = await operatingCostsAPI.exportReport({ month, format });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `uzemeltetesi-koltsegek-${month}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error('Export sikertelen');
+    } finally {
+      setExporting('');
+    }
+  };
+
+  const summary = data?.summary;
+  const rows = data?.by_accommodation || [];
+  const isEmpty = !loading && data && rows.length === 0;
+
+  return (
+    <Box>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+          <TextField
+            label="Hónap" type="month" size="small"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 180 }}
+            disabled={loading}
+          />
+          <Tooltip title="Újraszámítás">
+            <span><IconButton onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}><RefreshIcon /></IconButton></span>
+          </Tooltip>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            variant="outlined" size="small" startIcon={<DownloadIcon />}
+            onClick={() => handleExport('xlsx')}
+            disabled={loading || !!exporting || rows.length === 0}
+          >
+            {exporting === 'xlsx' ? 'Exportálás…' : 'Excel'}
+          </Button>
+          <Button
+            variant="outlined" size="small" startIcon={<DownloadIcon />}
+            onClick={() => handleExport('pdf')}
+            disabled={loading || !!exporting || rows.length === 0}
+          >
+            {exporting === 'pdf' ? 'Exportálás…' : 'PDF'}
+          </Button>
+          {loading && <CircularProgress size={20} />}
+        </Stack>
+      </Paper>
+
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} sm={4}>
+          <SummaryCard title="Összes üzemeltetési költség" value={fmtMoney(summary?.total_cost ?? 0)} color={COLOR_EXPENSE} />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <SummaryCard title="Lakónapok (hó)" value={(summary?.total_occupant_nights ?? 0).toLocaleString('hu-HU')} color={COLOR_NEUTRAL} />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <SummaryCard title="Átlag Ft / lakónap" value={summary?.cost_per_night == null ? '—' : fmtMoney(summary.cost_per_night)} color={COLOR_INCOME} />
+        </Grid>
+      </Grid>
+
+      {isEmpty ? (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography color="text.secondary">Nincs üzemeltetési költség erre a hónapra.</Typography>
+        </Paper>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>Szállás</TableCell>
+                {OPCOST_CATS.map((c) => (
+                  <TableCell key={c.key} align="right" sx={{ fontWeight: 700 }}>{c.label}</TableCell>
+                ))}
+                <TableCell align="right" sx={{ fontWeight: 700 }}>Összes</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>Lakónap</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>Ft / lakónap</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.accommodation_id} hover>
+                  <TableCell>{r.accommodation_name || '—'}</TableCell>
+                  {OPCOST_CATS.map((c) => (
+                    <TableCell key={c.key} align="right">{fmtMoney(r.expenses?.[c.key] || 0)}</TableCell>
+                  ))}
+                  <TableCell align="right" sx={{ color: COLOR_EXPENSE, fontWeight: 600 }}>{fmtMoney(r.expenses?.total || 0)}</TableCell>
+                  <TableCell align="right">{r.occupant_nights}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>{r.cost_per_night == null ? '—' : fmtMoney(r.cost_per_night)}</TableCell>
+                </TableRow>
+              ))}
+              {summary && rows.length > 0 && (
+                <TableRow sx={{ '& td': { fontWeight: 700, borderTop: '2px solid #e5e7eb' } }}>
+                  <TableCell>ÖSSZESEN</TableCell>
+                  {OPCOST_CATS.map((c) => (
+                    <TableCell key={c.key} align="right">{fmtMoney(summary.by_category?.[c.key] || 0)}</TableCell>
+                  ))}
+                  <TableCell align="right" sx={{ color: COLOR_EXPENSE }}>{fmtMoney(summary.total_cost || 0)}</TableCell>
+                  <TableCell align="right">{summary.total_occupant_nights}</TableCell>
+                  <TableCell align="right">{summary.cost_per_night == null ? '—' : fmtMoney(summary.cost_per_night)}</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // Placeholder tabs (built in later steps)
 // ────────────────────────────────────────────────────────────────────────
 
@@ -2194,6 +2348,7 @@ export default function Billing() {
       {tabIdx === 3 && <PlaceholderTab title="Számlázások" />}
       {tabIdx === 4 && <AccountantShareTab />}
       {tabIdx === 5 && <ProfitTab />}
+      {tabIdx === 6 && <OperatingCostsTab />}
     </Box>
   );
 }
