@@ -46,8 +46,14 @@ router.delete('/:id', checkPermission('videos.delete'), videoController.deleteVi
 
 /**
  * POST /api/v1/videos/:id/view
- * Megtekintés rögzítése (minden felhasználó)
+ * Megtekintés / haladás rögzítése (minden felhasználó)
  */
 router.post('/:id/view', checkPermission('videos.view'), videoController.recordView);
+
+/**
+ * GET /api/v1/videos/:id/compliance?workplace_id=
+ * Ki nézte meg / ki nem (megfelelőségi bizonyíték — admin)
+ */
+router.get('/:id/compliance', checkPermission('videos.edit'), videoController.getCompliance);
 
 module.exports = router;
