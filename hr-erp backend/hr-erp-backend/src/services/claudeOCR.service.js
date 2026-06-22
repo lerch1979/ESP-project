@@ -19,6 +19,48 @@ const claudeClient = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 
+// ── Billing / credit-exhaustion detection + loud admin alert ────────────────
+// When the Anthropic balance runs out, Claude returns 400 "credit balance is too
+// low" and OCR silently degrades to weak regex. Detect that specific case and
+// alert admins (debounced) so they KNOW credits are the problem immediately —
+// instead of discovering it via a garbage draft.
+function isClaudeBillingError(err) {
+  const msg = (err && err.message) || '';
+  const status = err && err.status;
+  return (status === 400 || status === 402 || status === 403)
+    && /credit balance|plans?\s*&?\s*billing|billing|insufficient|quota|too low/i.test(msg);
+}
+
+let lastBillingAlertAt = 0;
+async function alertClaudeBillingFailure(detail) {
+  const now = Date.now();
+  if (now - lastBillingAlertAt < 30 * 60 * 1000) return; // 30-min debounce — don't spam every poll
+  lastBillingAlertAt = now;
+  try {
+    const { query } = require('../database/connection');
+    const { notify } = require('./inAppNotification.service');
+    const admins = await query(
+      `SELECT DISTINCT u.id FROM users u
+         JOIN user_roles ur ON u.id = ur.user_id
+         JOIN roles r ON ur.role_id = r.id
+        WHERE r.slug IN ('superadmin', 'admin', 'data_controller') AND u.is_active = TRUE`,
+    );
+    for (const a of admins.rows) {
+      await notify({
+        userId: a.id,
+        type: 'system',
+        title: '⚠️ AI hitelkeret kimerült — OCR korlátozott módban',
+        message: 'A Claude API egyenleg elfogyott, ezért a beérkező számlák gyengébb (regex) kinyeréssel készülnek és kézi javítást igényelnek. Tölts fel kreditet: console.anthropic.com → Plans & Billing, majd futtasd újra az OCR-t az érintett piszkozaton.',
+        link: '/email-inbox',
+        push: { vars: {} },
+      });
+    }
+    logger.error(`[claudeOCR] 🔴 BILLING ALERT → ${admins.rows.length} admin értesítve. ${detail}`);
+  } catch (e) {
+    logger.warn(`[claudeOCR] billing alert failed: ${e.message}`);
+  }
+}
+
 const EXTRACTION_SYSTEM_PROMPT = `You are a precise invoice/document data extractor specializing in Hungarian (hu) and English (en) business documents.
 
 You receive a PDF or image of a document (invoice, receipt, bank statement, contract). Extract structured data and return ONLY a valid JSON object — no prose, no markdown fence, no explanation.
@@ -120,10 +162,12 @@ const BI = '(?:\\s*/\\s*[A-Za-z][A-Za-z\\s]*)?';
 
 const PATTERNS = {
   invoiceNumber: [
-    new RegExp(`sz[aá]mlasz[aá]m${BI}[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
+    // Számlázz.hu and similar use "Sorszám" for the invoice number — try it first.
+    new RegExp(`sorsz[aá]m${BI}[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
+    // "(?<!bank)" so "Bankszámlaszám" (bank account) is NOT taken as the invoice number.
+    new RegExp(`(?<!bank)sz[aá]mlasz[aá]m${BI}[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
     new RegExp(`invoice\\s*(?:no|number|#)?[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
     /(?:INV|SZ|SZLA)[-/]?\d{4}[-/]\d{3,6}/i,
-    new RegExp(`sorsz[aá]m${BI}[:\\s]*([A-Z0-9/_-]*\\d[A-Z0-9/_-]*)`, 'i'),
   ],
   vendorName: [
     /sz[aá]ll[ií]t[oó](?:\s*\/\s*supplier)?[:\s]*\n\s*(.+?)(?:\n|$)/i,
@@ -147,7 +191,9 @@ const PATTERNS = {
     new RegExp(`ad[oó]alap${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
   ],
   vatAmount: [
-    new RegExp(`[aá]fa\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
+    // Számlázz.hu summary line: "áfa 27 %: 22 300" → the VAT *amount* after the rate.
+    /[aá]fa\s+\d{1,2}\s*%\s*:\s*([\d][\d\s.,]*)/i,
+    new RegExp(`[aá]fa\\s*(?:[oö]sszeg|[eé]rt[eé]k)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
     /(?:VAT|[aá]fa)\s*\(\d+%?\)[:\s]*([\d\s.,]+)/i,
     /[aá]fa\s*\d+%?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
   ],
@@ -155,6 +201,9 @@ const PATTERNS = {
     new RegExp(`brutt[oó]\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
     /gross\s*(?:amount|total)?[:\s]*([\d\s.,]+)\s*(?:Ft|HUF|EUR)?/i,
     new RegExp(`fizetend[oő]\\s*(?:[oö]sszeg)?${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
+    // Számlázz.hu final total: "Összesen:\n104 890 Ft" — anchored on the trailing
+    // "Ft" so it skips the concatenated line-item row (Összesen:82 59022 300104 890).
+    /[oö]sszesen:?\s*\n?\s*([\d][\d\s.,]*?)\s*Ft\b/i,
     new RegExp(`[oö]sszesen${BI}[:\\s]*([\\d\\s.,]+)\\s*(?:Ft|HUF|EUR)?`, 'i'),
   ],
   invoiceDate: [
@@ -205,6 +254,8 @@ class ClaudeOCRService {
 
       const ext = path.extname(filePath).toLowerCase();
       const fileBuffer = fs.readFileSync(absolutePath);
+      // Tracks whether the high-quality Claude path was unavailable due to billing.
+      let degradedReason = null;
 
       logger.info(`Starting OCR extraction for: ${path.basename(filePath)} (${(fileBuffer.length / 1024).toFixed(1)} KB)`);
 
@@ -221,11 +272,16 @@ class ClaudeOCRService {
             logger.info(`Claude OCR success: ${claudeResult.vendorName || '?'} — ` +
                         `${claudeResult.grossAmount || '?'} ${claudeResult.currency || ''} — ` +
                         `#${claudeResult.invoiceNumber || '?'} (conf: ${claudeResult.confidence || '?'})`);
+            claudeResult._ocrMeta = { provider: 'claude', degraded: false };
             return claudeResult;
           }
           logger.info('Claude OCR returned empty — falling back to regex');
         } catch (err) {
           logger.warn(`Claude OCR failed (${err.message}) — falling back to regex`);
+          if (isClaudeBillingError(err)) {
+            degradedReason = 'claude_billing'; // credits exhausted → flag draft + alert admins
+            alertClaudeBillingFailure(err.message).catch(() => {});
+          }
         }
         if (OCR_PROVIDER === 'claude') {
           return null; // strict Claude mode — no fallback
@@ -274,6 +330,9 @@ class ClaudeOCRService {
 
       logger.info(`OCR extraction successful: ${extractedData.vendorName || 'Unknown'} - ${extractedData.invoiceNumber || 'No number'} - ${extractedData.grossAmount || 'No amount'}`);
 
+      // degraded=true means the high-quality Claude path was unavailable (billing)
+      // and this came from the weak regex fallback → callers flag for manual review.
+      extractedData._ocrMeta = { provider: 'regex', degraded: degradedReason === 'claude_billing', reason: degradedReason };
       return extractedData;
     } catch (error) {
       logger.error('OCR extraction error:', error);
@@ -386,6 +445,11 @@ class ClaudeOCRService {
     if (result.grossAmount && result.netAmount && !result.vatAmount) {
       result.vatAmount = result.grossAmount - result.netAmount;
     }
+    // If we have gross + VAT but no net (e.g. Számlázz.hu, where only the VAT
+    // line and the final "Összesen … Ft" gross parse cleanly), derive net.
+    if (result.grossAmount && result.vatAmount && !result.netAmount) {
+      result.netAmount = result.grossAmount - result.vatAmount;
+    }
 
     // Dates
     result.invoiceDate = this.extractDate(text, PATTERNS.invoiceDate);
@@ -434,7 +498,10 @@ class ClaudeOCRService {
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
-        return this.parseAmount(match[1]);
+        const amt = this.parseAmount(match[1]);
+        // Keep trying later patterns if this one captured junk (e.g. a lone
+        // space, as the loose "Bruttó " label can) → don't short-circuit to null.
+        if (amt !== null && amt > 0) return amt;
       }
     }
     return null;

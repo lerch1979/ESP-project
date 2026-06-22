@@ -77,6 +77,12 @@ class DocumentRouterService {
   async createInvoiceDraft(doc) {
     const extractedData = doc.extracted_data || {};
 
+    // OCR degraded (Claude credits exhausted → weak regex)? Flag the draft as
+    // 'ocr_failed' so the reviewer sees "needs manual entry" + gets the re-OCR
+    // action, instead of a silently-garbage 'pending' draft.
+    const draftStatus = extractedData._ocrMeta && extractedData._ocrMeta.degraded
+      ? 'ocr_failed' : 'pending';
+
     // Run cost center prediction
     let prediction = null;
     try {
@@ -94,7 +100,7 @@ class DocumentRouterService {
         description, extracted_data,
         suggested_cost_center_id, cost_center_confidence, suggestion_reasoning,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'pending')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING id
     `, [
       doc.email_from,
@@ -115,6 +121,7 @@ class DocumentRouterService {
       prediction?.costCenterId || null,
       prediction?.confidence || null,
       prediction?.reasoning || null,
+      draftStatus,
     ]);
 
     return {
