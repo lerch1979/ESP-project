@@ -346,10 +346,9 @@ const getCompliance = async (req, res) => {
               (vv.completed_at IS NOT NULL) AS completed,
               vv.completed_at, COALESCE(vv.progress_pct, 0) AS progress_pct, vv.language_watched
          FROM employees e
-         JOIN users u ON u.id = e.user_id
          LEFT JOIN workplaces w ON w.id = e.workplace_id
          LEFT JOIN video_views vv ON vv.video_id = $1 AND vv.user_id = e.user_id
-        WHERE e.user_id IS NOT NULL ${audienceClause}
+        WHERE TRUE ${audienceClause}
         ORDER BY completed ASC, e.last_name, e.first_name`,
       params,
     );

@@ -42,6 +42,10 @@ ALTER TABLE videos
   ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT false;
 
+-- A full-dub video has no single base url (playback comes from video_versions);
+-- url becomes an optional legacy fallback.
+ALTER TABLE videos ALTER COLUMN url DROP NOT NULL;
+
 ALTER TABLE videos DROP CONSTRAINT IF EXISTS videos_scope_check;
 ALTER TABLE videos ADD CONSTRAINT videos_scope_check
   CHECK (scope IN ('global', 'workplace', 'contractor'));
