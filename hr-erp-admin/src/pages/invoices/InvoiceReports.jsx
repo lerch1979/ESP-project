@@ -490,6 +490,60 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 // ============================================
+// PER-ACCOMMODATION CASHFLOW (cost · revenue · margin)
+// ============================================
+
+function AccommodationCashflowTable({ data }) {
+  const POS = '#16a34a';
+  const NEG = '#dc2626';
+  if (!data || data.length === 0) {
+    return <Box sx={{ p: 3, textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Nincs adat ebben az időszakban.</Box>;
+  }
+  const tCost = data.reduce((s, r) => s + (r.totalCost || 0), 0);
+  const tRev = data.reduce((s, r) => s + (r.totalRevenue || 0), 0);
+  const tMargin = tRev - tCost;
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+            <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Szállás</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Költség</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Bevétel</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Margin</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>Margin %</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((r) => (
+            <TableRow key={r.accommodationId} hover>
+              <TableCell sx={{ fontSize: '0.85rem', fontWeight: 500 }}>{r.accommodationName}</TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.85rem' }}>{formatCurrency(r.totalCost)}</TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.85rem' }}>{formatCurrency(r.totalRevenue)}</TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.85rem', fontWeight: 600, color: r.margin >= 0 ? POS : NEG }}>
+                {formatCurrency(r.margin)}
+              </TableCell>
+              <TableCell align="right" sx={{ fontSize: '0.85rem', color: r.margin >= 0 ? POS : NEG }}>
+                {r.marginPct == null ? '—' : `${r.marginPct}%`}
+              </TableCell>
+            </TableRow>
+          ))}
+          <TableRow sx={{ '& td': { fontWeight: 700, borderTop: '2px solid #e2e8f0' } }}>
+            <TableCell sx={{ fontSize: '0.85rem' }}>ÖSSZESEN</TableCell>
+            <TableCell align="right" sx={{ fontSize: '0.85rem' }}>{formatCurrency(tCost)}</TableCell>
+            <TableCell align="right" sx={{ fontSize: '0.85rem' }}>{formatCurrency(tRev)}</TableCell>
+            <TableCell align="right" sx={{ fontSize: '0.85rem', color: tMargin >= 0 ? POS : NEG }}>{formatCurrency(tMargin)}</TableCell>
+            <TableCell align="right" sx={{ fontSize: '0.85rem', color: tMargin >= 0 ? POS : NEG }}>
+              {tRev > 0 ? `${Math.round((tMargin / tRev) * 1000) / 10}%` : '—'}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+// ============================================
 // SECTION WRAPPER
 // ============================================
 
@@ -560,26 +614,24 @@ export default function InvoiceReports() {
     let cancelled = false;
     const loadInitialData = async () => {
       try {
-        const [treeRes, allRes, catRes] = await Promise.all([
+        const [treeRes, allRes] = await Promise.all([
           costCentersAPI.getTree({ is_active: 'true' }),
           costCentersAPI.getAll({ limit: 500 }),
-          costCentersAPI.getInvoiceCategories(),
         ]);
         if (cancelled) return;
         setCostCenterTree(treeRes?.data || []);
         setCostCenters(allRes?.data || []);
-        setCategories(catRes?.data || []);
-
-        // Load distinct vendors from all invoices
-        try {
-          const invRes = await costCentersAPI.getInvoices({ limit: 1000, fields: 'vendor_name' });
-          if (cancelled) return;
-          const invList = invRes?.data || [];
-          const uniqueVendors = [...new Set(invList.map((i) => i.vendor_name).filter(Boolean))].sort();
-          setVendors(uniqueVendors);
-        } catch {
-          // Vendors will be empty, that's ok
-        }
+        // The report now reads accommodation_expenses, whose category is a fixed
+        // 4-value enum (not the invoice_categories table).
+        setCategories([
+          { id: 'rezsi', name: 'Rezsi' },
+          { id: 'karbantartas', name: 'Karbantartás' },
+          { id: 'takaritas', name: 'Takarítás' },
+          { id: 'egyeb', name: 'Egyéb' },
+        ]);
+        // Vendor options are populated from each generated report's byVendor
+        // (the suppliers that actually appear in range); the field is freeSolo
+        // so a name can be typed before the first run.
       } catch (err) {
         if (!cancelled) toast.error('Hiba az adatok betöltésekor');
       }
@@ -594,7 +646,7 @@ export default function InvoiceReports() {
     endDate,
     costCenterIds: [...selectedCostCenters],
     vendorNames: selectedVendors,
-    categoryIds: selectedCategories,
+    categories: selectedCategories,
     paymentStatus: selectedStatuses,
     groupBy,
   }), [startDate, endDate, selectedCostCenters, selectedVendors, selectedCategories, selectedStatuses, groupBy]);
@@ -607,7 +659,11 @@ export default function InvoiceReports() {
     try {
       const filters = buildFilters();
       const res = await invoiceReportsAPI.generate(filters);
-      setReportData(res?.data || res);
+      const rep = res?.data || res;
+      setReportData(rep);
+      // Populate the vendor filter from the suppliers in range.
+      const vs = [...new Set((rep?.byVendor || []).map((v) => v.vendorName).filter(Boolean))].sort();
+      if (vs.length) setVendors((prev) => [...new Set([...prev, ...vs])].sort());
       setGenerated(true);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Hiba a riport generálásánál';
@@ -700,6 +756,7 @@ export default function InvoiceReports() {
   const byVendor = reportData?.byVendor || [];
   const byCategory = reportData?.byCategory || [];
   const byPeriod = reportData?.byPeriod || [];
+  const byAccommodation = reportData?.byAccommodation || [];
 
   // Chart data
   const costCenterChartData = useMemo(() =>
@@ -846,11 +903,12 @@ export default function InvoiceReports() {
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <Autocomplete
               multiple
+              freeSolo
               size="small"
               options={vendors}
               value={selectedVendors}
               onChange={(_, val) => setSelectedVendors(val)}
-              renderInput={(params) => <TextField {...params} label="Szállító" placeholder="Keresés..." />}
+              renderInput={(params) => <TextField {...params} label="Szállító" placeholder="Keresés / gépelés…" />}
               sx={{ minWidth: 250, flex: 1 }}
               limitTags={2}
               disableCloseOnSelect
@@ -1110,6 +1168,14 @@ export default function InvoiceReports() {
                 </ResponsiveContainer>
               </Box>
             )}
+          </ReportSection>
+
+          {/* PER-ACCOMMODATION CASHFLOW (the per-szálló unit economics) */}
+          <ReportSection
+            title="Szállásonkénti cashflow (költség · bevétel · margin)"
+            icon={<TrendingUpIcon sx={{ color: '#16a34a' }} />}
+          >
+            <AccommodationCashflowTable data={byAccommodation} />
           </ReportSection>
 
           {/* TABLE 3: VENDOR SUMMARY (TOP 10) */}

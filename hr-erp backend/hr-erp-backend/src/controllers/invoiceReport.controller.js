@@ -18,6 +18,23 @@ const MONTHS_HU = [
   'Július', 'Augusztus', 'Szeptember', 'Október', 'November', 'December',
 ];
 
+// Számlariportok now reads the LIVE cost ledger (accommodation_expenses),
+// not the dormant `invoices` table. Field map vs the old invoices table:
+//   net   = COALESCE(net_amount, amount)   (net_amount is null for ÁFA-exempt)
+//   vat   = COALESCE(vat_amount, 0)
+//   gross = amount
+//   date  = performance_date (HU teljesítés) → invoice_date → billing_month
+//   category = the 4-enum string (not the invoice_categories FK)
+const EXP_DATE = "COALESCE(e.performance_date, e.invoice_date, to_date(e.billing_month, 'YYYY-MM'))";
+const EXP_NET = 'COALESCE(e.net_amount, e.amount)';
+const EXP_VAT = 'COALESCE(e.vat_amount, 0)';
+const EXP_GROSS = 'e.amount';
+const CATEGORY_LABELS = {
+  rezsi: 'Rezsi', karbantartas: 'Karbantartás', takaritas: 'Takarítás', egyeb: 'Egyéb',
+};
+const CATEGORY_CASE = `CASE e.category ${Object.entries(CATEGORY_LABELS)
+  .map(([k, v]) => `WHEN '${k}' THEN '${v}'`).join(' ')} ELSE e.category END`;
+
 // ============================================
 // HELPERS
 // ============================================
@@ -36,20 +53,21 @@ function fmtCurrency(val) {
  * Build base WHERE clause + params from report filters
  */
 function buildFilterClause(filters) {
-  const { startDate, endDate, costCenterIds, vendorNames, categoryIds, paymentStatus } = filters;
-  const conditions = [];
+  const { startDate, endDate, costCenterIds, vendorNames, categories, paymentStatus } = filters;
+  // Soft-delete guard always applies (live cost ledger).
+  const conditions = ['e.deleted_at IS NULL'];
   const params = [];
   let idx = 0;
 
   if (startDate) {
     idx++;
-    conditions.push(`i.invoice_date >= $${idx}`);
+    conditions.push(`${EXP_DATE} >= $${idx}`);
     params.push(startDate);
   }
 
   if (endDate) {
     idx++;
-    conditions.push(`i.invoice_date <= $${idx}`);
+    conditions.push(`${EXP_DATE} <= $${idx}`);
     params.push(endDate);
   }
 
@@ -57,7 +75,7 @@ function buildFilterClause(filters) {
     // Include all descendants of the selected cost centers using recursive CTE
     idx++;
     const placeholders = costCenterIds.map((_, i) => `$${idx + i}`).join(', ');
-    conditions.push(`i.cost_center_id IN (
+    conditions.push(`e.cost_center_id IN (
       WITH RECURSIVE subtree AS (
         SELECT id FROM cost_centers WHERE id IN (${placeholders})
         UNION ALL
@@ -71,26 +89,24 @@ function buildFilterClause(filters) {
 
   if (vendorNames && vendorNames.length > 0) {
     const placeholders = vendorNames.map(() => { idx++; return `$${idx}`; }).join(', ');
-    conditions.push(`i.vendor_name IN (${placeholders})`);
+    conditions.push(`e.vendor_name IN (${placeholders})`);
     params.push(...vendorNames);
   }
 
-  if (categoryIds && categoryIds.length > 0) {
-    const placeholders = categoryIds.map(() => { idx++; return `$${idx}`; }).join(', ');
-    conditions.push(`i.category_id IN (${placeholders})`);
-    params.push(...categoryIds);
+  // category is the 4-enum string (rezsi/karbantartas/takaritas/egyeb)
+  if (categories && categories.length > 0) {
+    const placeholders = categories.map(() => { idx++; return `$${idx}`; }).join(', ');
+    conditions.push(`e.category IN (${placeholders})`);
+    params.push(...categories);
   }
 
   if (paymentStatus && paymentStatus.length > 0) {
     const placeholders = paymentStatus.map(() => { idx++; return `$${idx}`; }).join(', ');
-    conditions.push(`i.payment_status IN (${placeholders})`);
+    conditions.push(`e.payment_status IN (${placeholders})`);
     params.push(...paymentStatus);
   }
 
-  const whereClause = conditions.length > 0
-    ? 'WHERE ' + conditions.join(' AND ')
-    : '';
-
+  const whereClause = 'WHERE ' + conditions.join(' AND ');
   return { whereClause, params, paramIdx: idx };
 }
 
@@ -160,33 +176,103 @@ function buildTreeWithRollup(flatList) {
  * Get period grouping SQL expressions based on groupBy
  */
 function getPeriodGrouping(groupBy) {
+  const D = EXP_DATE; // date expression on accommodation_expenses (alias e)
   switch (groupBy) {
     case 'day':
       return {
-        groupExpr: `TO_CHAR(i.invoice_date, 'YYYY-MM-DD')`,
-        labelExpr: `TO_CHAR(i.invoice_date, 'YYYY. MM. DD.')`,
-        orderExpr: `TO_CHAR(i.invoice_date, 'YYYY-MM-DD')`,
+        groupExpr: `TO_CHAR(${D}, 'YYYY-MM-DD')`,
+        labelExpr: `TO_CHAR(${D}, 'YYYY. MM. DD.')`,
+        orderExpr: `TO_CHAR(${D}, 'YYYY-MM-DD')`,
       };
     case 'week':
       return {
-        groupExpr: `TO_CHAR(date_trunc('week', i.invoice_date), 'IYYY-"W"IW')`,
-        labelExpr: `TO_CHAR(date_trunc('week', i.invoice_date), 'IYYY') || '. ' || TO_CHAR(date_trunc('week', i.invoice_date), 'IW') || '. hét'`,
-        orderExpr: `TO_CHAR(date_trunc('week', i.invoice_date), 'IYYY-"W"IW')`,
+        groupExpr: `TO_CHAR(date_trunc('week', ${D}), 'IYYY-"W"IW')`,
+        labelExpr: `TO_CHAR(date_trunc('week', ${D}), 'IYYY') || '. ' || TO_CHAR(date_trunc('week', ${D}), 'IW') || '. hét'`,
+        orderExpr: `TO_CHAR(date_trunc('week', ${D}), 'IYYY-"W"IW')`,
       };
     case 'quarter':
       return {
-        groupExpr: `TO_CHAR(i.invoice_date, 'YYYY-"Q"Q')`,
-        labelExpr: `TO_CHAR(i.invoice_date, 'YYYY') || '. Q' || TO_CHAR(i.invoice_date, 'Q')`,
-        orderExpr: `TO_CHAR(i.invoice_date, 'YYYY-"Q"Q')`,
+        groupExpr: `TO_CHAR(${D}, 'YYYY-"Q"Q')`,
+        labelExpr: `TO_CHAR(${D}, 'YYYY') || '. Q' || TO_CHAR(${D}, 'Q')`,
+        orderExpr: `TO_CHAR(${D}, 'YYYY-"Q"Q')`,
       };
     case 'month':
     default:
       return {
-        groupExpr: `TO_CHAR(i.invoice_date, 'YYYY-MM')`,
-        labelExpr: `TO_CHAR(i.invoice_date, 'YYYY') || '. ' || TO_CHAR(i.invoice_date, 'MM')`,
-        orderExpr: `TO_CHAR(i.invoice_date, 'YYYY-MM')`,
+        groupExpr: `TO_CHAR(${D}, 'YYYY-MM')`,
+        labelExpr: `TO_CHAR(${D}, 'YYYY') || '. ' || TO_CHAR(${D}, 'MM')`,
+        orderExpr: `TO_CHAR(${D}, 'YYYY-MM')`,
       };
   }
+}
+
+/**
+ * Per-accommodation cashflow by month: cost (accommodation_expenses) +
+ * revenue (accommodation_billings, non-cancelled incoming runs) → margin.
+ * Independent of the line-item filters (vendor/category/cost-center) — those
+ * would distort the unit margin — it respects only the month range so it
+ * answers "which szálló makes money vs loses". Returns rows per accommodation
+ * with a per-period breakdown + totals.
+ */
+async function computeByAccommodation(startDate, endDate) {
+  const startMonth = String(startDate).slice(0, 7);
+  const endMonth = String(endDate).slice(0, 7);
+
+  const costRows = await query(
+    `SELECT accommodation_id, billing_month AS period, COALESCE(SUM(amount), 0) AS cost
+       FROM accommodation_expenses
+      WHERE deleted_at IS NULL AND billing_month BETWEEN $1 AND $2
+      GROUP BY accommodation_id, billing_month`,
+    [startMonth, endMonth],
+  );
+  const revRows = await query(
+    `SELECT ab.accommodation_id, ab.billing_month AS period, COALESCE(SUM(ab.total_amount), 0) AS revenue
+       FROM accommodation_billings ab
+       JOIN billing_runs br ON br.id = ab.billing_run_id
+      WHERE ab.status <> 'cancelled' AND br.status <> 'cancelled' AND br.run_type = 'incoming'
+        AND ab.billing_month BETWEEN $1 AND $2
+      GROUP BY ab.accommodation_id, ab.billing_month`,
+    [startMonth, endMonth],
+  );
+
+  const acc = new Map(); // accId -> { periods: Map<period,{cost,revenue}> }
+  const bucket = (id) => {
+    if (!acc.has(id)) acc.set(id, new Map());
+    return acc.get(id);
+  };
+  for (const r of costRows.rows) bucket(r.accommodation_id).set(r.period, { cost: parseFloat(r.cost), revenue: 0 });
+  for (const r of revRows.rows) {
+    const m = bucket(r.accommodation_id);
+    const cur = m.get(r.period) || { cost: 0, revenue: 0 };
+    cur.revenue = parseFloat(r.revenue);
+    m.set(r.period, cur);
+  }
+
+  const ids = [...acc.keys()];
+  const nameById = new Map();
+  if (ids.length > 0) {
+    const names = await query('SELECT id, name FROM accommodations WHERE id = ANY($1::uuid[])', [ids]);
+    for (const n of names.rows) nameById.set(n.id, n.name);
+  }
+
+  const rows = ids.map((id) => {
+    const periods = [...acc.get(id).entries()]
+      .map(([period, v]) => ({ period, cost: v.cost, revenue: v.revenue, margin: v.revenue - v.cost }))
+      .sort((a, b) => a.period.localeCompare(b.period));
+    const totalCost = periods.reduce((s, p) => s + p.cost, 0);
+    const totalRevenue = periods.reduce((s, p) => s + p.revenue, 0);
+    const margin = totalRevenue - totalCost;
+    return {
+      accommodationId: id,
+      accommodationName: nameById.get(id) || '—',
+      periods,
+      totalCost, totalRevenue, margin,
+      marginPct: totalRevenue > 0 ? Math.round((margin / totalRevenue) * 1000) / 10 : null,
+    };
+  });
+  // Worst margin first (the ones losing money surface at the top).
+  rows.sort((a, b) => a.margin - b.margin);
+  return rows;
 }
 
 /**
@@ -215,7 +301,7 @@ const generateReport = async (req, res) => {
   try {
     const {
       startDate, endDate, costCenterIds = [], vendorNames = [],
-      categoryIds = [], paymentStatus = [], groupBy = 'month',
+      categories = [], paymentStatus = [], groupBy = 'month',
     } = req.body;
 
     if (!startDate || !endDate) {
@@ -225,17 +311,17 @@ const generateReport = async (req, res) => {
       });
     }
 
-    const filters = { startDate, endDate, costCenterIds, vendorNames, categoryIds, paymentStatus };
+    const filters = { startDate, endDate, costCenterIds, vendorNames, categories, paymentStatus };
     const { whereClause, params } = buildFilterClause(filters);
 
     // ---- 1. Summary ----
     const summaryResult = await query(`
       SELECT
         COUNT(*) AS total_invoices,
-        COALESCE(SUM(i.amount), 0) AS total_net,
-        COALESCE(SUM(i.vat_amount), 0) AS total_vat,
-        COALESCE(SUM(i.total_amount), 0) AS total_gross
-      FROM invoices i
+        COALESCE(SUM(${EXP_NET}), 0) AS total_net,
+        COALESCE(SUM(${EXP_VAT}), 0) AS total_vat,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS total_gross
+      FROM accommodation_expenses e
       ${whereClause}
     `, params);
 
@@ -249,37 +335,39 @@ const generateReport = async (req, res) => {
       avgInvoice: totalInvoices > 0 ? (parseFloat(summaryRow.total_gross) || 0) / totalInvoices : 0,
     };
 
-    // ---- 2. Detailed invoice list ----
+    // ---- 2. Detailed list (aliased to the old invoices column names so the
+    //         export helpers + UI keep working unchanged) ----
     const invoiceResult = await query(`
       SELECT
-        i.id, i.invoice_number, i.vendor_name, i.vendor_tax_number,
-        i.amount, i.vat_amount, i.total_amount, i.currency,
-        i.invoice_date, i.due_date, i.payment_date, i.payment_status,
-        i.description, i.notes, i.cost_center_id, i.category_id,
+        e.id, e.invoice_number, e.vendor_name, e.vendor_tax_number,
+        ${EXP_NET} AS amount, ${EXP_VAT} AS vat_amount, ${EXP_GROSS} AS total_amount, e.currency,
+        ${EXP_DATE} AS invoice_date, NULL::date AS due_date, e.payment_date, e.payment_status,
+        e.notes AS description, e.notes, e.cost_center_id, e.category,
+        a.name AS accommodation_name,
         cc.name AS cost_center_name, cc.code AS cost_center_code, cc.icon AS cost_center_icon,
-        ic.name AS category_name, ic.icon AS category_icon
-      FROM invoices i
-      LEFT JOIN cost_centers cc ON i.cost_center_id = cc.id
-      LEFT JOIN invoice_categories ic ON i.category_id = ic.id
+        ${CATEGORY_CASE} AS category_name
+      FROM accommodation_expenses e
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
+      LEFT JOIN accommodations a ON e.accommodation_id = a.id
       ${whereClause}
-      ORDER BY i.invoice_date DESC, i.invoice_number ASC
+      ORDER BY ${EXP_DATE} DESC, e.invoice_number ASC
     `, params);
 
     const invoices = invoiceResult.rows;
 
     // ---- 3. Cost center hierarchical summary ----
-    // Get all cost centers with invoice sums for matching filters
     const ccSumResult = await query(`
       SELECT
         cc.id, cc.name, cc.code, cc.icon, cc.parent_id, cc.level, cc.path,
-        COUNT(i.id) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
+        COUNT(e.id) AS invoice_count,
+        COALESCE(SUM(e.net), 0) AS net_amount,
+        COALESCE(SUM(e.vat), 0) AS vat_amount,
+        COALESCE(SUM(e.gross), 0) AS gross_amount
       FROM cost_centers cc
       LEFT JOIN (
-        SELECT i.* FROM invoices i ${whereClause}
-      ) i ON i.cost_center_id = cc.id
+        SELECT e.cost_center_id, ${EXP_NET} AS net, ${EXP_VAT} AS vat, ${EXP_GROSS} AS gross
+        FROM accommodation_expenses e ${whereClause}
+      ) e ON e.cost_center_id = cc.id
       WHERE cc.is_active = true
       GROUP BY cc.id, cc.name, cc.code, cc.icon, cc.parent_id, cc.level, cc.path
       ORDER BY cc.path, cc.name
@@ -287,17 +375,17 @@ const generateReport = async (req, res) => {
 
     const byCostCenter = buildTreeWithRollup(ccSumResult.rows);
 
-    // ---- 4. Vendor summary (sorted by gross DESC) ----
+    // ---- 4. Vendor (supplier) summary ----
     const vendorResult = await query(`
       SELECT
-        i.vendor_name,
+        e.vendor_name,
         COUNT(*) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
-      FROM invoices i
+        COALESCE(SUM(${EXP_NET}), 0) AS net_amount,
+        COALESCE(SUM(${EXP_VAT}), 0) AS vat_amount,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS gross_amount
+      FROM accommodation_expenses e
       ${whereClause}
-      GROUP BY i.vendor_name
+      GROUP BY e.vendor_name
       ORDER BY gross_amount DESC
     `, params);
 
@@ -311,27 +399,25 @@ const generateReport = async (req, res) => {
       percentage: ((parseFloat(row.gross_amount) || 0) / totalGrossForPercentage) * 100,
     }));
 
-    // ---- 5. Category summary ----
+    // ---- 5. Category summary (4-enum) ----
     const categoryResult = await query(`
       SELECT
-        i.category_id,
-        COALESCE(ic.name, 'Nincs kategória') AS category_name,
-        ic.icon AS category_icon,
+        e.category,
+        ${CATEGORY_CASE} AS category_name,
         COUNT(*) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
-      FROM invoices i
-      LEFT JOIN invoice_categories ic ON i.category_id = ic.id
+        COALESCE(SUM(${EXP_NET}), 0) AS net_amount,
+        COALESCE(SUM(${EXP_VAT}), 0) AS vat_amount,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS gross_amount
+      FROM accommodation_expenses e
       ${whereClause}
-      GROUP BY i.category_id, ic.name, ic.icon
+      GROUP BY e.category
       ORDER BY gross_amount DESC
     `, params);
 
     const byCategory = categoryResult.rows.map(row => ({
-      categoryId: row.category_id,
+      categoryId: row.category,
       categoryName: row.category_name,
-      categoryIcon: row.category_icon,
+      categoryIcon: null,
       invoiceCount: parseInt(row.invoice_count) || 0,
       netAmount: parseFloat(row.net_amount) || 0,
       vatAmount: parseFloat(row.vat_amount) || 0,
@@ -346,10 +432,10 @@ const generateReport = async (req, res) => {
         ${groupExpr} AS period,
         ${labelExpr} AS period_label,
         COUNT(*) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
-      FROM invoices i
+        COALESCE(SUM(${EXP_NET}), 0) AS net_amount,
+        COALESCE(SUM(${EXP_VAT}), 0) AS vat_amount,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS gross_amount
+      FROM accommodation_expenses e
       ${whereClause}
       GROUP BY ${groupExpr}, ${labelExpr}
       ORDER BY ${orderExpr} ASC
@@ -364,6 +450,9 @@ const generateReport = async (req, res) => {
       grossAmount: parseFloat(row.gross_amount) || 0,
     }));
 
+    // ---- 7. Per-accommodation cashflow (cost + revenue + margin) ----
+    const byAccommodation = await computeByAccommodation(startDate, endDate);
+
     // ---- Response ----
     res.json({
       success: true,
@@ -374,6 +463,7 @@ const generateReport = async (req, res) => {
         byVendor,
         byCategory,
         byPeriod,
+        byAccommodation,
       },
     });
 
@@ -399,7 +489,7 @@ const exportReport = async (req, res) => {
   try {
     const {
       startDate, endDate, costCenterIds = [], vendorNames = [],
-      categoryIds = [], paymentStatus = [], groupBy = 'month',
+      categories = [], paymentStatus = [], groupBy = 'month',
       format = 'xlsx',
     } = req.body;
 
@@ -417,23 +507,24 @@ const exportReport = async (req, res) => {
       });
     }
 
-    const filters = { startDate, endDate, costCenterIds, vendorNames, categoryIds, paymentStatus };
+    const filters = { startDate, endDate, costCenterIds, vendorNames, categories, paymentStatus };
     const { whereClause, params } = buildFilterClause(filters);
 
-    // Fetch all invoice data
+    // Fetch all expense data (aliased to the legacy invoice column names)
     const invoiceResult = await query(`
       SELECT
-        i.id, i.invoice_number, i.vendor_name, i.vendor_tax_number,
-        i.amount, i.vat_amount, i.total_amount, i.currency,
-        i.invoice_date, i.due_date, i.payment_date, i.payment_status,
-        i.description, i.notes,
+        e.id, e.invoice_number, e.vendor_name, e.vendor_tax_number,
+        ${EXP_NET} AS amount, ${EXP_VAT} AS vat_amount, ${EXP_GROSS} AS total_amount, e.currency,
+        ${EXP_DATE} AS invoice_date, NULL::date AS due_date, e.payment_date, e.payment_status,
+        e.notes AS description, e.notes,
+        a.name AS accommodation_name,
         cc.name AS cost_center_name, cc.code AS cost_center_code,
-        ic.name AS category_name
-      FROM invoices i
-      LEFT JOIN cost_centers cc ON i.cost_center_id = cc.id
-      LEFT JOIN invoice_categories ic ON i.category_id = ic.id
+        ${CATEGORY_CASE} AS category_name
+      FROM accommodation_expenses e
+      LEFT JOIN cost_centers cc ON e.cost_center_id = cc.id
+      LEFT JOIN accommodations a ON e.accommodation_id = a.id
       ${whereClause}
-      ORDER BY i.invoice_date DESC, i.invoice_number ASC
+      ORDER BY ${EXP_DATE} DESC, e.invoice_number ASC
     `, params);
 
     const invoices = invoiceResult.rows;
@@ -458,14 +549,13 @@ const exportReport = async (req, res) => {
     }
 
     // ---- XLSX Export ----
-    // For XLSX, we need all summaries too
     const summaryResult = await query(`
       SELECT
         COUNT(*) AS total_invoices,
-        COALESCE(SUM(i.amount), 0) AS total_net,
-        COALESCE(SUM(i.vat_amount), 0) AS total_vat,
-        COALESCE(SUM(i.total_amount), 0) AS total_gross
-      FROM invoices i
+        COALESCE(SUM(${EXP_NET}), 0) AS total_net,
+        COALESCE(SUM(${EXP_VAT}), 0) AS total_vat,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS total_gross
+      FROM accommodation_expenses e
       ${whereClause}
     `, params);
 
@@ -473,14 +563,15 @@ const exportReport = async (req, res) => {
     const ccSumResult = await query(`
       SELECT
         cc.id, cc.name, cc.code, cc.icon, cc.parent_id, cc.level, cc.path,
-        COUNT(i.id) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
+        COUNT(e.cost_center_id) AS invoice_count,
+        COALESCE(SUM(e.net), 0) AS net_amount,
+        COALESCE(SUM(e.vat), 0) AS vat_amount,
+        COALESCE(SUM(e.gross), 0) AS gross_amount
       FROM cost_centers cc
       LEFT JOIN (
-        SELECT i.* FROM invoices i ${whereClause}
-      ) i ON i.cost_center_id = cc.id
+        SELECT e.cost_center_id, ${EXP_NET} AS net, ${EXP_VAT} AS vat, ${EXP_GROSS} AS gross
+        FROM accommodation_expenses e ${whereClause}
+      ) e ON e.cost_center_id = cc.id
       WHERE cc.is_active = true
       GROUP BY cc.id, cc.name, cc.code, cc.icon, cc.parent_id, cc.level, cc.path
       ORDER BY cc.path, cc.name
@@ -488,29 +579,28 @@ const exportReport = async (req, res) => {
 
     // Vendor summary
     const vendorResult = await query(`
-      SELECT i.vendor_name,
+      SELECT e.vendor_name,
         COUNT(*) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
-      FROM invoices i
+        COALESCE(SUM(${EXP_NET}), 0) AS net_amount,
+        COALESCE(SUM(${EXP_VAT}), 0) AS vat_amount,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS gross_amount
+      FROM accommodation_expenses e
       ${whereClause}
-      GROUP BY i.vendor_name
+      GROUP BY e.vendor_name
       ORDER BY gross_amount DESC
     `, params);
 
     // Category summary
     const categoryResult = await query(`
       SELECT
-        COALESCE(ic.name, 'Nincs kategória') AS category_name,
+        ${CATEGORY_CASE} AS category_name,
         COUNT(*) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
-      FROM invoices i
-      LEFT JOIN invoice_categories ic ON i.category_id = ic.id
+        COALESCE(SUM(${EXP_NET}), 0) AS net_amount,
+        COALESCE(SUM(${EXP_VAT}), 0) AS vat_amount,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS gross_amount
+      FROM accommodation_expenses e
       ${whereClause}
-      GROUP BY ic.name
+      GROUP BY e.category
       ORDER BY gross_amount DESC
     `, params);
 
@@ -520,14 +610,16 @@ const exportReport = async (req, res) => {
       SELECT
         ${labelExpr} AS period_label,
         COUNT(*) AS invoice_count,
-        COALESCE(SUM(i.amount), 0) AS net_amount,
-        COALESCE(SUM(i.vat_amount), 0) AS vat_amount,
-        COALESCE(SUM(i.total_amount), 0) AS gross_amount
-      FROM invoices i
+        COALESCE(SUM(${EXP_NET}), 0) AS net_amount,
+        COALESCE(SUM(${EXP_VAT}), 0) AS vat_amount,
+        COALESCE(SUM(${EXP_GROSS}), 0) AS gross_amount
+      FROM accommodation_expenses e
       ${whereClause}
       GROUP BY ${groupExpr}, ${labelExpr}
       ORDER BY ${orderExpr} ASC
     `, params);
+
+    const byAccommodation = await computeByAccommodation(startDate, endDate);
 
     return exportXlsx(res, {
       invoices,
@@ -536,6 +628,7 @@ const exportReport = async (req, res) => {
       vendors: vendorResult.rows,
       categories: categoryResult.rows,
       periods: periodResult.rows,
+      byAccommodation,
       filters,
       groupBy,
       filename,
@@ -755,7 +848,7 @@ function exportPdfFallback(res, invoices, filters, filename) {
 // ============================================
 
 function exportXlsx(res, data) {
-  const { invoices, summary, costCenters, vendors, categories, periods, filters, groupBy, filename } = data;
+  const { invoices, summary, costCenters, vendors, categories, periods, byAccommodation = [], filters, groupBy, filename } = data;
 
   const wb = XLSX.utils.book_new();
 
@@ -892,6 +985,32 @@ function exportXlsx(res, data) {
     { wch: 22 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
   ];
   XLSX.utils.book_append_sheet(wb, ws5, 'Időszak összesítő');
+
+  // ---- Sheet: Szállásonkénti cashflow (cost + revenue + margin by period) ----
+  const cashflowData = [];
+  byAccommodation.forEach((acc) => {
+    acc.periods.forEach((p) => {
+      cashflowData.push({
+        'Szállás': acc.accommodationName,
+        'Időszak': p.period,
+        'Költség': p.cost,
+        'Bevétel': p.revenue,
+        'Margin': p.margin,
+      });
+    });
+    cashflowData.push({
+      'Szállás': `${acc.accommodationName} — ÖSSZESEN`,
+      'Időszak': '',
+      'Költség': acc.totalCost,
+      'Bevétel': acc.totalRevenue,
+      'Margin': acc.margin,
+    });
+  });
+  if (cashflowData.length > 0) {
+    const wsCf = XLSX.utils.json_to_sheet(cashflowData);
+    wsCf['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsCf, 'Szállás cashflow');
+  }
 
   // ---- Sheet 6: Összegzés ----
   const summaryData = [
