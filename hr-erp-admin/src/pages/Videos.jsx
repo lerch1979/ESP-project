@@ -305,6 +305,25 @@ function Videos() {
                             }}
                           />
                         )}
+
+                        {/* Scope badge (top-left) — visible only for restricted videos */}
+                        {video.scope && video.scope !== 'global' && (
+                          <Chip
+                            label={video.scope === 'workplace' ? '🔒 Munkahely' : '🔒 Megbízó'}
+                            size="small"
+                            sx={{
+                              position: 'absolute', top: 8, left: 8,
+                              bgcolor: 'rgba(180,83,9,0.92)', color: 'white',
+                              fontSize: 11, fontWeight: 600, height: 22,
+                            }}
+                          />
+                        )}
+                        {video.is_featured && (
+                          <Chip label="★" size="small" sx={{
+                            position: 'absolute', top: 8, right: 8,
+                            bgcolor: 'rgba(124,58,237,0.92)', color: 'white', fontWeight: 700, height: 22,
+                          }} />
+                        )}
                       </Box>
 
                       {/* Card content */}

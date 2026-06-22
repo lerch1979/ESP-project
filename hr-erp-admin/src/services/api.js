@@ -843,6 +843,11 @@ export const videosAPI = {
     const response = await api.post(`/videos/${id}/view`, data);
     return response.data;
   },
+
+  getCompliance: async (id, params = {}) => {
+    const response = await api.get(`/videos/${id}/compliance`, { params });
+    return response.data;
+  },
 };
 
 // Search API

@@ -18,12 +18,20 @@ import {
   Delete as DeleteIcon,
   Visibility as ViewIcon,
   AccessTime as TimeIcon,
-  Category as CategoryIcon,
   CheckCircle as CheckIcon,
+  Lock as LockIcon,
+  Public as PublicIcon,
+  Translate as TranslateIcon,
+  FactCheck as ComplianceIcon,
+  OpenInNew as OpenIcon,
 } from '@mui/icons-material';
 import { videosAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateVideoModal from './CreateVideoModal';
+import VideoComplianceModal from './VideoComplianceModal';
+
+const SCOPE_LABELS = { global: 'Mindenki', workplace: 'Munkahely', contractor: 'Megbízó' };
+const LANG_LABELS = { hu: 'Magyar', en: 'English', uk: 'Українська', tl: 'Tagalog', de: 'Deutsch' };
 
 const CATEGORY_LABELS = {
   munkabiztonság: 'Munkabiztonság',
@@ -67,6 +75,7 @@ function getEmbedUrl(url) {
 
 function VideoDetailModal({ open, onClose, video, isAdmin }) {
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [complianceOpen, setComplianceOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState(video);
   const [viewRecorded, setViewRecorded] = useState(false);
 
@@ -75,7 +84,15 @@ function VideoDetailModal({ open, onClose, video, isAdmin }) {
     setViewRecorded(false);
   }, [video]);
 
-  // Record view on open
+  // Fetch the full video (versions/subtitles/scope) — the list row lacks them,
+  // and the edit form + dub info need them.
+  useEffect(() => {
+    if (open && video?.id) {
+      videosAPI.getById(video.id).then((r) => { if (r?.data) setCurrentVideo(r.data); }).catch(() => {});
+    }
+  }, [open, video]);
+
+  // Record view on open (residents); harmless for admins.
   useEffect(() => {
     if (open && video && !viewRecorded) {
       videosAPI.recordView(video.id).catch(() => {});
@@ -185,6 +202,41 @@ function VideoDetailModal({ open, onClose, video, isAdmin }) {
               </Typography>
             </Stack>
 
+            {/* Visibility + dub info */}
+            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }} alignItems="center">
+              <Chip
+                size="small"
+                icon={currentVideo.scope === 'global' ? <PublicIcon /> : <LockIcon />}
+                label={SCOPE_LABELS[currentVideo.scope] || 'Mindenki'}
+                sx={{ bgcolor: currentVideo.scope === 'global' ? '#dcfce7' : '#fef3c7',
+                      color: currentVideo.scope === 'global' ? '#16a34a' : '#b45309', fontWeight: 600 }}
+              />
+              {currentVideo.is_featured && <Chip size="small" label="Kiemelt" sx={{ bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 600 }} />}
+              <Chip size="small" icon={<TranslateIcon />}
+                label={`${(currentVideo.versions || []).length} nyelvi verzió`}
+                sx={{ bgcolor: '#dbeafe', color: '#2563eb', fontWeight: 600 }} />
+              {(currentVideo.subtitles || []).length > 0 && (
+                <Chip size="small" label={`${currentVideo.subtitles.length} felirat`} variant="outlined" />
+              )}
+            </Stack>
+
+            {(currentVideo.versions || []).length > 0 && (
+              <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>NYELVI VIDEÓVERZIÓK</Typography>
+                <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                  {currentVideo.versions.map((v) => (
+                    <Stack key={v.language} direction="row" spacing={1} alignItems="center">
+                      <Chip label={v.language.toUpperCase()} size="small" sx={{ height: 20, fontWeight: 700 }} />
+                      <Typography variant="caption" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {LANG_LABELS[v.language]} · {v.playback_url}
+                      </Typography>
+                      <IconButton size="small" href={v.playback_url} target="_blank" rel="noopener"><OpenIcon fontSize="inherit" /></IconButton>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
             {currentVideo.description && (
               <>
                 <Divider sx={{ mb: 2 }} />
@@ -208,6 +260,14 @@ function VideoDetailModal({ open, onClose, video, isAdmin }) {
           <Stack direction="row" spacing={1}>
             {isAdmin && (
               <>
+                <Button
+                  variant="outlined"
+                  startIcon={<ComplianceIcon />}
+                  onClick={() => setComplianceOpen(true)}
+                  sx={{ borderColor: '#0891b2', color: '#0891b2' }}
+                >
+                  Megfelelőség
+                </Button>
                 <Button
                   variant="outlined"
                   startIcon={<EditIcon />}
@@ -235,6 +295,13 @@ function VideoDetailModal({ open, onClose, video, isAdmin }) {
         onClose={() => setEditModalOpen(false)}
         onSuccess={handleEditSuccess}
         editData={currentVideo}
+      />
+
+      {/* Compliance dashboard */}
+      <VideoComplianceModal
+        open={complianceOpen}
+        onClose={() => setComplianceOpen(false)}
+        video={currentVideo}
       />
     </>
   );
