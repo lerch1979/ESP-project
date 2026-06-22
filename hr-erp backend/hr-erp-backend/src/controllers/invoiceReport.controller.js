@@ -359,7 +359,7 @@ const generateReport = async (req, res) => {
     const ccSumResult = await query(`
       SELECT
         cc.id, cc.name, cc.code, cc.icon, cc.parent_id, cc.level, cc.path,
-        COUNT(e.id) AS invoice_count,
+        COUNT(e.cost_center_id) AS invoice_count,
         COALESCE(SUM(e.net), 0) AS net_amount,
         COALESCE(SUM(e.vat), 0) AS vat_amount,
         COALESCE(SUM(e.gross), 0) AS gross_amount
