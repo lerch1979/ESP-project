@@ -10,7 +10,7 @@ hu.housingsolutions.hrerp`, `ITSAppUsesNonExemptEncryption: false`, EAS profiles
 ## 0. Prerequisites (confirm once enrolled)
 - [ ] Organization enrollment **Active** (developer.apple.com → Membership shows the company as the legal entity / "Account Holder").
 - [ ] You're signed into ASC with that Apple ID (Account Holder or Admin role).
-- [ ] **Privacy Policy URL is live** — required to submit. Host a page (e.g. `https://app.housingsolutions.hu/privacy`) covering: data collected (name, email, photos, push token), purpose, retention, contact. *(We don't have one yet — needs creating; it's a submit blocker.)*
+- [x] **Privacy Policy URL is live** ✓ — **https://app.housingsolutions.hu/privacy** (bilingual HU/EN, GDPR: data collected, legal basis, storage/security, retention, resident rights, controller contact; reachable without login). ⚠️ Confirm the controller contact mailbox **adatvedelem@housingsolutions.hu** exists (or edit `hr-erp-admin/public/privacy.html` to your real address).
 
 ## 1. Register the Bundle ID + create the app record
 - [ ] **Bundle ID:** EAS auto-registers `hu.housingsolutions.hrerp` on the first `eas build` (or do it manually: developer.apple.com → Certificates, IDs & Profiles → Identifiers → +). Enable capability **Push Notifications**.
@@ -55,9 +55,12 @@ From `hr-erp-mobile/` once enrolled:
 ## 6. App Store submission (later — full review)
 - [ ] Screenshots (6.7" + 6.5" iPhone required; 5.5" optional) — can generate from the simulator/device.
 - [ ] App description, keywords, support URL, category (**Business** or **Productivity**), age rating questionnaire.
-- [ ] Privacy Policy URL (same as §0).
-- [ ] Demo account for the reviewer (a test resident login) — they WILL need to log in.
-- [ ] Submit for **App Review** (~1–3 days). Common rejection risks for us: login-gated app with no demo account; missing privacy policy; permission strings (we have them).
+- [ ] Privacy Policy URL (same as §0): **https://app.housingsolutions.hu/privacy**.
+- [x] **Demo account for the reviewer** — put this in **App Review → App Review Information → Sign-In Information**:
+  - **Username:** `teszt.lakos@housingsolutions.hu`
+  - **Password:** _(you set/reset it — type it into the App Review notes; it's not stored in plaintext anywhere)_
+  - This is a real, active resident account (role `accommodated_employee`, linked to employee "Eszti Teszt", accommodation **Fertőd**, **4 sample tickets**) — the reviewer sees a populated, working app, not an empty shell. Keep it active and don't delete its sample data before review.
+- [ ] Submit for **App Review** (~1–3 days). Common rejection risks for us: login-gated app with no demo account (✓ covered above); missing privacy policy (✓ live at §0); permission strings (we have them).
 
 ---
 
