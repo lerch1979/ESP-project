@@ -126,12 +126,12 @@ describe('dailyPulseReminder', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('quarterlyAssessmentReminders', () => {
-  test('returns 0 on non-reminder days', async () => {
-    // daysUntil will likely not be exactly 7, 3, or 0
-    // We just verify it doesn't crash and returns 0
+  test('does not crash and returns a number', async () => {
+    // Date-independent: on a reminder day (daysUntil 7/3/0) the job queries for
+    // employees; on other days it early-returns. Mock an empty result set so the
+    // query path is safe regardless of which calendar day the suite runs on.
+    query.mockResolvedValue({ rows: [] });
     const result = await cronJobs.quarterlyAssessmentReminders();
-    // If today happens to be a reminder day, it would try to query
-    // If not, returns 0 without querying
     expect(typeof result).toBe('number');
   });
 });
