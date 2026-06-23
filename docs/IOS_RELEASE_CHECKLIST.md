@@ -10,7 +10,7 @@ hu.housingsolutions.hrerp`, `ITSAppUsesNonExemptEncryption: false`, EAS profiles
 ## 0. Prerequisites (confirm once enrolled)
 - [ ] Organization enrollment **Active** (developer.apple.com → Membership shows the company as the legal entity / "Account Holder").
 - [ ] You're signed into ASC with that Apple ID (Account Holder or Admin role).
-- [x] **Privacy Policy URL is live** ✓ — **https://app.housingsolutions.hu/privacy** (bilingual HU/EN, GDPR: data collected, legal basis, storage/security, retention, resident rights, controller contact; reachable without login). ⚠️ Confirm the controller contact mailbox **adatvedelem@housingsolutions.hu** exists (or edit `hr-erp-admin/public/privacy.html` to your real address).
+- [x] **Privacy Policy URL is live** ✓ — **https://app.housingsolutions.hu/privacy** (bilingual HU/EN, GDPR: data collected, legal basis, storage/security, retention, resident rights, controller contact; reachable without login). Controller contact: **office@housingsolutions.hu**.
 
 ## 1. Register the Bundle ID + create the app record
 - [ ] **Bundle ID:** EAS auto-registers `hu.housingsolutions.hrerp` on the first `eas build` (or do it manually: developer.apple.com → Certificates, IDs & Profiles → Identifiers → +). Enable capability **Push Notifications**.
