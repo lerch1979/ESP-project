@@ -14,7 +14,11 @@
       "backgroundColor": "#1c1c1e"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "hu.housingsolutions.hrerp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "hu.housingsolutions.hrerp",

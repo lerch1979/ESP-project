@@ -20,6 +20,23 @@
         "EXPO_PUBLIC_API_URL": "https://app.housingsolutions.hu/api/v1"
       }
     },
+    "ios-simulator": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://app.housingsolutions.hu/api/v1"
+      }
+    },
+    "testflight": {
+      "ios": {
+        "autoIncrement": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://app.housingsolutions.hu/api/v1"
+      }
+    },
     "production": {
       "distribution": "internal",
       "android": {
