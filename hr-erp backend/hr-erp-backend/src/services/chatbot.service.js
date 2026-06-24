@@ -166,11 +166,14 @@ async function matchKnowledgeBase(text, contractorId, _contextKeywords) {
   const inputWords = getSignificantWords(text);
   if (inputWords.length === 0) return null;
 
-  // Load all active FAQ entries
+  // Load active FAQ entries: the contractor's own PLUS global (NULL) entries.
+  // The KB is currently 100% global; a strict `contractor_id = $1` made every
+  // entry unreachable → the bot always fell back. (Same pattern as the CarePath
+  // provider query.)
   const result = await query(
     `SELECT id, question, answer, keywords, priority
      FROM chatbot_knowledge_base
-     WHERE contractor_id = $1 AND is_active = true`,
+     WHERE (contractor_id = $1 OR contractor_id IS NULL) AND is_active = true`,
     [contractorId]
   );
   const entries = result.rows;
@@ -220,7 +223,7 @@ async function semanticMatchKnowledgeBase(text, contractorId) {
   const result = await query(
     `SELECT id, question, answer, keywords, priority
      FROM chatbot_knowledge_base
-     WHERE contractor_id = $1 AND is_active = true`,
+     WHERE (contractor_id = $1 OR contractor_id IS NULL) AND is_active = true`,
     [contractorId]
   );
   const entries = result.rows;
