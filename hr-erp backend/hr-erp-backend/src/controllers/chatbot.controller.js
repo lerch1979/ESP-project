@@ -373,11 +373,31 @@ const closeConversation = async (req, res) => {
   }
 };
 
+// FAQ content is authored once in Hungarian; serve it in the resident's
+// language using the SAME cache-backed translation layer the chatbot messages
+// use (translation_cache, 30-day TTL). Prefer an explicit ?lang, else the
+// resident's stored preference. 'hu' short-circuits (no round-trip).
+const FAQ_LANGS = ['hu', 'en', 'uk', 'tl', 'de'];
+const resolveResidentLang = async (req) => {
+  if (FAQ_LANGS.includes(req.query.lang)) return req.query.lang;
+  return req.user?.id ? await translation.getUserLanguage(req.user.id) : 'hu';
+};
+
 const getUserFaqCategories = async (req, res) => {
   try {
     const contractorId = req.user?.contractorId;
     const categories = await chatbotService.getFaqCategories(contractorId);
-    res.json({ success: true, data: categories });
+
+    const lang = await resolveResidentLang(req);
+    if (lang === 'hu') return res.json({ success: true, data: categories });
+
+    const translated = await Promise.all(categories.map(async (c) => ({
+      ...c,
+      name: await translation.translateText(c.name, 'hu', lang),
+      name_original: c.name,
+      is_translated: true,
+    })));
+    res.json({ success: true, data: translated });
   } catch (error) {
     logger.error('Error getting FAQ categories:', error);
     res.status(500).json({ success: false, message: 'Hiba a GYIK kategóriák lekérdezése közben' });
@@ -389,7 +409,28 @@ const getUserFaqEntries = async (req, res) => {
     const contractorId = req.user?.contractorId;
     const { category_id, search } = req.query;
     const entries = await chatbotService.getFaqEntries(contractorId, category_id, search);
-    res.json({ success: true, data: entries });
+
+    const lang = await resolveResidentLang(req);
+    if (lang === 'hu') return res.json({ success: true, data: entries });
+
+    // Translate question + answer (+ category name) per entry. translateText is
+    // cache-backed, so the first load populates the cache and later loads are
+    // instant. Keep the Hungarian original for an in-app toggle.
+    const translated = await Promise.all(entries.map(async (e) => {
+      const [question, answer, category_name] = await Promise.all([
+        translation.translateText(e.question, 'hu', lang),
+        translation.translateText(e.answer, 'hu', lang),
+        e.category_name ? translation.translateText(e.category_name, 'hu', lang) : Promise.resolve(e.category_name),
+      ]);
+      return {
+        ...e,
+        question, answer, category_name,
+        question_original: e.question,
+        answer_original: e.answer,
+        is_translated: true,
+      };
+    }));
+    res.json({ success: true, data: translated });
   } catch (error) {
     logger.error('Error getting FAQ entries:', error);
     res.status(500).json({ success: false, message: 'Hiba a GYIK bejegyzések lekérdezése közben' });
