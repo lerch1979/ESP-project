@@ -53,7 +53,9 @@ async function getContractorConfig(contractorId) {
   if (cached) return cached;
 
   const result = await query(
-    `SELECT * FROM chatbot_config WHERE contractor_id = $1 AND is_active = true`,
+    // Prefer the contractor's own config, else fall back to a global (NULL) one.
+    `SELECT * FROM chatbot_config WHERE (contractor_id = $1 OR contractor_id IS NULL) AND is_active = true
+     ORDER BY contractor_id NULLS LAST LIMIT 1`,
     [contractorId]
   );
 
@@ -279,7 +281,7 @@ async function getSuggestions(text, contractorId) {
     `SELECT id, question, answer,
             similarity(LOWER(question), $2) AS score
      FROM chatbot_knowledge_base
-     WHERE contractor_id = $1 AND is_active = true
+     WHERE (contractor_id = $1 OR contractor_id IS NULL) AND is_active = true
        AND similarity(LOWER(question), $2) > 0.2
      ORDER BY score DESC
      LIMIT 3`,
@@ -342,7 +344,7 @@ async function matchDecisionTree(text, contractorId) {
   const result = await query(
     `SELECT id, name, trigger_keywords
      FROM chatbot_decision_trees
-     WHERE contractor_id = $1 AND is_active = true`,
+     WHERE (contractor_id = $1 OR contractor_id IS NULL) AND is_active = true`,
     [contractorId]
   );
 
