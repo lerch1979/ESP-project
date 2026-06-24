@@ -7,26 +7,32 @@ const { checkPermission } = require('../middleware/permission');
 // All routes require authentication
 router.use(authenticateToken);
 
+// CarePath is the EAP (employee assistance / counseling) programme — its
+// self-service endpoints expose the caller's own GDPR Art-9 health data
+// (mental-health cases, counseling bookings). Require the explicit
+// `wellbeing.self` permission; residents (accommodated_employee) do not hold it.
+const selfService = checkPermission('wellbeing.self');
+
 // ── Employee endpoints ─────────────────────────────────────────────
 
-router.get('/categories', ctrl.getCategories);
+router.get('/categories', selfService, ctrl.getCategories);
 
 // Cases
-router.post('/cases', ctrl.createCase);
-router.get('/my-cases', ctrl.getMyCases);
-router.get('/cases/:id', ctrl.getCaseDetails);
-router.put('/cases/:id/close', ctrl.closeCase);
+router.post('/cases', selfService, ctrl.createCase);
+router.get('/my-cases', selfService, ctrl.getMyCases);
+router.get('/cases/:id', selfService, ctrl.getCaseDetails);
+router.put('/cases/:id/close', selfService, ctrl.closeCase);
 
 // Providers
-router.get('/providers/search', ctrl.searchProviders);
-router.get('/providers/:id/availability', ctrl.getProviderAvailability);
-router.get('/providers/:id', ctrl.getProvider);
+router.get('/providers/search', selfService, ctrl.searchProviders);
+router.get('/providers/:id/availability', selfService, ctrl.getProviderAvailability);
+router.get('/providers/:id', selfService, ctrl.getProvider);
 
 // Bookings
-router.post('/bookings', ctrl.createBooking);
-router.get('/my-bookings', ctrl.getMyBookings);
-router.put('/bookings/:id/cancel', ctrl.cancelBooking);
-router.put('/bookings/:id/reschedule', ctrl.rescheduleBooking);
+router.post('/bookings', selfService, ctrl.createBooking);
+router.get('/my-bookings', selfService, ctrl.getMyBookings);
+router.put('/bookings/:id/cancel', selfService, ctrl.cancelBooking);
+router.put('/bookings/:id/reschedule', selfService, ctrl.rescheduleBooking);
 
 // ── Provider endpoints ─────────────────────────────────────────────
 

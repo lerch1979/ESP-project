@@ -433,7 +433,9 @@ const getProviderCases = async (req, res) => {
 /** GET /api/v1/carepath/admin/usage-stats */
 const getUsageStats = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: derive contractor from the authenticated user, never
+    // from a caller-supplied ?contractorId (cross-tenant Art-9 leak otherwise).
+    const contractorId = req.user.contractorId;
     const startMonth = req.query.startMonth || new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const endMonth = req.query.endMonth || new Date().toISOString().split('T')[0];
 
@@ -454,17 +456,13 @@ const getUsageStats = async (req, res) => {
 /** GET /api/v1/carepath/admin/providers */
 const getAdminProviders = async (req, res) => {
   try {
-    const filters = {};
-    if (req.query.provider_type) filters.provider_type = req.query.provider_type;
-    if (req.query.city) filters.city = req.query.city;
-    if (req.query.contractor_id) filters.contractor_id = req.query.contractor_id;
-
-    // Admin sees all providers including inactive
+    // Admin sees all providers (global + own contractor) including inactive.
+    // Scope to the authenticated user's contractor; ignore any ?contractor_id.
     const result = await query(
       `SELECT * FROM carepath_providers
        WHERE (contractor_id IS NULL OR contractor_id = $1)
        ORDER BY is_active DESC, full_name`,
-      [req.query.contractor_id || req.user.contractorId]
+      [req.user.contractorId]
     );
 
     res.json({ success: true, data: result.rows });

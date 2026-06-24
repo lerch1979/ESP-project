@@ -3,6 +3,28 @@ const { logger } = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
 
+// Roles that legitimately manage the whole employee document store (HR/admin).
+// Anyone else who somehow reaches these endpoints is treated as a self-service
+// caller and may only ever see documents tied to their OWN employee record.
+// This is defense-in-depth: the primary control is that residents no longer
+// hold `documents.view` at all (migration 129).
+const STAFF_DOC_ROLES = ['superadmin', 'admin', 'data_controller', 'task_owner', 'user', 'contractor'];
+
+/**
+ * Resolve the ownership scope for a documents request.
+ * @returns {{ selfScoped: boolean, employeeId: string|null }}
+ *   selfScoped=false → staff caller, sees all documents.
+ *   selfScoped=true  → restricted to employeeId (null = no employee record → nothing).
+ */
+const resolveDocScope = async (req) => {
+  const roles = (req.user && req.user.roles) || [];
+  if (roles.some(r => STAFF_DOC_ROLES.includes(r))) {
+    return { selfScoped: false, employeeId: null };
+  }
+  const r = await query('SELECT id FROM employees WHERE user_id = $1 LIMIT 1', [req.user.id]);
+  return { selfScoped: true, employeeId: r.rows[0] ? r.rows[0].id : null };
+};
+
 /**
  * Dokumentumok listázása (szűrőkkel, lapozással)
  */
@@ -15,13 +37,27 @@ const getDocuments = async (req, res) => {
     let params = [];
     let paramIndex = 1;
 
+    // Ownership scoping: a non-staff caller may only see their own documents.
+    const scope = await resolveDocScope(req);
+    if (scope.selfScoped && !scope.employeeId) {
+      return res.json({
+        success: true,
+        data: { documents: [], pagination: { total: 0, page: parseInt(page), limit: parseInt(limit), totalPages: 0 } }
+      });
+    }
+
     if (document_type && document_type !== 'all') {
       whereConditions.push(`d.document_type = $${paramIndex}`);
       params.push(document_type);
       paramIndex++;
     }
 
-    if (employee_id && employee_id !== 'all') {
+    if (scope.selfScoped) {
+      // Force the caller's own employee_id; ignore any client-supplied filter.
+      whereConditions.push(`d.employee_id = $${paramIndex}`);
+      params.push(scope.employeeId);
+      paramIndex++;
+    } else if (employee_id && employee_id !== 'all') {
       whereConditions.push(`d.employee_id = $${paramIndex}`);
       params.push(employee_id);
       paramIndex++;
@@ -115,6 +151,15 @@ const getDocumentById = async (req, res) => {
     const result = await query(documentQuery, [id]);
 
     if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dokumentum nem található'
+      });
+    }
+
+    // Ownership scoping: a non-staff caller may only read their own documents.
+    const scope = await resolveDocScope(req);
+    if (scope.selfScoped && result.rows[0].employee_id !== scope.employeeId) {
       return res.status(404).json({
         success: false,
         message: 'Dokumentum nem található'
@@ -333,11 +378,20 @@ const downloadDocument = async (req, res) => {
     const { id } = req.params;
 
     const result = await query(
-      'SELECT file_name, file_path, mime_type FROM documents WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT file_name, file_path, mime_type, employee_id FROM documents WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
 
     if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dokumentum nem található'
+      });
+    }
+
+    // Ownership scoping: a non-staff caller may only download their own documents.
+    const scope = await resolveDocScope(req);
+    if (scope.selfScoped && result.rows[0].employee_id !== scope.employeeId) {
       return res.status(404).json({
         success: false,
         message: 'Dokumentum nem található'

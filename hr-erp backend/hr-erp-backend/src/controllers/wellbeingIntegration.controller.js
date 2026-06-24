@@ -335,7 +335,10 @@ const submitFeedback = async (req, res) => {
 /** GET /api/v1/wellbeing/admin/conflicts/stats */
 const getConflictStats = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: always derive the contractor from the authenticated
+    // user. NEVER honour a caller-supplied ?contractorId — that allowed any
+    // user to pull another contractor's mental-health analytics (GDPR Art 9).
+    const contractorId = req.user.contractorId;
     const startDate = req.query.startDate || null;
     const endDate = req.query.endDate || null;
 
@@ -361,7 +364,10 @@ const getConflictStats = async (req, res) => {
 /** GET /api/v1/wellbeing/admin/conflicts/trends */
 const getConflictTrends = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: always derive the contractor from the authenticated
+    // user. NEVER honour a caller-supplied ?contractorId — that allowed any
+    // user to pull another contractor's mental-health analytics (GDPR Art 9).
+    const contractorId = req.user.contractorId;
     const weeks = Math.min(parseInt(req.query.weeks) || 12, 52);
 
     const result = await query(
@@ -381,7 +387,10 @@ const getConflictTrends = async (req, res) => {
 /** GET /api/v1/wellbeing/admin/conflicts/critical */
 const getCriticalIncidents = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: always derive the contractor from the authenticated
+    // user. NEVER honour a caller-supplied ?contractorId — that allowed any
+    // user to pull another contractor's mental-health analytics (GDPR Art 9).
+    const contractorId = req.user.contractorId;
     const days = Math.min(parseInt(req.query.days) || 30, 365);
 
     const result = await query(
@@ -465,7 +474,10 @@ const updateQuestionRotation = async (req, res) => {
 /** GET /api/v1/wellbeing/admin/predictive */
 const getPredictiveAnalytics = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: always derive the contractor from the authenticated
+    // user. NEVER honour a caller-supplied ?contractorId — that allowed any
+    // user to pull another contractor's mental-health analytics (GDPR Art 9).
+    const contractorId = req.user.contractorId;
 
     // Turnover risk: high burnout + low engagement
     const riskResult = await query(

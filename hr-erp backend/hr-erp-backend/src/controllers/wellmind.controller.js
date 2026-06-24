@@ -347,7 +347,9 @@ const getTeamMetrics = async (req, res) => {
 /** GET /api/v1/wellmind/admin/dashboard */
 const getAdminDashboard = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: derive contractor from the authenticated user, never
+    // from a caller-supplied ?contractorId (cross-tenant Art-9 leak otherwise).
+    const contractorId = req.user.contractorId;
 
     const dashboard = await wellmindService.getCompanyDashboard(contractorId);
 
@@ -380,7 +382,9 @@ const getAdminDashboard = async (req, res) => {
 /** GET /api/v1/wellmind/admin/risk-employees */
 const getRiskEmployees = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: derive contractor from the authenticated user, never
+    // from a caller-supplied ?contractorId (cross-tenant Art-9 leak otherwise).
+    const contractorId = req.user.contractorId;
     const riskLevel = req.query.risk_level || 'red';
 
     const employees = await wellmindService.getRiskEmployees(contractorId, riskLevel);
@@ -401,7 +405,9 @@ const getRiskEmployees = async (req, res) => {
 /** GET /api/v1/wellmind/admin/trends */
 const getTrends = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: derive contractor from the authenticated user, never
+    // from a caller-supplied ?contractorId (cross-tenant Art-9 leak otherwise).
+    const contractorId = req.user.contractorId;
     const startDate = req.query.startDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const endDate = req.query.endDate || new Date().toISOString().split('T')[0];
 
@@ -647,7 +653,9 @@ const getMyOvertime = async (req, res) => {
 /** GET /api/v1/wellmind/admin/overtime-correlation */
 const getOvertimeCorrelation = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: derive contractor from the authenticated user, never
+    // from a caller-supplied ?contractorId (cross-tenant Art-9 leak otherwise).
+    const contractorId = req.user.contractorId;
     const result = await query(
       `SELECT * FROM v_overtime_burnout_correlation WHERE contractor_id = $1`,
       [contractorId]
@@ -662,7 +670,9 @@ const getOvertimeCorrelation = async (req, res) => {
 /** GET /api/v1/wellmind/admin/sick-leave-correlation */
 const getSickLeaveCorrelation = async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    // Tenant isolation: derive contractor from the authenticated user, never
+    // from a caller-supplied ?contractorId (cross-tenant Art-9 leak otherwise).
+    const contractorId = req.user.contractorId;
     const result = await query(
       `SELECT * FROM v_sick_leave_correlation WHERE contractor_id = $1`,
       [contractorId]
