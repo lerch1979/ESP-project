@@ -463,7 +463,9 @@ async function getFaqCategories(contractorId) {
   const params = [];
 
   if (contractorId) {
-    sql += ` AND contractor_id = $1`;
+    // Include global (NULL) categories, not just the contractor's own — the
+    // FAQ content is currently 100% global, so a strict filter showed nothing.
+    sql += ` AND (contractor_id = $1 OR contractor_id IS NULL)`;
     params.push(contractorId);
   }
 
@@ -488,7 +490,8 @@ async function getFaqEntries(contractorId, categoryId, search) {
   let idx = 1;
 
   if (contractorId) {
-    sql += ` AND kb.contractor_id = $${idx}`;
+    // Include global (NULL) entries — the KB is currently 100% global.
+    sql += ` AND (kb.contractor_id = $${idx} OR kb.contractor_id IS NULL)`;
     params.push(contractorId);
     idx++;
   }
@@ -829,7 +832,7 @@ async function searchFaq(contractorId, searchText) {
     `SELECT kb.id, kb.question, kb.answer, fc.name as category_name, fc.icon, fc.color
      FROM chatbot_knowledge_base kb
      LEFT JOIN chatbot_faq_categories fc ON kb.category_id = fc.id
-     WHERE kb.contractor_id = $1 AND kb.is_active = true
+     WHERE (kb.contractor_id = $1 OR kb.contractor_id IS NULL) AND kb.is_active = true
        AND (kb.question ILIKE $2 OR kb.answer ILIKE $2)
      ORDER BY kb.priority DESC, kb.question
      LIMIT 20`,
