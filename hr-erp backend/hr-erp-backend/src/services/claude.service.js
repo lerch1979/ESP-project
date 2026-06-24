@@ -16,7 +16,10 @@ const { TTLCache } = require('../utils/cache');
 // ─── Configuration ──────────────────────────────────────────────────────────
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+// Default must be a VALID, currently-served model. 'claude-sonnet-4-20250514'
+// was retired and returns 404 not_found, which silently broke the chatbot,
+// AI assistant and sentiment analysis. Keep in sync with the OCR service.
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
 const CLAUDE_MAX_TOKENS = parseInt(process.env.CLAUDE_MAX_TOKENS) || 1024;
 
 // Rate limiting: token bucket (50 req/min)

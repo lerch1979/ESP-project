@@ -259,7 +259,7 @@ const sendMessage = async (req, res) => {
     const confidenceScore = metadata.confidence_score || null;
     const botMsg = await query(
       `INSERT INTO chatbot_messages (conversation_id, sender_type, message_type, content, metadata, faq_id, confidence_score, language, translated_content, is_translated)
-       VALUES ($1, $2, $3, $4, $5, $6, 'hu', $7, $8) RETURNING *`,
+       VALUES ($1, 'bot', $2, $3, $4, $5, $6, 'hu', $7, $8) RETURNING *`,
       [conversationId, botResponse.message_type, botResponse.content, JSON.stringify(metadata), faqId, confidenceScore, botContentTranslated, isTranslated]
     );
 

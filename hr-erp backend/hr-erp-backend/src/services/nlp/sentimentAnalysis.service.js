@@ -118,7 +118,8 @@ class SentimentAnalysisService {
     }
 
     const message = await this.client.messages.create({
-      model: process.env.CLAUDE_SENTIMENT_MODEL || 'claude-sonnet-4-20250514',
+      // Valid default — 'claude-sonnet-4-20250514' was retired and 404s.
+      model: process.env.CLAUDE_SENTIMENT_MODEL || 'claude-sonnet-4-6',
       max_tokens: 500,
       system: SYSTEM_PROMPT,
       messages: [{

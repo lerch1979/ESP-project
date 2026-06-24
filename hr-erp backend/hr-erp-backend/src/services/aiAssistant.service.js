@@ -19,7 +19,9 @@ const { logger } = require('../utils/logger');
 const inApp = require('./inAppNotification.service');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+// Valid, currently-served default — 'claude-sonnet-4-20250514' was retired
+// and 404s. Keep in sync with claude.service.js / the OCR service.
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-4-6';
 
 const CONFIDENCE_THRESHOLD = 0.7;
 
