@@ -677,7 +677,9 @@ const getKnowledgeBase = async (req, res) => {
     const { search, category_id, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
-    let conditions = ['kb.contractor_id = $1'];
+    // Show the contractor's own entries AND global (NULL) entries — the latter
+    // are what every resident matches on, so admins must see/manage them here.
+    let conditions = ['(kb.contractor_id = $1 OR kb.contractor_id IS NULL)'];
     const params = [contractorId];
     let idx = 2;
 
@@ -720,19 +722,34 @@ const getKnowledgeBase = async (req, res) => {
   }
 };
 
+// Resolve the contractor_id a KB entry should be written with, from the
+// requested scope. Default = global (NULL) so content reaches ALL residents,
+// regardless of which contractor they belong to. scope='contractor' targets a
+// specific contractor (superadmin may pick any; others are pinned to their own).
+const resolveEntryContractorId = (req) => {
+  const { scope, contractor_id } = req.body;
+  if (scope === 'contractor') {
+    return req.user.roles.includes('superadmin')
+      ? (contractor_id || req.user.contractorId)
+      : req.user.contractorId;
+  }
+  return null; // global (default)
+};
+
 const createKnowledgeBaseEntry = async (req, res) => {
   try {
-    const contractorId = req.user.contractorId;
     const { question, answer, keywords, category_id, priority } = req.body;
 
     if (!question || !answer) {
       return res.status(400).json({ success: false, message: 'Kérdés és válasz megadása kötelező' });
     }
 
+    const entryContractorId = resolveEntryContractorId(req);
+
     const result = await query(
       `INSERT INTO chatbot_knowledge_base (contractor_id, question, answer, keywords, category_id, priority)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [contractorId, question, answer, keywords || [], category_id || null, priority || 0]
+      [entryContractorId, question, answer, keywords || [], category_id || null, priority || 0]
     );
 
     res.status(201).json({ success: true, data: result.rows[0] });
@@ -745,7 +762,12 @@ const createKnowledgeBaseEntry = async (req, res) => {
 const updateKnowledgeBaseEntry = async (req, res) => {
   try {
     const { id } = req.params;
-    const { question, answer, keywords, category_id, priority, is_active } = req.body;
+    const { question, answer, keywords, category_id, priority, is_active, scope } = req.body;
+
+    // Only re-scope when `scope` is explicitly sent, so editing a global entry
+    // without touching scope keeps it global. ($changeScope gates the change.)
+    const changeScope = scope === 'global' || scope === 'contractor';
+    const newContractorId = changeScope ? resolveEntryContractorId(req) : null;
 
     const result = await query(
       `UPDATE chatbot_knowledge_base
@@ -754,9 +776,11 @@ const updateKnowledgeBaseEntry = async (req, res) => {
            keywords = COALESCE($3, keywords),
            category_id = $4,
            priority = COALESCE($5, priority),
-           is_active = COALESCE($6, is_active)
-       WHERE id = $7 RETURNING *`,
-      [question, answer, keywords, category_id, priority, is_active, id]
+           is_active = COALESCE($6, is_active),
+           contractor_id = CASE WHEN $7::boolean THEN $8::uuid ELSE contractor_id END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $9 RETURNING *`,
+      [question, answer, keywords, category_id, priority, is_active, changeScope, newContractorId, id]
     );
 
     if (result.rows.length === 0) {
@@ -923,6 +947,66 @@ const getAnalytics = async (req, res) => {
   } catch (error) {
     logger.error('Error getting analytics:', error);
     res.status(500).json({ success: false, message: 'Hiba az analitika lekérdezése közben' });
+  }
+};
+
+// Top unanswered questions — the actual resident questions that hit the
+// fallback path (no KB/AI/tree match), grouped + counted, so the owner can see
+// exactly which gaps to fill in the knowledge base. For each fallback bot
+// message we take the user message that immediately preceded it.
+// Superadmin sees system-wide by default (resident conversations live on the
+// residents' contractor, not the admin's); pass ?contractor_id to narrow.
+const getUnansweredQuestions = async (req, res) => {
+  try {
+    const isSuper = req.user.roles.includes('superadmin');
+    const contractorFilter = isSuper ? (req.query.contractor_id || null) : req.user.contractorId;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+
+    const params = [];
+    let contractorClause = '';
+    if (contractorFilter) {
+      params.push(contractorFilter);
+      contractorClause = `AND c.contractor_id = $${params.length}`;
+    }
+    params.push(limit);
+
+    const result = await query(
+      `SELECT lower(btrim(u.content)) AS question_key,
+              count(*)               AS times_asked,
+              max(b.created_at)      AS last_asked,
+              (array_agg(u.content ORDER BY b.created_at DESC))[1] AS sample_question
+       FROM chatbot_messages b
+       JOIN chatbot_conversations c ON c.id = b.conversation_id
+       JOIN LATERAL (
+         SELECT content
+         FROM chatbot_messages um
+         WHERE um.conversation_id = b.conversation_id
+           AND um.sender_type = 'user'
+           AND um.created_at <= b.created_at
+         ORDER BY um.created_at DESC
+         LIMIT 1
+       ) u ON true
+       WHERE b.sender_type = 'bot'
+         AND b.metadata->>'source' = 'fallback'
+         AND btrim(u.content) <> ''
+         ${contractorClause}
+       GROUP BY lower(btrim(u.content))
+       ORDER BY times_asked DESC, last_asked DESC
+       LIMIT $${params.length}`,
+      params
+    );
+
+    res.json({
+      success: true,
+      data: result.rows.map(r => ({
+        question: r.sample_question,
+        timesAsked: parseInt(r.times_asked),
+        lastAsked: r.last_asked,
+      })),
+    });
+  } catch (error) {
+    logger.error('Error getting unanswered questions:', error);
+    res.status(500).json({ success: false, message: 'Hiba a megválaszolatlan kérdések lekérdezése közben' });
   }
 };
 
@@ -1354,6 +1438,7 @@ module.exports = {
   deleteKnowledgeBaseEntry,
   bulkActionKnowledgeBase,
   getAnalytics,
+  getUnansweredQuestions,
   // Tier 3
   getDecisionTrees,
   getDecisionTree,

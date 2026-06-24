@@ -9,7 +9,7 @@ import {
   Add, Edit, Delete, Search, Refresh, MoreVert, DeleteSweep,
   ToggleOn, ToggleOff, Category as CategoryIcon,
 } from '@mui/icons-material';
-import { chatbotAPI } from '../../services/api';
+import { chatbotAPI, contractorsAPI } from '../../services/api';
 import { toast } from 'react-toastify';
 import FAQEntryFormModal from '../../components/admin/FAQEntryFormModal';
 
@@ -22,6 +22,7 @@ export default function FAQKnowledgeBase() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categories, setCategories] = useState([]);
+  const [contractors, setContractors] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -53,7 +54,18 @@ export default function FAQKnowledgeBase() {
     }
   };
 
-  useEffect(() => { fetchCategories(); }, []);
+  const fetchContractors = async () => {
+    try {
+      const response = await contractorsAPI.getAll();
+      // Tolerate a few common response shapes.
+      const list = response?.data?.contractors || response?.data || response?.contractors || [];
+      setContractors(Array.isArray(list) ? list : []);
+    } catch (error) {
+      console.error('Error loading contractors:', error);
+    }
+  };
+
+  useEffect(() => { fetchCategories(); fetchContractors(); }, []);
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   const handleOpenModal = (entry = null) => {
@@ -343,6 +355,7 @@ export default function FAQKnowledgeBase() {
         onSave={handleSave}
         entry={editingEntry}
         categories={categories}
+        contractors={contractors}
       />
     </Box>
   );

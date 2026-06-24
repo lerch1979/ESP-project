@@ -16,13 +16,18 @@ const STAT_CARDS = [
 
 export default function ChatbotAnalytics() {
   const [data, setData] = useState(null);
+  const [unanswered, setUnanswered] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const response = await chatbotAPI.getAnalytics();
-        setData(response.data);
+        const [analytics, gaps] = await Promise.all([
+          chatbotAPI.getAnalytics(),
+          chatbotAPI.getUnansweredQuestions().catch(() => ({ data: [] })),
+        ]);
+        setData(analytics.data);
+        setUnanswered(gaps.data || []);
       } catch (error) {
         toast.error('Hiba az analitika betöltése közben');
       } finally {
@@ -99,6 +104,41 @@ export default function ChatbotAnalytics() {
           </TableContainer>
         </Paper>
       )}
+
+      <Paper sx={{ p: 2, mt: 3 }}>
+        <Typography variant="h6" fontWeight={600}>Megválaszolatlan kérdések</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Amit a lakók kérdeztek, de a chatbot nem tudott megválaszolni — ezekre érdemes új tudásbázis-bejegyzést írni.
+        </Typography>
+        {unanswered.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">Nincs megválaszolatlan kérdés. 🎉</Typography>
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Kérdés</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Hányszor</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Utoljára</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {unanswered.map((item, index) => (
+                  <TableRow key={index} hover>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{item.question}</TableCell>
+                    <TableCell align="right"><Typography fontWeight={600}>{item.timesAsked}</Typography></TableCell>
+                    <TableCell align="right">
+                      {item.lastAsked ? new Date(item.lastAsked).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
     </Box>
   );
 }

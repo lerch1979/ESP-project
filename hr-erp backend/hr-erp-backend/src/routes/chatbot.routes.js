@@ -44,6 +44,7 @@ router.post('/feedback', chatbot.submitFeedback);
 router.get('/admin/conversations', requireRole(['admin', 'task_owner', 'superadmin', 'data_controller']), chatbot.adminGetConversations);
 router.get('/admin/conversations/:conversationId', requireRole(['admin', 'task_owner', 'superadmin', 'data_controller']), chatbot.adminGetConversationDetail);
 router.get('/admin/analytics', requireRole(['admin', 'task_owner', 'superadmin', 'data_controller']), chatbot.getAnalytics);
+router.get('/admin/unanswered', requireRole(['admin', 'task_owner', 'superadmin', 'data_controller']), chatbot.getUnansweredQuestions);
 
 // Knowledge Base (admin+)
 router.get('/admin/knowledge-base', requireAdmin, chatbot.getKnowledgeBase);

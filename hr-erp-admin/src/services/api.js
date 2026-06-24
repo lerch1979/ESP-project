@@ -1010,6 +1010,10 @@ export const chatbotAPI = {
     const response = await api.get('/chatbot/admin/analytics', { params });
     return response.data;
   },
+  getUnansweredQuestions: async (params = {}) => {
+    const response = await api.get('/chatbot/admin/unanswered', { params });
+    return response.data;
+  },
 
   // Tier 3 - Superadmin
   getDecisionTrees: async (params = {}) => {
