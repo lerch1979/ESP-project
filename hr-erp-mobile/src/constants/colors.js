@@ -1,7 +1,10 @@
 export const colors = {
-  primary: '#2c5f2d',
-  primaryLight: '#4a7c59',
-  primaryDark: '#1a3d1b',
+  // Brand gold (Level 1 accent on the light theme). `primary` is a deeper gold
+  // so white text/icons on gold headers + buttons stay legible (~4.9:1, WCAG AA);
+  // `primaryLight` is the exact logo gold (#BF9E69) for highlight accents.
+  primary: '#8B6B33',
+  primaryLight: '#BF9E69',
+  primaryDark: '#6E5527',
   background: '#f8fafc',
   surface: '#ffffff',
   text: '#1e293b',
