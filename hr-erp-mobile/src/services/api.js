@@ -66,7 +66,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Never run token-refresh for the auth endpoints themselves: a 401 from
+    // /auth/login means "wrong password" (not "expired token"). Letting refresh
+    // handle it swallowed the server's message and showed a generic error.
+    const reqUrl = originalRequest?.url || '';
+    const isAuthEndpoint = reqUrl.includes('/auth/login') || reqUrl.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
