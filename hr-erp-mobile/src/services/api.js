@@ -201,7 +201,7 @@ export const ticketsAPI = {
     const form = new FormData();
     form.append('photo', { uri, name: `photo.${ext}`, type });
     const response = await api.post(`/tickets/my/${id}/attachments`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
       onUploadProgress,
     });
     return response.data;
@@ -264,7 +264,7 @@ export const employeesAPI = {
       type: 'image/jpeg',
     });
     const response = await api.post(`/employees/${id}/photo`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
       timeout: 30000,
     });
     return response.data;
@@ -289,7 +289,7 @@ export const employeesAPI = {
     if (documentType) formData.append('document_type', documentType);
     if (notes) formData.append('notes', notes);
     const response = await api.post(`/employees/${id}/documents`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
       timeout: 60000,
       onUploadProgress: onProgress
         ? (e) => onProgress(Math.round((e.loaded * 100) / e.total))
@@ -383,13 +383,13 @@ export const profileAPI = {
   uploadPhoto: async (uri) => {
     const form = new FormData();
     form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' });
-    // MUST set multipart/form-data here: the axios instance defaults to
-    // 'application/json', which would make multer skip the file (→ req.file
-    // undefined → "photo required"). React Native's networking appends the
-    // boundary to this header when the body is FormData. Matches the working
-    // employeeAPI.uploadPhoto.
+    // Content-Type MUST be undefined here (not the bare 'multipart/form-data').
+    // The axios instance defaults to 'application/json'; we drop it so React
+    // Native sets the full 'multipart/form-data; boundary=...' itself. Setting
+    // the bare string omits the boundary — Android tolerated it, but iOS did
+    // NOT append the boundary, so multer saw no file (→ 400 "photo required").
     const response = await api.post('/employees/my/photo', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
       timeout: 30000,
     });
     return response.data;
