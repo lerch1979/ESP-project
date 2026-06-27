@@ -132,6 +132,10 @@ export default function LoginScreen() {
             placeholder="password123"
             placeholderTextColor={colors.textLight}
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            textContentType="password"
             editable={!loading}
             onSubmitEditing={handleLogin}
           />
