@@ -43,8 +43,10 @@ if (isTest) {
     auth: {
       windowMs: 15 * 60 * 1000,
       maxDev: 1000,  // Dev: effectively unlimited
-      maxProd: 5,    // Prod: brute force protection
-      message: 'Túl sok bejelentkezési kísérlet. Kérjük várjon 15 percet.',
+      maxProd: 10,   // Prod: FAILED logins per 15min per client IP (successes don't count).
+                     // Sized so a shared-NAT accommodation (roommates on one public IP) isn't
+                     // throttled by a few mistyped passwords, while still stopping brute force.
+      message: 'Túl sok sikertelen bejelentkezési kísérlet. Kérjük várjon 15 percet.',
     },
     passwordReset: {
       windowMs: 60 * 60 * 1000,
@@ -86,7 +88,13 @@ if (isTest) {
       message: { success: false, message: config.message },
       standardHeaders: true,
       legacyHeaders: false,
-      skipSuccessfulRequests: isDev && !opts.alwaysStrict,
+      // Per-limiter override wins; otherwise dev skips successes for a comfortable workflow.
+      // Auth passes `skipSuccessfulRequests: true` so a successful login never consumes budget —
+      // only failed attempts count toward the cap (standard brute-force-protection shape).
+      skipSuccessfulRequests:
+        opts.skipSuccessfulRequests !== undefined
+          ? opts.skipSuccessfulRequests
+          : (isDev && !opts.alwaysStrict),
       keyGenerator: opts.keyGenerator || ((req) => req.ip),
       handler: (req, res, next, options) => {
         onLimitReached(req, res, options);
@@ -96,7 +104,7 @@ if (isTest) {
   }
 
   const globalLimiter = createLimiter(RATE_LIMITS.global);
-  const authLimiter = createLimiter(RATE_LIMITS.auth);
+  const authLimiter = createLimiter(RATE_LIMITS.auth, { skipSuccessfulRequests: true });
   const passwordResetLimiter = createLimiter(RATE_LIMITS.passwordReset);
   const uploadLimiter = createLimiter(RATE_LIMITS.upload);
   const authenticatedLimiter = createLimiter(RATE_LIMITS.authenticated, {
@@ -113,7 +121,7 @@ if (isTest) {
   // Startup log
   logger.info(`[Rate Limiting] Environment: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'}`);
   logger.info(`[Rate Limiting] Global: ${isDev ? RATE_LIMITS.global.maxDev : RATE_LIMITS.global.maxProd} req/15min per IP`);
-  logger.info(`[Rate Limiting] Auth: ${isDev ? RATE_LIMITS.auth.maxDev : RATE_LIMITS.auth.maxProd} req/15min${isDev ? ' (dev - relaxed)' : ' (strict - brute force protection)'}`);
+  logger.info(`[Rate Limiting] Auth: ${isDev ? RATE_LIMITS.auth.maxDev : RATE_LIMITS.auth.maxProd} FAILED logins/15min per client IP${isDev ? ' (dev - relaxed)' : ' (successes not counted; brute force protection)'}`);
   logger.info(`[Rate Limiting] Authenticated: ${isDev ? RATE_LIMITS.authenticated.maxDev : RATE_LIMITS.authenticated.maxProd} req/hour per user`);
 
   module.exports = {
