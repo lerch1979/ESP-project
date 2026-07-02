@@ -489,9 +489,9 @@ function Layout({ children }) {
                             borderRadius: 2,
                             minHeight: 40,
                             '&.Mui-selected': {
-                              bgcolor: '#6366f1',
+                              bgcolor: '#8B6B33',
                               '&:hover': {
-                                bgcolor: '#3b82f6',
+                                bgcolor: '#a07c3a',
                               },
                             },
                             '&:hover': {
@@ -532,8 +532,8 @@ function Layout({ children }) {
                       justifyContent: 'center',
                       px: 1.5,
                       '&.Mui-selected': {
-                        bgcolor: '#6366f1',
-                        '&:hover': { bgcolor: '#3b82f6' },
+                        bgcolor: '#8B6B33',
+                        '&:hover': { bgcolor: '#a07c3a' },
                       },
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
                     }}
@@ -562,9 +562,9 @@ function Layout({ children }) {
                   borderRadius: 2,
                   minHeight: 48,
                   '&.Mui-selected': {
-                    bgcolor: '#6366f1',
+                    bgcolor: '#8B6B33',
                     '&:hover': {
-                      bgcolor: '#3b82f6',
+                      bgcolor: '#a07c3a',
                     },
                   },
                   '&:hover': {
@@ -718,7 +718,7 @@ function Layout({ children }) {
             '& .MuiDrawer-paper': {
               width: DRAWER_OPEN_WIDTH,
               boxSizing: 'border-box',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(180deg, #1c1c1e 0%, #29251d 100%)',
               color: 'white',
             },
           }}
@@ -734,7 +734,7 @@ function Layout({ children }) {
             '& .MuiDrawer-paper': {
               width: currentWidth,
               boxSizing: 'border-box',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(180deg, #1c1c1e 0%, #29251d 100%)',
               color: 'white',
               transition: TRANSITION,
               overflowX: 'hidden',

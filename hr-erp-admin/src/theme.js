@@ -1,6 +1,14 @@
 import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
+  // Brand palette — deep gold primary, lighter gold accent, brand black for dark
+  // surfaces (matches the mobile app + logo). This recolors every MUI component
+  // that uses color="primary"/"secondary" (buttons, chips, selected states).
+  // Page-level HARDCODED colors are swept separately (theme phase 2).
+  palette: {
+    primary:   { main: '#8B6B33', light: '#BF9E69', dark: '#6f552a', contrastText: '#ffffff' },
+    secondary: { main: '#BF9E69', light: '#d4bd90', dark: '#8B6B33', contrastText: '#1c1c1e' },
+  },
   breakpoints: {
     values: {
       xs: 0,
