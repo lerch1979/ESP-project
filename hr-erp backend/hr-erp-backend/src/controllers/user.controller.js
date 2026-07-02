@@ -311,30 +311,35 @@ const updateUser = async (req, res) => {
       paramIndex++;
     }
 
-    if (updates.length > 0) {
-      updates.push(`updated_at = CURRENT_TIMESTAMP`);
-      params.push(id);
-      await pool.query(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
-        params
-      );
-    }
+    // Persist the profile change and the role swap atomically. The role swap is a
+    // DELETE-then-INSERT; done as separate pool queries a failure between them would
+    // leave the user with NO role (locked out). One transaction => all-or-nothing.
+    await pool.transaction(async (client) => {
+      if (updates.length > 0) {
+        updates.push(`updated_at = CURRENT_TIMESTAMP`);
+        params.push(id);
+        await client.query(
+          `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+          params
+        );
+      }
 
-    // Update role if provided
-    if (roleId) {
-      // Remove existing roles for this contractor
-      await pool.query(
-        'DELETE FROM user_roles WHERE user_id = $1 AND contractor_id = $2',
-        [id, user.contractor_id]
-      );
-      // Assign new role
-      await pool.query(
-        `INSERT INTO user_roles (user_id, role_id, contractor_id)
-         VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [id, roleId, user.contractor_id]
-      );
-    }
+      // Update role if provided
+      if (roleId) {
+        // Remove existing roles for this contractor
+        await client.query(
+          'DELETE FROM user_roles WHERE user_id = $1 AND contractor_id = $2',
+          [id, user.contractor_id]
+        );
+        // Assign new role
+        await client.query(
+          `INSERT INTO user_roles (user_id, role_id, contractor_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING`,
+          [id, roleId, user.contractor_id]
+        );
+      }
+    });
 
     // Fetch updated user
     const updatedResult = await pool.query(
@@ -463,17 +468,19 @@ const updateUserRole = async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // Remove existing roles and assign new one
-    await pool.query(
-      'DELETE FROM user_roles WHERE user_id = $1 AND contractor_id = $2',
-      [id, user.contractor_id]
-    );
-
-    await pool.query(
-      `INSERT INTO user_roles (user_id, role_id, contractor_id)
-       VALUES ($1, $2, $3)`,
-      [id, roleId, user.contractor_id]
-    );
+    // Remove existing roles and assign new one — atomically, so a failure on the
+    // INSERT can't leave the user with zero roles (locked out) after the DELETE.
+    await pool.transaction(async (client) => {
+      await client.query(
+        'DELETE FROM user_roles WHERE user_id = $1 AND contractor_id = $2',
+        [id, user.contractor_id]
+      );
+      await client.query(
+        `INSERT INTO user_roles (user_id, role_id, contractor_id)
+         VALUES ($1, $2, $3)`,
+        [id, roleId, user.contractor_id]
+      );
+    });
 
     logger.info('Felhasználó szerepkör frissítve', {
       userId: id,
