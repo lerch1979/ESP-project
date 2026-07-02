@@ -249,13 +249,17 @@ const updateUser = async (req, res) => {
     if (!isValidUUID(id)) {
       return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
     }
-    const { firstName, lastName, phone, email, isActive, roleId } = req.body;
+    const { firstName, lastName, phone, email, isActive, roleId, password } = req.body;
 
     if (email !== undefined && !isValidEmail(email)) {
       return res.status(400).json({ success: false, message: 'Érvénytelen email formátum' });
     }
     if (roleId !== undefined && roleId !== null && !isValidUUID(roleId)) {
       return res.status(400).json({ success: false, message: 'Érvénytelen roleId formátum' });
+    }
+    // Only re-hash when a non-empty password is supplied (the edit form omits it to keep the current one).
+    if (password !== undefined && password !== null && password !== '' && password.length < 8) {
+      return res.status(400).json({ success: false, message: 'A jelszónak legalább 8 karakter hosszúnak kell lennie' });
     }
 
     // Check user exists
@@ -297,6 +301,13 @@ const updateUser = async (req, res) => {
     if (isActive !== undefined) {
       updates.push(`is_active = $${paramIndex}`);
       params.push(isActive);
+      paramIndex++;
+    }
+    if (password !== undefined && password !== null && password !== '') {
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+      updates.push(`password_hash = $${paramIndex}`);
+      params.push(passwordHash);
       paramIndex++;
     }
 
