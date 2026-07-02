@@ -1,6 +1,6 @@
 # Hetzner Deployment Plan — HR-ERP Pilot
 
-**Status:** PLAN ONLY. No server exists yet; nothing here has been executed. This is prepared so deploy-day is *execution, not research*.
+**Status:** ✅ **LIVE IN PRODUCTION** as of 2026-07-02. Serving at **https://app.housingsolutions.hu** on a Hetzner VM (`167.233.122.3`) running the Docker Compose stack (`~/hr-erp/docker-compose.prod.yml`): `hr-erp-caddy-1` (TLS/reverse-proxy) → `hr-erp-backend-1` (Node) + `hr-erp-admin-1` (nginx static) → `hr-erp-postgres-1` + `hr-erp-redis-1`. **Originally written as PLAN ONLY (2026-06-11); the server was stood up since then — treat the sections below as the as-built reference, not a future plan.** Deploy = SSH `deploy@167.233.122.3`, then `cd ~/hr-erp && docker compose -f docker-compose.prod.yml pull backend && docker compose -f docker-compose.prod.yml up -d backend` (CI builds + pushes GHCR images on push to `main`; the k8s `deploy` job is still `if:false`, so deploy is this manual pull).
 **Target:** single Hetzner Cloud VM, Docker Compose, pulling CI-built images from `ghcr.io`. Pilot scale ≈ 30–50 residents.
 **Author note:** every fact below (image names, env vars, ports, public routes) was read from the repo on 2026-06-11 — see the "Verified from repo" callouts. Re-verify the two ⚠️ items on deploy day.
 

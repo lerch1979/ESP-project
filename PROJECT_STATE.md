@@ -1,7 +1,9 @@
 # HR-ERP PROJECT STATE
 
-**Last updated:** 2026-06-16
+**Last updated:** 2026-07-02
 **Maintainer:** lerchbalazs@gmail.com
+
+> ⚠️ **PRODUCTION IS LIVE** at **https://app.housingsolutions.hu** — Hetzner VM `167.233.122.3`, Docker Compose stack (caddy → backend + admin → postgres + redis). Deploy = SSH `deploy@167.233.122.3` + `docker compose -f docker-compose.prod.yml pull backend && up -d backend`. CI (push to `main`) builds + pushes GHCR images; the k8s deploy job is `if:false` so the pull is manual. See `HETZNER_DEPLOY.md` (now the as-built reference).
 
 ---
 
@@ -88,6 +90,7 @@ Companion docs:
 
 | Date | Commit | Summary |
 |---|---|---|
+| 2026-07-02 | `062e1e62` … | **Prod login incident + reliability audit.** (1) Staff accounts on contractor …0001: Eszti (superadmin, `fulop.eszter87`), Timi (admin, `timcsilak`) both pre-existed from 2026-04-23; created path unblocked for Noncsi (`noemi@virtualis-asszisztens-online.hu`, admin — still to create). (2) **Fixed silent password-save bug** (`7ea1780a` line — actually commit on `main`): `PUT /users/:id` (`updateUser`) ignored the `password` field → admin edit form never changed passwords; now accepts + bcrypt-hashes it. **Deployed to prod.** (3) **Rate-limiter fix** (deployed): login is per-client-IP (trust proxy works — verified in prod logs), raised auth cap 5→**10 FAILED/15min** and set `skipSuccessfulRequests` so successful logins don't burn budget (shared-NAT accommodations were the real hazard). (4) **Reliability audit** (4 parallel agents: silent-failure, test-coverage, data-integrity, security) → prioritized CRITICAL/HIGH/MEDIUM plan; **4 per-finding PRs opened** (all with regression tests): PR#1 role-write transaction (self-lockout), PR#2 damage-report authz+tenant-scope (resident-reachable IDOR), PR#3 un-vacuum 8 self-skipping test suites (the `res.body.token`→`data.token` bug; also caught+fixed a live `GET /gamification/leaderboard` 500), PR#4 document cross-tenant IDOR (staff contractor scoping). **Key audit finding: RLS is INERT in prod** (setDatabaseUser middleware unmounted + app connects as postgres superuser which bypasses RLS) → tenant isolation is app-layer `WHERE` only. Decisions taken: retire dead RLS code (don't wire RLS now), rely on IP rate-limiter (no account lockout — shared-WiFi lockout risk). **Next: Phase 1 #5 (GDPR erasure) + #6-7 (money paths).** |
 | 2026-06-16 | `6e0b9501` | **Agent foundation:** seed `entity_status_history` on damage-report create too — completes create + status-change coverage across tickets, employees, damage reports. CI green. |
 | 2026-06-13 | `09acb7a1` | **Agent foundation:** never-throws status-history recorder + mig 123 (`entity_status_history` WIRED; `agent_audit_log` + `agent_suggestions` schema-only scaffolding). Wired into ticket/employee/damage-report create + status-change. Verified labels + changed_by; full jest 1245/1245. |
 | 2026-06-13 | `31c24ea9` | **Infra:** moved project off TCC-protected Desktop → `~/dev/HR-ERP-PROJECT` (permanent EPERM `uv_cwd` fix); rewrote all hard-coded paths + `hrerp` alias. |
@@ -131,6 +134,9 @@ For older history: `git log --oneline --since="2026-04-01"`.
 | 2026-06-11 | GDPR erasure = **per-category disposition**, not blanket wipe; KEEP statutory (payroll/contract/billing) pseudonymized, DELETE health, KEEP tickets intact (authorship cascades via pseudonym) | GDPR Art 17(3) yields to legal-obligation (HU 8-yr accounting + payroll) and legal-claims retention; tickets are operational, not sensitive by design | ✅ implemented + throwaway-verified |
 | 2026-06-11 | GDPR lifecycle is **propose-only** (grace clock on `end_date`); system never auto-anonymizes | Irreversible + legally sensitive → human must dispose; reminder cron only notifies | ✅ implemented |
 | 2026-06-11 | Anonymization audit log stores **counts only**, never removed values; backups age out in ≤30d as the GDPR "ages-out" guarantee | Accountability of the erasure without re-storing the erased PII; backups are not edited | ✅ implemented (see `HETZNER_DEPLOY.md`) |
+| 2026-07-02 | **Tenant isolation is app-layer `WHERE`, not RLS.** Retire the dead RLS code (48 policies + `setDatabaseUser`) rather than wire it now | `setDatabaseUser` is unmounted AND the app connects as the postgres superuser (bypasses RLS), so RLS never protected anything; the real boundary is per-query contractor scoping. Proper RLS (non-superuser role + FORCE RLS + per-request txn) is a future architecture project | ✅ decided; scoping-gap fixes in flight (PR#2, PR#4) |
+| 2026-07-02 | **No account-level lockout; rely on the per-IP login rate-limiter** (10 failed/15min, successes free) | Residents share accommodation WiFi (one public IP); an account lockout would let a malicious roommate lock others out. `passwordPolicy.js` lockout code is unwired — leave it documented-unused or remove | ✅ decided (rate-limiter deployed); passwordPolicy lockout to be retired |
+| 2026-07-02 | **Reliability fixes ship as small per-finding PRs**, each with a regression test, not one branch | Independently reviewable; keeps blast radius small on a now-live prod system | ✅ in progress (PRs #1–#4) |
 
 ---
 
@@ -183,8 +189,14 @@ For older history: `git log --oneline --since="2026-04-01"`.
 
 **Recently shipped (2026-06-09 → 11):** resident mobile (self-scope, chat + AI translation, photos, AI category suggestion, full i18n), CI red-since-June-9 diagnosed + fixed, and the two **audit P0** features — visa/contract/document **expiry monitor** and **GDPR anonymization** (right-to-be-forgotten v1).
 
-**Pending / next:**
-- **Production deployment to Hetzner** — plan ready in `HETZNER_DEPLOY.md`; on standby until the user's Hetzner account clears identity verification. Two pre-deploy blockers: domain/subdomains (DNS ahead of time) + `ENCRYPTION_KEY` carry-over-vs-rotate.
+**🔧 Reliability audit — Phase 1 in progress (2026-07-02).** Full audit produced a ranked plan (silent failures / test coverage / data-integrity / security). 4 per-finding PRs open (#1 role-write txn, #2 damage-report authz, #3 un-vacuum tests, #4 document tenant-scope) — review + merge, then **deploy to prod** (manual pull). **Next up, in order:**
+- **#5 — GDPR erasure file-leak / partial-failure** (`gdprAnonymization.service`): the right-to-be-forgotten flow reports success while PII files can survive on disk (unlink loop only logs failures; TOCTOU orphans files inserted between plan and commit), and the SPA bulk view hides per-record failures behind a green toast. **The code fix (DELETE…RETURNING file paths inside the txn, unlink post-commit, surface `filesFailed`) is independent of the still-open DPO retention-value sign-off — do it deliberately.**
+- **#6-7 — money paths:** `invoice.controller.update` silently drops `contractor_id`; all-COALESCE updates return blind success on a no-op (invoice/draft/billing rate); `payment.service` marks invoices paid via an **unlocked `SUM`** (needs `SELECT … FOR UPDATE` + state-machine guard); `salary.controller.createEmployeeSalary` close+insert is non-atomic. Design the row-locking carefully.
+- **Confirm Timi & Noncsi logins.** Timi verified server-side (`timcsilak@gmail.com` / temp `hajnalpir2026`, role admin) — awaiting her one attempt. Noncsi (`noemi@virtualis-asszisztens-online.hu`) still needs creating as admin (create path is unaffected by the password bug). Both on contractor …0001.
+
+**Architectural decisions taken 2026-07-02 (see decisions log):** retire the inert RLS code rather than wire it (tenant isolation stays app-layer `WHERE`); rely on the IP rate-limiter, no account-level lockout (a shared-WiFi roommate could otherwise lock out others).
+
+**Production:** ✅ **LIVE** at app.housingsolutions.hu (Hetzner `167.233.122.3`). Original pre-deploy blockers (DNS, `ENCRYPTION_KEY`) are resolved — the stack is serving real logins.
 - **GDPR legal/DPO sign-off** on retention years + `statutory_document_types` before any real erasure (config-only).
 - Cost-tracking unification decision (see `docs/ARCH_COST_TRACKING_OPTIONS.md`) — still open.
 - Billing admin Tabs 2 (Billing runs) + 3 (Billings list) not yet built; Gmail poller disposition (keep/disable/rewire).

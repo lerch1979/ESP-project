@@ -6,6 +6,29 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-02 — prod login incident → silent-failure fixes → reliability audit (Phase 1)
+
+Started as "create staff test accounts", turned into a production incident + a full reliability audit. **Production is LIVE** at app.housingsolutions.hu (Hetzner `167.233.122.3`, Docker Compose) — the deploy docs that said "no server exists" were stale.
+
+**Incident chain (all diagnosed from server-side truth, deployed to prod):**
+- Staff accounts on contractor …0001: Eszti (`fulop.eszter87`, superadmin) and Timi (`timcsilak`, admin→fixed) pre-existed from 2026-04-23; Noncsi (`noemi@virtualis-asszisztens-online.hu`, admin) still to create.
+- **Silent password bug:** `PUT /users/:id` (`updateUser`) never read `password` from the body — the admin edit form's password field was a no-op. Fixed (bcrypt-hash on update), deployed. Also reset Eszti/Timi passwords directly on prod (bcrypt via `docker exec`), verified with live `/auth/login` → 200.
+- **Rate-limiter:** login 429s were the per-IP auth limiter (5/15min) — trust proxy WAS working (verified distinct client IPs in prod logs; NOT a global bucket). Raised to **10 failed/15min**, `skipSuccessfulRequests:true` (successes free). Real hazard = shared-NAT accommodations. Deployed.
+
+**Reliability audit** (4 parallel sub-agents; findings adversarially verified against code before acting):
+- **Headline: RLS is inert in prod** — `setDatabaseUser` unmounted + app runs as postgres superuser → 48 policies do nothing; tenant isolation is app-layer `WHERE` only. Decision: retire dead RLS code (don't wire now).
+- **4 per-finding PRs open, each with a real regression test:** #1 role-write transaction (self-lockout), #2 damage-report authz + tenant scope (resident-reachable salary/signature IDOR), #3 un-vacuum 8 self-skipping integration suites (`res.body.token`→`data.token`; also caught+fixed a live `gamification/leaderboard` 500), #4 document cross-tenant IDOR (staff contractor scoping).
+- Decisions: no account lockout (shared-WiFi risk) — rely on IP limiter; per-finding PRs.
+
+**In flight / next session (start fresh on #5):**
+- Merge PRs #1–#4 + deploy (manual pull on the box).
+- **#5 GDPR erasure** file-leak/partial-failure fix (code fix independent of DPO retention sign-off).
+- **#6-7 money paths:** invoice `contractor_id` drop, all-COALESCE blind updates, payment-status race (`SELECT … FOR UPDATE`), non-atomic salary close+insert.
+- Confirm Timi login (`hajnalpir2026`) + create Noncsi.
+- Full audit findings + ranked plan live in this session's transcript (silent-failure / test-coverage / data-integrity / security dimensions).
+
+---
+
 ## SESSION 2026-06-19 — push notifications v1 (chat reply + visa/contract expiry), DR hardening, iOS assessment
 
 Three threads: shipped push notifications v1 end-to-end (verified on real hardware), hardened backup/DR (secrets → Bitwarden, orchestration kit version-controlled), and produced an iOS feasibility decision doc. Also recorded 4 ötlettár items.
