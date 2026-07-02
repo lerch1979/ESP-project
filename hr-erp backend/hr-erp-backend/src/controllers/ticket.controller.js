@@ -433,9 +433,14 @@ const createTicket = async (req, res) => {
     }
 
     let ticketData = await transaction(async (client) => {
-      // Ticket szám generálás (egyszerű: következő ID)
+      // Ticket szám generálás (egyszerű: következő ID).
+      // Only aggregate over canonical '#<integer>' numbers — a single malformed
+      // ticket_number (e.g. seed/test data like '#9001-TESZT') would otherwise
+      // fail the CAST … AS INTEGER over the whole table and block ALL new tickets.
       const ticketNumberResult = await client.query(
-        'SELECT COALESCE(MAX(CAST(SUBSTRING(ticket_number FROM 2) AS INTEGER)), 0) + 1 as next_number FROM tickets'
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(ticket_number FROM 2) AS INTEGER)), 0) + 1 as next_number
+         FROM tickets
+         WHERE ticket_number ~ '^#[0-9]+$'`
       );
       const ticketNumber = `#${ticketNumberResult.rows[0].next_number}`;
 
@@ -555,10 +560,41 @@ const createTicket = async (req, res) => {
 
   } catch (error) {
     logger.error('Ticket létrehozási hiba:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Ticket létrehozási hiba'
-    });
+    // Loud errors: translate known DB failures into a specific, actionable
+    // message instead of a blanket 500 that hides the cause (the frontend shows
+    // response.data.message directly). `detail` carries the raw cause for staff.
+    switch (error.code) {
+      case '23503': // foreign_key_violation
+        return res.status(400).json({
+          success: false,
+          message: 'Érvénytelen hivatkozás: a megadott kategória, prioritás, felelős vagy munkavállaló nem létezik.',
+          detail: error.detail || error.message,
+        });
+      case '23502': // not_null_violation
+        return res.status(400).json({
+          success: false,
+          message: `Hiányzó kötelező mező: ${error.column || 'ismeretlen'}.`,
+          detail: error.message,
+        });
+      case '23505': // unique_violation
+        return res.status(409).json({
+          success: false,
+          message: 'Ütközés a hibajegy sorszámában — kérjük, próbáld újra.',
+          detail: error.detail || error.message,
+        });
+      case '22P02': // invalid_text_representation
+        return res.status(400).json({
+          success: false,
+          message: 'Érvénytelen adatformátum az egyik mezőben.',
+          detail: error.message,
+        });
+      default:
+        return res.status(500).json({
+          success: false,
+          message: 'Ticket létrehozási hiba (szerverhiba)',
+          detail: error.message,
+        });
+    }
   }
 };
 
