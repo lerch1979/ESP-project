@@ -4,7 +4,8 @@
  * Residents no longer hold `documents.view` (the primary control), but the
  * controller also self-scopes any non-staff caller to their OWN employee
  * documents — so a mis-granted token can never read another employee's files
- * (incl. medical). Staff (admin/HR) keep full access.
+ * (incl. medical). Staff are additionally scoped to their OWN contractor
+ * (audit finding #3); superadmin sees all.
  */
 const mockQuery = jest.fn();
 jest.mock('../src/database/connection', () => ({ query: (...a) => mockQuery(...a) }));
@@ -41,15 +42,36 @@ describe('getDocumentById — non-staff cannot read another employee\'s document
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
-  test('staff (admin) reads any document → 200, no self-scope lookup', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'doc-3', employee_id: 'emp-OTHER', document_type: 'medical' }] });
-    const req = { params: { id: 'doc-3' }, user: { id: 'u-adm', roles: ['admin'] } };
+  test('staff (admin) reads a document in their OWN contractor → 200, no self-scope lookup', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'doc-3', employee_id: 'emp-OTHER', document_type: 'medical', _doc_contractor: 'c-1' }] });
+    const req = { params: { id: 'doc-3' }, user: { id: 'u-adm', roles: ['admin'], contractorId: 'c-1' } };
     const res = mockRes();
 
     await getDocumentById(req, res);
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     expect(mockQuery).toHaveBeenCalledTimes(1); // staff path never looks up an employee record
+  });
+
+  test('staff (admin) reading ANOTHER contractor\'s document → 404 (tenant scoped)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'doc-3', employee_id: 'emp-OTHER', document_type: 'medical', _doc_contractor: 'c-OTHER' }] });
+    const req = { params: { id: 'doc-3' }, user: { id: 'u-adm', roles: ['admin'], contractorId: 'c-1' } };
+    const res = mockRes();
+
+    await getDocumentById(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  test('superadmin reads ANY contractor\'s document → 200 (bypass)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'doc-3', employee_id: 'emp-OTHER', document_type: 'medical', _doc_contractor: 'c-OTHER' }] });
+    const req = { params: { id: 'doc-3' }, user: { id: 'u-sa', roles: ['superadmin'], contractorId: 'c-1' } };
+    const res = mockRes();
+
+    await getDocumentById(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });
 
