@@ -24,6 +24,27 @@ async function translateForViewer(req, rowOrRows) {
   }
 }
 
+/**
+ * Load a damage report and enforce tenant ownership before any :id action.
+ * Damage reports carry employee salary + signature PII, so a report must only
+ * be reachable by an operator of the same contractor (superadmin excepted).
+ * On a miss OR a cross-tenant id, responds 404 (no existence leak) and returns
+ * null; otherwise returns the report row.
+ */
+async function loadScopedReport(req, res) {
+  const report = await damageService.getById(req.params.id);
+  if (!report) {
+    res.status(404).json({ success: false, message: 'Jegyzőkönyv nem található' });
+    return null;
+  }
+  const isSuper = Array.isArray(req.user?.roles) && req.user.roles.includes('superadmin');
+  if (!isSuper && report.contractor_id !== req.user?.contractorId) {
+    res.status(404).json({ success: false, message: 'Jegyzőkönyv nem található' });
+    return null;
+  }
+  return report;
+}
+
 // ─── Create ─────────────────────────────────────────────────────────
 
 const createFromTicket = async (req, res) => {
@@ -101,8 +122,8 @@ const listReports = async (req, res) => {
 
 const getReport = async (req, res) => {
   try {
-    const report = await damageService.getById(req.params.id);
-    if (!report) return res.status(404).json({ success: false, message: 'Jegyzőkönyv nem található' });
+    const report = await loadScopedReport(req, res);
+    if (!report) return;
     const translated = await translateForViewer(req, report);
     res.json({ success: true, data: translated });
   } catch (error) {
@@ -115,6 +136,7 @@ const getReport = async (req, res) => {
 
 const updateReport = async (req, res) => {
   try {
+    if (!(await loadScopedReport(req, res))) return;
     const report = await damageService.updateReport(req.params.id, req.body, req.user?.id);
     if (!report) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, data: report });
@@ -126,6 +148,7 @@ const updateReport = async (req, res) => {
 
 const deleteReport = async (req, res) => {
   try {
+    if (!(await loadScopedReport(req, res))) return;
     const deleted = await damageService.deleteReport(req.params.id);
     if (!deleted) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true, message: 'Jegyzőkönyv törölve' });
@@ -142,6 +165,7 @@ const addDamageItem = async (req, res) => {
     const { name, cost } = req.body;
     if (!name || cost === undefined) return res.status(400).json({ success: false, message: 'name, cost kötelező' });
 
+    if (!(await loadScopedReport(req, res))) return;
     const result = await damageService.addDamageItem(req.params.id, req.body);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
@@ -152,6 +176,7 @@ const addDamageItem = async (req, res) => {
 
 const removeDamageItem = async (req, res) => {
   try {
+    if (!(await loadScopedReport(req, res))) return;
     const result = await damageService.removeDamageItem(req.params.id, req.params.itemId);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -164,8 +189,8 @@ const removeDamageItem = async (req, res) => {
 
 const downloadPDF = async (req, res) => {
   try {
-    const report = await damageService.getById(req.params.id);
-    if (!report) return res.status(404).json({ success: false, message: 'Nem található' });
+    const report = await loadScopedReport(req, res);
+    if (!report) return;
 
     const language = req.query.language || req.query.lang || 'hu';
     const pdfBuffer = await pdfService.generatePDF(report, language);
@@ -186,6 +211,7 @@ const acknowledgeReport = async (req, res) => {
     const { signature_data } = req.body;
     if (!signature_data) return res.status(400).json({ success: false, message: 'Aláírás szükséges' });
 
+    if (!(await loadScopedReport(req, res))) return;
     const report = await damageService.acknowledgeReport(req.params.id, signature_data);
     res.json({ success: true, data: report });
   } catch (error) {
@@ -198,6 +224,7 @@ const acknowledgeReport = async (req, res) => {
 
 const getPaymentStatus = async (req, res) => {
   try {
+    if (!(await loadScopedReport(req, res))) return;
     const status = await damageService.getPaymentStatus(req.params.id);
     res.json({ success: true, data: status });
   } catch (error) {
