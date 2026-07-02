@@ -323,14 +323,14 @@ class GamificationService {
     const result = await query(
       `SELECT
          u.id,
-         u.name,
+         CONCAT(u.last_name, ' ', u.first_name) AS name,
          SUM(wp.points)::int AS total_points,
          COUNT(DISTINCT DATE(wp.earned_at))::int AS active_days
        FROM users u
        JOIN wellbeing_points wp ON wp.user_id = u.id
        WHERE u.contractor_id = $1
          AND wp.earned_at >= NOW() - CAST($2 || ' days' AS INTERVAL)
-       GROUP BY u.id, u.name
+       GROUP BY u.id
        HAVING COUNT(*) >= 5
        ORDER BY total_points DESC
        LIMIT 10`,

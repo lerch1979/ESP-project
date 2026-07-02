@@ -12,7 +12,7 @@ describe('Damage Report API Integration', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: 'admin@hr-erp.com', password: 'password123' });
-    if (res.status === 200) authToken = res.body.token;
+    if (res.status === 200) authToken = res.body.data?.token;
   });
 
   describe('GET /api/v1/damage-reports', () => {
