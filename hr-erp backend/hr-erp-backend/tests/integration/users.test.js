@@ -15,7 +15,7 @@ describe('User Management API', () => {
       .send({ email: 'admin@hr-erp.com', password: 'password123' });
 
     if (res.status === 200) {
-      authToken = res.body.token;
+      authToken = res.body.data?.token;
     }
   });
 
