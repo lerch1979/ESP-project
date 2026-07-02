@@ -51,7 +51,6 @@ import {
   Speed as WorkloadIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import Layout from '../components/Layout';
 import { assignmentRulesAPI } from '../services/api';
 
 const TICKET_FIELDS = [
@@ -155,7 +154,7 @@ const AutoAssignSimulator = () => {
   };
 
   return (
-    <Layout>
+    <>
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
@@ -650,7 +649,7 @@ const AutoAssignSimulator = () => {
           </Grid>
         </Grid>
       </Box>
-    </Layout>
+    </>
   );
 };
 

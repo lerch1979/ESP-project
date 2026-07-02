@@ -52,7 +52,6 @@ import {
 import { toast } from 'react-toastify';
 import { userWorkloadAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/Layout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -239,7 +238,7 @@ function UserWorkload() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Layout>
+    <>
       <Box>
         {/* ── Header ── */}
         <Box
@@ -740,7 +739,7 @@ function UserWorkload() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Layout>
+    </>
   );
 }
 

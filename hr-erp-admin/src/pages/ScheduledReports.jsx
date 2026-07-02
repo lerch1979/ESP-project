@@ -15,7 +15,6 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import Layout from '../components/Layout';
 import { scheduledReportsAPI } from '../services/api';
 
 const REPORT_TYPES = [
@@ -226,7 +225,7 @@ export default function ScheduledReports() {
   };
 
   return (
-    <Layout>
+    <>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <ScheduleIcon sx={{ fontSize: 32, color: '#2563eb' }} />
@@ -446,6 +445,6 @@ export default function ScheduledReports() {
           )}
         </DialogContent>
       </Dialog>
-    </Layout>
+    </>
   );
 }

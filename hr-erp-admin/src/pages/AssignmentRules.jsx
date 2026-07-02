@@ -55,7 +55,6 @@ import {
 import { toast } from 'react-toastify';
 import { assignmentRulesAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/Layout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -332,7 +331,7 @@ function AssignmentRules() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Layout>
+    <>
       <Box>
         {/* ── Header ── */}
         <Box
@@ -880,7 +879,7 @@ function AssignmentRules() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Layout>
+    </>
   );
 }
 

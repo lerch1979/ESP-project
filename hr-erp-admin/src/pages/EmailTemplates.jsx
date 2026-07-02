@@ -52,7 +52,6 @@ import {
 import { toast } from 'react-toastify';
 import { emailTemplatesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/Layout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -425,7 +424,7 @@ function EmailTemplates() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Layout>
+    <>
       <Box>
         {/* ── Header ── */}
         <Box
@@ -1079,7 +1078,7 @@ function EmailTemplates() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Layout>
+    </>
   );
 }
 

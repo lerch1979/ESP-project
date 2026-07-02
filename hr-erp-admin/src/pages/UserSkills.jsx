@@ -46,7 +46,6 @@ import {
 import { toast } from 'react-toastify';
 import { userWorkloadAPI, usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/Layout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -270,7 +269,7 @@ function UserSkills() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Layout>
+    <>
       <Box>
         {/* ── Header ── */}
         <Box
@@ -760,7 +759,7 @@ function UserSkills() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Layout>
+    </>
   );
 }
 

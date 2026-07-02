@@ -43,7 +43,6 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { slaPoliciesAPI, ticketsAPI } from '../services/api';
 
@@ -278,7 +277,7 @@ function SLAPolicies() {
   };
 
   return (
-    <Layout>
+    <>
       <Box>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -735,7 +734,7 @@ function SLAPolicies() {
           </DialogActions>
         </Dialog>
       </Box>
-    </Layout>
+    </>
   );
 }
 
