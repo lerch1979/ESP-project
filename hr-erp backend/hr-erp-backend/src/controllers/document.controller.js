@@ -18,12 +18,24 @@ const STAFF_DOC_ROLES = ['superadmin', 'admin', 'data_controller', 'task_owner',
  */
 const resolveDocScope = async (req) => {
   const roles = (req.user && req.user.roles) || [];
+  const isSuperadmin = roles.includes('superadmin');
+  const contractorId = (req.user && req.user.contractorId) || null;
   if (roles.some(r => STAFF_DOC_ROLES.includes(r))) {
-    return { selfScoped: false, employeeId: null };
+    return { selfScoped: false, employeeId: null, isSuperadmin, contractorId };
   }
   const r = await query('SELECT id FROM employees WHERE user_id = $1 LIMIT 1', [req.user.id]);
-  return { selfScoped: true, employeeId: r.rows[0] ? r.rows[0].id : null };
+  return { selfScoped: true, employeeId: r.rows[0] ? r.rows[0].id : null, isSuperadmin, contractorId };
 };
+
+// A document's authoritative tenant is its employee's contractor (documents.tenant_id
+// is a fallback — it was historically left NULL on insert). Given the caller's scope
+// and a document's employee_id + effective contractor, return true if the caller must
+// NOT access it: self-service callers are bound to their own employee; non-superadmin
+// staff to their own contractor; superadmin sees all.
+const isDocOutOfScope = (scope, docEmployeeId, docContractor) =>
+  scope.selfScoped
+    ? docEmployeeId !== scope.employeeId
+    : (!scope.isSuperadmin && docContractor !== scope.contractorId);
 
 /**
  * Dokumentumok listázása (szűrőkkel, lapozással)
@@ -60,6 +72,13 @@ const getDocuments = async (req, res) => {
     } else if (employee_id && employee_id !== 'all') {
       whereConditions.push(`d.employee_id = $${paramIndex}`);
       params.push(employee_id);
+      paramIndex++;
+    }
+
+    // Staff are scoped to their own contractor's documents (superadmin sees all).
+    if (!scope.selfScoped && !scope.isSuperadmin) {
+      whereConditions.push(`COALESCE(e.contractor_id, d.tenant_id) = $${paramIndex}`);
+      params.push(scope.contractorId);
       paramIndex++;
     }
 
@@ -141,7 +160,8 @@ const getDocumentById = async (req, res) => {
         COALESCE(e.first_name, '') as employee_first_name,
         e.employee_number,
         COALESCE(u.last_name, '') as uploader_last_name,
-        COALESCE(u.first_name, '') as uploader_first_name
+        COALESCE(u.first_name, '') as uploader_first_name,
+        COALESCE(e.contractor_id, d.tenant_id) as _doc_contractor
       FROM documents d
       LEFT JOIN employees e ON d.employee_id = e.id
       LEFT JOIN users u ON d.uploaded_by = u.id
@@ -157,18 +177,21 @@ const getDocumentById = async (req, res) => {
       });
     }
 
-    // Ownership scoping: a non-staff caller may only read their own documents.
+    // Ownership scoping: self-service callers see only their own employee's docs;
+    // staff only their own contractor's (superadmin sees all).
     const scope = await resolveDocScope(req);
-    if (scope.selfScoped && result.rows[0].employee_id !== scope.employeeId) {
+    const row = result.rows[0];
+    if (isDocOutOfScope(scope, row.employee_id, row._doc_contractor)) {
       return res.status(404).json({
         success: false,
         message: 'Dokumentum nem található'
       });
     }
+    delete row._doc_contractor; // internal scoping field, not part of the API shape
 
     res.json({
       success: true,
-      data: { document: result.rows[0] }
+      data: { document: row }
     });
   } catch (error) {
     logger.error('Dokumentum lekérdezési hiba:', error);
@@ -200,20 +223,32 @@ const createDocument = async (req, res) => {
       });
     }
 
-    // Verify employee exists if provided
+    // Verify employee exists if provided, and stamp the document's tenant so it
+    // is contractor-scoped from creation (tenant_id was previously left NULL).
+    const scope = await resolveDocScope(req);
+    let tenantId = scope.contractorId;
     if (employee_id) {
-      const empCheck = await query('SELECT id FROM employees WHERE id = $1', [employee_id]);
+      const empCheck = await query('SELECT contractor_id FROM employees WHERE id = $1', [employee_id]);
       if (empCheck.rows.length === 0) {
         return res.status(400).json({
           success: false,
           message: 'A megadott munkavállaló nem található'
         });
       }
+      const empContractor = empCheck.rows[0].contractor_id;
+      // Staff may only attach documents to their own contractor's employees.
+      if (!scope.isSuperadmin && scope.contractorId && empContractor !== scope.contractorId) {
+        return res.status(404).json({
+          success: false,
+          message: 'A megadott munkavállaló nem található'
+        });
+      }
+      tenantId = empContractor || scope.contractorId;
     }
 
     const insertQuery = `
-      INSERT INTO documents (title, description, document_type, employee_id, uploaded_by, file_name, file_path, file_size, mime_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO documents (title, description, document_type, employee_id, uploaded_by, file_name, file_path, file_size, mime_type, tenant_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
 
@@ -227,6 +262,7 @@ const createDocument = async (req, res) => {
       req.file.path,
       req.file.size,
       req.file.mimetype,
+      tenantId,
     ]);
 
     logger.info('Új dokumentum feltöltve', { documentId: result.rows[0].id });
@@ -254,7 +290,9 @@ const updateDocument = async (req, res) => {
     const { title, description, document_type, employee_id } = req.body;
 
     const existing = await query(
-      'SELECT id FROM documents WHERE id = $1 AND deleted_at IS NULL',
+      `SELECT d.id, d.employee_id, COALESCE(e.contractor_id, d.tenant_id) AS _doc_contractor
+       FROM documents d LEFT JOIN employees e ON d.employee_id = e.id
+       WHERE d.id = $1 AND d.deleted_at IS NULL`,
       [id]
     );
     if (existing.rows.length === 0) {
@@ -264,11 +302,26 @@ const updateDocument = async (req, res) => {
       });
     }
 
-    // Verify employee if provided
+    // Enforce access scope on the target document (contractor for staff).
+    const scope = await resolveDocScope(req);
+    if (isDocOutOfScope(scope, existing.rows[0].employee_id, existing.rows[0]._doc_contractor)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dokumentum nem található'
+      });
+    }
+
+    // Verify employee if provided (and that it belongs to the caller's contractor)
     if (employee_id) {
-      const empCheck = await query('SELECT id FROM employees WHERE id = $1', [employee_id]);
+      const empCheck = await query('SELECT contractor_id FROM employees WHERE id = $1', [employee_id]);
       if (empCheck.rows.length === 0) {
         return res.status(400).json({
+          success: false,
+          message: 'A megadott munkavállaló nem található'
+        });
+      }
+      if (!scope.isSuperadmin && scope.contractorId && empCheck.rows[0].contractor_id !== scope.contractorId) {
+        return res.status(404).json({
           success: false,
           message: 'A megadott munkavállaló nem található'
         });
@@ -340,10 +393,21 @@ const deleteDocument = async (req, res) => {
     const { id } = req.params;
 
     const existing = await query(
-      'SELECT id FROM documents WHERE id = $1 AND deleted_at IS NULL',
+      `SELECT d.id, d.employee_id, COALESCE(e.contractor_id, d.tenant_id) AS _doc_contractor
+       FROM documents d LEFT JOIN employees e ON d.employee_id = e.id
+       WHERE d.id = $1 AND d.deleted_at IS NULL`,
       [id]
     );
     if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dokumentum nem található'
+      });
+    }
+
+    // Enforce access scope before deleting (contractor for staff).
+    const scope = await resolveDocScope(req);
+    if (isDocOutOfScope(scope, existing.rows[0].employee_id, existing.rows[0]._doc_contractor)) {
       return res.status(404).json({
         success: false,
         message: 'Dokumentum nem található'
@@ -378,7 +442,10 @@ const downloadDocument = async (req, res) => {
     const { id } = req.params;
 
     const result = await query(
-      'SELECT file_name, file_path, mime_type, employee_id FROM documents WHERE id = $1 AND deleted_at IS NULL',
+      `SELECT d.file_name, d.file_path, d.mime_type, d.employee_id,
+              COALESCE(e.contractor_id, d.tenant_id) AS _doc_contractor
+       FROM documents d LEFT JOIN employees e ON d.employee_id = e.id
+       WHERE d.id = $1 AND d.deleted_at IS NULL`,
       [id]
     );
 
@@ -389,9 +456,10 @@ const downloadDocument = async (req, res) => {
       });
     }
 
-    // Ownership scoping: a non-staff caller may only download their own documents.
+    // Ownership scoping: self-service callers only their own employee's docs;
+    // staff only their own contractor's (superadmin sees all).
     const scope = await resolveDocScope(req);
-    if (scope.selfScoped && result.rows[0].employee_id !== scope.employeeId) {
+    if (isDocOutOfScope(scope, result.rows[0].employee_id, result.rows[0]._doc_contractor)) {
       return res.status(404).json({
         success: false,
         message: 'Dokumentum nem található'
