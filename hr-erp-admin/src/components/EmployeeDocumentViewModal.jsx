@@ -390,7 +390,7 @@ export default function EmployeeDocumentViewModal({
             <Button
               variant="contained" startIcon={<DownloadIcon />}
               onClick={handleDownload} disabled={!blobUrl}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               Letöltés
             </Button>
@@ -400,7 +400,7 @@ export default function EmployeeDocumentViewModal({
             <Button onClick={() => setEditMode(false)} disabled={saving}>Mégse</Button>
             <Button
               variant="contained" onClick={handleSave} disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Mentés'}
             </Button>

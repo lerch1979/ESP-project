@@ -67,7 +67,7 @@ const ADMIN_ROLE_SLUGS = ['superadmin', 'data_controller', 'admin'];
 const ADMIN_ROLE_NAMES = ['Szuperadmin', 'Adatkezelő', 'Admin'];
 
 const EVENT_TYPES = [
-  { key: 'checkin', label: 'Check-in', icon: <LoginIcon fontSize="small" />, color: '#3b82f6' },
+  { key: 'checkin', label: 'Check-in', icon: <LoginIcon fontSize="small" />, color: '#a07c3a' },
   { key: 'checkout', label: 'Check-out', icon: <LogoutIcon fontSize="small" />, color: '#8b5cf6' },
   { key: 'visa_expiry', label: 'Vízum lejárat', icon: <CreditCardIcon fontSize="small" />, color: '#06b6d4' },
   { key: 'contract_expiry', label: 'Szerződés lejárat', icon: <DescriptionIcon fontSize="small" />, color: '#10b981' },
@@ -515,7 +515,7 @@ function Calendar() {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <CalendarMonthIcon sx={{ fontSize: 32, color: '#2563eb' }} />
+            <CalendarMonthIcon sx={{ fontSize: 32, color: '#8B6B33' }} />
             <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
               Naptár
             </Typography>
@@ -526,7 +526,7 @@ function Calendar() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={(e) => setAddMenuAnchor(e.currentTarget)}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
             >
               Esemény hozzáadása
             </Button>
@@ -631,7 +631,7 @@ function Calendar() {
         {/* Admin: personal view toggle */}
         {admin && (
           <Paper sx={{ p: 2, mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <PersonOutlineIcon sx={{ color: '#2563eb' }} />
+            <PersonOutlineIcon sx={{ color: '#8B6B33' }} />
             <FormControlLabel
               control={
                 <Switch
@@ -715,7 +715,7 @@ function Calendar() {
                   key={preset.key}
                   variant={dateRange === preset.key ? 'contained' : 'outlined'}
                   onClick={() => setDateRange(preset.key)}
-                  sx={dateRange === preset.key ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } } : {}}
+                  sx={dateRange === preset.key ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } } : {}}
                 >
                   {preset.label}
                 </Button>
@@ -746,7 +746,7 @@ function Calendar() {
                   size="small"
                   onClick={loadEvents}
                   disabled={!customFrom || !customTo}
-                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
+                  sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
                 >
                   Lekérdezés
                 </Button>
@@ -790,7 +790,7 @@ function Calendar() {
         <Paper sx={{ overflow: 'hidden' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress sx={{ color: '#2563eb' }} />
+              <CircularProgress sx={{ color: '#8B6B33' }} />
             </Box>
           ) : events.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6 }}>
@@ -965,7 +965,7 @@ function Calendar() {
             <Button
               variant="contained"
               onClick={handleSaveShift}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
             >
               Mentés
             </Button>
@@ -1048,7 +1048,7 @@ function Calendar() {
             <Button
               variant="contained"
               onClick={handleSaveMedical}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
             >
               Mentés
             </Button>
@@ -1137,7 +1137,7 @@ function Calendar() {
             <Button
               variant="contained"
               onClick={handleSavePersonal}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
             >
               Mentés
             </Button>

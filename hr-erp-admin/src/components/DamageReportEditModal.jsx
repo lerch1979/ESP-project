@@ -422,7 +422,7 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
           onClick={submit}
           variant="contained"
           disabled={saving || hasErrors || dirtyCount === 0}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           {saving
             ? <CircularProgress size={22} sx={{ color: 'white' }} />

@@ -184,8 +184,8 @@ export default function ExportToFolderModal({
             <RadioGroup value={mode} onChange={(e) => setMode(e.target.value)}>
               <Paper variant="outlined" sx={{
                 p: 1.5, mb: 1, cursor: 'pointer',
-                border: mode === 'monthly' ? '2px solid #2563eb' : undefined,
-                bgcolor: mode === 'monthly' ? 'rgba(37, 99, 235, 0.04)' : undefined,
+                border: mode === 'monthly' ? '2px solid #8B6B33' : undefined,
+                bgcolor: mode === 'monthly' ? 'rgba(139, 107, 51, 0.06)' : undefined,
               }} onClick={() => setMode('monthly')}>
                 <FormControlLabel
                   value="monthly"
@@ -222,8 +222,8 @@ export default function ExportToFolderModal({
 
               <Paper variant="outlined" sx={{
                 p: 1.5, mb: 1, cursor: 'pointer',
-                border: mode === 'cost_center' ? '2px solid #2563eb' : undefined,
-                bgcolor: mode === 'cost_center' ? 'rgba(37, 99, 235, 0.04)' : undefined,
+                border: mode === 'cost_center' ? '2px solid #8B6B33' : undefined,
+                bgcolor: mode === 'cost_center' ? 'rgba(139, 107, 51, 0.06)' : undefined,
               }} onClick={() => setMode('cost_center')}>
                 <FormControlLabel
                   value="cost_center"
@@ -261,8 +261,8 @@ export default function ExportToFolderModal({
 
               <Paper variant="outlined" sx={{
                 p: 1.5, cursor: 'pointer',
-                border: mode === 'custom' ? '2px solid #2563eb' : undefined,
-                bgcolor: mode === 'custom' ? 'rgba(37, 99, 235, 0.04)' : undefined,
+                border: mode === 'custom' ? '2px solid #8B6B33' : undefined,
+                bgcolor: mode === 'custom' ? 'rgba(139, 107, 51, 0.06)' : undefined,
               }} onClick={() => setMode('custom')}>
                 <FormControlLabel
                   value="custom"
@@ -397,7 +397,7 @@ export default function ExportToFolderModal({
           onClick={handleExport}
           disabled={exporting || !canExport()}
           startIcon={exporting ? <CircularProgress size={18} /> : <DownloadIcon />}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           {exporting ? 'Exportálás...' : 'Letöltés ZIP-ben'}
         </Button>

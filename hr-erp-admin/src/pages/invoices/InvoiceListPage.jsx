@@ -208,7 +208,7 @@ function PaymentDialog({ open, onClose, invoice, onPaymentAdded }) {
               />
               <Button
                 variant="contained" onClick={handleAddPayment} disabled={saving}
-                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, height: 40 }}
+                sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' }, height: 40 }}
               >
                 {saving ? <CircularProgress size={20} /> : 'Rogzites'}
               </Button>
@@ -276,7 +276,7 @@ function EmailDialog({ open, onClose, invoice }) {
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose}>Megse</Button>
         <Button variant="contained" onClick={handleSend} disabled={sending}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
           {sending ? <CircularProgress size={22} /> : 'Kuldes'}
         </Button>
       </DialogActions>
@@ -456,7 +456,7 @@ function InvoiceListPage() {
             variant={showFilters ? 'contained' : 'outlined'}
             startIcon={<FilterIcon />}
             onClick={() => setShowFilters(!showFilters)}
-            sx={showFilters ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } } : {}}
+            sx={showFilters ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } } : {}}
           >
             Szurok
           </Button>

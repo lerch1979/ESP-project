@@ -296,7 +296,7 @@ export default function TaskPhotosPanel({ taskId, currentUser }) {
             variant="contained"
             onClick={submitUpload}
             disabled={uploading}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
           >
             {uploading
               ? <CircularProgress size={20} sx={{ color: 'white' }} />

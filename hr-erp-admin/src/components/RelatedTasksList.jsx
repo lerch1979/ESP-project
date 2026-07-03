@@ -74,7 +74,7 @@ export default function RelatedTasksList({ ticketId, ticketNumber, relatedEmploy
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setCreatorOpen(true)}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           Új feladat
         </Button>

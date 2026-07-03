@@ -76,7 +76,7 @@ const CarePathDashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard title="CarePath felhasználók" value={latest.employee_count_using_eap || 0}
             subtitle={latest.utilization_rate ? `${latest.utilization_rate}% kihasználtság` : ''}
-            icon={<People sx={{ fontSize: 32, color: '#3b82f6' }} />} color="#3b82f6" />
+            icon={<People sx={{ fontSize: 32, color: '#a07c3a' }} />} color="#a07c3a" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard title="Átl. elégedettség" value={latest.avg_satisfaction_rating ? `${parseFloat(latest.avg_satisfaction_rating).toFixed(1)}/5` : '—'}

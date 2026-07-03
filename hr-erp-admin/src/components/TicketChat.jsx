@@ -18,7 +18,7 @@ const ROLE_LABEL = {
   other:            '',
 };
 const ROLE_COLOR = {
-  admin:            '#2563eb',
+  admin:            '#8B6B33',
   assigned_worker:  '#16a34a',
   related_employee: '#eab308',
   other:            '#6b7280',
@@ -69,7 +69,7 @@ function MessageBubble({ message, isOwn, currentUserId, onMarkRead, onDelete }) 
       <Box sx={{
         maxWidth: '72%',
         px: 1.5, py: 1, borderRadius: 2,
-        bgcolor: isOwn ? '#2563eb' : '#f3f4f6',
+        bgcolor: isOwn ? '#8B6B33' : '#f3f4f6',
         color:   isOwn ? 'white' : 'inherit',
         position: 'relative',
       }}>
@@ -100,7 +100,7 @@ function MessageBubble({ message, isOwn, currentUserId, onMarkRead, onDelete }) 
                 variant="caption"
                 onClick={() => setShowOriginal(v => !v)}
                 sx={{ cursor: 'pointer', textDecoration: 'underline', fontSize: 10, opacity: 0.85,
-                  color: isOwn ? 'rgba(255,255,255,0.9)' : '#2563eb' }}
+                  color: isOwn ? 'rgba(255,255,255,0.9)' : '#8B6B33' }}
               >
                 {showOriginal ? 'fordítás' : 'eredeti'}
               </Typography>
@@ -341,7 +341,7 @@ export default function TicketChat({ ticketId, currentUser }) {
           startIcon={sending ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <SendIcon />}
           onClick={handleSend}
           disabled={!input.trim() || sending}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           Küldés
         </Button>

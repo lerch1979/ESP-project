@@ -265,7 +265,7 @@ export default function DraftReviewModal({
             <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button onClick={() => setEditing(false)}>Mégse</Button>
               <Button variant="contained" onClick={handleSaveEdits} disabled={saving}
-                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+                sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
                 {saving ? <CircularProgress size={20} /> : 'Mentés'}
               </Button>
             </Stack>
@@ -289,7 +289,7 @@ export default function DraftReviewModal({
               <Field label="Nettó összeg" value={formatCurrency(draft.netAmount)} />
               <Field label="ÁFA összeg" value={formatCurrency(draft.vatAmount)} />
               <Field label="Bruttó összeg" value={
-                <Typography variant="body1" sx={{ fontWeight: 700, color: '#2563eb' }}>
+                <Typography variant="body1" sx={{ fontWeight: 700, color: '#8B6B33' }}>
                   {formatCurrency(draft.grossAmount)}
                 </Typography>
               } />

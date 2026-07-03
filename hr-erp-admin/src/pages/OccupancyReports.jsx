@@ -47,7 +47,7 @@ import { reportsAPI } from '../services/api';
 import ResponsiveTable from '../components/ResponsiveTable';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#06b6d4', '#ef4444', '#8b5cf6', '#06b6d4', '#6366f1', '#14b8a6'];
-const THEME_GREEN = '#2563eb';
+const THEME_GREEN = '#8B6B33';
 
 const StatMiniCard = ({ title, value, color }) => (
   <Card sx={{ height: '100%' }}>
@@ -210,7 +210,7 @@ function OccupancyReports() {
             <StatMiniCard title="Szabad" value={s.free_beds} color="#10b981" />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Kihasználtság" value={`${s.occupancy_percentage}%`} color="#3b82f6" />
+            <StatMiniCard title="Kihasználtság" value={`${s.occupancy_percentage}%`} color="#a07c3a" />
           </Grid>
         </Grid>
       );
@@ -223,7 +223,7 @@ function OccupancyReports() {
             <StatMiniCard title="Összes ágyas-éj" value={s.total_nights} color={THEME_GREEN} />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Kapacitás éjszaka" value={s.total_capacity_nights} color="#3b82f6" />
+            <StatMiniCard title="Kapacitás éjszaka" value={s.total_capacity_nights} color="#a07c3a" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Átl. kihasználtság" value={`${s.avg_occupancy_percentage}%`} color="#06b6d4" />
@@ -246,7 +246,7 @@ function OccupancyReports() {
           <StatMiniCard title="Ágyas-éj" value={s.total_nights} color={THEME_GREEN} />
         </Grid>
         <Grid item xs={6} sm={2.4}>
-          <StatMiniCard title="Kapacitás éj" value={s.total_capacity_nights} color="#3b82f6" />
+          <StatMiniCard title="Kapacitás éj" value={s.total_capacity_nights} color="#a07c3a" />
         </Grid>
         <Grid item xs={6} sm={2.4}>
           <StatMiniCard title="Átl. kihasználtság" value={`${s.average_occupancy_percentage}%`} color="#06b6d4" />
@@ -390,7 +390,7 @@ function OccupancyReports() {
                     type="monotone"
                     dataKey="total_capacity"
                     name="Kapacitás"
-                    stroke="#3b82f6"
+                    stroke="#a07c3a"
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     dot={false}
@@ -442,7 +442,7 @@ function OccupancyReports() {
                   <TableCell>{r.name}</TableCell>
                   <TableCell>{r.accommodation_name}</TableCell>
                   <TableCell align="right">
-                    <Chip label={r.nights_stayed} size="small" sx={{ bgcolor: 'rgba(37,99,235,0.1)', color: THEME_GREEN, fontWeight: 600 }} />
+                    <Chip label={r.nights_stayed} size="small" sx={{ bgcolor: 'rgba(139, 107, 51, 0.12)', color: THEME_GREEN, fontWeight: 600 }} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -499,7 +499,7 @@ function OccupancyReports() {
             size="small"
             startIcon={<FileDownloadIcon />}
             onClick={handleExcelExport}
-            sx={{ borderColor: THEME_GREEN, color: THEME_GREEN, '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37,99,235,0.04)' } }}
+            sx={{ borderColor: THEME_GREEN, color: THEME_GREEN, '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' } }}
           >
             Excel
           </Button>

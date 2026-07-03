@@ -131,7 +131,7 @@ function GlobalSearchBar() {
               borderRadius: 2,
               '& fieldset': { border: 'none' },
               '&:hover': { bgcolor: '#e2e8f0' },
-              '&.Mui-focused': { bgcolor: 'white', boxShadow: '0 0 0 2px rgba(37,99,235,0.2)' },
+              '&.Mui-focused': { bgcolor: 'white', boxShadow: '0 0 0 2px rgba(139, 107, 51, 0.25)' },
             },
             width: '100%',
           }}
@@ -189,10 +189,10 @@ function GlobalSearchBar() {
                           sx={{
                             py: 0.75,
                             px: 2,
-                            '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.06)' },
+                            '&:hover': { bgcolor: 'rgba(139, 107, 51, 0.08)' },
                           }}
                         >
-                          <ListItemIcon sx={{ minWidth: 32, color: '#2563eb' }}>
+                          <ListItemIcon sx={{ minWidth: 32, color: '#8B6B33' }}>
                             {config.icon}
                           </ListItemIcon>
                           <ListItemText

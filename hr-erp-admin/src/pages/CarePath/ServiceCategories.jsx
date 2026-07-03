@@ -23,7 +23,7 @@ const CATEGORY_COLORS = {
   'Pénzügyi tanácsadás': '#10b981',
   'Családi támogatás': '#8b5cf6',
   'Krízisintervenció': '#ef4444',
-  'Munka-magánélet egyensúly': '#3b82f6',
+  'Munka-magánélet egyensúly': '#a07c3a',
 };
 
 const ServiceCategories = () => {

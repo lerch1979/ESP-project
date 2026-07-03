@@ -290,7 +290,7 @@ function Roles() {
                   <TableRow key={role.id} hover>
                     <TableCell>
                       <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <ShieldIcon sx={{ color: ROLE_COLORS[role.slug]?.color || '#667eea' }} />
+                        <ShieldIcon sx={{ color: ROLE_COLORS[role.slug]?.color || '#8B6B33' }} />
                         <Box>
                           <Chip
                             label={role.name}

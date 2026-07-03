@@ -107,7 +107,7 @@ export default function DamageReportPdfPreviewModal({ open, reportId, onClose })
           startIcon={<DownloadIcon />}
           onClick={handleDownload}
           disabled={!urls[lang]}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           Letöltés ({lang.toUpperCase()})
         </Button>

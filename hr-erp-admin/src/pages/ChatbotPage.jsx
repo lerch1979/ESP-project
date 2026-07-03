@@ -99,7 +99,7 @@ function MessageBubble({ message, onFeedback, isLast }) {
             px: 2,
             py: 1.5,
             borderRadius: 3,
-            bgcolor: isUser ? '#2563eb' : 'grey.200',
+            bgcolor: isUser ? '#8B6B33' : 'grey.200',
             color: isUser ? '#fff' : 'text.primary',
             ...(isUser ? { borderBottomRightRadius: 4 } : { borderBottomLeftRadius: 4 }),
           }}
@@ -155,7 +155,7 @@ function MessageBubble({ message, onFeedback, isLast }) {
         )}
       </Box>
       {isUser && (
-        <Avatar sx={{ bgcolor: '#2563eb', width: 32, height: 32, ml: 1, mt: 0.5 }}>
+        <Avatar sx={{ bgcolor: '#8B6B33', width: 32, height: 32, ml: 1, mt: 0.5 }}>
           <PersonIcon sx={{ fontSize: 18 }} />
         </Avatar>
       )}
@@ -167,7 +167,7 @@ function TypingIndicator() {
   return (
     <Box sx={{ display: 'flex', alignItems: 'flex-end', px: 2, mb: 1.5 }}>
       <Avatar sx={{ bgcolor: '#e3f2fd', width: 32, height: 32, mr: 1 }}>
-        <BotIcon sx={{ fontSize: 18, color: '#2563eb' }} />
+        <BotIcon sx={{ fontSize: 18, color: '#8B6B33' }} />
       </Avatar>
       <Paper elevation={0} sx={{ px: 2, py: 1.5, borderRadius: 3, borderBottomLeftRadius: 4, bgcolor: 'grey.200', display: 'flex', alignItems: 'center', gap: 1 }}>
         <CircularProgress size={16} />
@@ -507,7 +507,7 @@ export default function ChatbotPage() {
                 color="primary"
                 onClick={() => handleSend()}
                 disabled={!inputText.trim() || sending}
-                sx={{ bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' }, '&.Mui-disabled': { bgcolor: 'grey.300', color: 'grey.500' } }}
+                sx={{ bgcolor: '#8B6B33', color: '#fff', '&:hover': { bgcolor: '#6f552a' }, '&.Mui-disabled': { bgcolor: 'grey.300', color: 'grey.500' } }}
               >
                 {sending ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : <SendIcon />}
               </IconButton>
@@ -533,12 +533,12 @@ export default function ChatbotPage() {
         {analytics && (
           <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
             <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TrendingUpIcon sx={{ fontSize: 18, color: '#2563eb' }} />
+              <TrendingUpIcon sx={{ fontSize: 18, color: '#8B6B33' }} />
               Napi statisztika
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
               <Box sx={{ textAlign: 'center', bgcolor: '#f0f9ff', borderRadius: 2, p: 1 }}>
-                <Typography variant="h6" fontWeight={700} color="#2563eb">{analytics.totalConversations || 0}</Typography>
+                <Typography variant="h6" fontWeight={700} color="#8B6B33">{analytics.totalConversations || 0}</Typography>
                 <Typography variant="caption" color="text.secondary">Beszélgetés</Typography>
               </Box>
               <Box sx={{ textAlign: 'center', bgcolor: '#f0fdf4', borderRadius: 2, p: 1 }}>
@@ -552,7 +552,7 @@ export default function ChatbotPage() {
         {/* Quick questions */}
         <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <HelpIcon sx={{ fontSize: 18, color: '#2563eb' }} />
+            <HelpIcon sx={{ fontSize: 18, color: '#8B6B33' }} />
             Gyors kérdések
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -576,7 +576,7 @@ export default function ChatbotPage() {
         {faqCategories.length > 0 && (
           <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
             <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <QuestionAnswerIcon sx={{ fontSize: 18, color: '#2563eb' }} />
+              <QuestionAnswerIcon sx={{ fontSize: 18, color: '#8B6B33' }} />
               GYIK kategóriák
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -588,7 +588,7 @@ export default function ChatbotPage() {
                   clickable
                   onClick={() => handleSend(cat.name)}
                   disabled={sending}
-                  sx={{ borderRadius: 2, bgcolor: (cat.color || '#3b82f6') + '18' }}
+                  sx={{ borderRadius: 2, bgcolor: (cat.color || '#a07c3a') + '18' }}
                 />
               ))}
             </Box>

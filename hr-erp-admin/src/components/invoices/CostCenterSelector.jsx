@@ -22,8 +22,8 @@ function SelectorTreeNode({ node, level = 0, selectedId, onSelect, expandedIds, 
         sx={{
           display: 'flex', alignItems: 'center', py: 0.75, px: 1.5,
           pl: 1.5 + level * 2.5, cursor: 'pointer', borderRadius: 1,
-          bgcolor: isSelected ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
-          '&:hover': { bgcolor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'rgba(0,0,0,0.04)' },
+          bgcolor: isSelected ? 'rgba(139, 107, 51, 0.10)' : 'transparent',
+          '&:hover': { bgcolor: isSelected ? 'rgba(139, 107, 51, 0.14)' : 'rgba(0,0,0,0.04)' },
           transition: 'all 0.15s',
         }}
       >

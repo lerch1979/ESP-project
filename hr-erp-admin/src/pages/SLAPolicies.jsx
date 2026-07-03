@@ -282,7 +282,7 @@ function SLAPolicies() {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TimerIcon sx={{ fontSize: 28, color: '#2563eb' }} />
+            <TimerIcon sx={{ fontSize: 28, color: '#8B6B33' }} />
             <Typography variant="h5" fontWeight={700}>
               Megoldási határidő szabályzatok
             </Typography>
@@ -292,7 +292,7 @@ function SLAPolicies() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleOpenCreate}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               Új szabályzat
             </Button>
@@ -380,7 +380,7 @@ function SLAPolicies() {
                         <Chip
                           size="small"
                           label={`${policy.business_hours_start?.slice(0, 5) || '08:00'} - ${policy.business_hours_end?.slice(0, 5) || '17:00'}`}
-                          sx={{ bgcolor: '#dbeafe', color: '#2563eb', fontWeight: 500 }}
+                          sx={{ bgcolor: '#dbeafe', color: '#8B6B33', fontWeight: 500 }}
                         />
                       ) : (
                         <Chip size="small" label="0-24" sx={{ bgcolor: '#fef3c7', color: '#d97706', fontWeight: 500 }} />
@@ -455,7 +455,7 @@ function SLAPolicies() {
         >
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TimerIcon sx={{ color: '#2563eb' }} />
+              <TimerIcon sx={{ color: '#8B6B33' }} />
               <Typography variant="h6" fontWeight={600}>
                 {editingItem ? 'Megoldási határidő szabályzat szerkesztése' : 'Új megoldási határidő szabályzat'}
               </Typography>
@@ -701,7 +701,7 @@ function SLAPolicies() {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Mentés'}
             </Button>

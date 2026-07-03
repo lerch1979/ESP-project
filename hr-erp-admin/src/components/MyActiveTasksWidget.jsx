@@ -233,7 +233,7 @@ export default function MyActiveTasksWidget() {
                   borderRadius: 1,
                   cursor: 'pointer',
                   transition: 'background-color 0.15s',
-                  '&:hover': { bgcolor: 'rgba(37,99,235,0.04)' },
+                  '&:hover': { bgcolor: 'rgba(139, 107, 51, 0.06)' },
                 }}
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>

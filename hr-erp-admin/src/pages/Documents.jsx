@@ -31,7 +31,7 @@ import DocumentDetailModal from '../components/DocumentDetailModal';
 import ResponsiveTable from '../components/ResponsiveTable';
 
 const DOCUMENT_TYPES = [
-  { value: 'contract', label: 'Szerződés', color: '#2563eb' },
+  { value: 'contract', label: 'Szerződés', color: '#8B6B33' },
   { value: 'certificate', label: 'Bizonyítvány', color: '#16a34a' },
   { value: 'id_card', label: 'Igazolvány másolat', color: '#7c3aed' },
   { value: 'medical', label: 'Orvosi dokumentum', color: '#ec4899' },
@@ -125,8 +125,8 @@ function Documents() {
             startIcon={<UploadIcon />}
             onClick={() => setUploadModalOpen(true)}
             sx={{
-              bgcolor: '#2563eb',
-              '&:hover': { bgcolor: '#1d4ed8' },
+              bgcolor: '#8B6B33',
+              '&:hover': { bgcolor: '#6f552a' },
             }}
           >
             Feltöltés
@@ -207,7 +207,7 @@ function Documents() {
                         hover
                         sx={{
                           cursor: 'pointer',
-                          '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
+                          '&:hover': { bgcolor: 'rgba(139, 107, 51, 0.06)' },
                         }}
                         onClick={() => handleRowClick(doc.id)}
                       >

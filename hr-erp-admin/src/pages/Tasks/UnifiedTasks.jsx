@@ -23,7 +23,7 @@ import TaskDetailModal from '../../components/TaskDetailModal';
 
 const BUCKETS = [
   { key: 'inbox',       label: 'Inbox',           color: '#94a3b8', hint: 'Új, még nem rendezett' },
-  { key: 'next_action', label: 'Következő akciók', color: '#2563eb', hint: 'Kész cselekvésre' },
+  { key: 'next_action', label: 'Következő akciók', color: '#8B6B33', hint: 'Kész cselekvésre' },
   { key: 'waiting',     label: 'Várakozás',         color: '#eab308', hint: 'Másra vár' },
   { key: 'someday',     label: 'Valamikor',         color: '#8b5cf6', hint: 'Talán egyszer' },
   { key: 'done',        label: 'Befejezett',        color: '#16a34a', hint: 'Archív' },
@@ -83,7 +83,7 @@ function TaskCard({ task, onClick, contextMap }) {
           <Chip size="small" label={ctx.name} sx={{
             height: 20, fontSize: '0.65rem',
             bgcolor: ctx.color ? `${ctx.color}22` : '#e0e7ff',
-            color: ctx.color || '#2563eb', fontWeight: 600,
+            color: ctx.color || '#8B6B33', fontWeight: 600,
           }} />
         )}
         {task.energy_level && (
@@ -288,7 +288,7 @@ export default function UnifiedTasks() {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => setNewModalOpen(true)}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
           >
             Új feladat
           </Button>

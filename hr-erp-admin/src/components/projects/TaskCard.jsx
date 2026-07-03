@@ -6,7 +6,7 @@ import UserAvatar from '../common/UserAvatar';
 const PRIORITY_COLORS = {
   critical: '#ef4444',
   high: '#f97316',
-  medium: '#3b82f6',
+  medium: '#a07c3a',
   low: '#94a3b8',
 };
 

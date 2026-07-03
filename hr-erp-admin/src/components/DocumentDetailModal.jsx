@@ -28,7 +28,7 @@ import { documentsAPI, employeesAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 const DOCUMENT_TYPES = [
-  { value: 'contract', label: 'Szerződés', color: '#2563eb' },
+  { value: 'contract', label: 'Szerződés', color: '#8B6B33' },
   { value: 'certificate', label: 'Bizonyítvány', color: '#16a34a' },
   { value: 'id_card', label: 'Igazolvány másolat', color: '#7c3aed' },
   { value: 'medical', label: 'Orvosi dokumentum', color: '#06b6d4' },
@@ -335,7 +335,7 @@ function DocumentDetailModal({ open, onClose, documentId, onSuccess }) {
                 variant="contained"
                 startIcon={<DownloadIcon />}
                 onClick={handleDownload}
-                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
               >
                 Letöltés
               </Button>
@@ -354,7 +354,7 @@ function DocumentDetailModal({ open, onClose, documentId, onSuccess }) {
                 onClick={handleSave}
                 disabled={saving || !editData.title?.trim()}
                 startIcon={saving ? <CircularProgress size={18} /> : null}
-                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
               >
                 Mentés
               </Button>

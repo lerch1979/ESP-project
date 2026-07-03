@@ -18,7 +18,7 @@ const SENTIMENT_COLORS = {
   CRISIS: '#dc2626',
   DEPRESSED: '#f97316',
   CONFLICT: '#eab308',
-  ANXIOUS: '#3b82f6',
+  ANXIOUS: '#a07c3a',
   NEUTRAL: '#64748b',
   POSITIVE: '#16a34a',
 };

@@ -150,9 +150,9 @@ function Contractors() {
             onClick={handleExport}
             disabled={exporting}
             sx={{
-              borderColor: '#2563eb',
-              color: '#2563eb',
-              '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
+              borderColor: '#8B6B33',
+              color: '#8B6B33',
+              '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' },
             }}
           >
             Export
@@ -162,9 +162,9 @@ function Contractors() {
             startIcon={<UploadIcon />}
             onClick={() => setBulkModalOpen(true)}
             sx={{
-              borderColor: '#2563eb',
-              color: '#2563eb',
-              '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
+              borderColor: '#8B6B33',
+              color: '#8B6B33',
+              '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' },
             }}
           >
             Tömeges feltöltés
@@ -174,8 +174,8 @@ function Contractors() {
             startIcon={<AddIcon />}
             onClick={() => setCreateModalOpen(true)}
             sx={{
-              bgcolor: '#2563eb',
-              '&:hover': { bgcolor: '#1d4ed8' },
+              bgcolor: '#8B6B33',
+              '&:hover': { bgcolor: '#6f552a' },
             }}
           >
             Új alvállalkozó
@@ -261,12 +261,12 @@ function Contractors() {
                       hover
                       sx={{
                         cursor: 'pointer',
-                        '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
+                        '&:hover': { bgcolor: 'rgba(139, 107, 51, 0.06)' },
                       }}
                       onClick={() => handleRowClick(contractor.id)}
                     >
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563eb' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#8B6B33' }}>
                           {contractor.name}
                         </Typography>
                       </TableCell>

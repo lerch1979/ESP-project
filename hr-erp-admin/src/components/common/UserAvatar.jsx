@@ -7,7 +7,7 @@ const AVATAR_COLORS = [
   '#ec4899', // pink
   '#f59e0b', // amber
   '#10b981', // emerald
-  '#3b82f6', // blue
+  '#a07c3a', // blue
   '#ef4444', // red
   '#14b8a6', // teal
   '#f97316', // orange

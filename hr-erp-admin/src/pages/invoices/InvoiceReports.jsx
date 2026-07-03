@@ -237,7 +237,7 @@ function CostCenterReportTree({ data }) {
         <TableRow
           hover
           sx={{
-            bgcolor: level === 0 ? 'rgba(37, 99, 235, 0.04)' : 'transparent',
+            bgcolor: level === 0 ? 'rgba(139, 107, 51, 0.06)' : 'transparent',
             '& td': { fontWeight: isParent ? 600 : 400 },
           }}
         >

@@ -262,11 +262,11 @@ export default function InvoiceFormModal({
             onDragLeave={handleDragLeave}
             sx={{
               border: '2px dashed',
-              borderColor: dragOver ? '#2563eb' : file ? '#2563eb' : '#ccc',
+              borderColor: dragOver ? '#8B6B33' : file ? '#8B6B33' : '#ccc',
               borderRadius: 2, p: 3, textAlign: 'center', cursor: 'pointer',
-              bgcolor: dragOver ? 'rgba(37, 99, 235, 0.04)' : file ? 'rgba(37, 99, 235, 0.04)' : 'transparent',
+              bgcolor: dragOver ? 'rgba(139, 107, 51, 0.06)' : file ? 'rgba(139, 107, 51, 0.06)' : 'transparent',
               transition: 'all 0.2s',
-              '&:hover': { borderColor: '#2563eb', bgcolor: 'rgba(37, 99, 235, 0.04)' },
+              '&:hover': { borderColor: '#8B6B33', bgcolor: 'rgba(139, 107, 51, 0.06)' },
             }}
           >
             <input
@@ -274,7 +274,7 @@ export default function InvoiceFormModal({
               onChange={handleFileChange}
               accept=".pdf,.jpg,.jpeg,.png"
             />
-            <UploadIcon sx={{ fontSize: 36, color: file ? '#2563eb' : '#999', mb: 0.5 }} />
+            <UploadIcon sx={{ fontSize: 36, color: file ? '#8B6B33' : '#999', mb: 0.5 }} />
             {file ? (
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>{file.name}</Typography>
@@ -321,7 +321,7 @@ export default function InvoiceFormModal({
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose}>Mégse</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
           {saving ? <CircularProgress size={22} /> : editData ? 'Mentés' : 'Rögzítés'}
         </Button>
       </DialogActions>

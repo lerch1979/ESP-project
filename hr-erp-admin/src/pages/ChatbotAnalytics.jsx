@@ -8,7 +8,7 @@ import { chatbotAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 const STAT_CARDS = [
-  { key: 'totalConversations', label: 'Összes beszélgetés', color: '#3b82f6' },
+  { key: 'totalConversations', label: 'Összes beszélgetés', color: '#a07c3a' },
   { key: 'activeConversations', label: 'Aktív beszélgetések', color: '#10b981' },
   { key: 'escalatedConversations', label: 'Eszkalált beszélgetések', color: '#f59e0b' },
   { key: 'totalMessages', label: 'Összes üzenet', color: '#8b5cf6' },
@@ -71,7 +71,7 @@ export default function ChatbotAnalytics() {
               <XAxis dataKey="date" fontSize={12} />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} name="Beszélgetések" />
+              <Line type="monotone" dataKey="count" stroke="#a07c3a" strokeWidth={2} name="Beszélgetések" />
             </LineChart>
           </ResponsiveContainer>
         </Paper>

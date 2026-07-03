@@ -34,7 +34,7 @@ function ChatBubble({ message }) {
     <Box sx={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', mb: 1 }}>
       <Paper sx={{
         px: 2, py: 1, maxWidth: '70%', borderRadius: 2,
-        bgcolor: isUser ? '#2563eb' : '#f1f5f9',
+        bgcolor: isUser ? '#8B6B33' : '#f1f5f9',
         color: isUser ? 'white' : 'text.primary',
         borderBottomRightRadius: isUser ? 4 : 16,
         borderBottomLeftRadius: isUser ? 16 : 4,

@@ -175,7 +175,7 @@ function FAQ() {
       {/* Content */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#2563eb' }} />
+          <CircularProgress sx={{ color: '#8B6B33' }} />
         </Box>
       ) : visibleCategories.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -194,8 +194,8 @@ function FAQ() {
               startIcon={<SupportAgentIcon />}
               onClick={() => navigate('/tickets')}
               sx={{
-                bgcolor: '#2563eb',
-                '&:hover': { bgcolor: '#1d4ed8' },
+                bgcolor: '#8B6B33',
+                '&:hover': { bgcolor: '#6f552a' },
                 px: 4,
                 py: 1.2,
                 borderRadius: 2,
@@ -277,7 +277,7 @@ function FAQ() {
                             fontSize: '0.65rem',
                             height: 20,
                             bgcolor: entry._score >= 0.9 ? '#dcfce7' : '#dbeafe',
-                            color: entry._score >= 0.9 ? '#16a34a' : '#2563eb',
+                            color: entry._score >= 0.9 ? '#16a34a' : '#8B6B33',
                           }}
                         />
                       )}

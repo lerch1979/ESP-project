@@ -14,7 +14,7 @@ export default function ChatbotFaqCategories() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', slug: '', description: '', icon: 'help', color: '#3b82f6', sort_order: 0, is_active: true,
+    name: '', slug: '', description: '', icon: 'help', color: '#a07c3a', sort_order: 0, is_active: true,
   });
 
   const fetchCategories = async () => {
@@ -36,12 +36,12 @@ export default function ChatbotFaqCategories() {
       setEditingCategory(cat);
       setFormData({
         name: cat.name, slug: cat.slug, description: cat.description || '',
-        icon: cat.icon || 'help', color: cat.color || '#3b82f6',
+        icon: cat.icon || 'help', color: cat.color || '#a07c3a',
         sort_order: cat.sort_order || 0, is_active: cat.is_active !== false,
       });
     } else {
       setEditingCategory(null);
-      setFormData({ name: '', slug: '', description: '', icon: 'help', color: '#3b82f6', sort_order: 0, is_active: true });
+      setFormData({ name: '', slug: '', description: '', icon: 'help', color: '#a07c3a', sort_order: 0, is_active: true });
     }
     setModalOpen(true);
   };
@@ -104,7 +104,7 @@ export default function ChatbotFaqCategories() {
             {categories.map((cat) => (
               <TableRow key={cat.id} hover>
                 <TableCell>
-                  <Box sx={{ width: 24, height: 24, borderRadius: 1, bgcolor: cat.color || '#3b82f6' }} />
+                  <Box sx={{ width: 24, height: 24, borderRadius: 1, bgcolor: cat.color || '#a07c3a' }} />
                 </TableCell>
                 <TableCell><Typography fontWeight={500}>{cat.name}</Typography></TableCell>
                 <TableCell><Typography variant="body2" color="text.secondary">{cat.slug}</Typography></TableCell>

@@ -90,7 +90,7 @@ export default function InvoiceDetailDialog({ open, onClose, invoice }) {
           <Field label="Nettó összeg" value={formatCurrency(invoice.amount, invoice.currency)} />
           <Field label="ÁFA" value={formatCurrency(invoice.vat_amount, invoice.currency)} />
           <Field label="Bruttó összeg" value={
-            <Typography variant="body1" sx={{ fontWeight: 700, color: '#2563eb' }}>
+            <Typography variant="body1" sx={{ fontWeight: 700, color: '#8B6B33' }}>
               {formatCurrency(invoice.total_amount, invoice.currency)}
             </Typography>
           } />

@@ -434,7 +434,7 @@ export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, proj
                         {task.attachments?.map((a) => (
                           <TableRow key={a.id} hover>
                             <TableCell>
-                              <Typography variant="body2" sx={{ color: '#2563eb', cursor: 'pointer' }}>
+                              <Typography variant="body2" sx={{ color: '#8B6B33', cursor: 'pointer' }}>
                                 {a.file_name}
                               </Typography>
                             </TableCell>
@@ -547,7 +547,7 @@ export default function TaskDetailDialog({ open, onClose, taskId, onUpdate, proj
                             <TableCell>
                               <Typography
                                 variant="body2"
-                                sx={{ color: onNavigateTask ? '#2563eb' : 'inherit', fontWeight: 500 }}
+                                sx={{ color: onNavigateTask ? '#8B6B33' : 'inherit', fontWeight: 500 }}
                               >
                                 {d.depends_on_title}
                               </Typography>

@@ -44,7 +44,7 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_COLORS = {
   munkabiztonság: '#dc2626',
-  beilleszkedés: '#2563eb',
+  beilleszkedés: '#8B6B33',
   nyelvi_kurzus: '#7c3aed',
   adminisztráció: '#06b6d4',
   szakmai_kepzes: '#0891b2',
@@ -214,7 +214,7 @@ function VideoDetailModal({ open, onClose, video, isAdmin }) {
               {currentVideo.is_featured && <Chip size="small" label="Kiemelt" sx={{ bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 600 }} />}
               <Chip size="small" icon={<TranslateIcon />}
                 label={`${(currentVideo.versions || []).length} nyelvi verzió`}
-                sx={{ bgcolor: '#dbeafe', color: '#2563eb', fontWeight: 600 }} />
+                sx={{ bgcolor: '#dbeafe', color: '#8B6B33', fontWeight: 600 }} />
               {(currentVideo.subtitles || []).length > 0 && (
                 <Chip size="small" label={`${currentVideo.subtitles.length} felirat`} variant="outlined" />
               )}

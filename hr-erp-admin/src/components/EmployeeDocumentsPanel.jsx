@@ -162,7 +162,7 @@ export default function EmployeeDocumentsPanel({ employeeId, employeeUserId }) {
           <Button
             size="small" variant="contained" startIcon={<AddIcon />}
             onClick={() => setUploadOpen(true)}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
           >
             Új dokumentum
           </Button>

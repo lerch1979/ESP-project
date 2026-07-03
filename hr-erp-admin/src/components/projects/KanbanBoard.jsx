@@ -11,7 +11,7 @@ import QuickTaskForm from './QuickTaskForm';
 
 const COLUMNS = [
   { id: 'todo', label: 'Teendő', color: '#94a3b8' },
-  { id: 'in_progress', label: 'Folyamatban', color: '#3b82f6' },
+  { id: 'in_progress', label: 'Folyamatban', color: '#a07c3a' },
   { id: 'review', label: 'Ellenőrzés', color: '#f59e0b' },
   { id: 'done', label: 'Kész', color: '#22c55e' },
   { id: 'blocked', label: 'Blokkolva', color: '#ef4444' },

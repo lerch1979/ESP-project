@@ -93,7 +93,7 @@ function VideoComplianceModal({ open, onClose, video }) {
               <SummaryCard label="Célközönség" value={s.total} color="#475569" />
               <SummaryCard label="Megnézte" value={s.completed} color="#16a34a" />
               <SummaryCard label="Hiányzik" value={s.pending} color="#dc2626" />
-              <SummaryCard label="Teljesítés" value={`${s.completionPct}%`} color="#2563eb" />
+              <SummaryCard label="Teljesítés" value={`${s.completionPct}%`} color="#8B6B33" />
             </Stack>
             <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 420 }}>
               <Table size="small" stickyHeader>

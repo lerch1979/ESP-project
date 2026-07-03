@@ -197,9 +197,9 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
               startIcon={<DownloadIcon />}
               onClick={downloadTemplate}
               sx={{
-                borderColor: '#2563eb',
-                color: '#2563eb',
-                '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37, 99, 235, 0.04)' },
+                borderColor: '#8B6B33',
+                color: '#8B6B33',
+                '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' },
               }}
             >
               .xlsx sablon
@@ -217,7 +217,7 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
               p: 5,
               textAlign: 'center',
               cursor: 'pointer',
-              '&:hover': { borderColor: '#2563eb', bgcolor: 'rgba(37, 99, 235, 0.04)' },
+              '&:hover': { borderColor: '#8B6B33', bgcolor: 'rgba(139, 107, 51, 0.06)' },
             }}
           >
             <UploadIcon sx={{ fontSize: 48, color: '#999', mb: 1 }} />
@@ -308,8 +308,8 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
             variant="contained"
             disabled={loading || !file}
             sx={{
-              bgcolor: '#2563eb',
-              '&:hover': { bgcolor: '#1d4ed8' },
+              bgcolor: '#8B6B33',
+              '&:hover': { bgcolor: '#6f552a' },
             }}
           >
             {loading ? <CircularProgress size={24} /> : 'Importálás'}

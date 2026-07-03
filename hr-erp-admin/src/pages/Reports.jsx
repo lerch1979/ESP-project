@@ -48,7 +48,7 @@ import ResponsiveTable from '../components/ResponsiveTable';
 // ============================================================
 
 const REPORT_TYPES = [
-  { key: 'employees', label: 'Munkavállalók', icon: PeopleIcon, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+  { key: 'employees', label: 'Munkavállalók', icon: PeopleIcon, color: '#a07c3a', bg: 'rgba(59,130,246,0.1)' },
   { key: 'accommodations', label: 'Szálláshelyek', icon: ApartmentIcon, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
   { key: 'tickets', label: 'Hibajegyek', icon: ConfirmationNumberIcon, color: '#06b6d4', bg: 'rgba(245,158,11,0.1)' },
   { key: 'contractors', label: 'Alvállalkozók', icon: BusinessIcon, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
@@ -438,7 +438,7 @@ function Reports() {
               variant="outlined"
               startIcon={<FileDownloadIcon />}
               onClick={handleExcelExport}
-              sx={{ borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: 'rgba(37,99,235,0.04)' } }}
+              sx={{ borderColor: '#8B6B33', color: '#8B6B33', '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' } }}
             >
               Excel export
             </Button>
@@ -507,7 +507,7 @@ function Reports() {
       <Box>
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Összes" value={data.total} color="#3b82f6" />
+            <StatMiniCard title="Összes" value={data.total} color="#a07c3a" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Aktív" value={data.active} color="#10b981" />
@@ -554,7 +554,7 @@ function Reports() {
                     <XAxis dataKey="workplace" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="count" name="Fő" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" name="Fő" fill="#a07c3a" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -607,7 +607,7 @@ function Reports() {
             <StatMiniCard title="Kihasználtság" value={`${data.occupancyRate}%`} color="#06b6d4" />
           </Grid>
           <Grid item xs={6} sm={4}>
-            <StatMiniCard title="Kapacitás / Lakók" value={`${data.currentOccupants} / ${data.totalCapacity}`} color="#3b82f6" />
+            <StatMiniCard title="Kapacitás / Lakók" value={`${data.currentOccupants} / ${data.totalCapacity}`} color="#a07c3a" />
           </Grid>
         </Grid>
 
@@ -669,7 +669,7 @@ function Reports() {
             <StatMiniCard title="Összes" value={data.total} color="#06b6d4" />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <StatMiniCard title="Átl. megoldási idő" value={`${data.avgResolutionHours}h`} color="#3b82f6" />
+            <StatMiniCard title="Átl. megoldási idő" value={`${data.avgResolutionHours}h`} color="#a07c3a" />
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatMiniCard title="Kategóriák" value={data.byCategory?.length || 0} color="#8b5cf6" />

@@ -293,8 +293,8 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
           variant="contained"
           disabled={loading}
           sx={{
-            bgcolor: '#2563eb',
-            '&:hover': { bgcolor: '#1d4ed8' },
+            bgcolor: '#8B6B33',
+            '&:hover': { bgcolor: '#6f552a' },
           }}
         >
           {loading ? <CircularProgress size={24} /> : 'Létrehozás'}

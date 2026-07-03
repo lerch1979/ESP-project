@@ -107,7 +107,7 @@ function StatCard({ title, value, subtitle, color }) {
 
 const TIMELINE_STATUS_COLORS = {
   todo: '#94a3b8',
-  in_progress: '#3b82f6',
+  in_progress: '#a07c3a',
   review: '#f59e0b',
   done: '#22c55e',
   blocked: '#ef4444',
@@ -734,7 +734,7 @@ export default function ProjectDetail() {
                 value={completion}
                 size={56}
                 thickness={5}
-                sx={{ color: completion >= 100 ? '#22c55e' : '#3b82f6' }}
+                sx={{ color: completion >= 100 ? '#22c55e' : '#a07c3a' }}
               />
               <Box sx={{
                 position: 'absolute', top: 0, left: 0, bottom: 0, right: 0,
@@ -1337,7 +1337,7 @@ export default function ProjectDetail() {
                       <DotIcon sx={{
                         fontSize: 10,
                         color: t.status === 'done' ? '#22c55e' :
-                               t.status === 'in_progress' ? '#3b82f6' :
+                               t.status === 'in_progress' ? '#a07c3a' :
                                t.status === 'blocked' ? '#ef4444' : '#94a3b8',
                       }} />
                       <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>

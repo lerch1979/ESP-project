@@ -252,7 +252,7 @@ export default function DamageReportDetail() {
                 variant="contained"
                 onClick={handleCreateSubmit}
                 disabled={creating}
-                sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
               >
                 {creating ? <CircularProgress size={24} /> : 'Kárigény létrehozása'}
               </Button>

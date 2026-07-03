@@ -147,7 +147,7 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
         <Box>
           {task && !editing && (
             <Tooltip title="Szerkesztés">
-              <IconButton onClick={() => setEditing(true)} size="small" sx={{ color: '#2563eb' }}>
+              <IconButton onClick={() => setEditing(true)} size="small" sx={{ color: '#8B6B33' }}>
                 <EditIcon />
               </IconButton>
             </Tooltip>
@@ -228,7 +228,7 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
                   size="small" variant="outlined" />
               )}
               {task.tags?.length > 0 && task.tags.map(t => (
-                <Chip key={t} label={t} size="small" sx={{ bgcolor: '#eff6ff', color: '#2563eb' }} />
+                <Chip key={t} label={t} size="small" sx={{ bgcolor: '#eff6ff', color: '#8B6B33' }} />
               ))}
             </Stack>
 
@@ -289,7 +289,7 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
                         if (onClose) onClose();
                         navigate(`/employees?highlight=${task.related_employee_id}`);
                       }}
-                      sx={{ color: '#2563eb', textTransform: 'none', py: 0 }}
+                      sx={{ color: '#8B6B33', textTransform: 'none', py: 0 }}
                     >
                       Profil megnyitása
                     </Button>
@@ -364,7 +364,7 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
                     onClick={postComment}
                     disabled={postingComment || !newComment.trim()}
                     startIcon={postingComment ? <CircularProgress size={16} /> : <SendIcon />}
-                    sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                    sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
                   >
                     Küldés
                   </Button>
@@ -383,7 +383,7 @@ export default function TaskDetailModal({ open, taskId, onClose, onChange }) {
               variant="contained"
               onClick={saveEdits}
               disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Mentés'}
             </Button>

@@ -11,7 +11,7 @@ import {
 import { toast } from 'react-toastify';
 import { gtdAPI } from '../../services/api';
 
-const emptyForm = { name: '', icon: '', color: '#2563eb' };
+const emptyForm = { name: '', icon: '', color: '#8B6B33' };
 
 export default function Contexts() {
   const [rows, setRows] = useState([]);
@@ -40,7 +40,7 @@ export default function Contexts() {
     form: {
       name: r.name || '',
       icon: r.icon || '',
-      color: r.color || '#2563eb',
+      color: r.color || '#8B6B33',
     },
   });
 
@@ -88,7 +88,7 @@ export default function Contexts() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={openCreate}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           Új context
         </Button>
@@ -185,7 +185,7 @@ export default function Contexts() {
         <DialogActions>
           <Button onClick={() => setEditor(s => ({ ...s, open: false }))}>Mégse</Button>
           <Button variant="contained" onClick={save}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>Mentés</Button>
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>Mentés</Button>
         </DialogActions>
       </Dialog>
 

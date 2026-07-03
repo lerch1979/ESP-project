@@ -190,7 +190,7 @@ export default function EmployeeDocumentUploadModal({
         <Button onClick={onClose} disabled={uploading}>Mégse</Button>
         <Button
           variant="contained" onClick={submit} disabled={!file || uploading}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
         >
           {uploading
             ? <CircularProgress size={18} sx={{ color: 'white' }} />

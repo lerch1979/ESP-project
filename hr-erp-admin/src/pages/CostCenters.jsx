@@ -68,9 +68,9 @@ function TreeNode({ node, level = 0, selectedId, onSelect, expandedIds, onToggle
         sx={{
           display: 'flex', alignItems: 'center', py: 1, px: 2,
           pl: 2 + level * 3, cursor: 'pointer', borderRadius: 1,
-          bgcolor: isSelected ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+          bgcolor: isSelected ? 'rgba(139, 107, 51, 0.10)' : 'transparent',
           borderLeft: isSelected ? '3px solid #8B6B33' : '3px solid transparent',
-          '&:hover': { bgcolor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'rgba(0,0,0,0.04)' },
+          '&:hover': { bgcolor: isSelected ? 'rgba(139, 107, 51, 0.14)' : 'rgba(0,0,0,0.04)' },
           transition: 'all 0.15s',
         }}
       >
@@ -206,7 +206,7 @@ function CostCenterFormDialog({ open, onClose, onSave, editData, parentOptions }
                     width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', borderRadius: 1, fontSize: '1.2rem',
                     border: form.icon === icon ? '2px solid #8B6B33' : '1px solid #e5e7eb',
-                    bgcolor: form.icon === icon ? 'rgba(37,99,235,0.08)' : 'transparent',
+                    bgcolor: form.icon === icon ? 'rgba(139, 107, 51, 0.10)' : 'transparent',
                   }}
                 >
                   {icon}

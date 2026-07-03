@@ -291,7 +291,7 @@ function TicketDetail() {
                 hol van a hiba. Csak admin nézetben jelenik meg. */}
             {ticket.accommodation?.name && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75 }}>
-                <HomeIcon sx={{ fontSize: 18, color: '#2563eb' }} />
+                <HomeIcon sx={{ fontSize: 18, color: '#8B6B33' }} />
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
                   Szállás: {ticket.accommodation.name}
                   {ticket.accommodation.room_number ? ` · Szoba ${ticket.accommodation.room_number}` : ''}
@@ -306,7 +306,7 @@ function TicketDetail() {
               size="small"
               startIcon={<EditIcon />}
               onClick={() => setEditOpen(true)}
-              sx={{ color: '#2563eb', borderColor: '#2563eb' }}
+              sx={{ color: '#8B6B33', borderColor: '#8B6B33' }}
             >
               Szerkesztés
             </Button>
@@ -426,7 +426,7 @@ function TicketDetail() {
             sx={{
               p: 3, mb: 3, cursor: 'pointer',
               transition: 'background-color 0.15s',
-              '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
+              '&:hover': { bgcolor: 'rgba(139, 107, 51, 0.06)' },
             }}
             onClick={() => setEditOpen(true)}
             title="Kattints a szerkesztéshez"
@@ -553,7 +553,7 @@ function TicketDetail() {
             );
             return (
               <Paper sx={{ p: 2.5, mb: 2, border: '1px solid #e0e7ff' }}>
-                <Typography variant="caption" sx={{ fontWeight: 600, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#8B6B33', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Kapcsolódó dolgozó
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 1.5, alignItems: 'center' }}>
@@ -626,7 +626,7 @@ function TicketDetail() {
                     fullWidth
                     size="small"
                     variant="outlined"
-                    sx={{ borderColor: '#2563eb', color: '#2563eb' }}
+                    sx={{ borderColor: '#8B6B33', color: '#8B6B33' }}
                     onClick={() => navigate(`/employees?highlight=${le.id}`)}
                   >
                     Profil megnyitása
