@@ -432,7 +432,7 @@ export default function EmailInbox() {
             <input ref={draftFileRef} type="file" hidden accept=".pdf,.png,.jpg,.jpeg" onChange={handleDraftUpload} />
             <Button variant="contained" startIcon={draftUploading ? <CircularProgress size={18} color="inherit" /> : <UploadIcon />}
               onClick={() => draftFileRef.current?.click()} disabled={draftUploading}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
               Számla feltöltés
             </Button>
           </Stack>
@@ -443,7 +443,7 @@ export default function EmailInbox() {
             <StatCard title="Jóváhagyva" value={draftStats?.approved ?? '-'} subtitle={draftStats ? formatCurrency(draftStats.approvedTotal) : ''} icon={<ApprovedIcon />} color="#10b981" />
             <StatCard title="Elutasítva" value={draftStats?.rejected ?? '-'} icon={<RejectedIcon />} color="#ef4444" />
             <StatCard title="OCR sikertelen" value={draftStats?.failed ?? '-'} icon={<FailedIcon />} color="#6b7280" />
-            <StatCard title="Összesen" value={draftStats?.total ?? '-'} icon={<EmailIcon />} color="#3b82f6" />
+            <StatCard title="Összesen" value={draftStats?.total ?? '-'} icon={<EmailIcon />} color="#a07c3a" />
           </Stack>
 
           {/* Filters */}

@@ -799,7 +799,7 @@ export default function InvoiceReports() {
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ReportIcon sx={{ fontSize: 32, color: '#2563eb' }} />
+            <ReportIcon sx={{ fontSize: 32, color: '#8B6B33' }} />
             Számlariportok
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -840,7 +840,7 @@ export default function InvoiceReports() {
                 startIcon={exporting === 'csv' ? <CircularProgress size={16} /> : <CsvIcon />}
                 onClick={() => handleExport('csv')}
                 disabled={!generated || !!exporting}
-                sx={{ color: '#2563eb', borderColor: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: '#eff6ff' } }}
+                sx={{ color: '#8B6B33', borderColor: '#8B6B33', '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.08)' } }}
               >
                 CSV
               </Button>
@@ -990,8 +990,8 @@ export default function InvoiceReports() {
               disabled={loading}
               sx={{
                 px: 5, py: 1.2, fontSize: '1rem', fontWeight: 600,
-                background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
-                '&:hover': { background: 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)' },
+                background: 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)',
+                '&:hover': { background: 'linear-gradient(135deg, #6f552a 0%, #8B6B33 100%)' },
               }}
             >
               {loading ? 'Riport generálása...' : 'Riport generálás'}
@@ -1024,7 +1024,7 @@ export default function InvoiceReports() {
               title="Összes számla"
               value={formatNumber(summary.totalInvoices || 0)}
               subtitle="darabszám"
-              color="#2563eb"
+              color="#8B6B33"
               icon={<ReceiptIcon sx={{ fontSize: 32 }} />}
             />
             <StatCard
@@ -1055,7 +1055,7 @@ export default function InvoiceReports() {
           {/* TABLE 1: DETAILED INVOICE LIST */}
           <ReportSection
             title={`Részletes lista (${sortedInvoices.length} számla)`}
-            icon={<ReceiptIcon sx={{ color: '#2563eb' }} />}
+            icon={<ReceiptIcon sx={{ color: '#8B6B33' }} />}
           >
             <TableContainer sx={{ maxHeight: 500 }}>
               <Table size="small" stickyHeader>
@@ -1162,7 +1162,7 @@ export default function InvoiceReports() {
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
                     <RechartsTooltip content={<ChartTooltip />} />
                     <Legend />
-                    <Bar dataKey="Nettó" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Nettó" fill="#8B6B33" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="Bruttó" fill="#7c3aed" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1247,7 +1247,7 @@ export default function InvoiceReports() {
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
                     <RechartsTooltip content={<ChartTooltip />} />
                     <Legend />
-                    <Line type="monotone" dataKey="Nettó" stroke="#2563eb" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="Nettó" stroke="#8B6B33" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="Bruttó" stroke="#7c3aed" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="ÁFA" stroke="#d97706" strokeWidth={1.5} strokeDasharray="5 5" dot={{ r: 3 }} />
                   </LineChart>
@@ -1269,7 +1269,7 @@ export default function InvoiceReports() {
                     <RechartsTooltip content={<ChartTooltip />} />
                     <Legend />
                     <Area type="monotone" dataKey="Kumulált bruttó" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.15} strokeWidth={2} />
-                    <Area type="monotone" dataKey="Kumulált nettó" stroke="#2563eb" fill="#2563eb" fillOpacity={0.1} strokeWidth={2} />
+                    <Area type="monotone" dataKey="Kumulált nettó" stroke="#8B6B33" fill="#8B6B33" fillOpacity={0.1} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </Box>

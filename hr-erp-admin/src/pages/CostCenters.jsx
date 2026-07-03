@@ -69,7 +69,7 @@ function TreeNode({ node, level = 0, selectedId, onSelect, expandedIds, onToggle
           display: 'flex', alignItems: 'center', py: 1, px: 2,
           pl: 2 + level * 3, cursor: 'pointer', borderRadius: 1,
           bgcolor: isSelected ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
-          borderLeft: isSelected ? '3px solid #2563eb' : '3px solid transparent',
+          borderLeft: isSelected ? '3px solid #8B6B33' : '3px solid transparent',
           '&:hover': { bgcolor: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'rgba(0,0,0,0.04)' },
           transition: 'all 0.15s',
         }}
@@ -205,7 +205,7 @@ function CostCenterFormDialog({ open, onClose, onSave, editData, parentOptions }
                   sx={{
                     width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', borderRadius: 1, fontSize: '1.2rem',
-                    border: form.icon === icon ? '2px solid #2563eb' : '1px solid #e5e7eb',
+                    border: form.icon === icon ? '2px solid #8B6B33' : '1px solid #e5e7eb',
                     bgcolor: form.icon === icon ? 'rgba(37,99,235,0.08)' : 'transparent',
                   }}
                 >
@@ -235,7 +235,7 @@ function CostCenterFormDialog({ open, onClose, onSave, editData, parentOptions }
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose}>Mégse</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
           {saving ? <CircularProgress size={22} /> : editData ? 'Mentés' : 'Létrehozás'}
         </Button>
       </DialogActions>
@@ -284,7 +284,7 @@ function MoveDialog({ open, onClose, costCenter, parentOptions, onMove }) {
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose}>Mégse</Button>
         <Button variant="contained" onClick={handleMove} disabled={saving}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
           {saving ? <CircularProgress size={22} /> : 'Áthelyezés'}
         </Button>
       </DialogActions>
@@ -528,7 +528,7 @@ function CostCenters() {
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Költségközpontok</Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
             Új költséghely
           </Button>
         </Stack>
@@ -773,7 +773,7 @@ function CostCenters() {
                       </Typography>
                       <Button size="small" variant="contained" startIcon={<AddIcon />}
                         onClick={() => { setInvoiceEdit(null); setInvoiceFormOpen(true); }}
-                        sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+                        sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
                         Új számla
                       </Button>
                     </Box>

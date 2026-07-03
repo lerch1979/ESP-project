@@ -348,7 +348,7 @@ function Invoices() {
             Mappába exportálás
           </Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
             Új számla
           </Button>
         </Stack>
@@ -358,7 +358,7 @@ function Invoices() {
       <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
         <StatCard
           title="Összes számla" value={stats?.total_count ?? '-'}
-          icon={<ReceiptIcon />} color="#3b82f6"
+          icon={<ReceiptIcon />} color="#a07c3a"
         />
         <StatCard
           title="Függőben" value={stats ? formatCurrency(stats.pending_sum) : '-'}
@@ -372,7 +372,7 @@ function Invoices() {
         <StatCard
           title="Havi összeg" value={stats ? formatCurrency(stats.monthly_sum) : '-'}
           subtitle={stats ? `${stats.monthly_count} db számla` : ''}
-          icon={<MonthlyIcon />} color="#8b5cf6"
+          icon={<MonthlyIcon />} color="#8B6B33"
         />
       </Stack>
 
@@ -388,7 +388,7 @@ function Invoices() {
             variant={showFilters ? 'contained' : 'outlined'}
             startIcon={<FilterIcon />}
             onClick={() => setShowFilters(!showFilters)}
-            sx={showFilters ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } } : {}}
+            sx={showFilters ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } } : {}}
           >
             Szűrők
           </Button>
@@ -445,7 +445,7 @@ function Invoices() {
       {/* Bulk action toolbar */}
       {selectedIds.size > 0 && (
         <Paper sx={{ mb: 2 }}>
-          <Toolbar variant="dense" sx={{ bgcolor: 'rgba(37, 99, 235, 0.06)', borderRadius: 1 }}>
+          <Toolbar variant="dense" sx={{ bgcolor: 'rgba(139, 107, 51, 0.08)', borderRadius: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
               {selectedIds.size} számla kiválasztva
             </Typography>
@@ -478,7 +478,7 @@ function Invoices() {
               {hasActiveFilters || search ? 'Nincs a szűrésnek megfelelő számla' : 'Még nincs rögzített számla'}
             </Typography>
             {!hasActiveFilters && !search && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} sx={{ mt: 2, bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} sx={{ mt: 2, bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
                 Első számla rögzítése
               </Button>
             )}
