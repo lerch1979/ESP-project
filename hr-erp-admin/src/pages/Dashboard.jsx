@@ -213,8 +213,8 @@ function Dashboard() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: bgColor || 'rgba(37, 99, 235, 0.1)',
-              color: '#2563eb',
+              bgcolor: bgColor || 'rgba(139, 107, 51, 0.12)',
+              color: '#8B6B33',
             }}
           >
             {icon}
@@ -271,7 +271,7 @@ function Dashboard() {
             value={data.tickets.total}
             subtitle={`${data.tickets.urgent} sürgős`}
             icon={<ConfirmationNumber sx={{ fontSize: 28 }} />}
-            bgColor="rgba(59, 130, 246, 0.1)"
+            bgColor="rgba(139, 107, 51, 0.12)"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -280,7 +280,7 @@ function Dashboard() {
             value={data.contractors.total}
             subtitle={`${data.contractors.active} aktív`}
             icon={<Business sx={{ fontSize: 28 }} />}
-            bgColor="rgba(139, 92, 246, 0.1)"
+            bgColor="rgba(139, 107, 51, 0.12)"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -289,7 +289,7 @@ function Dashboard() {
             value={data.accommodations.total}
             subtitle={`${data.accommodations.available} szabad`}
             icon={<Apartment sx={{ fontSize: 28 }} />}
-            bgColor="rgba(16, 185, 129, 0.1)"
+            bgColor="rgba(139, 107, 51, 0.12)"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -298,7 +298,7 @@ function Dashboard() {
             value={`${data.accommodations.occupancyRate}%`}
             subtitle={`${data.accommodations.occupied} / ${data.accommodations.total} foglalt`}
             icon={<TrendingUp sx={{ fontSize: 28 }} />}
-            bgColor="rgba(245, 158, 11, 0.1)"
+            bgColor="rgba(139, 107, 51, 0.12)"
           />
         </Grid>
         <Grid item xs={12} md={6}>
@@ -420,12 +420,12 @@ function Dashboard() {
                     hover
                     sx={{
                       cursor: 'pointer',
-                      '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.04)' },
+                      '&:hover': { bgcolor: 'rgba(139, 107, 51, 0.06)' },
                     }}
                     onClick={() => navigate(`/tickets/${ticket.id}`)}
                   >
                     <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563eb' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#8B6B33' }}>
                         {ticket.ticket_number}
                       </Typography>
                     </TableCell>
@@ -494,7 +494,7 @@ function Dashboard() {
           </Typography>
         </Box>
         <Tooltip title="Testreszabás">
-          <IconButton onClick={openCustomize} sx={{ color: '#2563eb' }}>
+          <IconButton onClick={openCustomize} sx={{ color: '#8B6B33' }}>
             <TuneIcon />
           </IconButton>
         </Tooltip>
@@ -536,7 +536,7 @@ function Dashboard() {
           </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Button onClick={() => setCustomizeOpen(false)}>Mégse</Button>
-          <Button variant="contained" onClick={handleSaveCustomization} sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' } }}>
+          <Button variant="contained" onClick={handleSaveCustomization} sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}>
             Mentés
           </Button>
         </DialogActions>
