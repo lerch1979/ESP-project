@@ -57,7 +57,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const TEMPLATE_TYPES = [
   { value: 'welcome', label: 'Üdvözlő', color: '#10b981' },
-  { value: 'ticket_created', label: 'Hibajegy létrehozva', color: '#3b82f6' },
+  { value: 'ticket_created', label: 'Hibajegy létrehozva', color: '#a07c3a' },
   { value: 'ticket_status_changed', label: 'Hibajegy státusz', color: '#6366f1' },
   { value: 'password_reset', label: 'Jelszó visszaállítás', color: '#f59e0b' },
   { value: 'accommodation_assigned', label: 'Szállás hozzárendelés', color: '#8b5cf6' },
@@ -438,7 +438,7 @@ function EmailTemplates() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <EmailIcon sx={{ fontSize: 28, color: '#2563eb' }} />
+            <EmailIcon sx={{ fontSize: 28, color: '#8B6B33' }} />
             <Typography variant="h5" fontWeight={700}>
               Email sablonok
             </Typography>
@@ -449,7 +449,7 @@ function EmailTemplates() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleOpenCreate}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               Új sablon
             </Button>
@@ -714,7 +714,7 @@ function EmailTemplates() {
               onClick={handleDuplicate}
               variant="contained"
               disabled={duplicateLoading}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {duplicateLoading ? <CircularProgress size={20} /> : 'Duplikálás'}
             </Button>
@@ -737,7 +737,7 @@ function EmailTemplates() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <EmailIcon sx={{ color: '#2563eb' }} />
+              <EmailIcon sx={{ color: '#8B6B33' }} />
               <Typography variant="h6" fontWeight={600}>
                 {editingTemplate ? 'Sablon szerkesztése' : 'Új sablon létrehozása'}
               </Typography>
@@ -893,7 +893,7 @@ function EmailTemplates() {
                       {/* Active variables in this template */}
                       {form.variables.length > 0 && (
                         <>
-                          <Typography variant="caption" fontWeight={600} sx={{ mb: 1, display: 'block', color: '#2563eb' }}>
+                          <Typography variant="caption" fontWeight={600} sx={{ mb: 1, display: 'block', color: '#8B6B33' }}>
                             Sablon változói ({form.variables.length})
                           </Typography>
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
@@ -1065,7 +1065,7 @@ function EmailTemplates() {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? (
                 <CircularProgress size={20} sx={{ color: 'white' }} />

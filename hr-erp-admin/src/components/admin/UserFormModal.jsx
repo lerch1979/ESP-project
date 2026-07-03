@@ -260,7 +260,7 @@ function UserFormModal({ open, onClose, user, onSuccess }) {
           onClick={handleSubmit}
           disabled={loading}
           startIcon={loading ? <CircularProgress size={18} /> : null}
-          sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+          sx={{ background: 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)' }}
         >
           {isEdit ? 'Mentés' : 'Létrehozás'}
         </Button>

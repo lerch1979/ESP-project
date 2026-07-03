@@ -59,7 +59,7 @@ import { useAuth } from '../contexts/AuthContext';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const RULE_TYPES = [
-  { value: 'ticket', label: 'Hibajegy', color: '#3b82f6' },
+  { value: 'ticket', label: 'Hibajegy', color: '#a07c3a' },
   { value: 'task', label: 'Feladat', color: '#8b5cf6' },
 ];
 
@@ -345,7 +345,7 @@ function AssignmentRules() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AutoAssignIcon sx={{ fontSize: 28, color: '#2563eb' }} />
+            <AutoAssignIcon sx={{ fontSize: 28, color: '#8B6B33' }} />
             <Typography variant="h5" fontWeight={700}>
               Automatikus kiosztás
             </Typography>
@@ -356,7 +356,7 @@ function AssignmentRules() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleOpenCreate}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               Új szabály
             </Button>
@@ -610,7 +610,7 @@ function AssignmentRules() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AutoAssignIcon sx={{ color: '#2563eb' }} />
+              <AutoAssignIcon sx={{ color: '#8B6B33' }} />
               <Typography variant="h6" fontWeight={600}>
                 {editingRule ? 'Szabály szerkesztése' : 'Új kiosztási szabály'}
               </Typography>
@@ -866,7 +866,7 @@ function AssignmentRules() {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? (
                 <CircularProgress size={20} sx={{ color: 'white' }} />

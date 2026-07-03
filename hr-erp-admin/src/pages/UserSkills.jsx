@@ -283,7 +283,7 @@ function UserSkills() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <SkillIcon sx={{ fontSize: 28, color: '#8b5cf6' }} />
+            <SkillIcon sx={{ fontSize: 28, color: '#8B6B33' }} />
             <Typography variant="h5" fontWeight={700}>
               Képességek kezelése
             </Typography>
@@ -294,7 +294,7 @@ function UserSkills() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleOpenAdd}
-              sx={{ bgcolor: '#8b5cf6', '&:hover': { bgcolor: '#7c3aed' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
             >
               Képesség hozzáadása
             </Button>
@@ -307,7 +307,7 @@ function UserSkills() {
             <Card sx={{ borderRadius: 2, border: '1px solid #e2e8f0' }}>
               <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <PersonIcon sx={{ color: '#2563eb', fontSize: 20 }} />
+                  <PersonIcon sx={{ color: '#8B6B33', fontSize: 20 }} />
                   <Typography variant="caption" color="text.secondary">Felhasználók</Typography>
                 </Stack>
                 <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5 }}>
@@ -320,7 +320,7 @@ function UserSkills() {
             <Card sx={{ borderRadius: 2, border: '1px solid #e2e8f0' }}>
               <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <SkillIcon sx={{ color: '#8b5cf6', fontSize: 20 }} />
+                  <SkillIcon sx={{ color: '#8B6B33', fontSize: 20 }} />
                   <Typography variant="caption" color="text.secondary">Egyedi képességek</Typography>
                 </Stack>
                 <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5 }}>
@@ -488,8 +488,8 @@ function UserSkills() {
                           label={preset ? preset.label : sk.skill}
                           size="small"
                           sx={{
-                            bgcolor: '#f5f3ff',
-                            color: '#7c3aed',
+                            bgcolor: '#faf6ec',
+                            color: '#a07c3a',
                             fontWeight: 500,
                             border: '1px solid #c4b5fd',
                           }}
@@ -612,7 +612,7 @@ function UserSkills() {
         >
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <SkillIcon sx={{ color: '#8b5cf6' }} />
+              <SkillIcon sx={{ color: '#8B6B33' }} />
               <Typography variant="h6" fontWeight={600}>
                 Képesség hozzáadása
               </Typography>
@@ -752,7 +752,7 @@ function UserSkills() {
               onClick={handleAdd}
               variant="contained"
               disabled={addSaving || !addForm.user_id || (!addForm.skill || (addForm.skill === '__custom__' && !addForm.customSkill.trim()))}
-              sx={{ bgcolor: '#8b5cf6', '&:hover': { bgcolor: '#7c3aed' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' } }}
             >
               {addSaving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Hozzáadás'}
             </Button>

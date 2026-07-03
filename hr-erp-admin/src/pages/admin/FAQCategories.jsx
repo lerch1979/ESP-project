@@ -111,7 +111,7 @@ export default function FAQCategories() {
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#2563eb' }} />
+          <CircularProgress sx={{ color: '#8B6B33' }} />
         </Box>
       ) : (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
@@ -156,7 +156,7 @@ export default function FAQCategories() {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ width: 24, height: 24, borderRadius: 1, bgcolor: cat.color || '#3b82f6' }} />
+                    <Box sx={{ width: 24, height: 24, borderRadius: 1, bgcolor: cat.color || '#a07c3a' }} />
                   </TableCell>
                   <TableCell>
                     <Typography fontWeight={500}>{cat.name}</Typography>

@@ -136,7 +136,7 @@ export default function AllTasks() {
         <Stack direction="row" spacing={1}>
           <Button startIcon={<RefreshIcon />} onClick={load}>Frissítés</Button>
           <Button variant="outlined" startIcon={<ExportIcon />} onClick={exportCsv}
-            sx={{ borderColor: '#2563eb', color: '#2563eb' }}>Export CSV</Button>
+            sx={{ borderColor: '#8B6B33', color: '#8B6B33' }}>Export CSV</Button>
         </Stack>
       </Stack>
 
@@ -144,7 +144,7 @@ export default function AllTasks() {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} md={2}><StatCard label="Összes" value={stats?.total} /></Grid>
         <Grid item xs={6} md={2}><StatCard label="Teendő" value={stats?.count_todo} /></Grid>
-        <Grid item xs={6} md={2}><StatCard label="Folyamatban" value={stats?.count_in_progress} color="#2563eb" /></Grid>
+        <Grid item xs={6} md={2}><StatCard label="Folyamatban" value={stats?.count_in_progress} color="#8B6B33" /></Grid>
         <Grid item xs={6} md={2}><StatCard label="Kész" value={stats?.count_done} color="#16a34a" /></Grid>
         <Grid item xs={6} md={2}><StatCard label="Blokkolva" value={stats?.count_blocked} color="#dc2626" /></Grid>
         <Grid item xs={6} md={2}><StatCard label="Lejárt" value={stats?.count_overdue} color="#ea580c" /></Grid>

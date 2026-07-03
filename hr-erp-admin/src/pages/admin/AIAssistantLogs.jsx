@@ -24,7 +24,7 @@ import { aiAssistantAPI } from '../../services/api';
 import UserAvatar from '../../components/common/UserAvatar';
 
 const INTENT_LABELS = {
-  ticket:        { label: 'Hibajegy',     color: '#2563eb' },
+  ticket:        { label: 'Hibajegy',     color: '#8B6B33' },
   damage_report: { label: 'Kárigény',     color: '#f59e0b' },
   faq:           { label: 'GYIK',         color: '#06b6d4' },
   data_query:    { label: 'Adatlekérés',  color: '#8b5cf6' },
@@ -137,7 +137,7 @@ export default function AIAssistantLogs() {
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} mb={3} spacing={1}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <Avatar sx={{ bgcolor: '#2563eb' }}><BotIcon /></Avatar>
+          <Avatar sx={{ bgcolor: '#8B6B33' }}><BotIcon /></Avatar>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 700 }}>AI Asszisztens — Logok</Typography>
             <Typography variant="caption" color="text.secondary">
@@ -162,7 +162,7 @@ export default function AIAssistantLogs() {
           <StatCard label="Átlag bizalom"
             value={stats?.avg_confidence !== null && stats?.avg_confidence !== undefined
               ? fmtPct(stats.avg_confidence) : '—'}
-            color="#2563eb" />
+            color="#8B6B33" />
         </Grid>
         <Grid item xs={6} md={2}>
           <StatCard label="Hasznos (👍)" value={stats?.helpful_count ?? 0} color="#16a34a" />
@@ -174,7 +174,7 @@ export default function AIAssistantLogs() {
           <StatCard label="Elégedettség"
             value={satisfactionRate !== null ? `${satisfactionRate}%` : '—'}
             sub={feedbackTotal ? `${feedbackTotal} visszajelzés` : 'nincs feedback'}
-            color="#2563eb" />
+            color="#8B6B33" />
         </Grid>
       </Grid>
 
@@ -370,7 +370,7 @@ export default function AIAssistantLogs() {
       <Dialog open={!!detailRow} onClose={() => setDetailRow(null)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <BotIcon sx={{ color: '#2563eb' }} />
+            <BotIcon sx={{ color: '#8B6B33' }} />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>AI interakció részletek</Typography>
           </Stack>
         </DialogTitle>

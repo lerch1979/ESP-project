@@ -232,7 +232,7 @@ export default function FAQKnowledgeBase() {
       {/* Table */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#2563eb' }} />
+          <CircularProgress sx={{ color: '#8B6B33' }} />
         </Box>
       ) : (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>

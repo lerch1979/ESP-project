@@ -190,7 +190,7 @@ function AdminUsers() {
             startIcon={<AddIcon />}
             onClick={handleOpenCreate}
             sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)',
               px: 3,
               py: 1,
             }}

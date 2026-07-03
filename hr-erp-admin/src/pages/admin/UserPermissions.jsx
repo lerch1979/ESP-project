@@ -549,7 +549,7 @@ function UserPermissions() {
           onClick={handleSave}
           disabled={saving || !hasChanges}
           sx={{
-            background: hasChanges ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : undefined,
+            background: hasChanges ? 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)' : undefined,
             px: 4,
           }}
         >

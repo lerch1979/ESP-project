@@ -73,7 +73,7 @@ function Settings() {
       <Box>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <SettingsIcon sx={{ fontSize: 32, color: '#2563eb' }} />
+          <SettingsIcon sx={{ fontSize: 32, color: '#8B6B33' }} />
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Beállítások
           </Typography>
@@ -82,7 +82,7 @@ function Settings() {
         {/* Email settings card */}
         <Paper sx={{ p: 3, maxWidth: 600 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <EmailIcon sx={{ color: '#2563eb' }} />
+            <EmailIcon sx={{ color: '#8B6B33' }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Email beállítások
             </Typography>
@@ -149,7 +149,7 @@ function Settings() {
               onClick={handleTestEmail}
               disabled={!testEmail || sending}
               startIcon={sending ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#3b82f6' }, whiteSpace: 'nowrap' }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#a07c3a' }, whiteSpace: 'nowrap' }}
             >
               {sending ? 'Küldés...' : 'Teszt küldés'}
             </Button>

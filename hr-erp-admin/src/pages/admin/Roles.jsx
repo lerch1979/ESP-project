@@ -255,7 +255,7 @@ function Roles() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setCreateDialog(true)}
-          sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+          sx={{ background: 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)' }}
         >
           Új szerepkör
         </Button>
@@ -424,7 +424,7 @@ function Roles() {
             onClick={handleCreateRole}
             disabled={createLoading || !newRoleName.trim()}
             startIcon={createLoading ? <CircularProgress size={18} /> : <AddIcon />}
-            sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+            sx={{ background: 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)' }}
           >
             Létrehozás
           </Button>
@@ -528,7 +528,7 @@ function Roles() {
             onClick={handleSaveRolePermissions}
             disabled={saveLoading}
             startIcon={saveLoading ? <CircularProgress size={18} /> : <SaveIcon />}
-            sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+            sx={{ background: 'linear-gradient(135deg, #8B6B33 0%, #a07c3a 100%)' }}
           >
             Mentés
           </Button>

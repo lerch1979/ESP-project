@@ -79,7 +79,7 @@ export default function Workplaces() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Munkahelyek</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}
-          sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>
+          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>
           Új munkahely
         </Button>
       </Stack>
@@ -153,7 +153,7 @@ export default function Workplaces() {
         <DialogActions>
           <Button onClick={close}>Mégse</Button>
           <Button onClick={save} variant="contained"
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}>Mentés</Button>
+            sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}>Mentés</Button>
         </DialogActions>
       </Dialog>
 

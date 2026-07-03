@@ -148,7 +148,7 @@ export default function EmailAssistantLogs() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <EmailIcon sx={{ fontSize: 32, color: '#2563eb' }} />
+          <EmailIcon sx={{ fontSize: 32, color: '#8B6B33' }} />
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Email asszisztens logok
           </Typography>
