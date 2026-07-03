@@ -266,7 +266,7 @@ const update = async (req, res) => {
       vendor_name, vendor_tax_number, amount, currency,
       vat_amount, total_amount, invoice_date, due_date, payment_date,
       payment_status, cost_center_id, category_id, description, notes,
-      line_items, client_name, client_id
+      line_items, client_name, client_id, contractor_id
     } = req.body;
 
     const current = await query(
@@ -325,15 +325,16 @@ const update = async (req, res) => {
         notes = COALESCE($14, notes),
         line_items = COALESCE($15, line_items),
         client_name = COALESCE($16, client_name),
-        client_id = COALESCE($17, client_id)
-       WHERE id = $18 AND deleted_at IS NULL
+        client_id = COALESCE($17, client_id),
+        contractor_id = COALESCE($18, contractor_id)
+       WHERE id = $19 AND deleted_at IS NULL
        RETURNING *`,
       [
         vendor_name, vendor_tax_number, amount, currency,
         vat_amount, total_amount, invoice_date, due_date, payment_date,
         payment_status, cost_center_id, category_id, description, notes,
         line_items ? JSON.stringify(line_items) : null,
-        client_name, client_id, id
+        client_name, client_id, contractor_id, id
       ]
     );
 

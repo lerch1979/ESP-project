@@ -17,7 +17,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'hr_erp_db',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
-  max: parseInt(process.env.DB_POOL_MAX) || (isProduction ? 100 : 20),
+  // Cap below Postgres max_connections (100) so pg_dump/psql/admin always have
+  // headroom. If cluster mode is enabled (N workers), set DB_POOL_MAX to ~80/N.
+  max: parseInt(process.env.DB_POOL_MAX) || (isProduction ? 80 : 20),
   min: parseInt(process.env.DB_POOL_MIN) || (isProduction ? 10 : 2),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,

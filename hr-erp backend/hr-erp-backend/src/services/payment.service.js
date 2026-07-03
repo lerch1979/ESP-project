@@ -144,6 +144,14 @@ class PaymentService {
     }
 
     const result = await transaction(async (client) => {
+      // Lock the invoice row FIRST so concurrent payments serialize on it —
+      // otherwise two payments can each SUM without seeing the other and
+      // mis-set payment_status. Re-read total + status under the lock.
+      const locked = await client.query(
+        'SELECT total_amount, amount, payment_status FROM invoices WHERE id = $1 FOR UPDATE',
+        [data.invoice_id]
+      );
+
       // Insert payment
       const payment = await client.query(
         `INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes, created_by)
@@ -156,26 +164,29 @@ class PaymentService {
         ]
       );
 
-      // Calculate total paid
+      // Calculate total paid (now consistent under the invoice lock)
       const paid = await client.query(
         'SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE invoice_id = $1',
         [data.invoice_id]
       );
 
-      const invoiceTotal = parseFloat(invoice.rows[0].total_amount || invoice.rows[0].amount || 0);
+      const invoiceTotal = parseFloat(locked.rows[0].total_amount || locked.rows[0].amount || 0);
       const totalPaid = parseFloat(paid.rows[0].total_paid);
+      const currentStatus = locked.rows[0].payment_status;
 
-      // Auto-update invoice status
-      if (totalPaid >= invoiceTotal && invoiceTotal > 0) {
-        await client.query(
-          `UPDATE invoices SET payment_status = 'paid', payment_date = $1 WHERE id = $2`,
-          [data.payment_date, data.invoice_id]
-        );
-      } else if (totalPaid > 0) {
-        await client.query(
-          `UPDATE invoices SET payment_status = 'sent' WHERE id = $1 AND payment_status = 'draft'`,
-          [data.invoice_id]
-        );
+      // Never auto-resurrect a terminal invoice (e.g. cancelled) into paid/sent.
+      if (currentStatus !== 'cancelled') {
+        if (totalPaid >= invoiceTotal && invoiceTotal > 0) {
+          await client.query(
+            `UPDATE invoices SET payment_status = 'paid', payment_date = $1 WHERE id = $2`,
+            [data.payment_date, data.invoice_id]
+          );
+        } else if (totalPaid > 0) {
+          await client.query(
+            `UPDATE invoices SET payment_status = 'sent' WHERE id = $1 AND payment_status = 'draft'`,
+            [data.invoice_id]
+          );
+        }
       }
 
       return payment.rows[0];
@@ -240,12 +251,17 @@ class PaymentService {
    * Recalculate invoice payment status based on total payments
    */
   async _recalculateInvoiceStatus(client, invoiceId) {
+    // Lock the invoice row so the SUM-then-write is atomic w.r.t. concurrent
+    // payment create/update/delete on the same invoice.
     const invoice = await client.query(
-      'SELECT total_amount, amount FROM invoices WHERE id = $1',
+      'SELECT total_amount, amount, payment_status FROM invoices WHERE id = $1 FOR UPDATE',
       [invoiceId]
     );
 
     if (invoice.rows.length === 0) return;
+
+    // Don't overwrite a terminal status (e.g. cancelled) from a payment edit/delete.
+    if (invoice.rows[0].payment_status === 'cancelled') return;
 
     const invoiceTotal = parseFloat(invoice.rows[0].total_amount || invoice.rows[0].amount || 0);
 
