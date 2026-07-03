@@ -6,6 +6,29 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-03 — reliability PRs merged+deployed, ticket-creation hotfix, full admin black/gold overhaul
+
+Continuation of the 2026-07-02 reliability work, plus a staff-driven UI overhaul. Everything below is **live in prod** (app.housingsolutions.hu, manual `docker compose pull admin/backend`).
+
+**Reliability (backend):**
+- Merged + deployed the 4 audit PRs (#1 role-write txn, #2 damage-report authz, #3 un-vacuum tests, #4 doc tenant-scope). **Verified live**: minted a real resident JWT via the prod container's `JWT_SECRET` → `GET/DELETE /damage-reports` now returns **403** (was the resident-reachable salary/signature IDOR).
+- **CRITICAL hotfix**: staff couldn't create ANY ticket — `createTicket` cast every `ticket_number` to int for the next-number calc, and 3 leftover test tickets (`#9001-TESZT`, `#9101-IOS`, `#9102-IOS`) poisoned the aggregate (Postgres 22P02). Root-caused from prod logs (no re-click needed). Fixed: filter to `^#[0-9]+$` + map DB errors to loud, specific messages (frontend already surfaces `response.data.message`). Deleted the 3 poison rows.
+
+**Admin UI overhaul (frontend) — all approved via live review with Eszti, done as per-increment PRs:**
+- A: removed double-`<Layout>` wrap on 7 pages (EmailTemplates etc — content was shifted).
+- B: sidebar → 7 labeled sections (permission-aware, drops empty sections).
+- C1: black/gold palette in `theme.js` + brand-black sidebar.
+- C2 (5 increments): swept the ENTIRE admin page-by-page, decorative blue/purple → gold, **all semantic/categorical/status colors preserved**. Repo-wide audit → zero stray decorative blues/purples. Details in PROJECT_STATE "Admin UI overhaul — COMPLETE".
+
+**Process notes for next time:**
+- CI's admin Docker build hit a **Docker Hub 500** twice (transient, pulling the nginx base image) — `gh run rerun --failed` fixed it both times. Not a code issue.
+- A file-exclusion regex `Reports\.jsx` silently also matched `ScheduledReports.jsx` (substring) — caught in the final audit. Watch substring matches when filtering file lists.
+- Verifying prod fixes by minting a scoped JWT inside the backend container (`docker exec … node -e "jwt.sign(...)"`) is a clean way to test role-gated endpoints live without a real user's password.
+
+**Next fresh session: reliability Phase 1 #5 (GDPR erasure — first, legally sensitive), then #6-7 money paths. Plus Timi/Noncsi login confirmations.**
+
+---
+
 ## SESSION 2026-07-02 — prod login incident → silent-failure fixes → reliability audit (Phase 1)
 
 Started as "create staff test accounts", turned into a production incident + a full reliability audit. **Production is LIVE** at app.housingsolutions.hu (Hetzner `167.233.122.3`, Docker Compose) — the deploy docs that said "no server exists" were stale.
