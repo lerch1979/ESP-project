@@ -83,7 +83,7 @@ function splitDate(val) {
 const EVENT_TYPE_CONFIG = {
   checkin: { label: 'Bejelentkezés', color: '#16a34a', icon: CheckInIcon },
   checkout: { label: 'Kijelentkezés', color: '#dc2626', icon: CheckOutIcon },
-  contract_start: { label: 'Szerződés kezdete', color: '#2563eb', icon: ContractIcon },
+  contract_start: { label: 'Szerződés kezdete', color: '#8B6B33', icon: ContractIcon },
   contract_end: { label: 'Szerződés vége', color: '#7c3aed', icon: ContractIcon },
   visa_expiry: { label: 'Vízum lejárat', color: '#ea580c', icon: VisaIcon },
   ticket: { label: 'Jegy/Hibajegy', color: '#0891b2', icon: TicketIcon },
@@ -92,7 +92,7 @@ const EVENT_TYPE_CONFIG = {
   medical_appointment: { label: 'Orvosi vizsgálat', color: '#ec4899', icon: MedicalIcon },
   personal_event: { label: 'Személyes esemény', color: '#8b5cf6', icon: PersonalEventIcon },
   note: { label: 'Jegyzet', color: '#f59e0b', icon: NoteIcon },
-  task: { label: 'Feladat', color: '#2563eb', icon: TaskIcon },
+  task: { label: 'Feladat', color: '#8B6B33', icon: TaskIcon },
 };
 
 const NOTE_TYPE_OPTIONS = [
@@ -106,11 +106,11 @@ const NOTE_TYPE_COLORS = {
   general: '#64748b',
   warning: '#f59e0b',
   positive: '#16a34a',
-  document: '#2563eb',
+  document: '#8B6B33',
 };
 
 const DOC_TYPE_CONFIG = {
-  passport: { label: 'Útlevél', color: '#2563eb' },
+  passport: { label: 'Útlevél', color: '#8B6B33' },
   taj_card: { label: 'TAJ kártya', color: '#16a34a' },
   visa: { label: 'Vízum', color: '#f59e0b' },
   contract: { label: 'Szerződés', color: '#8b5cf6' },
@@ -536,8 +536,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
             sx={{
               mt: 1,
               '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
-              '& .Mui-selected': { color: '#2563eb' },
-              '& .MuiTabs-indicator': { backgroundColor: '#2563eb' },
+              '& .Mui-selected': { color: '#8B6B33' },
+              '& .MuiTabs-indicator': { backgroundColor: '#8B6B33' },
             }}
           >
             <Tab icon={<PersonIcon />} iconPosition="start" label="Adatok" />
@@ -599,8 +599,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                     onClick={() => setShowFilters(!showFilters)}
                     sx={{
                       ...(showFilters
-                        ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }
-                        : { color: '#2563eb', borderColor: '#2563eb' }),
+                        ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }
+                        : { color: '#8B6B33', borderColor: '#8B6B33' }),
                     }}
                   >
                     Szűrők
@@ -612,7 +612,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={() => setTaskModalOpen(true)}
-                    sx={{ color: '#2563eb', borderColor: '#2563eb' }}
+                    sx={{ color: '#8B6B33', borderColor: '#8B6B33' }}
                   >
                     Új feladat
                   </Button>
@@ -758,12 +758,12 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                             width: 10,
                             height: 10,
                             borderRadius: '50%',
-                            bgcolor: '#2563eb',
+                            bgcolor: '#8B6B33',
                             border: '2px solid white',
-                            boxShadow: '0 0 0 2px #2563eb',
+                            boxShadow: '0 0 0 2px #8B6B33',
                           }}
                         />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#2563eb' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#8B6B33' }}>
                           {new Date(date + 'T00:00:00').toLocaleDateString('hu-HU', {
                             year: 'numeric',
                             month: 'long',
@@ -917,7 +917,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                                   <IconButton
                                     size="small"
                                     onClick={() => openEditNote(event)}
-                                    sx={{ color: '#2563eb', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                    sx={{ color: '#8B6B33', opacity: 0.6, '&:hover': { opacity: 1 } }}
                                   >
                                     <EditIcon sx={{ fontSize: 16 }} />
                                   </IconButton>
@@ -955,7 +955,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? <CircularProgress size={24} /> : 'Mentés'}
             </Button>
@@ -994,7 +994,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                 <Button
                   onClick={handleEdit}
                   variant="contained"
-                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                  sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
                 >
                   Szerkesztés
                 </Button>
@@ -1133,7 +1133,7 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
             startIcon={photoUploading ? <CircularProgress size={16} /> : <UploadIcon />}
             disabled={photoUploading}
             onClick={() => photoInputRef.current?.click()}
-            sx={{ color: '#2563eb', borderColor: '#2563eb', textTransform: 'none' }}
+            sx={{ color: '#8B6B33', borderColor: '#8B6B33', textTransform: 'none' }}
           >
             {employee.profile_photo_url ? 'Kép cseréje' : 'Kép feltöltése'}
           </Button>
@@ -1282,7 +1282,7 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
               startIcon={photoUploading ? <CircularProgress size={16} /> : <UploadIcon />}
               disabled={photoUploading}
               onClick={() => photoInputRef.current?.click()}
-              sx={{ color: '#2563eb', borderColor: '#2563eb', textTransform: 'none' }}
+              sx={{ color: '#8B6B33', borderColor: '#8B6B33', textTransform: 'none' }}
             >
               {employee?.profile_photo_url ? 'Kép cseréje' : 'Kép feltöltése'}
             </Button>
@@ -1584,7 +1584,7 @@ function DocumentsTab({
         sx={{
           p: 2,
           mb: 2,
-          border: `2px dashed ${dragOver ? '#2563eb' : '#d1d5db'}`,
+          border: `2px dashed ${dragOver ? '#8B6B33' : '#d1d5db'}`,
           borderRadius: 2,
           bgcolor: dragOver ? '#eff6ff' : '#fafafa',
           transition: 'all 0.2s',
@@ -1633,7 +1633,7 @@ function DocumentsTab({
               startIcon={docUploading ? <CircularProgress size={18} color="inherit" /> : <UploadIcon />}
               disabled={docUploading}
               onClick={() => fileInputRef.current?.click()}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' }, textTransform: 'none' }}
             >
               {docUploading ? 'Feltöltés...' : 'Fájl kiválasztása'}
             </Button>
@@ -1723,7 +1723,7 @@ function DocumentsTab({
                         <IconButton
                           size="small"
                           onClick={(e) => { e.stopPropagation(); handleDownload(doc); }}
-                          sx={{ color: '#2563eb', opacity: 0.6, '&:hover': { opacity: 1 } }}
+                          sx={{ color: '#8B6B33', opacity: 0.6, '&:hover': { opacity: 1 } }}
                         >
                           <DownloadIcon sx={{ fontSize: 16 }} />
                         </IconButton>
@@ -1781,7 +1781,7 @@ function DocumentsTab({
                         minWidth: 0,
                         px: 1.5,
                         ...(!showOriginalInViewer
-                          ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }
+                          ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }
                           : { color: '#ccc', borderColor: '#555' }),
                       }}
                       startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
@@ -1798,7 +1798,7 @@ function DocumentsTab({
                         minWidth: 0,
                         px: 1.5,
                         ...(showOriginalInViewer
-                          ? { bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }
+                          ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }
                           : { color: '#ccc', borderColor: '#555' }),
                       }}
                       startIcon={<VisibilityOffIcon sx={{ fontSize: 14 }} />}

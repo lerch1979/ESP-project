@@ -449,7 +449,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={() => setOwnerModalOpen(true)}
-                    sx={{ whiteSpace: 'nowrap', borderColor: '#2563eb', color: '#2563eb' }}
+                    sx={{ whiteSpace: 'nowrap', borderColor: '#8B6B33', color: '#8B6B33' }}
                   >
                     Új
                   </Button>
@@ -475,8 +475,8 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                 sx={{
                   mb: 2,
                   '& .MuiTab-root': { fontWeight: 600 },
-                  '& .Mui-selected': { color: '#2563eb' },
-                  '& .MuiTabs-indicator': { bgcolor: '#2563eb' },
+                  '& .Mui-selected': { color: '#8B6B33' },
+                  '& .MuiTabs-indicator': { bgcolor: '#8B6B33' },
                 }}
               >
                 <Tab label="Részletek" />
@@ -557,7 +557,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddRoom}
-                      sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none' }}
+                      sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' }, textTransform: 'none' }}
                     >
                       Szoba hozzáadása
                     </Button>
@@ -634,7 +634,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                               variant="contained"
                               onClick={handleSaveRoom}
                               disabled={roomSaving}
-                              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
                             >
                               {roomSaving ? <CircularProgress size={20} /> : 'Mentés'}
                             </Button>
@@ -732,7 +732,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               onClick={handleSave}
               variant="contained"
               disabled={saving}
-              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+              sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
             >
               {saving ? <CircularProgress size={24} /> : 'Mentés'}
             </Button>
@@ -752,7 +752,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                 <Button
                   onClick={handleEdit}
                   variant="contained"
-                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' } }}
+                  sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } }}
                 >
                   Szerkesztés
                 </Button>

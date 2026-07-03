@@ -211,7 +211,7 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
                   variant="outlined"
                   startIcon={<UploadIcon />}
                   onClick={() => photoInputRef.current?.click()}
-                  sx={{ color: '#2563eb', borderColor: '#2563eb', textTransform: 'none' }}
+                  sx={{ color: '#8B6B33', borderColor: '#8B6B33', textTransform: 'none' }}
                 >
                   {photoPreview ? 'Kép cseréje' : 'Kép feltöltése'}
                 </Button>
@@ -450,8 +450,8 @@ function CreateEmployeeModal({ open, onClose, onSuccess }) {
           variant="contained"
           disabled={loading}
           sx={{
-            bgcolor: '#2563eb',
-            '&:hover': { bgcolor: '#1d4ed8' },
+            bgcolor: '#8B6B33',
+            '&:hover': { bgcolor: '#6f552a' },
           }}
         >
           {loading ? <CircularProgress size={24} /> : 'Létrehozás'}
