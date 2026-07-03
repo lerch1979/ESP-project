@@ -18,13 +18,15 @@ Legend — severity: **P0** data-loss or already-broken · **P1** gate before re
 
 ---
 
-## Headline: cluster mode makes "single-instance" bugs already live
+## Headline: single-instance assumptions are latent, NOT yet live
 
-**[LIVE]** The backend runs `cluster.js` with **4 workers** on the 2-core box (5 node procs = 1 primary + 4 workers; the loop appears to `fork()` twice per iteration — a bug, since `os.cpus().length`=2 should yield 2 workers). **Every "in-memory / per-instance" assumption below is therefore already broken across 4 workers today** — not a hypothetical 2-VM problem.
+**[LIVE — corrected 2026-07-03]** Production runs **`node src/server.js` — a SINGLE process**, verified via `docker inspect` (CMD `[node src/server.js]`), `/proc/<pid>/cmdline`, and a single node process in the container. **Cluster mode (`start:prod` → `cluster.js`) is NOT deployed**, and `cluster.js` itself is correct (forks once per core, no double-fork). An earlier draft of this report claimed 4 workers with live cron-duplication — that was a bad `ps` read and is **withdrawn**.
 
-1. **P0 — Cron duplicate-sends.** All schedulers register in *every* worker with no leader election → they fire **4× per tick**. Two are not idempotent and claim no rows before sending: report-scheduler (`services/report-scheduler.service.js:363`) and the wellbeing notification queue (`services/cron/wellbeingCronJobs.js:327`). **Effect: residents/recipients likely get duplicate report emails and duplicate notifications right now.** Fix: gate the cron block to one worker (`NODE_APP_INSTANCE==='0'`) or wrap each job in `pg_try_advisory_lock` / `FOR UPDATE SKIP LOCKED`. **S–M.** Correctness fix, not just scale.
-2. **P1 — Rate limiter per-worker in-memory.** `middleware/rateLimiter.js` uses the default MemoryStore → the "10 failed logins / 15 min" brute-force cap is really 10×4=40 today, multiplying further per VM. Same for AI-assistant token buckets (`services/aiAssistant.service.js:34`, a Claude-cost hole). Fix: `rate-limit-redis` on the already-wired Redis client. **S.**
-3. **P1 — The double-fork itself.** 4 workers instead of 2 doubles connection demand and cron duplication. Confirm + fix `cluster.js`. **S.**
+**Consequence:** the in-memory / per-instance items below are **latent** — they bite the moment cluster mode is enabled OR a 2nd instance is added, but are **NOT causing duplicate sends or multiplied rate-limits in production today** (single process = crons fire once, one counter). They remain **hard prerequisites before any horizontal scaling / cluster mode**, just not live bugs.
+
+1. **Cron duplication (prerequisite for cluster/HA, not live).** Schedulers register with no leader election; under 2+ workers/instances they fire N× per tick. Two are not idempotent and claim no rows before sending: report-scheduler (`services/report-scheduler.service.js:363`) and the wellbeing notification queue (`services/cron/wellbeingCronJobs.js:327`). Fix before enabling cluster mode: gate the cron block to one worker (`NODE_APP_INSTANCE==='0'`) or wrap each job in `pg_try_advisory_lock` / `FOR UPDATE SKIP LOCKED`. **S–M.**
+2. **Rate limiter in-memory (prerequisite for multi-instance).** `middleware/rateLimiter.js` uses the default MemoryStore → correct for one process today, but a 2nd instance would multiply the brute-force cap. Same for AI-assistant token buckets (`services/aiAssistant.service.js:34`). Fix before scaling out: `rate-limit-redis`. **S.**
+3. **~~Double-fork~~ — WITHDRAWN.** No such bug; `cluster.js` is correct. The real (mild) item is the **DB pool cap**: single process defaults to `max: 100`, i.e. the *entire* Postgres `max_connections=100` budget with no headroom for `pg_dump`/psql/admin. Cap `DB_POOL_MAX` to ~80 (and per-worker if cluster mode is later enabled). **S.**
 
 ---
 
@@ -102,11 +104,12 @@ Code-side (no migration):
 
 ## Prioritized action plan
 
-### P0 — this week (data-loss + already-broken; all small, two are pure config)
-1. **Enable offsite backup** (`backup.env` Storage Box creds) + Mac/NAS pull-down. **S** — closes the data-loss exposure.
-2. **Leader-gate the crons** — kills the live duplicate report-emails/notifications. **S–M**
-3. **Fix `cluster.js` double-fork + cap `DB_POOL_MAX`** per worker (connection safety). **S**
+### P0 — this week (data-loss + real data-integrity)
+1. **Enable offsite backup** (`backup.env` Storage Box creds) + Mac/NAS pull-down. **S** — closes the one confirmed data-loss exposure. TOP PRIORITY.
+2. **Cap `DB_POOL_MAX`** (single process defaults to the whole pg budget; leave headroom for pg_dump/psql). **S**. NOTE: no `cluster.js` bug — the double-fork claim was withdrawn.
+3. **Reliability #6-7 money paths** (payment race `FOR UPDATE`, invoice `contractor_id` drop, blind COALESCE updates, non-atomic salary) — real data-integrity, process-count-independent. **M**
 4. **Disk alert at 80%** (10-line cron → Slack). **S**
+5. **Cron leader-gating** — reframed from P0: NOT a live bug (single process fires crons once); it's a **prerequisite before enabling cluster mode / a 2nd instance**. Do it alongside #6-7 (shared SKIP LOCKED technique) as hardening. **S–M**
 
 ### P1 — before onboarding real residents at scale
 5. Rate limiter → Redis store (+ AI token buckets). **S**
