@@ -89,11 +89,10 @@ const DRAWER_OPEN_WIDTH = 260;
 const DRAWER_COLLAPSED_WIDTH = 68;
 const TRANSITION = 'width 0.3s ease, margin-left 0.3s ease';
 
-// Menu grouped into labeled sections (Eszti's approved 7-section structure).
-// Every item keeps its own permission; a whole section is hidden when none of
-// its items are visible to the user (see menuSections filtering below).
+// Menu grouped into labeled sections (7). Each section renders a header, then
+// its items — where an item is either a leaf (has `path`) or a collapsible group
+// (has `children`), exactly as before. Grouping only; permissions unchanged.
 const buildMenuSections = (t) => [
-  // ─── 1. Áttekintés ───────────────────────────────────
   {
     section: 'Áttekintés',
     items: [
@@ -108,8 +107,6 @@ const buildMenuSections = (t) => [
       },
     ],
   },
-
-  // ─── 2. Munka ────────────────────────────────────────
   {
     section: 'Munka',
     items: [
@@ -132,8 +129,6 @@ const buildMenuSections = (t) => [
       },
     ],
   },
-
-  // ─── 3. Emberek & Szállás ────────────────────────────
   {
     section: 'Emberek & Szállás',
     items: [
@@ -144,8 +139,6 @@ const buildMenuSections = (t) => [
       { text: 'GDPR / Anonimizálás', icon: <LockIcon />, path: '/anonymization', permission: 'users.view' },
     ],
   },
-
-  // ─── 4. Pénzügy ──────────────────────────────────────
   {
     section: 'Pénzügy',
     items: [
@@ -178,8 +171,6 @@ const buildMenuSections = (t) => [
       },
     ],
   },
-
-  // ─── 5. Jólét ────────────────────────────────────────
   {
     section: 'Jólét',
     items: [
@@ -205,8 +196,6 @@ const buildMenuSections = (t) => [
       },
     ],
   },
-
-  // ─── 6. Tartalom & Support ───────────────────────────
   {
     section: 'Tartalom & Support',
     items: [
@@ -225,10 +214,14 @@ const buildMenuSections = (t) => [
           { text: t('nav.cbConfig'), icon: <SmartToyIcon />, path: '/chatbot/config', permission: 'faq.edit' },
         ],
       },
+      {
+        text: t('nav.faqManagement'), icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [
+          { text: t('nav.faqCategories'), icon: <CategoryIcon />, path: '/admin/faq-categories', permission: 'faq.edit' },
+          { text: t('nav.faqKnowledgeBase'), icon: <QuestionAnswerIcon />, path: '/admin/faq-knowledge-base', permission: 'faq.edit' },
+        ],
+      },
     ],
   },
-
-  // ─── 7. Adminisztráció ───────────────────────────────
   {
     section: 'Adminisztráció',
     items: [
@@ -238,12 +231,6 @@ const buildMenuSections = (t) => [
       { text: t('nav.activityLog'), icon: <HistoryIcon />, path: '/activity-log', permission: 'settings.view' },
       { text: t('nav.autoAssign'), icon: <AutoAssignIcon />, path: '/admin/auto-assign', permission: 'settings.view' },
       { text: 'Munkavállalók szakértelme', icon: <AutoAssignIcon />, path: '/admin/worker-specializations', permission: 'settings.view' },
-      {
-        text: t('nav.faqManagement'), icon: <HelpOutlineIcon />, permission: 'faq.edit', children: [
-          { text: t('nav.faqCategories'), icon: <CategoryIcon />, path: '/admin/faq-categories', permission: 'faq.edit' },
-          { text: t('nav.faqKnowledgeBase'), icon: <QuestionAnswerIcon />, path: '/admin/faq-knowledge-base', permission: 'faq.edit' },
-        ],
-      },
       {
         text: t('nav.administration'), icon: <AdminPanelSettingsIcon />, permission: 'users.manage_permissions', children: [
           { text: t('nav.adminUsers'), icon: <ManageAccountsIcon />, path: '/admin/users', permission: 'users.manage_permissions' },
@@ -264,8 +251,9 @@ function Layout({ children }) {
   const theme = useTheme();
   const { t } = useTranslation();
   const allMenuSections = useMemo(() => buildMenuSections(t), [t]);
+  // Flatten sections → items → children for the AppBar title lookup.
   const allMenuPaths = useMemo(
-    () => allMenuSections.flatMap(s => s.items).flatMap(item => item.children ? item.children : [item]),
+    () => allMenuSections.flatMap(sec => sec.items.flatMap(item => item.children ? item.children : [item])),
     [allMenuSections]
   );
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -311,30 +299,32 @@ function Layout({ children }) {
 
   const currentWidth = isMobile ? DRAWER_OPEN_WIDTH : (collapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_OPEN_WIDTH);
 
-  // Filter each section's items by permission; drop sections with nothing visible.
+  // Filter items by permission within each section; drop sections left empty.
   const menuSections = useMemo(() => {
-    const filterItem = (item) => {
-      if (item.permission && !hasPermission(item.permission)) return null;
-      if (item.children) {
-        const kids = item.children.filter(c => !c.permission || hasPermission(c.permission));
-        if (kids.length === 0) return null;
-        return { ...item, children: kids };
-      }
-      return item;
-    };
+    const filterItems = (items) => items
+      .filter(item => !item.permission || hasPermission(item.permission))
+      .map(item => {
+        if (item.children) {
+          const filteredChildren = item.children.filter(child => !child.permission || hasPermission(child.permission));
+          if (filteredChildren.length === 0) return null;
+          return { ...item, children: filteredChildren };
+        }
+        return item;
+      })
+      .filter(Boolean);
     return allMenuSections
-      .map(s => ({ ...s, items: s.items.map(filterItem).filter(Boolean) }))
-      .filter(s => s.items.length > 0);
+      .map(sec => ({ ...sec, items: filterItems(sec.items) }))
+      .filter(sec => sec.items.length > 0);
   }, [hasPermission, allMenuSections]);
 
   // Auto-expand submenu that contains the active route
   useEffect(() => {
     const expanded = {};
-    menuSections.flatMap(s => s.items).forEach(item => {
+    menuSections.forEach(sec => sec.items.forEach(item => {
       if (item.children && item.children.some(c => location.pathname === c.path)) {
         expanded[item.text] = true;
       }
-    });
+    }));
     setOpenSubmenus(prev => ({ ...prev, ...expanded }));
   }, [location.pathname, menuSections]);
 
@@ -444,29 +434,30 @@ function Layout({ children }) {
 
       {/* Menu items — grouped into labeled sections */}
       <List sx={{ mt: 1, overflowX: 'hidden' }}>
-        {menuSections.map((section, si) => (
-          <React.Fragment key={section.section}>
-            {(!collapsed || isMobile) ? (
+        {menuSections.map((sec) => (
+          <React.Fragment key={sec.section}>
+            {/* Section header — a text label when expanded, a subtle divider when collapsed */}
+            {showText ? (
               <Typography
-                variant="caption"
+                variant="overline"
                 sx={{
                   display: 'block',
-                  px: 2.5,
-                  pt: si === 0 ? 0.5 : 2,
-                  pb: 0.5,
-                  color: 'rgba(255,255,255,0.45)',
+                  px: 3,
+                  mt: 1.5,
+                  mb: 0.5,
+                  color: 'rgba(191,158,105,0.85)',
                   fontWeight: 700,
                   fontSize: '0.68rem',
                   letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  lineHeight: 2,
                 }}
               >
-                {section.section}
+                {sec.section}
               </Typography>
             ) : (
-              si > 0 && <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 1, mx: 1.5 }} />
+              <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 1, mx: 1.5 }} />
             )}
-            {section.items.map((item) => {
+            {sec.items.map((item) => {
           // Submenu with children
           if (item.children) {
             const isOpen = !!openSubmenus[item.text];
