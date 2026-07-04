@@ -24,17 +24,12 @@ router.get('/', checkPermission('settings.view'), invoiceController.getAll);
  */
 router.get('/:id', checkPermission('settings.view'), invoiceController.getById);
 
-/**
- * POST /api/v1/invoices
- * Új számla létrehozása
- */
-router.post('/', checkPermission('settings.edit'), invoiceController.create);
-
-/**
- * PUT /api/v1/invoices/:id
- * Számla szerkesztése
- */
-router.put('/:id', checkPermission('settings.edit'), invoiceController.update);
+// RETIRED: invoice create/update. The LIVE invoice form writes via
+// costCenter.controller (POST/PUT /api/v1/cost-centers/invoices). These
+// invoice.controller.create/update handlers had zero callers and diverged from
+// the live path (a fix to contractor_id here never reached the form) — removed
+// to keep one source of truth for invoice create/update. list/get/delete/
+// payments/pdf/email below remain live.
 
 /**
  * DELETE /api/v1/invoices/:id

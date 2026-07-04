@@ -161,6 +161,8 @@ const EMPLOYEE_DIRECT_FIELDS = [
   'permanent_address_city', 'permanent_address_street',
   'permanent_address_number', 'company_name', 'company_email',
   'company_phone', 'room_id', 'nationality', 'end_date',
+  // Personal contact — editable so HR can provision resident login invites.
+  'personal_email', 'personal_phone',
 ];
 
 /**

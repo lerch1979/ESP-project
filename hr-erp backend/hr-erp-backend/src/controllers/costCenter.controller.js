@@ -886,7 +886,7 @@ const createInvoice = async (req, res) => {
       invoice_number, vendor_name, vendor_tax_number, amount, currency,
       vat_amount, total_amount, invoice_date, due_date, payment_date,
       payment_status, cost_center_id, category_id, description, notes,
-      file_path, ocr_data, contractor_id
+      file_path, ocr_data, contractor_id, line_items
     } = req.body;
 
     if (!cost_center_id) {
@@ -910,8 +910,8 @@ const createInvoice = async (req, res) => {
         invoice_number, vendor_name, vendor_tax_number, amount, currency,
         vat_amount, total_amount, invoice_date, due_date, payment_date,
         payment_status, cost_center_id, category_id, description, notes,
-        file_path, ocr_data, contractor_id, created_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        file_path, ocr_data, contractor_id, line_items, created_by
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING *`,
       [
         invoice_number || null, vendor_name || null, vendor_tax_number || null,
@@ -919,7 +919,8 @@ const createInvoice = async (req, res) => {
         total_amount || amount, invoice_date, due_date || null, payment_date || null,
         payment_status || 'pending', cost_center_id, category_id || null,
         description || null, notes || null, file_path || null,
-        ocr_data || null, contractor_id || null, req.user?.id || null
+        ocr_data || null, contractor_id || null,
+        line_items !== undefined ? JSON.stringify(line_items) : null, req.user?.id || null
       ]
     );
 
@@ -943,7 +944,7 @@ const updateInvoice = async (req, res) => {
       invoice_number, vendor_name, vendor_tax_number, amount, currency,
       vat_amount, total_amount, invoice_date, due_date, payment_date,
       payment_status, cost_center_id, category_id, description, notes,
-      file_path, ocr_data
+      file_path, ocr_data, contractor_id, line_items
     } = req.body;
 
     const existing = await query('SELECT id FROM invoices WHERE id = $1', [id]);
@@ -980,6 +981,8 @@ const updateInvoice = async (req, res) => {
     addField('notes', notes);
     addField('file_path', file_path);
     addField('ocr_data', ocr_data);
+    addField('contractor_id', contractor_id);
+    addField('line_items', line_items !== undefined ? JSON.stringify(line_items) : undefined);
 
     if (fields.length === 0) {
       return res.status(400).json({ success: false, message: 'Nincs frissítendő mező' });

@@ -398,15 +398,13 @@ const updateAccommodation = async (req, res) => {
       params.push(current_contractor_id || null);
       paramIndex++;
 
-      // Auto-update status based on contractor assignment
-      if (current_contractor_id) {
+      // Auto-derive status from contractor assignment ONLY when the caller did
+      // NOT choose a status explicitly — otherwise assigning an owner would
+      // silently overwrite the admin's pick (e.g. "maintenance" → "occupied").
+      // An explicit `status` always wins (applied in the block below).
+      if (status === undefined) {
         fields.push(`status = $${paramIndex}`);
-        params.push('occupied');
-        paramIndex++;
-      } else if (!status) {
-        // If contractor removed and no explicit status, set to available
-        fields.push(`status = $${paramIndex}`);
-        params.push('available');
+        params.push(current_contractor_id ? 'occupied' : 'available');
         paramIndex++;
       }
     }
