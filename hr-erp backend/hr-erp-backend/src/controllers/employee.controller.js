@@ -47,6 +47,12 @@ const COLUMN_MAP = {
   'személyes telefon': 'personal_phone',
   'szemelyes telefon': 'personal_phone',
   'personal_phone': 'personal_phone',
+  'műszak': 'shift_schedule',
+  'muszak': 'shift_schedule',
+  'shift': 'shift_schedule',
+  'beosztás': 'shift_schedule',
+  'beosztas': 'shift_schedule',
+  'shift_schedule': 'shift_schedule',
   'munkakezdés dátuma': 'start_date',
   'munkakezdés': 'start_date',
   'munkakezdes datuma': 'start_date',
@@ -163,7 +169,21 @@ const EMPLOYEE_DIRECT_FIELDS = [
   'company_phone', 'room_id', 'nationality', 'end_date',
   // Personal contact — editable so HR can provision resident login invites.
   'personal_email', 'personal_phone',
+  // Shift pattern — room-consolidation-engine input (day/night must not mix).
+  'shift_schedule',
 ];
+
+// Normalize a shift value (hu/en variants) to a stored slug, else null.
+const SHIFT_ALIASES = {
+  day: 'day', nappal: 'day', nappali: 'day',
+  night: 'night', ejszaka: 'night', ejszakai: 'night', 'éjszaka': 'night', 'éjszakai': 'night',
+  rotating: 'rotating', valtott: 'rotating', 'váltott': 'rotating', valto: 'rotating', 'váltó': 'rotating', forgo: 'rotating', 'forgó': 'rotating',
+  flexible: 'flexible', rugalmas: 'flexible', flex: 'flexible',
+};
+const normalizeShift = (v) => {
+  if (v === undefined || v === null || v === '') return null;
+  return SHIFT_ALIASES[String(v).toLowerCase().trim()] || null;
+};
 
 /**
  * Munkavallaloi statuszok lekerdezese (dropdown-okhoz)
@@ -669,7 +689,8 @@ const updateEmployee = async (req, res) => {
     for (const field of EMPLOYEE_DIRECT_FIELDS) {
       if (body[field] !== undefined) {
         fields.push(`${field} = $${paramIndex}`);
-        const value = body[field] || null;
+        let value = body[field] || null;
+        if (field === 'shift_schedule') value = normalizeShift(value); // slug or null — never trips the CHECK
         params.push(PII_ENCRYPT_FIELDS.includes(field) && value ? encrypt(value) : value);
         paramIndex++;
       }
@@ -860,6 +881,8 @@ const bulkImportEmployees = async (req, res) => {
         if (dbField) {
           if (DATE_FIELDS.includes(dbField)) {
             mapped[dbField] = parseDate(value);
+          } else if (dbField === 'shift_schedule') {
+            mapped[dbField] = normalizeShift(value); // hu/en variant → slug or null (never violates the CHECK)
           } else {
             mapped[dbField] = typeof value === 'string' ? value.trim() : String(value);
           }

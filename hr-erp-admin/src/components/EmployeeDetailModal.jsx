@@ -192,6 +192,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           room_number: emp.room_number || '',
           personal_email: emp.personal_email || '',
           personal_phone: emp.personal_phone || '',
+          shift_schedule: emp.shift_schedule || '',
           notes: emp.notes || '',
           first_name: emp.first_name || '',
           last_name: emp.last_name || '',
@@ -1185,6 +1186,7 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
       <DetailRow label="Munkahely" value={employee.workplace || '-'} />
       <DetailRow label="Személyes email" value={employee.personal_email || employee.email || '-'} />
       <DetailRow label="Személyes telefon" value={employee.personal_phone || employee.phone || '-'} />
+      <DetailRow label="Műszak" value={{ day: 'Nappali', night: 'Éjszakai', rotating: 'Váltott', flexible: 'Rugalmas' }[employee.shift_schedule] || '-'} />
       <DetailRow label="Céges email" value={employee.company_email || '-'} />
       <DetailRow label="Céges telefon" value={employee.company_phone || '-'} />
       <DetailRow label="Érkezés dátuma" value={fmtDate(employee.arrival_date)} />
@@ -1502,6 +1504,19 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
       <Grid item xs={6} md={4}>
         <TextField fullWidth label="Személyes telefon" value={formData.personal_phone}
           onChange={(e) => handleChange('personal_phone', e.target.value)} />
+      </Grid>
+      <Grid item xs={6} md={4}>
+        <FormControl fullWidth>
+          <InputLabel>Műszak</InputLabel>
+          <Select value={formData.shift_schedule || ''} label="Műszak"
+            onChange={(e) => handleChange('shift_schedule', e.target.value)}>
+            <MenuItem value=""><em>Nincs megadva</em></MenuItem>
+            <MenuItem value="day">Nappali</MenuItem>
+            <MenuItem value="night">Éjszakai</MenuItem>
+            <MenuItem value="rotating">Váltott</MenuItem>
+            <MenuItem value="flexible">Rugalmas</MenuItem>
+          </Select>
+        </FormControl>
       </Grid>
 
       {/* 7. Egyéb */}

@@ -205,8 +205,9 @@ For older history: `git log --oneline --since="2026-04-01"`.
 
 **Designed next phase — Room Consolidation Suggestion Engine (strategic, awaiting data):**
 - **Goal:** bed-utilization (bed-occupancy) billing — maximize paid-bed utilization by consolidating residents into fewer rooms.
-- **Foundation is DONE + live (2026-07-04):** `accommodation_rooms.beds` (capacity, 49 beds / 24 rooms), `employees.room_id` (FK, editable via the bed-aware room dropdown in EmployeeDetailModal), and `occupancy_snapshots` already capture `room_id`/`room_beds`/`room_occupant_count`. The billing chain is wired; it just needs room assignments populated (currently 0/288 — a data-entry gap, not code).
-- **Engine to build (after data is populated):** inputs = per-room occupancy + gender + workplace + shift schedule; output = consolidation suggestions (which residents to move to which rooms to free up rooms while respecting gender/workplace/shift constraints). Prioritized by the user *after* room data is entered.
+- **Foundation is DONE + live (2026-07-04):** `accommodation_rooms.beds` (capacity, 49 beds / 24 rooms), `employees.room_id` (FK, editable via the bed-aware room dropdown in EmployeeDetailModal), `employees.shift_schedule` (day/night/rotating/flexible — mig 130, editable dropdown + bulk-Excel "Műszak" column + detail display), and `occupancy_snapshots` already capture `room_id`/`room_beds`/`room_occupant_count`. The billing chain is wired; it just needs data populated.
+- **Engine to build — inputs (all now schema-supported):** per-room occupancy + `gender` + `workplace` + **`shift_schedule`** (day/night must NOT mix in a room) → output = consolidation suggestions (which residents to move to which rooms to free up rooms while respecting gender/workplace/shift constraints). Goal: bed-utilization billing.
+- **BLOCKED until data populated:** room assignments (currently 0/288) AND shift_schedule (new field, 0 populated) — both data-entry gaps, not code. Prioritized by the user *after* the data is entered.
 
 **Not in current scope:**
 - GDPR v2 (translation_cache purge, auto retention-expiry, data export) — NOTE: activity_logs scrubbing is now DONE (folded into the #5 erasure fix, 2026-07-04)
