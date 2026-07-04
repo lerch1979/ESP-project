@@ -203,6 +203,11 @@ For older history: `git log --oneline --since="2026-04-01"`.
 - Cost-tracking unification decision (see `docs/ARCH_COST_TRACKING_OPTIONS.md`) — still open.
 - Billing admin Tabs 2 (Billing runs) + 3 (Billings list) not yet built; Gmail poller disposition (keep/disable/rewire).
 
+**Designed next phase — Room Consolidation Suggestion Engine (strategic, awaiting data):**
+- **Goal:** bed-utilization (bed-occupancy) billing — maximize paid-bed utilization by consolidating residents into fewer rooms.
+- **Foundation is DONE + live (2026-07-04):** `accommodation_rooms.beds` (capacity, 49 beds / 24 rooms), `employees.room_id` (FK, editable via the bed-aware room dropdown in EmployeeDetailModal), and `occupancy_snapshots` already capture `room_id`/`room_beds`/`room_occupant_count`. The billing chain is wired; it just needs room assignments populated (currently 0/288 — a data-entry gap, not code).
+- **Engine to build (after data is populated):** inputs = per-room occupancy + gender + workplace + shift schedule; output = consolidation suggestions (which residents to move to which rooms to free up rooms while respecting gender/workplace/shift constraints). Prioritized by the user *after* room data is entered.
+
 **Not in current scope:**
-- GDPR v2 (activity_logs scrub, translation_cache purge, auto retention-expiry, data export)
+- GDPR v2 (translation_cache purge, auto retention-expiry, data export) — NOTE: activity_logs scrubbing is now DONE (folded into the #5 erasure fix, 2026-07-04)
 - OCR re-integration (Phase 3); outgoing billing (Phase 2); currency expansion beyond HUF
