@@ -61,6 +61,19 @@ const execute = async (req, res) => {
       const r = await svc.anonymizeEmployee(id, { dryRun: false, requestedBy: req.user?.id, reason });
       results.push({ employeeId: id, ...r });
     }
+    // Loud errors: success is TRUE only if EVERY erasure fully completed (DB +
+    // all files). Any ok:false (e.g. a file that failed to unlink, or a
+    // skipped table) is surfaced with a 207-style partial flag so the SPA can
+    // stop showing a green "done" over an incomplete erasure.
+    const failed = results.filter((r) => r.ok !== true);
+    if (failed.length > 0) {
+      return res.status(207).json({
+        success: false,
+        partial: true,
+        message: `${failed.length}/${results.length} anonimizálás NEM fejeződött be maradéktalanul (fájl vagy tábla kimaradt). Nézze meg a részleteket.`,
+        data: { results, failed },
+      });
+    }
     res.json({ success: true, data: { results } });
   } catch (err) {
     logger.error('[gdpr.execute]', err.message);

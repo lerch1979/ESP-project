@@ -191,14 +191,20 @@ async function preview(employeeId) {
   return buildPlan(employeeId);
 }
 
-// Execute: one transaction, then unlink files post-commit. reason ∈ gdpr_request|retention_expiry.
+const CONTENT_TOMBSTONE = '[GDPR törölve]';
+const JSONB_REDACTION = '{"_redacted":"gdpr"}';
+
+// Execute: one transaction (all DB mutation + TOCTOU-safe file COLLECTION via
+// RETURNING), then physically unlink the collected files post-commit. The result
+// is only ok:true when EVERY collected file was actually deleted — a failed
+// unlink surfaces as ok:false with the failed paths (no more silent success).
+// reason ∈ gdpr_request | retention_expiry.
 async function anonymizeEmployee(employeeId, { dryRun = false, requestedBy = null, reason = 'gdpr_request' } = {}) {
   const plan = await buildPlan(employeeId);
   if (plan.notFound) return { ok: false, error: 'not_found' };
   if (plan.alreadyAnonymized) return { ok: false, error: 'already_anonymized', anonymized_at: plan.anonymized_at };
 
   if (dryRun) {
-    // Record the dry-run in the log too (accountability of the review step).
     await query(
       `INSERT INTO anonymization_log (employee_id, pseudonym, requested_by, reason, dry_run, summary)
        VALUES ($1,$2,$3,$4,TRUE,$5)`,
@@ -210,83 +216,166 @@ async function anonymizeEmployee(employeeId, { dryRun = false, requestedBy = nul
   const uid = plan.userId;
   const pseudo = plan.pseudonym;
   const randomPw = crypto.randomBytes(24).toString('hex'); // unusable; is_active=false also blocks
+  const statutory = (await getConfig()).statutory_document_types || [];
+  const idp = String(employeeId).slice(0, 8);
 
-  const logId = await transaction(async (client) => {
-    // 1) employees: pseudonymize name, NULL all PII, mark anonymized.
+  const txn = await transaction(async (client) => {
+    const receipt = { rows: {}, filesToDelete: [], skippedTables: [] };
+    // Tolerate ONLY a genuinely-absent optional table (42P01) — recorded in the
+    // receipt so a skip is never invisible. Any other error (incl. 42703 column
+    // drift) throws and rolls the whole erasure back: fail loud, never a silent
+    // no-op that leaves PII behind.
+    const step = async (label, sql, params) => {
+      // SAVEPOINT so a tolerated 42P01 (absent optional table) rolls back only
+      // THIS statement — otherwise the first error poisons the whole txn and
+      // every later step fails with 25P02 (aborted transaction).
+      await client.query('SAVEPOINT gdpr_step');
+      try {
+        const r = await client.query(sql, params);
+        await client.query('RELEASE SAVEPOINT gdpr_step');
+        receipt.rows[label] = r.rowCount || 0;
+        return r;
+      } catch (e) {
+        await client.query('ROLLBACK TO SAVEPOINT gdpr_step');
+        if (e.code === '42P01') { receipt.skippedTables.push(label); return { rows: [], rowCount: 0 }; }
+        throw e; // column drift / anything else → fail loud, roll back the whole erasure
+      }
+    };
+    const collect = (rows, cols) => rows.forEach((r) => cols.forEach((c) => {
+      const vals = Array.isArray(r[c]) ? r[c] : [r[c]];
+      vals.forEach((v) => { const rp = toRelPath(v); if (rp) receipt.filesToDelete.push(rp); });
+    }));
+
+    // 1) employees — capture profile photo under a row lock, then pseudonymize + NULL all PII.
+    const emp = await client.query('SELECT profile_photo_url FROM employees WHERE id = $1 FOR UPDATE', [employeeId]);
+    collect(emp.rows, ['profile_photo_url']);
     const setNulls = EMPLOYEE_NULL_FIELDS.map((f) => `${f} = NULL`).join(', ');
     await client.query(
       `UPDATE employees SET last_name = $2, first_name = NULL, anonymized_at = NOW(), ${setNulls} WHERE id = $1`,
       [employeeId, pseudo]
     );
+    receipt.rows.employees = 1;
 
-    // 2) users: deactivate + scramble (blocks login and existing JWTs — auth re-checks
-    //    is_active). first_name/last_name are NOT NULL, so set them to the pseudonym —
-    //    this is also what makes the author DISPLAY as "TÖRÖLT-<id8>" wherever a join
-    //    resolves the user's name (tickets, messages, chatbot). phone is nullable → NULL.
+    // 2) users — deactivate + scramble (blocks login + existing JWTs; also makes authorship display as the pseudonym).
     if (uid) {
-      await safeExec((s, p) => client.query(s, p),
-        `UPDATE users SET is_active = FALSE,
-                          email = $2,
-                          password_hash = $3,
-                          first_name = '', last_name = $4, phone = NULL,
-                          updated_at = NOW()
+      await step('users',
+        `UPDATE users SET is_active = FALSE, email = $2, password_hash = $3,
+                          first_name = '', last_name = $4, phone = NULL, updated_at = NOW()
           WHERE id = $1`,
-        [uid, `torolt-${String(employeeId).slice(0, 8)}@anonymized.invalid`, randomPw, pseudo]);
+        [uid, `torolt-${idp}@anonymized.invalid`, randomPw, pseudo]);
     }
 
-    // 3) documents: delete non-statutory rows (files unlinked post-commit). Statutory kept.
-    const statutory = (await getConfig()).statutory_document_types || [];
-    await client.query(
-      `DELETE FROM employee_documents WHERE employee_id = $1 AND NOT (document_type = ANY($2))`,
-      [employeeId, statutory]
-    );
+    // 3) employee_documents — delete non-statutory rows AND collect their files atomically (TOCTOU-safe).
+    const dd = await step('employee_documents',
+      `DELETE FROM employee_documents WHERE employee_id = $1 AND NOT (document_type = ANY($2))
+        RETURNING file_path, scanned_file_path, thumbnail_path`,
+      [employeeId, statutory]);
+    collect(dd.rows, ['file_path', 'scanned_file_path', 'thumbnail_path']);
 
-    // 4) health/wellbeing: hard delete.
+    // 4) health/wellbeing — hard delete.
     for (const h of HEALTH_DELETE) {
       const key = h.col === 'employee_id' ? employeeId : uid;
       if (!key) continue;
-      await safeExec((s, p) => client.query(s, p), `DELETE FROM ${h.table} WHERE ${h.col} = $1`, [key]);
+      await step(h.table, `DELETE FROM ${h.table} WHERE ${h.col} = $1`, [key]);
     }
 
-    // 5) financial (KEEP, pseudonymize denormalized names, NULL contacts/biometric).
+    // 5) financial (KEEP statutory, pseudonymize denormalized names, NULL contacts/biometric).
     if (uid) {
-      await safeExec((s, p) => client.query(s, p),
-        `UPDATE compensations SET responsible_name = $2, responsible_email = NULL, responsible_phone = NULL WHERE responsible_user_id = $1`,
-        [uid, pseudo]);
-      await safeExec((s, p) => client.query(s, p),
-        `UPDATE compensation_residents SET resident_name = $2, resident_email = NULL, resident_phone = NULL, signature_data = NULL, notes = NULL WHERE resident_id = $1`,
-        [uid, pseudo]);
-      await safeExec((s, p) => client.query(s, p),
-        `UPDATE salary_deductions SET employee_name = $2 WHERE user_id = $1`,
-        [uid, pseudo]);
+      await step('compensations', `UPDATE compensations SET responsible_name = $2, responsible_email = NULL, responsible_phone = NULL WHERE responsible_user_id = $1`, [uid, pseudo]);
+      await step('compensation_residents', `UPDATE compensation_residents SET resident_name = $2, resident_email = NULL, resident_phone = NULL, signature_data = NULL, notes = NULL WHERE resident_id = $1`, [uid, pseudo]);
+      await step('salary_deductions', `UPDATE salary_deductions SET employee_name = $2 WHERE user_id = $1`, [uid, pseudo]);
     }
 
-    // 6) notifications for/about the subject.
-    await safeExec((s, p) => client.query(s, p),
-      `DELETE FROM notifications WHERE user_id = $1 OR (data->>'entity_id') = ANY($2)`,
-      [uid, [String(employeeId), String(uid)]]);
+    // 6) notifications for/about the subject — delete.
+    await step('notifications', `DELETE FROM notifications WHERE user_id = $1 OR (data->>'entity_id') = ANY($2)`, [uid, [String(employeeId), String(uid || '')]]);
 
-    // 7) audit record (counts only).
+    // 7) damage_reports — capture photo files (locked), then NULL biometric signatures + salary + free text.
+    const drSel = await step('damage_reports_scan',
+      `SELECT photo_urls FROM damage_reports WHERE employee_id = $1 OR responsible_employee_id = $2 FOR UPDATE`,
+      [uid, employeeId]);
+    collect(drSel.rows, ['photo_urls']);
+    await step('damage_reports',
+      `UPDATE damage_reports SET description = $3, employee_salary = NULL,
+              employee_signature_data = NULL, manager_signature_data = NULL,
+              witness_name = NULL, witness_signature_data = NULL, notes = NULL, photo_urls = NULL
+        WHERE employee_id = $1 OR responsible_employee_id = $2`,
+      [uid, employeeId, CONTENT_TOMBSTONE]);
+
+    // 8) files the person uploaded — delete rows + collect files atomically.
+    if (uid) {
+      const ta = await step('ticket_attachments', `DELETE FROM ticket_attachments WHERE uploaded_by = $1 RETURNING file_path`, [uid]);
+      collect(ta.rows, ['file_path']);
+      const tp = await step('task_photos', `DELETE FROM task_photos WHERE uploaded_by = $1 RETURNING photo_url, thumbnail_url`, [uid]);
+      collect(tp.rows, ['photo_url', 'thumbnail_url']);
+      const ip = await step('inspection_photos', `DELETE FROM inspection_photos WHERE uploaded_by = $1 RETURNING file_path, thumbnail_path`, [uid]);
+      collect(ip.rows, ['file_path', 'thumbnail_path']);
+    }
+
+    // 9) free-text CONTENT scrub (keep row skeleton so threads/history survive).
+    if (uid) {
+      await step('ticket_messages', `UPDATE ticket_messages SET message = $2 WHERE sender_id = $1`, [uid, CONTENT_TOMBSTONE]);
+      await step('chatbot_messages', `UPDATE chatbot_messages SET content = $2, translated_content = NULL WHERE conversation_id IN (SELECT id FROM chatbot_conversations WHERE user_id = $1)`, [uid, CONTENT_TOMBSTONE]);
+    }
+    await step('employee_notes', `UPDATE employee_notes SET content = $2, title = $3 WHERE employee_id = $1`, [employeeId, CONTENT_TOMBSTONE, CONTENT_TOMBSTONE]);
+
+    // 10) activity_logs — null IP + redact any PII embedded in the JSONB payload for the person's own rows.
+    if (uid) await step('activity_logs', `UPDATE activity_logs SET ip_address = NULL, changes = $2::jsonb, metadata = $2::jsonb WHERE user_id = $1`, [uid, JSONB_REDACTION]);
+
+    // 11) identity/contact mappings — delete (push tokens table may be absent in some envs → step tolerates 42P01).
+    if (uid) {
+      await step('user_push_tokens', `DELETE FROM user_push_tokens WHERE user_id = $1`, [uid]);
+      await step('slack_users', `DELETE FROM slack_users WHERE user_id = $1`, [uid]);
+    }
+
+    // 12) receipt row (rowcounts + skipped tables so far; file outcome patched post-commit).
     const ins = await client.query(
       `INSERT INTO anonymization_log (employee_id, pseudonym, requested_by, reason, dry_run, summary)
        VALUES ($1,$2,$3,$4,FALSE,$5) RETURNING id`,
-      [employeeId, pseudo, requestedBy, reason, JSON.stringify(summaryOf(plan))]
+      [employeeId, pseudo, requestedBy, reason, JSON.stringify({ ...receipt, phase: 'db-committed' })]
     );
-    return ins.rows[0].id;
+    receipt.logId = ins.rows[0].id;
+    return receipt;
   });
 
-  // 8) Physical file deletion — AFTER commit (files can't roll back; storage.delete is ENOENT-safe).
-  let filesDeleted = 0;
-  for (const rel of plan.filesToDelete) {
-    try { await storage.delete(rel); filesDeleted += 1; }
-    catch (e) { logger.error('[gdpr] file delete failed:', rel, e.message); }
+  // Physical file deletion — AFTER commit. Track EVERY outcome; a failure is NOT hidden.
+  const filesDeleted = [];
+  const filesFailed = [];
+  for (const rel of txn.filesToDelete) {
+    try { await storage.delete(rel); filesDeleted.push(rel); }
+    catch (e) { logger.error('[gdpr] file delete FAILED:', rel, e.message); filesFailed.push(rel); }
   }
 
-  logger.info(`[gdpr] anonymized employee ${employeeId} (reason=${reason}, files=${filesDeleted}/${plan.filesToDelete.length})`);
-  return { ok: true, dryRun: false, logId, pseudonym: pseudo, filesDeleted, summary: summaryOf(plan) };
+  const ok = filesFailed.length === 0;
+  // Erasure receipt — ACTUAL outcomes (not planned counts): tables+rowcounts touched,
+  // files deleted vs failed, any tolerated table-skips. Patched into the audit log.
+  const erasureReceipt = {
+    pseudonym: pseudo,
+    reason,
+    db_rows_affected: txn.rows,
+    files_deleted: filesDeleted.length,
+    files_failed: filesFailed.length,
+    files_failed_paths: filesFailed,
+    skipped_tables: txn.skippedTables,
+    backups_note: 'Pre-erasure PII in daily dumps/tarballs ages out via the 30-day backup retention (backup.sh); backups are not edited.',
+    complete: ok,
+  };
+  await query('UPDATE anonymization_log SET summary = $2 WHERE id = $1', [txn.logId, JSON.stringify(erasureReceipt)]);
+
+  logger.info(`[gdpr] anonymized employee ${employeeId} reason=${reason} files=${filesDeleted.length}/${txn.filesToDelete.length} failed=${filesFailed.length} complete=${ok}`);
+  return {
+    ok,
+    dryRun: false,
+    logId: txn.logId,
+    pseudonym: pseudo,
+    filesDeleted: filesDeleted.length,
+    filesFailed,
+    skippedTables: txn.skippedTables,
+    receipt: erasureReceipt,
+    ...(ok ? {} : { error: 'files_not_fully_deleted' }),
+  };
 }
 
-// COUNTS + table names only — never the removed values.
+// COUNTS + table names only — never the removed values (dry-run preview summary).
 function summaryOf(plan) {
   return {
     pseudonym: plan.pseudonym,
@@ -299,7 +388,9 @@ function summaryOf(plan) {
     financial_pseudonymized: plan.pseudonymizeFinancial,
     notifications_deleted: plan.notificationsToDelete,
     tickets_kept_intact: plan.ticketsKeptIntact.length,
-    skipped_v2: plan.skippedV2,
+    also_erased: ['damage_reports (signatures/salary/photos)', 'uploaded files (tickets/tasks/inspections)',
+      'ticket/chatbot free text (scrubbed)', 'employee_notes', 'activity_logs (IP+JSONB redacted)',
+      'push tokens', 'slack mapping'],
   };
 }
 
