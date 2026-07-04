@@ -308,6 +308,42 @@ function Employees() {
     }
   };
 
+  // Room-assignment round-trip: download the pre-filled template.
+  const handleRoomTemplate = async () => {
+    try {
+      const response = await employeesAPI.roomTemplate();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'szoba_kiosztas_sablon.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Hiba a szoba-sablon letöltésekor');
+    }
+  };
+
+  // Upload the filled room template — identity-matched update, capacity-validated.
+  const handleRoomUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const res = await employeesAPI.assignRooms(file);
+      const d = res.data || {};
+      if (d.error_count > 0) {
+        toast.warning(`${d.updated_count} frissítve, ${d.error_count} hiba (pl. ${d.errors?.[0]?.message || ''})`);
+      } else {
+        toast.success(`${d.updated_count} munkavállaló szoba-kiosztása frissítve`);
+      }
+      loadEmployees();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Hiba a szoba-kiosztás feltöltésekor');
+    }
+  };
+
   const loadStatuses = async () => {
     try {
       const response = await employeesAPI.getStatuses();
@@ -422,6 +458,23 @@ function Employees() {
             }}
           >
             Export
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleRoomTemplate}
+            sx={{ borderColor: '#8B6B33', color: '#8B6B33', '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' } }}
+          >
+            Szoba-sablon
+          </Button>
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<UploadIcon />}
+            sx={{ borderColor: '#8B6B33', color: '#8B6B33', '&:hover': { borderColor: '#6f552a', bgcolor: 'rgba(139, 107, 51, 0.06)' } }}
+          >
+            Szoba-kiosztás
+            <input type="file" hidden accept=".xlsx,.xls,.csv" onChange={handleRoomUpload} />
           </Button>
           <Button
             variant="outlined"

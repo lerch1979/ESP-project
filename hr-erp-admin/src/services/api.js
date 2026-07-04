@@ -490,6 +490,17 @@ export const employeesAPI = {
     return response.data;
   },
 
+  // Room-assignment round-trip: download a pre-filled template, fill "Szoba", re-upload.
+  roomTemplate: () => api.get('/employees/room-template', { responseType: 'blob' }),
+  assignRooms: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/employees/room-assignments', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   getTimeline: async (id, params = {}) => {
     const response = await api.get(`/employees/${id}/timeline`, { params });
     return response.data;

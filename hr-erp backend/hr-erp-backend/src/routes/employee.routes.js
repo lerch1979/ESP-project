@@ -103,6 +103,14 @@ router.post('/bulk-delete', checkPermission('employees.delete'), employeeControl
 router.post('/bulk-export', checkPermission('employees.export'), employeeController.bulkExport);
 
 /**
+ * GET  /api/v1/employees/room-template — pre-filled Excel for room assignment (round-trip export)
+ * POST /api/v1/employees/room-assignments — upload the filled template (identity-matched update)
+ * (Declared BEFORE /:id so the literal paths aren't captured by the id param.)
+ */
+router.get('/room-template', checkPermission('employees.export'), employeeController.exportRoomTemplate);
+router.post('/room-assignments', checkPermission('employees.edit'), upload.single('file'), employeeController.bulkAssignRooms);
+
+/**
  * GET /api/v1/employees/:id
  * Egy munkavállaló részletei
  */

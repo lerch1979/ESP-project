@@ -1784,6 +1784,169 @@ const bulkExport = async (req, res) => {
   }
 };
 
+// Hungarian shift labels for the round-trip template (slug → label / label → slug via normalizeShift).
+const SHIFT_LABELS = { day: 'Nappali', night: 'Éjszakai', rotating: 'Váltott', flexible: 'Rugalmas' };
+
+/**
+ * GET /api/v1/employees/room-template
+ * Pre-filled Excel of ALL active employees for room assignment: identity columns
+ * (for in-place matching on re-upload), accommodation, current room (to edit),
+ * current shift. The user fills the "Szoba" column and re-uploads via
+ * /room-assignments — matched by identity, never creating duplicates.
+ */
+const exportRoomTemplate = async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT e.employee_number, e.last_name, e.first_name, e.mothers_name, e.birth_date,
+              a.name AS accommodation_name, ar.room_number AS current_room, e.shift_schedule
+         FROM employees e
+         LEFT JOIN accommodations a ON a.id = e.accommodation_id
+         LEFT JOIN accommodation_rooms ar ON ar.id = e.room_id
+        WHERE e.end_date IS NULL
+        ORDER BY a.name NULLS LAST, e.last_name, e.first_name`
+    );
+    const fmtDate = (v) => (v ? new Date(v).toLocaleDateString('hu-HU') : '');
+    const data = result.rows.map(r => ({
+      'Törzsszám': r.employee_number || '',
+      'Vezetéknév': r.last_name || '',
+      'Keresztnév': r.first_name || '',
+      'Anyja neve': r.mothers_name || '',
+      'Születési dátum': fmtDate(r.birth_date),
+      'Szálláshely': r.accommodation_name || '',
+      'Szoba': r.current_room || '',            // ← fill this (room number in the accommodation)
+      'Műszak': SHIFT_LABELS[r.shift_schedule] || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data.length ? data : [{
+      'Törzsszám': '', 'Vezetéknév': '', 'Keresztnév': '', 'Anyja neve': '',
+      'Születési dátum': '', 'Szálláshely': '', 'Szoba': '', 'Műszak': '',
+    }]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Szoba-kiosztás');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=szoba_kiosztas_sablon.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Szoba-sablon export hiba:', error);
+    res.status(500).json({ success: false, message: 'Szoba-sablon export hiba' });
+  }
+};
+
+// Header resolver for the room-assignment upload (tolerant to hu/en variants).
+const roomTemplateHeader = (key) => {
+  const k = String(key).toLowerCase().trim();
+  if (['vezetéknév', 'vezeteknev', 'last_name'].includes(k)) return 'last_name';
+  if (['keresztnév', 'keresztnev', 'first_name'].includes(k)) return 'first_name';
+  if (['anyja neve', 'mothers_name'].includes(k)) return 'mothers_name';
+  if (['szálláshely', 'szallashely', 'accommodation'].includes(k)) return 'accommodation_name';
+  if (['szoba', 'szobaszám', 'szobaszam', 'room', 'room_number'].includes(k)) return 'room';
+  if (['műszak', 'muszak', 'shift', 'shift_schedule'].includes(k)) return 'shift';
+  return null;
+};
+
+/**
+ * POST /api/v1/employees/room-assignments  (multipart file)
+ * Upload the filled room template. For each row: match the employee by identity
+ * (last_name + first_name + mothers_name), resolve the room by number WITHIN the
+ * employee's accommodation, validate it belongs there AND respects bed capacity,
+ * then UPDATE room_id (+ shift if given). Never creates; reports per-row outcome.
+ */
+const bulkAssignRooms = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Nincs feltöltött fájl' });
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+
+    const rows = raw.map(r => {
+      const m = {};
+      for (const [key, val] of Object.entries(r)) {
+        const f = roomTemplateHeader(key);
+        if (f) m[f] = typeof val === 'string' ? val.trim() : String(val);
+      }
+      return m;
+    });
+
+    const updated = [];
+    const errors = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const rowNum = i + 2;
+      const row = rows[i];
+      if (!row.last_name && !row.first_name) continue; // skip blank lines
+      if (!row.room && !row.shift) { continue; } // nothing to assign on this row
+
+      // 1) Match employee by identity (name + mother's name).
+      const match = await query(
+        `SELECT e.id, e.accommodation_id, e.room_id
+           FROM employees e
+          WHERE e.end_date IS NULL
+            AND LOWER(e.last_name) = LOWER($1)
+            AND LOWER(COALESCE(e.first_name,'')) = LOWER($2)
+            AND LOWER(COALESCE(e.mothers_name,'')) = LOWER($3)`,
+        [row.last_name || '', row.first_name || '', row.mothers_name || '']
+      );
+      if (match.rows.length === 0) { errors.push({ row: rowNum, message: `Nem található munkavállaló: ${row.last_name} ${row.first_name} (${row.mothers_name || 'nincs anyja neve'})` }); continue; }
+      if (match.rows.length > 1) { errors.push({ row: rowNum, message: `Több egyező munkavállaló (${row.last_name} ${row.first_name}) — anyja neve/születési dátum szükséges az egyértelműsítéshez` }); continue; }
+      const emp = match.rows[0];
+
+      const sets = [];
+      const params = [];
+      let p = 0;
+
+      // 2) Shift (optional) — normalize hu/en → slug.
+      if (row.shift) {
+        const slug = normalizeShift(row.shift);
+        if (slug) { sets.push(`shift_schedule = $${++p}`); params.push(slug); }
+      }
+
+      // 3) Room (optional) — resolve within the accommodation, validate membership + capacity.
+      if (row.room) {
+        // Target accommodation: the row's if given, else the employee's current.
+        let accId = emp.accommodation_id;
+        if (row.accommodation_name) {
+          const a = await query('SELECT id FROM accommodations WHERE LOWER(name) = LOWER($1) AND is_active = true', [row.accommodation_name]);
+          if (a.rows.length === 0) { errors.push({ row: rowNum, message: `Ismeretlen szálláshely: ${row.accommodation_name}` }); continue; }
+          accId = a.rows[0].id;
+        }
+        if (!accId) { errors.push({ row: rowNum, message: `A munkavállalónak nincs szálláshelye — a szoba nem rendelhető` }); continue; }
+
+        const roomRes = await query(
+          'SELECT id, beds FROM accommodation_rooms WHERE accommodation_id = $1 AND LOWER(room_number) = LOWER($2) AND is_active = true',
+          [accId, String(row.room)]
+        );
+        if (roomRes.rows.length === 0) { errors.push({ row: rowNum, message: `A(z) "${row.room}" szoba nem tartozik ehhez a szálláshelyhez` }); continue; }
+        const room = roomRes.rows[0];
+
+        // Capacity: occupants (excluding this employee) + 1 must fit the beds.
+        // Each row commits immediately, so this COUNT already reflects prior
+        // in-batch assignments to the same room — no separate batch counter needed.
+        const occ = await query('SELECT COUNT(*)::int c FROM employees WHERE room_id = $1 AND id <> $2 AND end_date IS NULL', [room.id, emp.id]);
+        const wouldBe = occ.rows[0].c + 1;
+        if (wouldBe > room.beds) { errors.push({ row: rowNum, message: `A(z) "${row.room}" szoba tele van (${room.beds} ágy, ${wouldBe} fő lenne)` }); continue; }
+
+        if (accId !== emp.accommodation_id) { sets.push(`accommodation_id = $${++p}`); params.push(accId); }
+        sets.push(`room_id = $${++p}`); params.push(room.id);
+        sets.push(`room_number = $${++p}`); params.push(String(row.room));
+      }
+
+      if (sets.length === 0) continue;
+      params.push(emp.id);
+      await query(`UPDATE employees SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${++p}`, params);
+      updated.push({ row: rowNum, employee: `${row.last_name} ${row.first_name}`, room: row.room || null, shift: row.shift ? normalizeShift(row.shift) : null });
+    }
+
+    res.json({
+      success: errors.length === 0,
+      message: `${updated.length} munkavállaló frissítve${errors.length ? `, ${errors.length} hiba` : ''}`,
+      data: { updated_count: updated.length, error_count: errors.length, updated, errors },
+    });
+  } catch (error) {
+    logger.error('Szoba-kiosztás import hiba:', error);
+    res.status(500).json({ success: false, message: 'Szoba-kiosztás import hiba' });
+  }
+};
+
 module.exports = {
   getEmployeeStatuses,
   getEmployees,
@@ -1801,4 +1964,6 @@ module.exports = {
   bulkUpdateStatus,
   bulkDelete,
   bulkExport,
+  exportRoomTemplate,
+  bulkAssignRooms,
 };
