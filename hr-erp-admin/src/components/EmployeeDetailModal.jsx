@@ -190,6 +190,8 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           accommodation_id: emp.accommodation_id || '',
           room_id: emp.room_id || '',
           room_number: emp.room_number || '',
+          personal_email: emp.personal_email || '',
+          personal_phone: emp.personal_phone || '',
           notes: emp.notes || '',
           first_name: emp.first_name || '',
           last_name: emp.last_name || '',
@@ -1491,6 +1493,15 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
       <Grid item xs={6} md={4}>
         <TextField fullWidth label="Céges telefon" value={formData.company_phone}
           onChange={(e) => handleChange('company_phone', e.target.value)} />
+      </Grid>
+      <Grid item xs={6} md={4}>
+        <TextField fullWidth label="Személyes email" type="email" value={formData.personal_email}
+          onChange={(e) => handleChange('personal_email', e.target.value)}
+          helperText="Lakói bejelentkezési meghíváshoz" />
+      </Grid>
+      <Grid item xs={6} md={4}>
+        <TextField fullWidth label="Személyes telefon" value={formData.personal_phone}
+          onChange={(e) => handleChange('personal_phone', e.target.value)} />
       </Grid>
 
       {/* 7. Egyéb */}

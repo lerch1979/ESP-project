@@ -155,7 +155,10 @@ function App() {
               <Route path="teendok/contexts" element={<PermissionGuard permission="dashboard.view"><TaskContexts /></PermissionGuard>} />
               <Route path="tickets" element={<PermissionGuard permission="tickets.view"><Tickets /></PermissionGuard>} />
               <Route path="tickets/:id" element={<PermissionGuard permission="tickets.view"><TicketDetail /></PermissionGuard>} />
-              <Route path="users" element={<PermissionGuard permission="users.view"><Users /></PermissionGuard>} />
+              {/* Legacy /users page RETIRED — one source of truth is /admin/users.
+                  The old page's edit form silently dropped the password (and other
+                  fields); redirect so nobody lands on it. */}
+              <Route path="users" element={<Navigate to="/admin/users" replace />} />
               <Route path="contractors" element={<PermissionGuard permission="employees.view"><Contractors /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="employees" element={<PermissionGuard permission="employees.view"><Employees /></PermissionGuard>} />
