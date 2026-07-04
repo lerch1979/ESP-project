@@ -6,6 +6,12 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-04 — GDPR #5 + money paths + Task 3 CRUD + shift field; doc sync
+
+Shipped reliability Phase-1 remainder (all deployed + tested): **#5 GDPR erasure** made complete/loud/receipted (`ed271d8b`, founded on the committed PII inventory `89f5376a`), **#6-7 money paths** (payment race `FOR UPDATE`, pool cap), the **Task 3 data-integrity** batch (live-path invoice `contractor_id`/`line_items`, employee personal contacts editable, accommodation status-override, retired legacy `/users`), and the **`shift_schedule`** field for the room-consolidation engine (mig 130). Verified **backup already covers uploads** (incl. `uploads/expenses/`) — the "not in backup cron" tech-debt was stale (offsite still separate/open). Set a known temp password for **Noncsi** (already an admin on …0001) — login verified 200. Then a **doc sync**: reconciled `PROJECT_STATE.md` with `git log --since 2026-07-02` (marked #5/#6-7 done, extended RECENT WORK through 07-04, corrected the header "latest migration 123"→130, closed the stale backup + "Tab 4 uncommitted" tech-debt items). No code changes in the sync.
+
+---
+
 ## SESSION 2026-07-03 — reliability PRs merged+deployed, ticket-creation hotfix, full admin black/gold overhaul
 
 Continuation of the 2026-07-02 reliability work, plus a staff-driven UI overhaul. Everything below is **live in prod** (app.housingsolutions.hu, manual `docker compose pull admin/backend`).
