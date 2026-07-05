@@ -34,6 +34,7 @@ const FAQ = lazy(() => import('./pages/FAQ'));
 const OccupancyReports = lazy(() => import('./pages/OccupancyReports'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const ScheduledReports = lazy(() => import('./pages/ScheduledReports'));
+const ConsolidationEngine = lazy(() => import('./pages/ConsolidationEngine'));
 const EmailTemplates = lazy(() => import('./pages/EmailTemplates'));
 const CostCenters = lazy(() => import('./pages/CostCenters'));
 const Invoices = lazy(() => import('./pages/Invoices'));
@@ -161,6 +162,7 @@ function App() {
               <Route path="users" element={<Navigate to="/admin/users" replace />} />
               <Route path="contractors" element={<PermissionGuard permission="employees.view"><Contractors /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
+              <Route path="accommodations/consolidation" element={<PermissionGuard permission="employees.edit"><ConsolidationEngine /></PermissionGuard>} />
               <Route path="employees" element={<PermissionGuard permission="employees.view"><Employees /></PermissionGuard>} />
               <Route path="expiry-monitor" element={<PermissionGuard permission="employees.view"><ExpiryMonitor /></PermissionGuard>} />
               <Route path="anonymization" element={<PermissionGuard permission="users.view"><GDPRAnonymization /></PermissionGuard>} />
