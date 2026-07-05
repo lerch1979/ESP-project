@@ -6,6 +6,25 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-05h — Deduction-execution mothballed (MAIN → prod deploy)
+
+Based on **main** (independent of the consolidation branch). **Decision (recorded in the decisions log):** legally we only PRODUCE the damage jegyzőkönyv; the client's payroll executes deductions. Our deduction-EXECUTION engine is **mothballed reversibly**, not demolished — behind a new feature flag `DEDUCTION_EXECUTION_ENABLED` (default OFF) in `src/config/deductionExecution.js`, with a documented re-enable path for a future EOR model.
+
+**Disabled when OFF (prod default):**
+- `POST /fines/payroll/run` (the LIVE manual trigger), `POST /compensations/:id/salary-deduction` (scheduleDeduction), `POST /fines/residents/:id/convert-to-deduction` → all return **403** with a clear Hungarian message (gated in the controllers, before any service/DB call).
+- The **daily auto-conversion** — `inspectionAutomation.runDaily()` → `fineSvc.runAutoConversions()` — which auto-created new salary_deductions for overdue damage compensations (this was **live**, not the dry-run cron): now skipped when the flag is off.
+- The **monthly payroll cron** (`server.js`, was DRY-RUN): now only scheduled when the flag is on (then runs LIVE); otherwise logs "💤 MOTHBALLED".
+
+**Kept fully working (not gated):** on-site/cash repayments (`recordOnSite`/`recordPayment`), `compensation_payments` for cash, payment-history reads (compensation/DebtCollection PDF), GDPR anonymization of existing `salary_deductions` rows, and the jegyzőkönyv PDF exactly as-is in all 5 locales including the `payment_plan` section. Existing `salary_deductions` rows are untouched history. The service engine (processMonthlyDeductions / convertToSalaryDeduction / scheduleSalaryDeduction / runAutoConversions) is left intact + callable so the EOR re-enable is env-only.
+
+**UI:** run-payroll button+dialog (SalaryDeductionsList → now read-only "előzmény") and the schedule/convert controls (CompensationDetail) hidden behind a mirrored client const `DEDUCTION_EXECUTION_ENABLED = false`. The read-only Bérlevonások history/tab, cash-payment recording, and payment_plan info entry stay.
+
+**Tests:** new no-DB mothball guard `tests/deductionExecutionMothball.test.js` (7/7 — 403 when off + engine not called, passes gate when on, cash never gated). Sandbox regression (DB_NAME=hr_erp_sandbox): fines 22, damageReportPdf + damageReport + damageReportAuthz + inspectionWorkflow.e2e 47, compensations green — all pass (deduction engine still works when called directly). Pre-existing unrelated failure: `inspections.test.js:78` (inspection-create status) fails identically on clean main (stash-verified) — not caused by this change. Admin `npm run build` clean.
+
+**Sandbox HTTP verification:** the 3 endpoints → 403 `deduction_execution_disabled` (HU message); cash on-site-payment → 404 "Lakó nem található" (NOT gated); `GET /fines/salary-deductions` → 200; startup log "💤 Monthly payroll cron MOTHBALLED". **Then deployed to prod (backend + admin) per HETZNER_DEPLOY.** Re-enable for EOR = set env `DEDUCTION_EXECUTION_ENABLED=true` + flip the two UI consts; no migration.
+
+---
+
 ## SESSION 2026-07-05c — Room Consolidation Suggestion Engine v1 (SANDBOX ONLY)
 
 Built the consolidation engine entirely against `hr_erp_sandbox` — no deploy, prod untouched (mig 132 applied to sandbox only). `consolidationEngine.service.js` proposes within-accommodation room moves to free whole rooms for active employees, honoring HARD constraints: no mixed-gender rooms, shift compatibility (configurable matrix — default: day/night never share, rotating own group, flexible ↔ anything), bed capacity, same-accommodation. Prioritization weights + the matrix live in `consolidation_config` (mig 132), read fresh each run (expiry-monitor pattern); defaults work. **Approval model:** the engine NEVER moves anyone — it writes one `agent_suggestions` row per move (reusing the mig-123 scaffold; run-level summary in the new `consolidation_runs`). Because consolidation moves are INTERDEPENDENT (freeing a room needs all its residents to move; a target is valid only once incompatible residents leave), apply is ATOMIC per site/run in a transaction with a final-state validation + rollback — not per-isolated-move. Approve applies `room_id` + logs `entity_status_history`; reject archives with reason. API under `/consolidation/*`; admin page `/accommodations/consolidation` (run, review per-site plans ranked by score, approve/reject). Proof: `tests/consolidationEngine.script.js` 24/24 — hard constraints hold on ALL suggestions (6 seeded conflicts in touched sites → 0 after), full reject→approve→verify flow, committed DB valid, idempotent re-apply refused. API smoke on the sandbox backend confirmed run→get→apply. NEXT: user reviews on the sandbox; deploy (apply mig 132 to prod) is a separate go decision. v1 scope note: consolidates only sites where it can free a room (pre-existing violations in un-consolidatable sites are out of scope — a future "compliance repair" mode); cross-accommodation moves are v2.

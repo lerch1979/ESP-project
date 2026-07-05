@@ -19,6 +19,13 @@ const STATUS_CHIP = {
 
 const fmtMoney = (n) => n == null ? '—' : `${Number(n).toLocaleString('hu-HU')} HUF`;
 
+// Deduction EXECUTION is mothballed (our process ends at the jegyzőkönyv; the
+// client's payroll runs deductions). This screen is READ-ONLY history. To
+// re-enable execution controls for a future EOR model, flip this to true AND set
+// the backend env DEDUCTION_EXECUTION_ENABLED=true. See backend
+// config/deductionExecution.js.
+const DEDUCTION_EXECUTION_ENABLED = false;
+
 export default function SalaryDeductionsList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -71,16 +78,18 @@ export default function SalaryDeductionsList() {
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>Bérlevonások</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>Bérlevonások (előzmény)</Typography>
             <Typography variant="body2" color="text.secondary">
-              Automatikusan konvertált kártérítések havi törlesztése
+              Korábban rögzített bérlevonások — csak megtekintés. A levonást az ügyfél bérszámfejtése végzi.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
-            <Button variant="contained" color="primary" startIcon={<RunIcon />}
-              onClick={() => setPayrollDialog({ ...payrollDialog, open: true })}>
-              Bérszámfejtés futtatása
-            </Button>
+            {DEDUCTION_EXECUTION_ENABLED && (
+              <Button variant="contained" color="primary" startIcon={<RunIcon />}
+                onClick={() => setPayrollDialog({ ...payrollDialog, open: true })}>
+                Bérszámfejtés futtatása
+              </Button>
+            )}
             <IconButton onClick={load} disabled={loading}><RefreshIcon /></IconButton>
           </Stack>
         </Stack>
@@ -157,7 +166,7 @@ export default function SalaryDeductionsList() {
         </TableContainer>
       </Paper>
 
-      <Dialog open={payrollDialog.open} onClose={() => !payrollDialog.running && setPayrollDialog({ ...payrollDialog, open: false })} maxWidth="xs" fullWidth>
+      <Dialog open={DEDUCTION_EXECUTION_ENABLED && payrollDialog.open} onClose={() => !payrollDialog.running && setPayrollDialog({ ...payrollDialog, open: false })} maxWidth="xs" fullWidth>
         <DialogTitle>Bérszámfejtés futtatása</DialogTitle>
         <DialogContent dividers>
           <Alert severity="info" sx={{ mb: 2 }}>

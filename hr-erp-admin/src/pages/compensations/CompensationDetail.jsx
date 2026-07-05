@@ -50,6 +50,13 @@ const fmtDate  = (d, withTime) => {
   return withTime ? dt.toLocaleString('hu-HU') : dt.toLocaleDateString('hu-HU');
 };
 
+// Deduction EXECUTION is mothballed — our process ends at the jegyzőkönyv; the
+// client's payroll runs deductions. Scheduling / converting to a salary deduction
+// is hidden. Existing deductions remain visible (read-only history), and on-site
+// cash payments + the payment_plan info stay. To re-enable for a future EOR model,
+// flip this to true AND set backend DEDUCTION_EXECUTION_ENABLED=true.
+const DEDUCTION_EXECUTION_ENABLED = false;
+
 export default function CompensationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -259,7 +266,7 @@ export default function CompensationDetail() {
   const canDispute       = ['issued','notified','partial_paid'].includes(data.status);
   const canResolve       = data.status === 'disputed';
   const canAllocate      = !['waived','paid','closed'].includes(data.status);
-  const canDeduct        = ['issued','notified','partial_paid','disputed','escalated'].includes(data.status);
+  const canDeduct        = DEDUCTION_EXECUTION_ENABLED && ['issued','notified','partial_paid','disputed','escalated'].includes(data.status);
 
   return (
     <Box>
@@ -491,7 +498,7 @@ export default function CompensationDetail() {
                                   Helyszíni
                                 </Button>
                               )}
-                              {payable && (
+                              {DEDUCTION_EXECUTION_ENABLED && payable && (
                                 <Button size="small" variant="outlined" color="warning" startIcon={<DeductionIcon />}
                                   onClick={() => convertResidentToDeduction(r)} disabled={busy}>
                                   Bérlevonás
@@ -712,8 +719,8 @@ export default function CompensationDetail() {
         </DialogActions>
       </Dialog>
 
-      {/* Salary deduction dialog */}
-      <Dialog open={deductDialog.open} onClose={() => setDeductDialog(d => ({ ...d, open: false }))} maxWidth="sm" fullWidth>
+      {/* Salary deduction dialog (mothballed — only rendered when execution is re-enabled) */}
+      <Dialog open={DEDUCTION_EXECUTION_ENABLED && deductDialog.open} onClose={() => setDeductDialog(d => ({ ...d, open: false }))} maxWidth="sm" fullWidth>
         <DialogTitle>Bérlevonás ütemezése</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 1 }}>

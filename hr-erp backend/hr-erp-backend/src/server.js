@@ -592,28 +592,30 @@ async function startServer() {
     });
     logger.info('🛏️  Daily occupancy snapshot cron scheduled (00:30, captures yesterday)');
 
-    // Monthly payroll deductions — 01:00 on the 1st of every month.
-    // Idempotent: processMonthlyDeductions skips periods already recorded
-    // (compensation_payments uniq on resident_id + payroll_period), so
-    // re-runs are safe. targetMonth must be YYYY-MM string (service throws
-    // otherwise). DRY-RUN mode for first deploy — uncomment the actual
-    // call after verifying the logged target month is correct.
-    cron.schedule('0 1 1 * *', async () => {
-      const now = new Date();
-      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const targetMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
-      logger.info(`[cron:monthlyPayroll] DRY-RUN — would process targetMonth=${targetMonth}`);
-      // To enable real processing, uncomment the block below:
-      // try {
-      //   const fineService = require('./services/fine.service');
-      //   const result = await fineService.processMonthlyDeductions(targetMonth);
-      //   logger.info(`[cron:monthlyPayroll] ${targetMonth} processed=${result.processed} skipped=${result.skipped}`);
-      // } catch (err) {
-      //   logger.error('[cron:monthlyPayroll] failed:', err.message);
-      //   sentry.captureException(err, { targetMonth });
-      // }
-    });
-    logger.info('💰 Monthly payroll cron scheduled (1st of month 01:00, DRY-RUN)');
+    // Monthly payroll deductions — MOTHBALLED. Deduction execution is off (our
+    // process ends at the jegyzőkönyv; the client's payroll runs deductions).
+    // The cron is NOT scheduled unless DEDUCTION_EXECUTION_ENABLED=true (future
+    // EOR model), in which case it processes LIVE. See config/deductionExecution.js.
+    // Idempotent when live: processMonthlyDeductions skips periods already
+    // recorded (compensation_payments uniq on resident_id + payroll_period).
+    if (require('./config/deductionExecution').isDeductionExecutionEnabled()) {
+      cron.schedule('0 1 1 * *', async () => {
+        const now = new Date();
+        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const targetMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+        try {
+          const fineService = require('./services/fine.service');
+          const result = await fineService.processMonthlyDeductions(targetMonth);
+          logger.info(`[cron:monthlyPayroll] ${targetMonth} processed=${result.processed} skipped=${result.skipped}`);
+        } catch (err) {
+          logger.error('[cron:monthlyPayroll] failed:', err.message);
+          sentry.captureException(err, { targetMonth });
+        }
+      });
+      logger.info('💰 Monthly payroll cron scheduled LIVE (DEDUCTION_EXECUTION_ENABLED=true, 1st of month 01:00)');
+    } else {
+      logger.info('💤 Monthly payroll cron MOTHBALLED (deduction execution disabled; set DEDUCTION_EXECUTION_ENABLED=true to re-enable for EOR)');
+    }
 
     // Monthly billing — 03:00 on the 1st of every month. Calculates the
     // previous month's incoming billing from occupancy_snapshots. The

@@ -14,6 +14,7 @@ const { logger } = require('../utils/logger');
 const compensationSvc = require('./compensation.service');
 const fineSvc = require('./fine.service');
 const notificationSvc = require('./inspectionNotification.service');
+const { isDeductionExecutionEnabled } = require('../config/deductionExecution');
 
 const FREQ_INTERVAL = {
   weekly: "7 days",
@@ -126,12 +127,17 @@ async function runDaily() {
     }
 
     // Auto-convert overdue damage compensations to salary_deduction and mark
-    // expired deductions completed (refined Part C).
-    let conversions = { converted: 0, completed: 0, skipped: 0, errors: 0 };
-    try {
-      conversions = await fineSvc.runAutoConversions();
-    } catch (err) {
-      logger.error('[inspectionAutomation] fine auto-conversions failed:', err.message);
+    // expired deductions completed (refined Part C). MOTHBALLED by default —
+    // deduction execution is off (the client's payroll handles deductions); this
+    // is the daily auto-writer of new deduction schedules, so it's skipped unless
+    // DEDUCTION_EXECUTION_ENABLED=true (future EOR model). See config/deductionExecution.js.
+    let conversions = { converted: 0, completed: 0, skipped: 0, errors: 0, mothballed: true };
+    if (isDeductionExecutionEnabled()) {
+      try {
+        conversions = await fineSvc.runAutoConversions();
+      } catch (err) {
+        logger.error('[inspectionAutomation] fine auto-conversions failed:', err.message);
+      }
     }
 
     // Retry previously-failed inspection completion emails.

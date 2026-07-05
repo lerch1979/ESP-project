@@ -4,6 +4,7 @@
 const svc = require('../services/compensation.service');
 const pdfSvc = require('../services/inspectionPDF.service');
 const { logger } = require('../utils/logger');
+const { isDeductionExecutionEnabled, DEDUCTION_DISABLED_MESSAGE } = require('../config/deductionExecution');
 
 const list = async (req, res) => {
   try {
@@ -178,6 +179,10 @@ const resolveDispute = async (req, res) => {
 };
 
 const scheduleDeduction = async (req, res) => {
+  // Deduction execution is mothballed — no new salary-deduction schedules.
+  if (!isDeductionExecutionEnabled()) {
+    return res.status(403).json({ success: false, error: 'deduction_execution_disabled', message: DEDUCTION_DISABLED_MESSAGE });
+  }
   try {
     const row = await svc.scheduleSalaryDeduction(req.params.id, req.body, { userId: req.user?.id });
     res.status(201).json({ success: true, data: row });

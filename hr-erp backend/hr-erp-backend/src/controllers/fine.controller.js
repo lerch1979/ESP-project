@@ -5,6 +5,7 @@
  */
 const svc = require('../services/fine.service');
 const { logger } = require('../utils/logger');
+const { isDeductionExecutionEnabled, DEDUCTION_DISABLED_MESSAGE } = require('../config/deductionExecution');
 
 // ─── fine_types catalog ─────────────────────────────────────────────
 
@@ -138,6 +139,10 @@ const recordPayment = async (req, res) => {
 };
 
 const convertToDeduction = async (req, res) => {
+  // Deduction execution is mothballed — creating a new deduction schedule is blocked.
+  if (!isDeductionExecutionEnabled()) {
+    return res.status(403).json({ success: false, error: 'deduction_execution_disabled', message: DEDUCTION_DISABLED_MESSAGE });
+  }
   try {
     const result = await svc.convertToSalaryDeduction(req.params.residentId, {
       months: req.body.months,
@@ -185,6 +190,10 @@ const listDeductions = async (req, res) => {
 // ─── Payroll-side operations ────────────────────────────────────────
 
 const runPayroll = async (req, res) => {
+  // Deduction execution is mothballed — the manual payroll trigger is blocked.
+  if (!isDeductionExecutionEnabled()) {
+    return res.status(403).json({ success: false, error: 'deduction_execution_disabled', message: DEDUCTION_DISABLED_MESSAGE });
+  }
   try {
     const month = req.body.month || req.query.month;
     if (!/^\d{4}-\d{2}$/.test(month || '')) {
