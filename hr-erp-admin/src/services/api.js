@@ -292,6 +292,12 @@ export const anonymizationAPI = {
 };
 
 // Expiry monitor (visa / contract / document) — admin-gated.
+export const hygieneFineAPI = {
+  getConfig: async () => (await api.get('/hygiene-fine/config')).data,
+  updateConfig: async (body) => (await api.put('/hygiene-fine/config', body)).data,
+  run: async () => (await api.post('/hygiene-fine/run')).data,
+};
+
 export const expiryMonitorAPI = {
   getConfig: async () => (await api.get('/expiry-monitor/config')).data,
   updateConfig: async (body) => (await api.put('/expiry-monitor/config', body)).data,

@@ -13,6 +13,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const compensationSvc = require('./compensation.service');
 const fineSvc = require('./fine.service');
+const hygieneFineSvc = require('./hygieneFine.service');
 const notificationSvc = require('./inspectionNotification.service');
 const { isDeductionExecutionEnabled } = require('../config/deductionExecution');
 
@@ -140,6 +141,17 @@ async function runDaily() {
       }
     }
 
+    // Room-hygiene house-rule fine (házirend) — OUR process, gated by its OWN
+    // config toggle (hygiene_fine_config.enabled, default off), INDEPENDENT of the
+    // mothballed deduction executor. Creates fines only (no compensation_payments,
+    // no deduction). See services/hygieneFine.service.js.
+    let hygieneFines = { skipped: true, reason: 'disabled' };
+    try {
+      hygieneFines = await hygieneFineSvc.runHygieneFines();
+    } catch (err) {
+      logger.error('[inspectionAutomation] hygiene fines failed:', err.message);
+    }
+
     // Retry previously-failed inspection completion emails.
     let emailRetries = { retried: 0, sent: 0, failed: 0 };
     try {
@@ -153,9 +165,10 @@ async function runDaily() {
       `created=${created.length}, overdue=${overdue}, trends_refreshed=${trendsOk}, ` +
       `escalations=${JSON.stringify(escalations)}, ` +
       `conversions=${JSON.stringify(conversions)}, ` +
+      `hygiene_fines=${JSON.stringify(hygieneFines)}, ` +
       `email_retries=${JSON.stringify(emailRetries)}`
     );
-    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations, conversions, emailRetries };
+    return { created, overdueCount: overdue, trendsRefreshed: trendsOk, escalations, conversions, hygieneFines, emailRetries };
   } catch (err) {
     logger.error('[inspectionAutomation] daily run error:', err);
     throw err;

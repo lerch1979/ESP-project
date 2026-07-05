@@ -6,6 +6,22 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-05i — Room-hygiene house-rule fine, independent toggle (MAIN → prod, default OFF)
+
+Refinement of the deduction-mothball decision. **Key discovery:** the "2 consecutive failing hygiene inspections → 10,000 Ft fine" rule the task assumed existed **did NOT exist** — exhaustive search found only the fine *types* (`HOUSE_RULES`/`CLEANING_NEGLECT`, both 10,000 Ft) + a **manual** `POST /fines` flow; `runAutoConversions` (which the deduction flag gates) is deduction-conversion, not hygiene fines. So the deduction flag was NOT gating any hygiene path. Confirmed with the user, then **built it net-new**.
+
+**Built (mig 136 + `hygieneFine.service.js`):** `hygiene_fine_config` singleton (enabled / consecutive_fails=2 / fail_hygiene_max=15 / fine_amount=10000 / fine_type_code=HOUSE_RULES; admin-editable, read fresh; **default OFF**). The scan finds rooms whose latest N COMPLETED inspections all have `hygiene_score ≤ fail_hygiene_max`, and creates ONE fine per room via the existing `createFine` (idempotent, keyed to latest inspection+room; residents from `room_inspections.residents_snapshot`, else current room employees). Wired into `inspectionAutomation.runDaily` gated by **its own** `hygiene_fine_config.enabled` — **independent** of `DEDUCTION_EXECUTION_ENABLED`. Creates the debt record + the existing in-app resident notification only — **NO `compensation_payments`, NO salary_deduction**; payable via the existing cash path or forwarded (payment-plan-as-info). `createFine` gained an optional `amountOverride`. New endpoints `GET/PUT /hygiene-fine/config` + `POST /hygiene-fine/run` (settings.edit). Admin page under Ingatlan Ellenőrzés → "Házirend-bírság" (toggle + amount + consecutive-count + threshold + Futtatás most).
+
+**Verified params (as requested):** threshold-count = `consecutive_fails` (default 2), amount = `fine_amount` (default 10,000/resident), "failed" = a room_inspection with `hygiene_score ≤ fail_hygiene_max` (default 15) — all configurable next to the toggle.
+
+**Tests (`tests/hygieneFine.script.js`, 14/14, idempotent/self-cleaning):** toggle OFF → 0 fines; ON → exactly one HOUSE_RULES fine (10,000 × residents) on the latest inspection; ZERO `compensation_payments` + ZERO `salary_deductions`; re-run creates 0 (idempotent); cash on-site payment works (writes cash `compensation_payments`, no deduction); a single failing inspection → no fine. No regressions (deduction mothball guard 7/7, fines/damage suites green). Admin `npm run build` clean (new page bundled).
+
+**Sandbox HTTP demo:** seeded 2 consecutive failing inspections (hygiene 8 ≤ 15) for a 6-resident room → `POST /hygiene-fine/run` → fine **`BIR-2026-0003`, HOUSE_RULES, 60,000 Ft, issued**; idempotent re-run created 0. (Local admin *browser* demo was blocked by a pre-existing **main-only** blank-page bug — the `public/locales` Vite dev-import 503, fixed only on the unmerged consolidation branch; dev-server only, prod build + prod unaffected. Feature verified via tests + HTTP + prod build.)
+
+**Deploy:** merged to main, CI green, **mig 136 applied to prod via psql**, backend+admin pulled + recreated. Toggle **default OFF** → no prod behavior change until an admin enables it.
+
+---
+
 ## SESSION 2026-07-05h — Deduction-execution mothballed (MAIN → prod deploy)
 
 Based on **main** (independent of the consolidation branch). **Decision (recorded in the decisions log):** legally we only PRODUCE the damage jegyzőkönyv; the client's payroll executes deductions. Our deduction-EXECUTION engine is **mothballed reversibly**, not demolished — behind a new feature flag `DEDUCTION_EXECUTION_ENABLED` (default OFF) in `src/config/deductionExecution.js`, with a documented re-enable path for a future EOR model.

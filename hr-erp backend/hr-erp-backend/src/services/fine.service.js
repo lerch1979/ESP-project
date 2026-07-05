@@ -116,7 +116,7 @@ function canonicalMethod(method) {
  * @param fineTypeId
  * @param residents             [{ resident_id?, name, email?, phone? }]
  */
-async function createFine(inspectionId, fineTypeId, residents, { userId, roomInspectionId, notes } = {}) {
+async function createFine(inspectionId, fineTypeId, residents, { userId, roomInspectionId, notes, amountOverride } = {}) {
   if (!fineTypeId) throw new Error('fineTypeId is required');
   if (!Array.isArray(residents) || residents.length === 0) throw new Error('at least one resident is required');
   for (const r of residents) {
@@ -126,7 +126,9 @@ async function createFine(inspectionId, fineTypeId, residents, { userId, roomIns
   const ft = await query(`SELECT * FROM fine_types WHERE id = $1 AND is_active = true`, [fineTypeId]);
   if (ft.rows.length === 0) throw new Error('FINE_TYPE_NOT_FOUND');
   const fineType = ft.rows[0];
-  const perPerson = Number(fineType.amount_per_person);
+  // amountOverride lets the automatic house-rule fine use its configured amount
+  // instead of the fine type's default; the manual flow passes nothing → unchanged.
+  const perPerson = amountOverride != null ? Number(amountOverride) : Number(fineType.amount_per_person);
   const total = perPerson * residents.length;
   const today = isoDate();
 

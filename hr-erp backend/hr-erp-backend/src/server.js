@@ -81,6 +81,7 @@ const roomsRoutes = require('./routes/rooms.routes');
 const compensationRoutes = require('./routes/compensation.routes');
 const fineRoutes = require('./routes/fine.routes');
 const fineTypeRoutes = require('./routes/fineType.routes');
+const hygieneFineRoutes = require('./routes/hygieneFine.routes');
 const workplaceRoutes = require('./routes/workplace.routes');
 const adminRoutes = require('./routes/admin.routes');
 const aiAssistantRoutes = require('./routes/aiAssistant.routes');
@@ -434,6 +435,7 @@ app.use(`${API_PREFIX}/workplaces`, workplaceRoutes);
 app.use(`${API_PREFIX}/admin`, adminRoutes);
 app.use(`${API_PREFIX}/ai-assistant`, aiAssistantRoutes);
 app.use(`${API_PREFIX}/fines`, fineRoutes);
+app.use(`${API_PREFIX}/hygiene-fine`, hygieneFineRoutes);
 app.use(`${API_PREFIX}/inspection-exports`, inspectionExportRoutes);
 // Top-level /translate alias — matches the documented contract { text, fromLang, toLang }
 const { authenticateToken } = require('./middleware/auth');
