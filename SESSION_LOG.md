@@ -6,6 +6,12 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-05 — synthetic sandbox for building the consolidation engine
+
+Built a safe local sandbox (`docs/SANDBOX.md`) so new features can be developed against fully synthetic data with prod untouched. `hr_erp_sandbox` DB migrates cleanly from scratch (120 migrations — a fresh DB sidesteps the dev 093 block). Idempotent, guarded seed (`src/database/seed_sandbox.js` — refuses non-sandbox DBs) generates 1 contractor, 15 accommodations / 95 rooms / 328 beds (varied utilization incl. under-used + nearly-full sites), 300 synthetic employees (gender/workplace/shift, 70% room-assigned, 30% unassigned, + mixed-gender and day/night edge-case rooms for the engine's constraints), tickets + expenses, and 4 logins (`superadmin@`/`admin@`/`resident1@`/`resident2@ sandbox.local`, pw `sandbox123`). One-command `npm run sandbox:reset` (drop+migrate+seed) + `npm run dev:sandbox`. Verified: backend runs on the sandbox, admin login works, Employees + Accommodations endpoints return the synthetic data. Nothing deployed; prod never contacted. (Caught 3 seed bugs during the build: wrong `accommodation_contractors` column, `billing_month` char(7) format, and a `null`-category ticket tripping the `alert_critical_ticket` wellbeing trigger.)
+
+---
+
 ## SESSION 2026-07-04b — room-assignment Excel round-trip (consolidation-engine data entry)
 
 Made the room-consolidation input data fillable via Excel (`7939d954`): verified the existing housing-units bulk already upserts rooms+beds; built `GET /employees/room-template` (pre-filled export of all 288 employees) + `POST /employees/room-assignments` (identity-matched update — never duplicates — with room-belongs-to-accommodation + bed-capacity validation, plus shift column) + Employees-page buttons "Szoba-sablon"/"Szoba-kiosztás". Round-trip regression 11/11; live smoke: template returns a valid 288-row xlsx on prod. Consolidation engine now blocked only on the user entering room+shift data, not code. Deployed backend+admin.
