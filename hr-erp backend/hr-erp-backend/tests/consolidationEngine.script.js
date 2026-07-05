@@ -177,70 +177,146 @@ function plan({ accommodations, rooms, employees, lastMoved = {}, workplaces = {
     const lockedMoves = suggestions.filter((s) => s.payload.from_accommodation_id === lockedId || s.payload.to_accommodation_id === lockedId);
     check('locked "Szálló 03" received ZERO move suggestions', lockedMoves.length === 0);
 
-    // ── reject one suggestion (before applying) ──
-    const rj = suggestions[0];
-    const rres = await engine.rejectSuggestion(rj.id, null, 'nem szükséges');
+    // ══════════════ v3 LIFECYCLE: approve → confirm | cancel ══════════════
+    // Approval creates a MOVE TICKET and changes NO room assignments; rooms change
+    // only when the physical move is CONFIRMED done. Reviewer/assignee/contractor:
+    const admin = (await q(`SELECT id, contractor_id FROM users WHERE email='admin@sandbox.local' LIMIT 1`)).rows[0];
+    const approveOpts = { assigneeUserId: admin.id, reviewedBy: admin.id, contractorId: admin.contractor_id };
+
+    // pick distinct plans for the lifecycle tests. P (partial) must free ≥1 room and
+    // have ≥2 moves so a SAFE skip exists — a mover out of a to-be-emptied room, whom
+    // leaving in place cannot overflow a destination (interdependent within-plans have
+    // no safe single skip, and the engine correctly rejects those as invalid).
+    const movesOf = (k) => suggestions.filter((s) => s.payload.plan_key === k);
+    const pSum = (run.summary.by_plan || [])
+      .filter((pp) => pp.freed_rooms >= 1 && pp.moves >= 2)
+      .sort((a, b) => b.freed_rooms - a.freed_rooms)[0];
+    const P = pSum ? { k: pSum.plan_key, moves: movesOf(pSum.plan_key) } : null;
+    const otherKeys = [...new Set(suggestions.map((s) => s.payload.plan_key))].filter((k) => !P || k !== P.k);
+    const M = { k: otherKeys[0], moves: movesOf(otherKeys[0]) };
+    const C = { k: otherKeys[1], moves: movesOf(otherKeys[1]) };
+    const R = { k: otherKeys[2], moves: movesOf(otherKeys[2]) };
+    check('run produced a room-freeing ≥2-move plan + ≥3 others (for the lifecycle tests)', !!P && otherKeys.length >= 3);
+
+    // ── reject one PENDING suggestion of plan R (before any approval) ──
+    const rjSug = R.moves[0];
+    const rres = await engine.rejectSuggestion(rjSug.id, admin.id, 'nem szükséges');
     check('reject returned ok', rres.ok === true);
-    const rst = (await q(`SELECT status, payload->>'reject_reason' AS reason FROM agent_suggestions WHERE id=$1`, [rj.id])).rows[0];
+    const rst = (await q(`SELECT status, payload->>'reject_reason' AS reason FROM agent_suggestions WHERE id=$1`, [rjSug.id])).rows[0];
     check('rejected + reason archived', rst.status === 'rejected' && rst.reason === 'nem szükséges');
 
-    // ── FULL FLOW: approve (atomic apply) a whole PLAN other than the rejected one ──
-    const targetPlan = suggestions.find((s) => s.payload.plan_key !== rj.payload.plan_key)?.payload.plan_key;
-    const planMoves = suggestions.filter((s) => s.payload.plan_key === targetPlan);
-    const sampleEmp = planMoves[0].entity_id;
-    const before = (await q(`SELECT room_id, accommodation_id FROM employees WHERE id=$1`, [sampleEmp])).rows[0];
-    const appr = await engine.applyGroup(run.run_id, targetPlan, null);
-    check('applyGroup (approve plan) returned ok', appr.ok === true);
-    check('applyGroup applied all that plan\'s pending moves', appr.applied === planMoves.length);
-    const after = (await q(`SELECT room_id, accommodation_id FROM employees WHERE id=$1`, [sampleEmp])).rows[0];
-    check('room_id change APPLIED', after.room_id === planMoves[0].payload.to_room_id && after.room_id !== before.room_id);
-    const sampleCross = planMoves.find((s) => s.payload.is_cross);
-    if (sampleCross) {
-      const acc = (await q(`SELECT accommodation_id FROM employees WHERE id=$1`, [sampleCross.entity_id])).rows[0].accommodation_id;
-      check('cross-move APPLIED accommodation_id change', acc === sampleCross.payload.to_accommodation_id);
-      const accHist = (await q(
-        `SELECT * FROM entity_status_history WHERE entity_id=$1 AND source='consolidation' AND metadata->>'kind'='accommodation' ORDER BY changed_at DESC LIMIT 1`,
-        [sampleCross.entity_id])).rows[0];
-      check('cross-move logged an ACCOMMODATION change in entity_status_history', !!accHist && accHist.to_status === sampleCross.payload.to_accommodation_id);
-    } else {
-      check('cross-move APPLIED accommodation_id change (n/a — plan had no cross-move)', true);
-      check('cross-move logged an ACCOMMODATION change (n/a — plan had no cross-move)', true);
-    }
-    const st = (await q(`SELECT status, applied_at FROM agent_suggestions WHERE id=$1`, [planMoves[0].id])).rows[0];
-    check('suggestions marked applied', st.status === 'applied' && !!st.applied_at);
-    const roomHist = (await q(
-      `SELECT * FROM entity_status_history WHERE entity_id=$1 AND source='consolidation' AND metadata->>'kind'='room' ORDER BY changed_at DESC LIMIT 1`,
-      [sampleEmp])).rows[0];
-    check('room move logged in entity_status_history', !!roomHist && roomHist.to_status === planMoves[0].payload.to_room_id);
+    // ── APPROVE plan M → creates a move ticket, ZERO room changes ──
+    const mMoves = M.moves;
+    const mEmp = mMoves[0].entity_id;
+    const mEmpFromRoom = mMoves[0].payload.from_room_id;
+    const roomsBeforeM = (await q(`SELECT id, room_id FROM employees WHERE id = ANY($1)`, [mMoves.map((s) => s.entity_id)])).rows;
+    const histBefore = (await q(`SELECT COUNT(*)::int c FROM entity_status_history WHERE entity_id=$1 AND source='consolidation'`, [mEmp])).rows[0].c;
+    const ap = await engine.approvePlan(run.run_id, M.k, { ...approveOpts, dueDate: '2026-07-20' });
+    check('approvePlan returned ok + ticket', ap.ok === true && !!ap.ticket_id && !!ap.ticket_number);
+    const tk = (await q(
+      `SELECT t.assigned_to, t.due_date, tc.slug AS cat, ts.slug AS st
+         FROM tickets t JOIN ticket_categories tc ON tc.id=t.category_id JOIN ticket_statuses ts ON ts.id=t.status_id
+        WHERE t.id=$1`, [ap.ticket_id])).rows[0];
+    check('move ticket: category "moving", assignee set, due set, status "new"',
+      tk.cat === 'moving' && tk.assigned_to === admin.id && !!tk.due_date && tk.st === 'new');
+    const mApproved = (await q(`SELECT COUNT(*)::int c FROM agent_suggestions WHERE payload->>'plan_key'=$1 AND status='approved'`, [M.k])).rows[0].c;
+    check('approve set the plan\'s suggestions to "approved"', mApproved === mMoves.length);
+    const roomsAfterApprove = (await q(`SELECT id, room_id FROM employees WHERE id = ANY($1)`, [mMoves.map((s) => s.entity_id)])).rows;
+    const bMap = new Map(roomsBeforeM.map((r) => [r.id, r.room_id]));
+    check('APPROVAL made ZERO room changes', roomsAfterApprove.every((r) => r.room_id === bMap.get(r.id)));
+    const planRowM = (await q(`SELECT * FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [run.run_id, M.k])).rows[0];
+    check('consolidation_plans row: approved_pending_move + move_count', planRowM.status === 'approved_pending_move' && planRowM.move_count === mMoves.length);
+    const histAfterApprove = (await q(`SELECT COUNT(*)::int c FROM entity_status_history WHERE entity_id=$1 AND source='consolidation'`, [mEmp])).rows[0].c;
+    check('approval does NOT start the stability clock (no history written yet)', histAfterApprove === histBefore);
 
-    // ── committed DB: every room the applied plan COMPOSED is valid ──
-    const planToRooms = [...new Set(planMoves.map((s) => s.payload.to_room_id))];
-    const post = (await q(
-      `SELECT e.room_id, e.gender, e.shift_schedule AS shift, e.workplace, e.accommodation_id, r.beds
-         FROM employees e JOIN accommodation_rooms r ON r.id=e.room_id
-        WHERE e.room_id=ANY($1) AND e.end_date IS NULL`, [planToRooms])).rows;
-    const postByRoom = new Map();
-    for (const e of post) { if (!postByRoom.has(e.room_id)) postByRoom.set(e.room_id, []); postByRoom.get(e.room_id).push(e); }
-    let postBad = 0;
-    for (const [, mem] of postByRoom) if (mem.length > mem[0].beds || !engine.groupValid(mem, MATRIX)) postBad++;
-    check('committed DB: every room the applied plan composed is valid', postBad === 0);
+    // ── CONFIRM with a stale plan → conflict surfaced, nothing applied ──
+    await q(`UPDATE employees SET room_id=NULL WHERE id=$1`, [mEmp]); // simulate "the dolgozó left / lost their room"
+    const confConflict = await engine.confirmMove(run.run_id, M.k, { decisions: [], reviewedBy: admin.id });
+    check('confirm re-validates → surfaces CONFLICT (does not fail silently)',
+      confConflict.ok === false && confConflict.error === 'conflict' && confConflict.conflicts.some((c) => c.employee_id === mEmp));
+    const stillApproved = (await q(`SELECT COUNT(*)::int c FROM agent_suggestions WHERE payload->>'plan_key'=$1 AND status='approved'`, [M.k])).rows[0].c;
+    check('conflict left EVERYTHING unapplied', stillApproved === mMoves.length);
+    await q(`UPDATE employees SET room_id=$2 WHERE id=$1`, [mEmp, mEmpFromRoom]); // restore
 
-    // ── re-applying the same plan is refused (nothing pending) ──
-    const again = await engine.applyGroup(run.run_id, targetPlan, null);
-    check('re-apply refused (nothing pending)', again.ok === false);
+    // ── CONFIRM all-done → moves applied NOW, ticket closed, stability starts ──
+    const confM = await engine.confirmMove(run.run_id, M.k, { decisions: [], reviewedBy: admin.id });
+    check('confirm(all done) ok', confM.ok === true && confM.applied === mMoves.length && confM.skipped === 0 && confM.status === 'moved');
+    const mEmpAfter = (await q(`SELECT room_id FROM employees WHERE id=$1`, [mEmp])).rows[0].room_id;
+    check('CONFIRM applied the room change (not before)', mEmpAfter === mMoves[0].payload.to_room_id);
+    const mAllApplied = (await q(`SELECT COUNT(*)::int c FROM agent_suggestions WHERE payload->>'plan_key'=$1 AND status='applied'`, [M.k])).rows[0].c;
+    check('all plan-M suggestions are "applied"', mAllApplied === mMoves.length);
+    const planRowM2 = (await q(`SELECT status, applied_count, confirmed_at FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [run.run_id, M.k])).rows[0];
+    check('plan status → "moved" + confirmed_at set', planRowM2.status === 'moved' && planRowM2.applied_count === mMoves.length && !!planRowM2.confirmed_at);
+    const mTicketSt = (await q(`SELECT ts.slug FROM tickets t JOIN ticket_statuses ts ON ts.id=t.status_id WHERE t.id=$1`, [ap.ticket_id])).rows[0].slug;
+    check('move ticket closed as "completed"', mTicketSt === 'completed');
+    const histAfterConfirm = (await q(`SELECT COUNT(*)::int c FROM entity_status_history WHERE entity_id=$1 AND source='consolidation' AND metadata->>'kind'='room'`, [mEmp])).rows[0].c;
+    check('CONFIRM starts the stability clock (room history written now)', histAfterConfirm >= 1);
+    // committed DB: every room plan M composed is valid
+    const mToRooms = [...new Set(mMoves.map((s) => s.payload.to_room_id))];
+    const postM = (await q(`SELECT e.room_id, e.gender, e.shift_schedule AS shift, r.beds FROM employees e JOIN accommodation_rooms r ON r.id=e.room_id WHERE e.room_id=ANY($1) AND e.end_date IS NULL`, [mToRooms])).rows;
+    const postMByRoom = new Map();
+    for (const e of postM) { if (!postMByRoom.has(e.room_id)) postMByRoom.set(e.room_id, []); postMByRoom.get(e.room_id).push(e); }
+    let postMBad = 0; for (const [, mem] of postMByRoom) if (mem.length > mem[0].beds || !engine.groupValid(mem, MATRIX)) postMBad++;
+    check('committed DB: every room plan M composed is valid', postMBad === 0);
 
-    // ── STABILITY end-to-end: the just-moved employees are frozen on the next run ──
-    const movedIds = new Set(planMoves.map((s) => s.entity_id));
+    // ── PARTIAL: approve plan P, confirm with ONE move unchecked ──
+    const pMoves = P.moves;
+    // safe skip: a mover OUT of a room nobody moves INTO (a to-be-freed room) — leaving
+    // them there cannot overflow a destination. Such a move exists because P frees a room.
+    const pToRooms = new Set(pMoves.map((s) => s.payload.to_room_id));
+    const skip = pMoves.find((s) => !pToRooms.has(s.payload.from_room_id));
+    check('partial test: a safely-skippable move exists (out of a to-be-freed room)', !!skip);
+    const keep = pMoves.find((s) => s.id !== skip.id);
+    const skipFromRoom = skip.payload.from_room_id;
+    const apP = await engine.approvePlan(run.run_id, P.k, { ...approveOpts, dueDate: '2026-07-21' });
+    check('approvePlan (P) ok', apP.ok === true);
+    const confP = await engine.confirmMove(run.run_id, P.k, { decisions: [{ suggestion_id: skip.id, done: false, reason: 'a dolgozó szabadságon' }], reviewedBy: admin.id });
+    check('partial confirm ok → partially_moved', confP.ok === true && confP.applied === pMoves.length - 1 && confP.skipped === 1 && confP.status === 'partially_moved');
+    const skRow = (await q(`SELECT status, payload->>'skip_reason' AS r FROM agent_suggestions WHERE id=$1`, [skip.id])).rows[0];
+    check('skipped move: status "skipped" + reason logged', skRow.status === 'skipped' && skRow.r === 'a dolgozó szabadságon');
+    const skEmpRoom = (await q(`SELECT room_id FROM employees WHERE id=$1`, [skip.entity_id])).rows[0].room_id;
+    check('skipped move applied NO room change', skEmpRoom === skipFromRoom);
+    const keepEmpRoom = (await q(`SELECT room_id FROM employees WHERE id=$1`, [keep.entity_id])).rows[0].room_id;
+    check('a checked move in the same plan WAS applied', keepEmpRoom === keep.payload.to_room_id);
+    const planRowP = (await q(`SELECT status, skipped_count FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [run.run_id, P.k])).rows[0];
+    check('plan P status → "partially_moved" (skipped_count=1)', planRowP.status === 'partially_moved' && planRowP.skipped_count === 1);
+
+    // ── CANCEL: approve plan C, cancel it → ticket closed, ZERO changes ──
+    const cMoves = C.moves;
+    const cEmp = cMoves[0].entity_id;
+    const cFromRoom = cMoves[0].payload.from_room_id;
+    const apC = await engine.approvePlan(run.run_id, C.k, approveOpts);
+    check('approvePlan (C) ok', apC.ok === true);
+    const canC = await engine.cancelPlan(run.run_id, C.k, admin.id);
+    check('cancelPlan ok', canC.ok === true);
+    const cSug = (await q(`SELECT COUNT(*)::int c FROM agent_suggestions WHERE payload->>'plan_key'=$1 AND status='cancelled'`, [C.k])).rows[0].c;
+    check('cancel set suggestions → "cancelled"', cSug === cMoves.length);
+    const cEmpRoom = (await q(`SELECT room_id FROM employees WHERE id=$1`, [cEmp])).rows[0].room_id;
+    check('CANCEL applied NO room change', cEmpRoom === cFromRoom);
+    const cTicketSt = (await q(`SELECT ts.slug FROM tickets t JOIN ticket_statuses ts ON ts.id=t.status_id WHERE t.id=$1`, [apC.ticket_id])).rows[0].slug;
+    check('cancelled plan\'s ticket closed as "closed_unsuccessful"', cTicketSt === 'closed_unsuccessful');
+    const planRowC = (await q(`SELECT status FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [run.run_id, C.k])).rows[0];
+    check('plan C status → "cancelled"', planRowC.status === 'cancelled');
+
+    // ── re-confirming an already-moved plan is refused ──
+    const reConf = await engine.confirmMove(run.run_id, M.k, { decisions: [], reviewedBy: admin.id });
+    check('re-confirm refused (plan not pending-move)', reConf.ok === false);
+
+    // ── STABILITY end-to-end: the just-MOVED (confirmed) employees are frozen next run ──
+    const movedIds = new Set(mMoves.map((s) => s.entity_id));
     const run2 = await engine.generateRun(null);
     const sugg2 = await engine.getSuggestions(run2.run_id);
-    const reSuggested = sugg2.filter((s) => movedIds.has(s.entity_id) && s.payload.run_id === run2.run_id);
-    check('stability (e2e): none of the just-moved employees are re-suggested within 60 days', reSuggested.length === 0);
+    const reSuggested = sugg2.filter((s) => movedIds.has(s.entity_id));
+    check('stability (e2e): confirmed-moved employees not re-suggested within 60 days', reSuggested.length === 0);
   } finally {
     // Restore the sandbox to its pre-test state (idempotent + non-destructive).
     for (const e of snapshot) {
       await q(`UPDATE employees SET room_id=$2, room_number=$3, accommodation_id=$4 WHERE id=$1`,
         [e.id, e.room_id, e.room_number, e.accommodation_id]).catch(() => {});
     }
+    await q(`DELETE FROM consolidation_plans`).catch(() => {});
+    await q(`DELETE FROM ticket_history WHERE ticket_id IN (SELECT id FROM tickets WHERE title LIKE 'Konszolidációs%')`).catch(() => {});
+    await q(`DELETE FROM tickets WHERE title LIKE 'Konszolidációs%'`).catch(() => {});
     await q(`DELETE FROM agent_suggestions WHERE agent_name='room_consolidation'`).catch(() => {});
     await q(`DELETE FROM consolidation_runs`).catch(() => {});
     await q(`DELETE FROM entity_status_history WHERE source='consolidation'`).catch(() => {});

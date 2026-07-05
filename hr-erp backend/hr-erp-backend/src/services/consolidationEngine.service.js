@@ -405,56 +405,203 @@ async function assertRoomsValid(client, roomIds, cfg) {
   }
 }
 
+// ── v3 lifecycle: approve → (physical move) → confirm | cancel ──────────────
+//
+// Approval no longer rewrites room assignments. It creates ONE "Költözés" ticket
+// per plan and defers the room reassignment until the physical move is CONFIRMED
+// done. Rooms (and therefore occupancy snapshots + billing) change only at
+// confirm; the stability clock also starts at confirm.
+
+// Human-readable label + move list for the move ticket body.
+function planLabel(suggestions) {
+  const names = [...new Set(suggestions.flatMap((s) => [s.payload.from_accommodation_name, s.payload.to_accommodation_name]).filter(Boolean))];
+  return names.join(' ⇄ ');
+}
+function moveListText(suggestions) {
+  const lines = suggestions.map((s, i) => {
+    const p = s.payload;
+    const from = `${p.from_accommodation_name || '?'} ${p.from_room_number || '?'}`;
+    const to = `${p.to_accommodation_name || '?'} ${p.to_room_number || '?'}`;
+    return `${i + 1}. ${s.employee_name || 'Munkavállaló'} — ${from} → ${to}`;
+  });
+  return [
+    `Konszolidációs költöztetés — ${planLabel(suggestions)}`,
+    '',
+    'Kérlek végezd el az alábbi költözéseket, majd a HR-ERP „Szoba-konszolidáció" oldalán',
+    'jelöld késznek („Költözés megerősítése"). A szobabeosztás a rendszerben CSAK a',
+    'megerősítés után változik.',
+    '',
+    `Költözések (${suggestions.length}):`,
+    ...lines,
+  ].join('\n');
+}
+
+// Recompute a run's coarse lifecycle status from its suggestions + plans.
+async function recomputeRunStatus(client, runId) {
+  const s = (await client.query(
+    `SELECT status, COUNT(*)::int c FROM agent_suggestions
+      WHERE agent_name=$1 AND payload->>'run_id'=$2 GROUP BY status`, [AGENT, runId])).rows;
+  const by = Object.fromEntries(s.map((r) => [r.status, r.c]));
+  const pending = by.pending || 0, approved = by.approved || 0, applied = by.applied || 0;
+  let status;
+  if (approved > 0) status = 'in_progress';               // a plan is awaiting its physical move
+  else if (pending > 0) status = applied > 0 ? 'partially_applied' : 'generated';
+  else status = applied > 0 ? 'applied' : 'discarded';    // nothing left pending/approved
+  await client.query(`UPDATE consolidation_runs SET status=$2 WHERE id=$1`, [runId, status]);
+  return status;
+}
+
 /**
- * Apply a group of pending move suggestions ATOMICALLY. Moves are INTERDEPENDENT
- * (a room frees only once all its residents move; a target becomes valid only
- * once incompatible residents leave; a cross-move links two sites) — so we apply
- * the whole plan in one transaction and validate the FINAL committed state,
- * rolling back if any room would be invalid.
- *
- * @param planKey  optional — apply only this plan's moves (else the whole run)
+ * APPROVE a plan → create a move ticket, mark its suggestions 'approved'. NO room
+ * changes happen here. Returns the created ticket + plan row.
  */
-async function applyGroup(runId, planKey = null, reviewedBy = null) {
-  const cfg = await getConfig();
-  const filter = planKey ? ` AND payload->>'plan_key' = $3` : '';
-  const params = planKey ? [AGENT, runId, planKey] : [AGENT, runId];
+async function approvePlan(runId, planKey, { assigneeUserId = null, dueDate = null, reviewedBy = null, contractorId = null } = {}) {
   const pending = (await query(
-    `SELECT * FROM agent_suggestions
-      WHERE agent_name = $1 AND payload->>'run_id' = $2 AND status = 'pending'${filter}`, params)).rows;
+    `SELECT s.*, CONCAT(e.last_name, ' ', e.first_name) AS employee_name
+       FROM agent_suggestions s LEFT JOIN employees e ON e.id = s.entity_id
+      WHERE s.agent_name=$1 AND s.payload->>'run_id'=$2 AND s.payload->>'plan_key'=$3 AND s.status='pending'`,
+    [AGENT, runId, planKey])).rows;
   if (pending.length === 0) return { ok: false, error: 'nothing_pending' };
 
-  // accommodations touched (source AND target) — for the caller's summary.
-  const accIds = [...new Set(pending.flatMap((s) => [s.payload.from_accommodation_id, s.payload.to_accommodation_id]).filter(Boolean))];
-  // the rooms the plan COMPOSES (destinations) — validated as the final-state guarantee.
-  const toRoomIds = [...new Set(pending.map((s) => s.payload.to_room_id).filter(Boolean))];
+  const existing = (await query(
+    `SELECT id, status FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [runId, planKey])).rows[0];
+  if (existing) return { ok: false, error: 'already_approved', status: existing.status };
+
+  try {
+    const out = await transaction(async (client) => {
+      // resolve reference ids for the move ticket
+      const contractor = contractorId
+        || (await client.query(`SELECT contractor_id FROM users WHERE id=$1`, [reviewedBy])).rows[0]?.contractor_id
+        || (await client.query(`SELECT id FROM contractors ORDER BY created_at LIMIT 1`)).rows[0]?.id;
+      const catId = (await client.query(`SELECT id FROM ticket_categories WHERE slug='moving' LIMIT 1`)).rows[0]?.id;
+      const statusId = (await client.query(`SELECT id FROM ticket_statuses WHERE slug='new' LIMIT 1`)).rows[0].id;
+      const prioId = (await client.query(`SELECT id FROM priorities WHERE slug='normal' LIMIT 1`)).rows[0]?.id;
+      const num = (await client.query(
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(ticket_number FROM 2) AS INTEGER)),0)+1 n FROM tickets WHERE ticket_number ~ '^#[0-9]+$'`)).rows[0].n;
+      const ticketNumber = `#${num}`;
+
+      const ticket = (await client.query(
+        `INSERT INTO tickets (contractor_id, ticket_number, title, description, language,
+                              category_id, status_id, priority_id, created_by, assigned_to, due_date)
+         VALUES ($1,$2,$3,$4,'hu',$5,$6,$7,$8,$9,$10) RETURNING id, ticket_number`,
+        [contractor, ticketNumber, `Konszolidációs költöztetés — ${planLabel(pending)}`.slice(0, 250),
+         moveListText(pending), catId, statusId, prioId, reviewedBy, assigneeUserId, dueDate])).rows[0];
+      await client.query(
+        `INSERT INTO ticket_history (ticket_id, user_id, action, new_value) VALUES ($1,$2,'created',$3)`,
+        [ticket.id, reviewedBy, `Konszolidációs költöztetés (${pending.length} költözés)`]);
+
+      // suggestions: pending → approved (still NO room change)
+      await client.query(
+        `UPDATE agent_suggestions SET status='approved', reviewed_by=$3, reviewed_at=NOW()
+          WHERE agent_name=$1 AND payload->>'run_id'=$2 AND payload->>'plan_key'=$4 AND status='pending'`,
+        [AGENT, runId, reviewedBy, planKey]);
+
+      const planRow = (await client.query(
+        `INSERT INTO consolidation_plans (run_id, plan_key, status, ticket_id, assignee_user_id, due_date, move_count, approved_by)
+         VALUES ($1,$2,'approved_pending_move',$3,$4,$5,$6,$7) RETURNING *`,
+        [runId, planKey, ticket.id, assigneeUserId, dueDate, pending.length, reviewedBy])).rows[0];
+
+      await recomputeRunStatus(client, runId);
+      return { ticket, plan: planRow };
+    });
+    return { ok: true, ticket_id: out.ticket.id, ticket_number: out.ticket.ticket_number, plan: out.plan, moves: pending.length };
+  } catch (e) {
+    logger.error('approvePlan error:', e);
+    return { ok: false, error: 'failed', reason: e.message };
+  }
+}
+
+/**
+ * CONFIRM the physical move → apply exactly the CHECKED (done) moves atomically,
+ * skip the rest (with a reason), re-validate against current state, and only NOW
+ * change room assignments + write history (stability clock starts here).
+ *
+ * @param decisions [{ suggestion_id, done:boolean, reason?:string }]
+ */
+async function confirmMove(runId, planKey, { decisions = [], reviewedBy = null } = {}) {
+  const cfg = await getConfig();
+  const plan = (await query(
+    `SELECT * FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [runId, planKey])).rows[0];
+  if (!plan) return { ok: false, error: 'no_plan' };
+  if (plan.status !== 'approved_pending_move') return { ok: false, error: 'not_pending_move', status: plan.status };
+
+  const approved = (await query(
+    `SELECT * FROM agent_suggestions
+      WHERE agent_name=$1 AND payload->>'run_id'=$2 AND payload->>'plan_key'=$3 AND status='approved'`,
+    [AGENT, runId, planKey])).rows;
+  if (approved.length === 0) return { ok: false, error: 'nothing_to_confirm' };
+
+  const decBySug = new Map(decisions.map((d) => [d.suggestion_id, d]));
+  // default: a move with no explicit decision counts as DONE.
+  const doneList = approved.filter((s) => (decBySug.get(s.id)?.done ?? true));
+  const skipList = approved.filter((s) => (decBySug.get(s.id)?.done ?? true) === false);
+
+  // ── re-validate the DONE moves against current reality; surface conflicts ──
+  const conflicts = [];
+  for (const s of doneList) {
+    const p = s.payload;
+    const emp = (await query(
+      `SELECT e.id, e.room_id, e.accommodation_id, e.end_date, est.slug AS status_slug
+         FROM employees e JOIN employee_status_types est ON est.id=e.status_id WHERE e.id=$1`, [s.entity_id])).rows[0];
+    if (!emp || emp.end_date || emp.status_slug !== 'active' || !emp.room_id) {
+      conflicts.push({ suggestion_id: s.id, employee_id: s.entity_id, reason: 'A munkavállaló időközben kilépett vagy már nincs szobája.' });
+      continue;
+    }
+    const room = (await query(`SELECT id FROM accommodation_rooms WHERE id=$1 AND is_active=TRUE`, [p.to_room_id])).rows[0];
+    if (!room) conflicts.push({ suggestion_id: s.id, employee_id: s.entity_id, reason: 'A cél szoba időközben megszűnt.' });
+  }
+  if (conflicts.length > 0) return { ok: false, error: 'conflict', conflicts };
+
+  const toRoomIds = [...new Set(doneList.map((s) => s.payload.to_room_id).filter(Boolean))];
   let applied;
   try {
     applied = await transaction(async (client) => {
-      for (const s of pending) {
+      for (const s of doneList) {
         const p = s.payload;
         await client.query(
-          `UPDATE employees SET room_id = $1, room_number = $2, accommodation_id = $3, updated_at = NOW()
-            WHERE id = $4 AND end_date IS NULL`,
+          `UPDATE employees SET room_id=$1, room_number=$2, accommodation_id=$3, updated_at=NOW()
+            WHERE id=$4 AND end_date IS NULL`,
           [p.to_room_id, p.to_room_number || null, p.to_accommodation_id, s.entity_id]);
         await client.query(
-          `UPDATE agent_suggestions SET status='applied', reviewed_by=$2, reviewed_at=NOW(), applied_at=NOW() WHERE id=$1`,
-          [s.id, reviewedBy]);
+          `UPDATE agent_suggestions SET status='applied', applied_at=NOW() WHERE id=$1`, [s.id]);
+      }
+      for (const s of skipList) {
+        const reason = decBySug.get(s.id)?.reason || 'nem történt meg';
+        await client.query(
+          `UPDATE agent_suggestions SET status='skipped',
+                  payload = jsonb_set(payload, '{skip_reason}', to_jsonb($2::text))
+            WHERE id=$1`, [s.id, reason]);
       }
       // Final-state guarantee: every destination room is valid post-apply.
       await assertRoomsValid(client, toRoomIds, cfg);
-      const remaining = (await client.query(
-        `SELECT COUNT(*)::int c FROM agent_suggestions WHERE agent_name=$1 AND payload->>'run_id'=$2 AND status='pending'`,
-        [AGENT, runId])).rows[0].c;
-      await client.query(`UPDATE consolidation_runs SET status=$2 WHERE id=$1`, [runId, remaining > 0 ? 'partially_applied' : 'applied']);
-      return pending;
+
+      const newStatus = skipList.length === 0 ? 'moved' : 'partially_moved';
+      await client.query(
+        `UPDATE consolidation_plans SET status=$3, applied_count=$4, skipped_count=$5, confirmed_by=$6, confirmed_at=NOW()
+          WHERE run_id=$1 AND plan_key=$2`,
+        [runId, planKey, newStatus, doneList.length, skipList.length, reviewedBy]);
+
+      // close the move ticket
+      if (plan.ticket_id) {
+        const closeStatus = (await client.query(`SELECT id FROM ticket_statuses WHERE slug='completed' LIMIT 1`)).rows[0].id;
+        await client.query(
+          `UPDATE tickets SET status_id=$2, resolved_at=NOW(), closed_at=NOW(), updated_at=NOW() WHERE id=$1`,
+          [plan.ticket_id, closeStatus]);
+        const note = skipList.length === 0
+          ? `Költözés megerősítve: ${doneList.length} költözés alkalmazva.`
+          : `Költözés részben megerősítve: ${doneList.length} alkalmazva, ${skipList.length} kihagyva.`;
+        await client.query(
+          `INSERT INTO ticket_history (ticket_id, user_id, action, new_value) VALUES ($1,$2,'status_change',$3)`,
+          [plan.ticket_id, reviewedBy, note]);
+      }
+      await recomputeRunStatus(client, runId);
+      return doneList;
     });
   } catch (e) {
     return { ok: false, error: 'invalid', reason: e.message };
   }
 
-  // Log each applied move in the shared history substrate (best-effort, post-commit).
-  // Records a room change always, plus a SEPARATE accommodation change for cross-moves.
-  // Awaited so the audit trail is durable before we return (recorder swallows errors).
+  // History NOW (stability clock starts here) — room + (cross) accommodation records.
   const writes = [];
   for (const s of applied) {
     const p = s.payload;
@@ -476,7 +623,51 @@ async function applyGroup(runId, planKey = null, reviewedBy = null) {
     }
   }
   await Promise.allSettled(writes);
-  return { ok: true, applied: applied.length, accommodations: accIds.length };
+  return { ok: true, applied: applied.length, skipped: skipList.length, status: skipList.length === 0 ? 'moved' : 'partially_moved' };
+}
+
+/**
+ * CANCEL an approved-pending plan → close the ticket, mark suggestions cancelled.
+ * NO room changes are applied.
+ */
+async function cancelPlan(runId, planKey, reviewedBy = null) {
+  const plan = (await query(
+    `SELECT * FROM consolidation_plans WHERE run_id=$1 AND plan_key=$2`, [runId, planKey])).rows[0];
+  if (!plan) return { ok: false, error: 'no_plan' };
+  if (plan.status !== 'approved_pending_move') return { ok: false, error: 'not_pending_move', status: plan.status };
+
+  await transaction(async (client) => {
+    await client.query(
+      `UPDATE agent_suggestions SET status='cancelled', reviewed_by=$4, reviewed_at=NOW()
+        WHERE agent_name=$1 AND payload->>'run_id'=$2 AND payload->>'plan_key'=$3 AND status='approved'`,
+      [AGENT, runId, planKey, reviewedBy]);
+    await client.query(
+      `UPDATE consolidation_plans SET status='cancelled', confirmed_by=$3, confirmed_at=NOW() WHERE run_id=$1 AND plan_key=$2`,
+      [runId, planKey, reviewedBy]);
+    if (plan.ticket_id) {
+      const closeStatus = (await client.query(`SELECT id FROM ticket_statuses WHERE slug='closed_unsuccessful' LIMIT 1`)).rows[0].id;
+      await client.query(
+        `UPDATE tickets SET status_id=$2, closed_at=NOW(), updated_at=NOW() WHERE id=$1`, [plan.ticket_id, closeStatus]);
+      await client.query(
+        `INSERT INTO ticket_history (ticket_id, user_id, action, new_value) VALUES ($1,$2,'status_change',$3)`,
+        [plan.ticket_id, reviewedBy, 'Konszolidációs terv visszavonva — nem történt költözés.']);
+    }
+    await recomputeRunStatus(client, runId);
+  });
+  return { ok: true };
+}
+
+// Plan lifecycle rows for a run (+ ticket number/status + assignee name) for the UI.
+async function getPlans(runId) {
+  const r = await query(
+    `SELECT cp.*, t.ticket_number, ts.slug AS ticket_status,
+            CONCAT(u.last_name, ' ', u.first_name) AS assignee_name
+       FROM consolidation_plans cp
+       LEFT JOIN tickets t ON t.id = cp.ticket_id
+       LEFT JOIN ticket_statuses ts ON ts.id = t.status_id
+       LEFT JOIN users u ON u.id = cp.assignee_user_id
+      WHERE cp.run_id = $1`, [runId]);
+  return r.rows;
 }
 
 async function rejectSuggestion(id, reviewedBy = null, reason = null) {
@@ -518,7 +709,8 @@ async function listWorkplaces() {
 }
 
 module.exports = {
-  generateRun, applyGroup, rejectSuggestion, listRuns, getRun, getSuggestions, getConfig, listWorkplaces,
+  generateRun, approvePlan, confirmMove, cancelPlan, getPlans,
+  rejectSuggestion, listRuns, getRun, getSuggestions, getConfig, listWorkplaces,
   // exported for tests
   planConsolidation, groupValid, shiftBucket, compatible, admits,
 };

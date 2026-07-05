@@ -11,8 +11,11 @@ router.get('/config', authenticateToken, checkPermission('employees.view'), c.ge
 router.get('/workplaces', authenticateToken, checkPermission('employees.view'), c.listWorkplaces);
 router.get('/runs/:id', authenticateToken, checkPermission('employees.view'), c.getRun);
 
-// Applying moves + rejecting + tuning changes data → edit permission.
-router.post('/runs/:id/apply', authenticateToken, checkPermission('employees.edit'), c.apply);
+// Approving (creates a move ticket), confirming the physical move, cancelling,
+// rejecting + tuning all change data → edit permission.
+router.post('/runs/:id/approve', authenticateToken, checkPermission('employees.edit'), c.approve);
+router.post('/runs/:id/confirm', authenticateToken, checkPermission('employees.edit'), c.confirm);
+router.post('/runs/:id/cancel', authenticateToken, checkPermission('employees.edit'), c.cancel);
 router.post('/suggestions/:id/reject', authenticateToken, checkPermission('employees.edit'), c.reject);
 router.put('/config', authenticateToken, checkPermission('employees.edit'), c.updateConfig);
 

@@ -946,7 +946,11 @@ export const consolidationAPI = {
   run: async () => (await api.post('/consolidation/run')).data,
   listRuns: async () => (await api.get('/consolidation/runs')).data,
   getRun: async (id) => (await api.get(`/consolidation/runs/${id}`)).data,
-  apply: async (id, plan_key = null) => (await api.post(`/consolidation/runs/${id}/apply`, { plan_key })).data,
+  approve: async (id, plan_key, assignee_user_id, due_date) =>
+    (await api.post(`/consolidation/runs/${id}/approve`, { plan_key, assignee_user_id, due_date })).data,
+  confirm: async (id, plan_key, decisions) =>
+    (await api.post(`/consolidation/runs/${id}/confirm`, { plan_key, decisions })).data,
+  cancel: async (id, plan_key) => (await api.post(`/consolidation/runs/${id}/cancel`, { plan_key })).data,
   reject: async (suggestionId, reason = null) => (await api.post(`/consolidation/suggestions/${suggestionId}/reject`, { reason })).data,
   getConfig: async () => (await api.get('/consolidation/config')).data,
   updateConfig: async (data) => (await api.put('/consolidation/config', data)).data,

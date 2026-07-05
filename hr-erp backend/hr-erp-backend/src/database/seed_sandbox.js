@@ -61,9 +61,12 @@ async function main() {
       ON CONFLICT (slug) DO NOTHING`);
 
     // ── clear prior sandbox data (FK-safe order) ──
+    // consolidation_* + move tickets first (v3 lifecycle artifacts), then the rest.
     for (const t of [
+      'consolidation_plans', 'agent_suggestions', 'consolidation_runs',
       'ticket_messages','ticket_attachments','ticket_comments','ticket_history','tickets',
-      'accommodation_expenses','employee_accommodation_history','employees',
+      'accommodation_expenses','employee_accommodation_history',
+      'entity_status_history','activity_logs','employees',
       'accommodation_workplaces','accommodation_rooms','accommodation_contractors','accommodations',
       'user_roles',
     ]) { await c.query(`DELETE FROM ${t}`); }

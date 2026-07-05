@@ -28,33 +28,78 @@ const listRuns = async (req, res) => {
   }
 };
 
-// GET /consolidation/runs/:id — run summary + its suggestions.
+// GET /consolidation/runs/:id — run summary + its suggestions + plan lifecycle rows.
 const getRun = async (req, res) => {
   try {
     const run = await engine.getRun(req.params.id);
     if (!run) return res.status(404).json({ success: false, message: 'Futtatás nem található' });
-    const suggestions = await engine.getSuggestions(req.params.id);
-    res.json({ success: true, data: { run, suggestions } });
+    const [suggestions, plans] = await Promise.all([
+      engine.getSuggestions(req.params.id),
+      engine.getPlans(req.params.id),
+    ]);
+    res.json({ success: true, data: { run, suggestions, plans } });
   } catch (error) {
     logger.error('Consolidation getRun error:', error);
     res.status(500).json({ success: false, message: 'Futtatás lekérési hiba' });
   }
 };
 
-// POST /consolidation/runs/:id/apply — approve + APPLY the moves atomically.
-// body.plan_key (optional) → apply only that plan (a group of accommodations
-// linked by cross-moves); else apply the whole run.
-const apply = async (req, res) => {
+// POST /consolidation/runs/:id/approve — approve a plan → create a move TICKET,
+// no room changes. body: { plan_key, assignee_user_id, due_date }.
+const approve = async (req, res) => {
   try {
-    const result = await engine.applyGroup(req.params.id, req.body?.plan_key || null, req.user?.id || null);
+    const { plan_key, assignee_user_id, due_date } = req.body || {};
+    if (!plan_key) return res.status(400).json({ success: false, message: 'plan_key kötelező.' });
+    const result = await engine.approvePlan(req.params.id, plan_key, {
+      assigneeUserId: assignee_user_id || null,
+      dueDate: due_date || null,
+      reviewedBy: req.user?.id || null,
+      contractorId: req.user?.contractorId || null,
+    });
     if (!result.ok) {
-      const code = result.error === 'nothing_pending' ? 409 : 422;
-      return res.status(code).json({ success: false, message: result.reason || 'Nincs alkalmazható javaslat.', error: result.error });
+      const code = result.error === 'nothing_pending' ? 409 : result.error === 'already_approved' ? 409 : 422;
+      return res.status(code).json({ success: false, error: result.error, message: result.reason || 'A terv nem hagyható jóvá.' });
     }
     res.json({ success: true, data: result });
   } catch (error) {
-    logger.error('Consolidation apply error:', error);
-    res.status(500).json({ success: false, message: 'Alkalmazási hiba' });
+    logger.error('Consolidation approve error:', error);
+    res.status(500).json({ success: false, message: 'Jóváhagyási hiba' });
+  }
+};
+
+// POST /consolidation/runs/:id/confirm — confirm the physical move → apply the
+// checked moves atomically. body: { plan_key, decisions:[{suggestion_id,done,reason}] }.
+const confirm = async (req, res) => {
+  try {
+    const { plan_key, decisions } = req.body || {};
+    if (!plan_key) return res.status(400).json({ success: false, message: 'plan_key kötelező.' });
+    const result = await engine.confirmMove(req.params.id, plan_key, {
+      decisions: Array.isArray(decisions) ? decisions : [],
+      reviewedBy: req.user?.id || null,
+    });
+    if (!result.ok) {
+      const code = result.error === 'conflict' ? 409 : result.error === 'invalid' ? 422 : 400;
+      return res.status(code).json({ success: false, error: result.error, conflicts: result.conflicts, message: result.reason || 'A költözés nem erősíthető meg.' });
+    }
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('Consolidation confirm error:', error);
+    res.status(500).json({ success: false, message: 'Megerősítési hiba' });
+  }
+};
+
+// POST /consolidation/runs/:id/cancel — cancel an approved-pending plan (close
+// ticket, no changes). body: { plan_key }.
+const cancel = async (req, res) => {
+  try {
+    const { plan_key } = req.body || {};
+    if (!plan_key) return res.status(400).json({ success: false, message: 'plan_key kötelező.' });
+    const result = await engine.cancelPlan(req.params.id, plan_key, req.user?.id || null);
+    if (!result.ok) return res.status(409).json({ success: false, error: result.error, message: 'A terv nem vonható vissza.' });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('Consolidation cancel error:', error);
+    res.status(500).json({ success: false, message: 'Visszavonási hiba' });
   }
 };
 
@@ -115,4 +160,4 @@ const updateConfig = async (req, res) => {
   }
 };
 
-module.exports = { runEngine, listRuns, getRun, apply, reject, getConfig, updateConfig, listWorkplaces };
+module.exports = { runEngine, listRuns, getRun, approve, confirm, cancel, reject, getConfig, updateConfig, listWorkplaces };

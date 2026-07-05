@@ -6,6 +6,24 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-05f — Consolidation v3: approval → MOVE TASK lifecycle (SANDBOX ONLY)
+
+Restructured consolidation-plan APPROVAL so it no longer silently rewrites room assignments. Rooms now change in the software ONLY when the physical move is confirmed done — mirroring doing it by hand: **instruct → execute → confirm**. Occupancy snapshots + billing therefore reflect reality throughout (room_id is untouched until confirm), and the stability clock starts at confirm, not approval. **mig 134** (sandbox only): `consolidation_plans` (run_id, plan_key, status `approved_pending_move|moved|partially_moved|cancelled`, ticket_id, assignee_user_id, due_date, move/applied/skipped counts, approved/confirmed by+at). `agent_suggestions.status` gains `approved` / `skipped` / `cancelled` (free VARCHAR).
+
+**Lifecycle (engine `approvePlan`/`confirmMove`/`cancelPlan`/`getPlans`, replacing `applyGroup`):**
+- **Approve** → creates ONE move ticket per plan (reuses the existing ticket system; category `moving`/"Költözés", status `new`, assignee + due date chosen at approval; body = the human-readable move list: who, from room → to room, accommodation names). Suggestions go `pending`→`approved`. **NO room_id changes.**
+- **Confirm** (the physical move is done) → applies exactly the CHECKED moves atomically, then `entity_status_history` + stability start NOW. Partial completion: a confirm screen lists each move with done/not-done checkboxes (default done); unchecked moves are `skipped` with a logged reason and the plan becomes `partially_moved`. Re-validates against current state at confirm — if the plan went stale (employee left / lost their room / dest room gone) it returns a **conflict** surfaced clearly (not a silent failure); the destination-room validity guarantee (assertRoomsValid) still holds, so an interdependent partial that would overflow a room is rejected as `invalid`.
+- **Cancel** an approved-pending plan → closes the ticket (`closed_unsuccessful`), suggestions `cancelled`, **no room changes**.
+- Controller/routes: `POST /consolidation/runs/:id/{approve,confirm,cancel}` (edit perm); `GET /runs/:id` now returns `{run, suggestions, plans}`.
+
+**UI (`ConsolidationEngine.jsx`):** plan cards show the full lifecycle chip (Javasolt → *Jóváhagyva — költöztetés folyamatban* [ticket #, felelős, határidő] → Beköltöztetve / Részben beköltöztetve / Visszavonva). Approve opens a dialog (assignee Select from `/users`, due-date picker → creates the ticket); confirm opens a dialog with per-move checkboxes + reason fields for unchecked; cancel button on pending-move plans. Per-suggestion status chips (Javasolt/Jóváhagyva/Beköltöztetve/Kihagyva/…). `api.js` gains `approve/confirm/cancel`.
+
+**Tests (`tests/consolidationEngine.script.js`, 60 checks, idempotent, ALL PASS):** kept all v2 planner/constraint proofs; added the lifecycle — approve creates a `moving` ticket (assignee+due) + sets suggestions `approved` + makes **ZERO room changes** + does not start the stability clock; a stale confirm surfaces a **conflict** and applies nothing; confirm(all-done) applies atomically → rooms change now, ticket `completed`, plan `moved`, history/stability written; **partial** (one unchecked) → skipped+reason logged, others applied, plan `partially_moved`; **cancel** → suggestions cancelled, ticket `closed_unsuccessful`, zero changes; re-confirm refused; stability e2e on confirmed-moved employees. (Also fixed pre-existing seed fragility: `activity_logs`/consolidation artifacts now cleared before deleting users, else reseed 400'd on the FK.)
+
+**Verified in-browser (Claude for Chrome, full loop):** run → approve Szálló 06 plan (assignee Admin Sandbox, due 2026-07-20) → **ticket #13 created** (category Költözés, move-list body shown on the ticket page as the assignee), DB confirms **0 room changes at approval** (all 50 suggestion-employees still in FROM rooms) → confirm with **Rácz Máté (103→106) unchecked + reason** → DB: **7 applied / 1 skipped**, Rácz still in 103, plan **partially_moved**, ticket **completed**, 7 room-history rows. Sandbox reseeded pristine. **mig 134 NOT applied to prod; nothing deployed.**
+
+---
+
 ## SESSION 2026-07-05e — Room Consolidation Engine v2: accommodation-level strategy (SANDBOX ONLY)
 
 Extended the consolidation engine (v1→v2) with the strategy layer, keeping every v1 hard guarantee + atomic plan-apply. **mig 133** (sandbox only, NOT prod): `accommodations.consolidation_role` (core/buffer/normal/phase_out) + `consolidation_locked` bool + CHECK; `accommodation_workplaces(accommodation_id, workplace)` binding table; `consolidation_config.stability_days` (60) + `weight_drain`.
