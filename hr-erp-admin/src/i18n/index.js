@@ -1,12 +1,15 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-// Bundled translations — no HTTP backend needed
-import huCommon from '../../public/locales/hu/common.json';
-import enCommon from '../../public/locales/en/common.json';
-import tlCommon from '../../public/locales/tl/common.json';
-import ukCommon from '../../public/locales/uk/common.json';
-import deCommon from '../../public/locales/de/common.json';
+// Bundled translations — no HTTP backend needed.
+// NOTE: these JSON files must live under src/ (not public/): Vite refuses to
+// import assets out of the public/ directory (dev returns HTTP 503 for the
+// import), which previously threw here and blocked the whole app from mounting.
+import huCommon from './locales/hu/common.json';
+import enCommon from './locales/en/common.json';
+import tlCommon from './locales/tl/common.json';
+import ukCommon from './locales/uk/common.json';
+import deCommon from './locales/de/common.json';
 
 // NO LanguageDetector — language comes from user.preferred_language on login
 i18n
