@@ -28,15 +28,27 @@ import {
   IconButton,
   LinearProgress,
   Stack,
+  Switch,
+  FormControlLabel,
+  Autocomplete,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
-import { accommodationsAPI, contractorsAPI, roomsAPI } from '../services/api';
+import { accommodationsAPI, contractorsAPI, roomsAPI, consolidationAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateContractorModal from './CreateContractorModal';
+
+// Consolidation strategy roles (v2). Labels + colors shared with the engine page.
+export const CONSOLIDATION_ROLES = {
+  core: { label: 'Mag (feltöltendő)', color: '#2e7d32' },
+  buffer: { label: 'Puffer (ürítendő)', color: '#ed6c02' },
+  normal: { label: 'Normál', color: '#616161' },
+  phase_out: { label: 'Kivezetendő', color: '#c62828' },
+};
 
 const STATUS_LABELS = {
   available: 'Szabad',
@@ -89,7 +101,11 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
     status: 'available',
     monthly_rent: '',
     notes: '',
+    consolidation_role: 'normal',
+    consolidation_locked: false,
+    assigned_workplaces: [],
   });
+  const [workplaceOptions, setWorkplaceOptions] = useState([]);
 
   // View mode tab state
   const [viewTab, setViewTab] = useState(0);
@@ -133,6 +149,9 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
           status: acc.status || 'available',
           monthly_rent: acc.monthly_rent || '',
           notes: acc.notes || '',
+          consolidation_role: acc.consolidation_role || 'normal',
+          consolidation_locked: !!acc.consolidation_locked,
+          assigned_workplaces: acc.assigned_workplaces || [],
         });
       }
     } catch (error) {
@@ -186,7 +205,18 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
 
   const handleEdit = () => {
     loadContractors();
+    loadWorkplaceOptions();
     setEditing(true);
+  };
+
+  const loadWorkplaceOptions = async () => {
+    try {
+      const res = await consolidationAPI.listWorkplaces();
+      if (res.success) setWorkplaceOptions(res.data || []);
+    } catch (error) {
+      // non-fatal: the field still accepts free-typed workplaces
+      console.error('Munkahelyek betöltési hiba:', error);
+    }
   };
 
   const handleSave = async () => {
@@ -200,6 +230,9 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
       capacity: parseInt(formData.capacity) || 1,
       monthly_rent: formData.monthly_rent ? parseFloat(formData.monthly_rent) : null,
       current_contractor_id: formData.current_contractor_id || null,
+      consolidation_role: formData.consolidation_role || 'normal',
+      consolidation_locked: !!formData.consolidation_locked,
+      assigned_workplaces: formData.assigned_workplaces || [],
     };
 
     setSaving(true);
@@ -465,6 +498,57 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                   onChange={(e) => handleChange('notes', e.target.value)}
                 />
               </Grid>
+
+              {/* ── Consolidation strategy (v2) ── */}
+              <Grid item xs={12}>
+                <Divider textAlign="left" sx={{ mt: 1, '&::before, &::after': { borderColor: '#e5c98a' } }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#8B6B33' }}>KONSZOLIDÁCIÓS STRATÉGIA</Typography>
+                </Divider>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={formData.consolidation_locked}>
+                  <InputLabel>Szerep</InputLabel>
+                  <Select
+                    value={formData.consolidation_role}
+                    onChange={(e) => handleChange('consolidation_role', e.target.value)}
+                    label="Szerep"
+                  >
+                    {Object.entries(CONSOLIDATION_ROLES).map(([value, { label }]) => (
+                      <MenuItem key={value} value={value}>{label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.consolidation_locked}
+                      onChange={(e) => handleChange('consolidation_locked', e.target.checked)}
+                      sx={{ '& .Mui-checked': { color: '#c62828' }, '& .Mui-checked + .MuiSwitch-track': { bgcolor: '#c62828' } }}
+                    />
+                  }
+                  label="Zárolt (a motor nem költöztet ide/innen)"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Autocomplete
+                  multiple
+                  freeSolo
+                  options={workplaceOptions}
+                  value={formData.assigned_workplaces}
+                  onChange={(_, v) => handleChange('assigned_workplaces', v)}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip label={option} size="small" {...getTagProps({ index })} sx={{ bgcolor: '#f0e6d2' }} />
+                    ))
+                  }
+                  renderInput={(params) => (
+                    <TextField {...params} label="Engedélyezett munkahelyek (üres = bármely)"
+                      helperText="Ide csak ilyen munkahelyű dolgozó költöztethető. Üres lista = nincs korlátozás." />
+                  )}
+                />
+              </Grid>
             </Grid>
           ) : (
             /* View mode with tabs */
@@ -491,6 +575,24 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                   <DetailRow label="Kapacitás" value={`${accommodation.capacity} fő`} />
                   <DetailRow label="Havi bérleti díj" value={formatRent(accommodation.monthly_rent)} />
                   <DetailRow label="Ingatlan tulajdonos" value={accommodation.current_contractor_name || '-'} />
+                  <Box sx={{ display: 'flex', py: 0.75, alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 160, fontWeight: 500 }}>
+                      Konszolidációs szerep:
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={(CONSOLIDATION_ROLES[accommodation.consolidation_role] || CONSOLIDATION_ROLES.normal).label}
+                      sx={{ bgcolor: (CONSOLIDATION_ROLES[accommodation.consolidation_role] || CONSOLIDATION_ROLES.normal).color, color: '#fff', fontWeight: 600 }}
+                    />
+                    {accommodation.consolidation_locked && (
+                      <Chip size="small" icon={<LockIcon sx={{ fontSize: 16 }} />} label="Zárolt"
+                        sx={{ ml: 1, bgcolor: '#c62828', color: '#fff', fontWeight: 600, '& .MuiChip-icon': { color: '#fff' } }} />
+                    )}
+                  </Box>
+                  <DetailRow
+                    label="Engedélyezett munkahelyek"
+                    value={accommodation.assigned_workplaces?.length ? accommodation.assigned_workplaces.join(', ') : 'Bármely (nincs korlátozás)'}
+                  />
                   {accommodation.current_contractor_email && (
                     <DetailRow label="Tulajdonos email" value={accommodation.current_contractor_email} />
                   )}

@@ -201,9 +201,16 @@ const getAccommodationById = async (req, res) => {
       });
     }
 
+    // Consolidation workplace binding (admin-editable list; empty = unrestricted).
+    const wp = await query(
+      'SELECT workplace FROM accommodation_workplaces WHERE accommodation_id = $1 ORDER BY workplace',
+      [id]
+    );
+    const accommodation = { ...result.rows[0], assigned_workplaces: wp.rows.map((r) => r.workplace) };
+
     res.json({
       success: true,
-      data: { accommodation: result.rows[0] }
+      data: { accommodation }
     });
   } catch (error) {
     logger.error('Szálláshely lekérési hiba:', error);
@@ -319,7 +326,8 @@ const createAccommodation = async (req, res) => {
 const updateAccommodation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, type, capacity, current_contractor_id, status, monthly_rent, notes } = req.body;
+    const { name, address, type, capacity, current_contractor_id, status, monthly_rent, notes,
+            consolidation_role, consolidation_locked, assigned_workplaces } = req.body;
 
     // Check exists
     const existing = await query('SELECT * FROM accommodations WHERE id = $1', [id]);
@@ -427,21 +435,55 @@ const updateAccommodation = async (req, res) => {
       paramIndex++;
     }
 
-    if (fields.length === 0) {
+    // ── consolidation strategy (v2): role + lock ──
+    if (consolidation_role !== undefined) {
+      const VALID_ROLES = ['core', 'buffer', 'normal', 'phase_out'];
+      if (!VALID_ROLES.includes(consolidation_role)) {
+        return res.status(400).json({ success: false, message: `Érvénytelen konszolidációs szerep. Engedélyezett: ${VALID_ROLES.join(', ')}` });
+      }
+      fields.push(`consolidation_role = $${paramIndex}`);
+      params.push(consolidation_role);
+      paramIndex++;
+    }
+    if (consolidation_locked !== undefined) {
+      fields.push(`consolidation_locked = $${paramIndex}`);
+      params.push(!!consolidation_locked);
+      paramIndex++;
+    }
+
+    // Nothing to do at all (no column fields AND no workplace list) → 400.
+    if (fields.length === 0 && assigned_workplaces === undefined) {
       return res.status(400).json({
         success: false,
         message: 'Nincs frissítendő mező'
       });
     }
 
-    params.push(id);
-    const updateQuery = `
-      UPDATE accommodations SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${paramIndex}
-      RETURNING *
-    `;
+    let result = { rows: [oldAccommodation] };
+    if (fields.length > 0) {
+      params.push(id);
+      const updateQuery = `
+        UPDATE accommodations SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+      result = await query(updateQuery, params);
+    }
 
-    const result = await query(updateQuery, params);
+    // ── consolidation workplace binding: replace the accommodation's list ──
+    if (assigned_workplaces !== undefined) {
+      const list = Array.isArray(assigned_workplaces)
+        ? [...new Set(assigned_workplaces.map((w) => String(w).trim()).filter(Boolean))]
+        : [];
+      await query('DELETE FROM accommodation_workplaces WHERE accommodation_id = $1', [id]);
+      for (const w of list) {
+        await query(
+          'INSERT INTO accommodation_workplaces (accommodation_id, workplace) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [id, w]
+        );
+      }
+      result.rows[0] = { ...result.rows[0], assigned_workplaces: list };
+    }
 
     // Handle contractor history updates
     const newContractorId = current_contractor_id !== undefined ? current_contractor_id : oldAccommodation.current_contractor_id;

@@ -946,10 +946,11 @@ export const consolidationAPI = {
   run: async () => (await api.post('/consolidation/run')).data,
   listRuns: async () => (await api.get('/consolidation/runs')).data,
   getRun: async (id) => (await api.get(`/consolidation/runs/${id}`)).data,
-  apply: async (id, accommodation_id = null) => (await api.post(`/consolidation/runs/${id}/apply`, { accommodation_id })).data,
+  apply: async (id, plan_key = null) => (await api.post(`/consolidation/runs/${id}/apply`, { plan_key })).data,
   reject: async (suggestionId, reason = null) => (await api.post(`/consolidation/suggestions/${suggestionId}/reject`, { reason })).data,
   getConfig: async () => (await api.get('/consolidation/config')).data,
   updateConfig: async (data) => (await api.put('/consolidation/config', data)).data,
+  listWorkplaces: async () => (await api.get('/consolidation/workplaces')).data,
 };
 
 // Preferences API

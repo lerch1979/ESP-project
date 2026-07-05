@@ -42,10 +42,11 @@ const getRun = async (req, res) => {
 };
 
 // POST /consolidation/runs/:id/apply — approve + APPLY the moves atomically.
-// body.accommodation_id (optional) → apply only that site's plan; else the whole run.
+// body.plan_key (optional) → apply only that plan (a group of accommodations
+// linked by cross-moves); else apply the whole run.
 const apply = async (req, res) => {
   try {
-    const result = await engine.applyGroup(req.params.id, req.body?.accommodation_id || null, req.user?.id || null);
+    const result = await engine.applyGroup(req.params.id, req.body?.plan_key || null, req.user?.id || null);
     if (!result.ok) {
       const code = result.error === 'nothing_pending' ? 409 : 422;
       return res.status(code).json({ success: false, message: result.reason || 'Nincs alkalmazható javaslat.', error: result.error });
@@ -66,6 +67,17 @@ const reject = async (req, res) => {
   } catch (error) {
     logger.error('Consolidation reject error:', error);
     res.status(500).json({ success: false, message: 'Elutasítási hiba' });
+  }
+};
+
+// GET /consolidation/workplaces — distinct employee workplaces (for the
+// accommodation workplace-binding editor).
+const listWorkplaces = async (req, res) => {
+  try {
+    res.json({ success: true, data: await engine.listWorkplaces() });
+  } catch (error) {
+    logger.error('Consolidation listWorkplaces error:', error);
+    res.status(500).json({ success: false, message: 'Munkahelyek lekérési hiba' });
   }
 };
 
@@ -103,4 +115,4 @@ const updateConfig = async (req, res) => {
   }
 };
 
-module.exports = { runEngine, listRuns, getRun, apply, reject, getConfig, updateConfig };
+module.exports = { runEngine, listRuns, getRun, apply, reject, getConfig, updateConfig, listWorkplaces };

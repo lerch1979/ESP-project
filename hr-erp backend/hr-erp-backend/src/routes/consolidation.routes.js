@@ -8,6 +8,7 @@ const c = require('../controllers/consolidation.controller');
 router.post('/run', authenticateToken, checkPermission('employees.view'), c.runEngine);
 router.get('/runs', authenticateToken, checkPermission('employees.view'), c.listRuns);
 router.get('/config', authenticateToken, checkPermission('employees.view'), c.getConfig);
+router.get('/workplaces', authenticateToken, checkPermission('employees.view'), c.listWorkplaces);
 router.get('/runs/:id', authenticateToken, checkPermission('employees.view'), c.getRun);
 
 // Applying moves + rejecting + tuning changes data → edit permission.

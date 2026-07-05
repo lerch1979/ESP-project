@@ -31,13 +31,22 @@ npm run start:sandbox     # run the backend against the sandbox DB (node)
 
 ## What the seed generates
 
-- **1 contractor**, **~15 accommodations**, **~95 rooms / ~328 beds** (varied
-  sizes; sites 01–02 under-utilized, site 15 nearly full).
-- **~300 employees** with gender / workplace / `shift_schedule`
-  (day/night/rotating/flexible); **~70% room-assigned, ~30% unassigned**.
-- **Consolidation-engine edge cases**: mixed-gender rooms and mixed day/night
-  rooms (the engine must *not* consolidate across these) — counts printed on seed.
+- **1 contractor**, **15 accommodations**, **~56 rooms / ~176 beds**.
+- **300 employees** with gender / workplace / `shift_schedule`
+  (day/night/rotating/flexible); ~70% room-assigned in the normal sites.
+- **Consolidation v2 role cast (deterministic)** so the strategy layer is testable:
+  - **CORE** "Szálló 15" — near-full, workplace-bound to `Audi Győr`, 2 free beds.
+  - **BUFFER** "Szálló 01" — drainable (2 Audi day males → core; 1 Bosch whose
+    workplace the core excludes → workplace binding demonstrated).
+  - **PHASE_OUT** "Szálló 02" — Mercedes day males, drain into normals.
+  - **LOCKED** "Szálló 03" — under-consolidated; the engine must leave it alone.
+  - **normals** "Szálló 04–14" — random fill with mixed-gender / mixed day-night
+    edge-case rooms (within-accommodation constraint proofs).
+- **Consolidation regression:** `DB_NAME=hr_erp_sandbox node tests/consolidationEngine.script.js`
+  (40 checks; idempotent — snapshots + restores employee placement).
 - A few tickets + expenses so dashboards aren't empty.
+- Accommodation `type` is `dormitory` (a valid `VALID_TYPES` value, so admin
+  edit-save works).
 
 The dataset is deterministic (seeded PRNG), so re-running gives the same shape.
 

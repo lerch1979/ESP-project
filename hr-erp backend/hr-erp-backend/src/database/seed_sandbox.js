@@ -1,7 +1,7 @@
 /**
  * Sandbox seed — fully SYNTHETIC dataset for building/testing features
- * (starting with the room-consolidation engine) without touching production
- * or any real personal data.
+ * (room-consolidation engine v1 + v2) without touching production or any real
+ * personal data.
  *
  * Idempotent + re-runnable: clears all data-level rows (keeps reference data:
  * roles/statuses/categories/permissions), then regenerates.
@@ -12,6 +12,16 @@
  *
  * All names/emails/phones below are generated + clearly synthetic
  * (emails @sandbox.local, phones +36 30 000 xxxx). No real individuals.
+ *
+ * v2 role coverage (deterministic cast, so the strategy layer is testable):
+ *   • CORE      "Szálló 15" — near-full, workplace-bound to 'Audi Győr'; has 2
+ *               free beds so the buffer's Audi workers can drain INTO it.
+ *   • BUFFER    "Szálló 01" — drainable: 2 'Audi Győr' day males (→ core) + 1
+ *               'Bosch Miskolc' day male whose workplace the CORE excludes.
+ *   • PHASE_OUT "Szálló 02" — 'Mercedes Kecskemét' day males, drain into normals.
+ *   • LOCKED    "Szálló 03" — under-consolidated on purpose; engine must NOT touch it.
+ *   • normals   "Szálló 04..14" — random fill (mixed-gender / mixed-shift edge
+ *               cases for the within-accommodation constraint proofs).
  */
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
@@ -40,6 +50,8 @@ const CITIES = ['Győr','Kecskemét','Miskolc','Debrecen','Veszprém','Szeged','
 
 async function main() {
   const c = await pool.connect();
+  let empSeq = 0; // global employee-number counter
+
   try {
     await c.query('BEGIN');
 
@@ -52,7 +64,7 @@ async function main() {
     for (const t of [
       'ticket_messages','ticket_attachments','ticket_comments','ticket_history','tickets',
       'accommodation_expenses','employee_accommodation_history','employees',
-      'accommodation_rooms','accommodation_contractors','accommodations',
+      'accommodation_workplaces','accommodation_rooms','accommodation_contractors','accommodations',
       'user_roles',
     ]) { await c.query(`DELETE FROM ${t}`); }
     await c.query(`DELETE FROM users`);
@@ -69,111 +81,141 @@ async function main() {
     const roleId = async (slug) => (await c.query(`SELECT id FROM roles WHERE slug=$1`, [slug])).rows[0].id;
     const newStatus = (await c.query(`SELECT id FROM ticket_statuses WHERE slug='new' LIMIT 1`)).rows[0]?.id
       || (await c.query(`SELECT id FROM ticket_statuses LIMIT 1`)).rows[0].id;
-    const cc = (await c.query(`SELECT id FROM cost_centers LIMIT 1`)).rows[0]?.id;
-    // A non-critical category so the alert_critical_ticket trigger returns early
-    // (it fires only for harassment/escalation; a NULL category slips past its
-    // NULL-valued NOT IN guard and would insert a wellbeing referral with no user).
     const benignCategory = (await c.query(`SELECT id FROM ticket_categories WHERE slug NOT IN ('harassment','escalation') LIMIT 1`)).rows[0]?.id;
 
-    // ── ~15 accommodations, each with rooms + beds (varied utilization) ──
-    // Layout gives ≥2 under-utilized sites (few occupants), 1 nearly-full site.
-    const NUM_ACC = 15;
-    const accommodations = [];
-    for (let a = 1; a <= NUM_ACC; a++) {
-      const name = `Szálló ${pad(a, 2)} — ${pick(CITIES)}`;
-      const numRooms = int(3, 8);
-      const accId = (await c.query(
-        `INSERT INTO accommodations (name, address, type, current_contractor_id, status, monthly_rent)
-         VALUES ($1,$2,'worker_hostel',$3,'occupied',$4) RETURNING id`,
-        [name, `${int(1000,9999)} ${pick(CITIES)}, Munkás u. ${a}.`, contractorId, int(180000, 420000)]
-      )).rows[0].id;
-      await c.query(
-        `INSERT INTO accommodation_contractors (accommodation_id, contractor_id, check_in)
-         VALUES ($1,$2,CURRENT_DATE)`, [accId, contractorId]
-      );
-      const rooms = [];
-      for (let r = 1; r <= numRooms; r++) {
-        const beds = pick([2, 2, 3, 4, 4, 6]);
-        const roomId = (await c.query(
-          `INSERT INTO accommodation_rooms (accommodation_id, room_number, floor, beds, room_type, is_active)
-           VALUES ($1,$2,$3,$4,'standard',true) RETURNING id`,
-          [accId, `${100 * (1 + (r % 3)) + r}`, (r % 3), beds]
-        )).rows[0].id;
-        rooms.push({ id: roomId, beds, occupants: 0 });
-      }
-      // utilization profile: a=1,2 under-utilized (target ~30%); a=15 nearly full (~95%)
-      const fill = a <= 2 ? 0.3 : a === NUM_ACC ? 0.95 : 0.6 + rnd() * 0.2;
-      accommodations.push({ id: accId, name, rooms, fill });
-    }
+    // ── helpers ──
+    // type 'dormitory' (Munkásszálló) — a VALID_TYPES value so admin edit-save works
+    // (the old 'worker_hostel' string was not in the controller's allow-list → 400).
+    const mkAccommodation = async (name, { role = 'normal', locked = false } = {}) => (await c.query(
+      `INSERT INTO accommodations (name, address, type, current_contractor_id, status, monthly_rent,
+                                   consolidation_role, consolidation_locked)
+       VALUES ($1,$2,'dormitory',$3,'occupied',$4,$5,$6) RETURNING id`,
+      [name, `${int(1000,9999)} ${pick(CITIES)}, Munkás u.`, contractorId, int(180000, 420000), role, locked]
+    )).rows[0].id;
 
-    // ── ~300 synthetic employees ──
-    const NUM_EMP = 300;
-    let assigned = 0, unassigned = 0;
-    let mixedGenderSeeded = 0, mixedShiftSeeded = 0;
-    for (let e = 1; e <= NUM_EMP; e++) {
-      const isMale = rnd() < 0.7; // worker-hostel skew
-      const gender = isMale ? 'male' : 'female';
-      const first = pick(isMale ? MALE : FEMALE);
+    const mkRoom = async (accId, num, beds) => (await c.query(
+      `INSERT INTO accommodation_rooms (accommodation_id, room_number, floor, beds, room_type, is_active)
+       VALUES ($1,$2,0,$3,'standard',true) RETURNING id`,
+      [accId, String(num), beds]
+    )).rows[0].id;
+
+    const mkEmployee = async ({ accId, roomId, gender, shift, workplace }) => {
+      empSeq++;
+      const first = pick(gender === 'male' ? MALE : FEMALE);
       const last = pick(SUR);
-      const mother = `${pick(SUR)} ${pick(FEMALE)}`;
-      const shift = pick(SHIFTS);
-      const acc = pick(accommodations);
-      const empNo = `SBX-${pad(e)}`;
-      // ~70% assigned to a room, ~30% unassigned (room_id null) — the fill target.
-      let roomId = null, roomNumber = null, accId = acc.id;
-      const wantAssign = rnd() < 0.7;
-      if (wantAssign) {
-        // pick a room in the accommodation with a free bed
-        const room = acc.rooms.find(r => r.occupants < r.beds);
-        if (room) {
-          // Edge cases: deliberately create some mixed-gender + mixed-shift rooms
-          // (the engine must NOT consolidate across these) by not filtering on them here.
-          roomId = room.id; roomNumber = null; room.occupants++; assigned++;
-        } else { unassigned++; }
-      } else { unassigned++; }
-
       await c.query(
         `INSERT INTO employees
           (contractor_id, accommodation_id, room_id, employee_number, status_id,
            first_name, last_name, gender, birth_date, mothers_name, workplace, shift_schedule,
            personal_email, personal_phone, nationality, start_date)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'HU',CURRENT_DATE - ($15||' days')::interval)`,
-        [contractorId, accId, roomId, empNo, activeStatus,
-         first, last, gender, `19${int(70,99)}-${pad(int(1,12),2)}-${pad(int(1,28),2)}`, mother,
-         pick(WORKPLACES), shift,
-         `sbx-emp-${pad(e)}@sandbox.local`, `+36 30 000 ${pad(e)}`, int(30, 3000)]
+        [contractorId, accId, roomId, `SBX-${pad(empSeq)}`, activeStatus,
+         first, last, gender, `19${int(70,99)}-${pad(int(1,12),2)}-${pad(int(1,28),2)}`, `${pick(SUR)} ${pick(FEMALE)}`,
+         workplace, shift, `sbx-emp-${pad(empSeq)}@sandbox.local`, `+36 30 000 ${pad(empSeq)}`, int(30, 3000)]
       );
+    };
+
+    const addWorkplaces = async (accId, list) => {
+      for (const w of list) await c.query(
+        `INSERT INTO accommodation_workplaces (accommodation_id, workplace) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [accId, w]);
+    };
+
+    // ══════════════════════════════════════════════════════════════════════
+    // v2 ROLE-TAGGED accommodations — deterministic cast (guarantees the
+    // strategy scenario regardless of the random fill below).
+    // ══════════════════════════════════════════════════════════════════════
+
+    // CORE — "Szálló 15": near-full, bound to 'Audi Győr', 2 free beds for drain.
+    const coreId = await mkAccommodation('Szálló 15 — Győr', { role: 'core' });
+    await addWorkplaces(coreId, ['Audi Győr']);
+    const coreRooms = [await mkRoom(coreId, 1501, 4), await mkRoom(coreId, 1502, 4), await mkRoom(coreId, 1503, 4), await mkRoom(coreId, 1504, 2)];
+    for (const rid of coreRooms.slice(0, 3)) for (let i = 0; i < 4; i++) await mkEmployee({ accId: coreId, roomId: rid, gender: 'male', shift: 'day', workplace: 'Audi Győr' }); // 12/12 in first 3 rooms; room 1504 empty (2 free)
+
+    // BUFFER — "Szálló 01": drainable. 2 Audi day males (→ core), 1 Bosch day male
+    // (core excludes 'Bosch Miskolc' → workplace is that resident's only blocker at the core).
+    const bufferId = await mkAccommodation('Szálló 01 — Győr', { role: 'buffer' });
+    const bufRooms = [await mkRoom(bufferId, 101, 2), await mkRoom(bufferId, 102, 2)];
+    await mkEmployee({ accId: bufferId, roomId: bufRooms[0], gender: 'male', shift: 'day', workplace: 'Audi Győr' });
+    await mkEmployee({ accId: bufferId, roomId: bufRooms[0], gender: 'male', shift: 'day', workplace: 'Audi Győr' });
+    await mkEmployee({ accId: bufferId, roomId: bufRooms[1], gender: 'male', shift: 'day', workplace: 'Bosch Miskolc' });
+
+    // PHASE_OUT — "Szálló 02": Mercedes day males, drain into unrestricted normals.
+    const phaseOutId = await mkAccommodation('Szálló 02 — Kecskemét', { role: 'phase_out' });
+    const poRooms = [await mkRoom(phaseOutId, 201, 2), await mkRoom(phaseOutId, 202, 2)];
+    await mkEmployee({ accId: phaseOutId, roomId: poRooms[0], gender: 'male', shift: 'day', workplace: 'Mercedes Kecskemét' });
+    await mkEmployee({ accId: phaseOutId, roomId: poRooms[0], gender: 'male', shift: 'day', workplace: 'Mercedes Kecskemét' });
+    await mkEmployee({ accId: phaseOutId, roomId: poRooms[1], gender: 'male', shift: 'day', workplace: 'Mercedes Kecskemét' });
+
+    // LOCKED — "Szálló 03": under-consolidated (2 half-empty rooms that COULD merge)
+    // — the engine must leave it completely untouched.
+    const lockedId = await mkAccommodation('Szálló 03 — Miskolc', { role: 'normal', locked: true });
+    const lkRooms = [await mkRoom(lockedId, 301, 4), await mkRoom(lockedId, 302, 4)];
+    await mkEmployee({ accId: lockedId, roomId: lkRooms[0], gender: 'male', shift: 'day', workplace: 'Bosch Miskolc' });
+    await mkEmployee({ accId: lockedId, roomId: lkRooms[1], gender: 'male', shift: 'day', workplace: 'Bosch Miskolc' });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // NORMAL accommodations — random fill (edge cases for within-consolidation).
+    // ══════════════════════════════════════════════════════════════════════
+    const NUM_NORMAL = 11;
+    const normals = [];
+    for (let a = 4; a <= 3 + NUM_NORMAL; a++) {
+      const accId = await mkAccommodation(`Szálló ${pad(a, 2)} — ${pick(CITIES)}`, { role: 'normal' });
+      await c.query(
+        `INSERT INTO accommodation_contractors (accommodation_id, contractor_id, check_in) VALUES ($1,$2,CURRENT_DATE)`,
+        [accId, contractorId]);
+      const numRooms = int(3, 8);
+      const rooms = [];
+      for (let r = 1; r <= numRooms; r++) {
+        const beds = pick([2, 2, 3, 4, 4, 6]);
+        rooms.push({ id: await mkRoom(accId, 100 * (1 + (r % 3)) + r, beds), beds, occupants: 0 });
+      }
+      const fill = a <= 5 ? 0.3 : 0.6 + rnd() * 0.2; // Szálló 04–05 under-utilized
+      normals.push({ id: accId, rooms, fill });
+    }
+    // contractor links for the special accommodations too
+    for (const accId of [coreId, bufferId, phaseOutId, lockedId]) {
+      await c.query(
+        `INSERT INTO accommodation_contractors (accommodation_id, contractor_id, check_in) VALUES ($1,$2,CURRENT_DATE)`,
+        [accId, contractorId]);
     }
 
-    // Fetch room composition to report the edge cases actually generated.
+    // ── fill normals up to ~300 total employees (mixed gender/shift edge cases) ──
+    const TARGET_TOTAL = 300;
+    let assigned = 0, unassigned = 0;
+    while (empSeq < TARGET_TOTAL) {
+      const isMale = rnd() < 0.7;
+      const gender = isMale ? 'male' : 'female';
+      const shift = pick(SHIFTS);
+      const acc = pick(normals);
+      const wantAssign = rnd() < 0.7;
+      let roomId = null;
+      if (wantAssign) {
+        const room = acc.rooms.find((r) => r.occupants < r.beds); // deliberately NO gender/shift filter → seeds edge cases
+        if (room) { roomId = room.id; room.occupants++; assigned++; } else unassigned++;
+      } else unassigned++;
+      await mkEmployee({ accId: acc.id, roomId, gender, shift, workplace: pick(WORKPLACES) });
+    }
+
+    // Fetch edge-case counts actually generated (across normals).
     const mixG = (await c.query(
-      `SELECT COUNT(*)::int c FROM (
-         SELECT room_id FROM employees WHERE room_id IS NOT NULL GROUP BY room_id
-         HAVING COUNT(DISTINCT gender) > 1) x`)).rows[0].c;
+      `SELECT COUNT(*)::int c FROM (SELECT room_id FROM employees WHERE room_id IS NOT NULL GROUP BY room_id HAVING COUNT(DISTINCT gender) > 1) x`)).rows[0].c;
     const mixS = (await c.query(
-      `SELECT COUNT(*)::int c FROM (
-         SELECT room_id FROM employees WHERE room_id IS NOT NULL GROUP BY room_id
+      `SELECT COUNT(*)::int c FROM (SELECT room_id FROM employees WHERE room_id IS NOT NULL GROUP BY room_id
          HAVING COUNT(DISTINCT CASE WHEN shift_schedule IN ('day','night') THEN shift_schedule END) > 1) x`)).rows[0].c;
 
     // ── a few tickets + expenses so dashboards aren't empty ──
-    const someEmployees = (await c.query(`SELECT id, user_id FROM employees LIMIT 20`)).rows;
-    const superadminForTickets = null;
     for (let t = 1; t <= 12; t++) {
-      const acc = pick(accommodations);
       await c.query(
         `INSERT INTO tickets (contractor_id, ticket_number, title, description, status_id, category_id, created_at)
          VALUES ($1,$2,$3,$4,$5,$6, NOW() - ($7||' days')::interval)`,
         [contractorId, `#${t}`, `Sandbox hibajegy ${t}: ${pick(['csöpögő csap','fűtés','wifi','zár','világítás'])}`,
-         'Szintetikus teszt hibajegy.', newStatus, benignCategory, int(0, 30)]
-      );
+         'Szintetikus teszt hibajegy.', newStatus, benignCategory, int(0, 30)]);
     }
     for (let x = 1; x <= 20; x++) {
-      const acc = pick(accommodations);
       await c.query(
         `INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount, currency, vendor_name, created_at)
          VALUES ($1, to_char(CURRENT_DATE, 'YYYY-MM'), $2, $3, 'HUF', $4, NOW())`,
-        [acc.id, pick(['rezsi','karbantartas','takaritas','egyeb']), int(20000, 250000), `Beszállító ${x} (sandbox)`]
-      );
+        [pick(normals).id, pick(['rezsi','karbantartas','takaritas','egyeb']), int(20000, 250000), `Beszállító ${x} (sandbox)`]);
     }
 
     // ── test logins (known passwords) ──
@@ -191,7 +233,6 @@ async function main() {
     await mkUser('admin@sandbox.local', 'Sandbox', 'Admin', 'admin');
     const res1 = await mkUser('resident1@sandbox.local', 'Lakó', 'Egy', 'accommodated_employee');
     const res2 = await mkUser('resident2@sandbox.local', 'Lakó', 'Kettő', 'accommodated_employee');
-    // link the 2 residents to employee records so their /my endpoints have data
     await c.query(`UPDATE employees SET user_id=$1 WHERE id=(SELECT id FROM employees WHERE user_id IS NULL LIMIT 1)`, [res1]);
     await c.query(`UPDATE employees SET user_id=$1 WHERE id=(SELECT id FROM employees WHERE user_id IS NULL LIMIT 1)`, [res2]);
 
@@ -202,6 +243,8 @@ async function main() {
     console.log('\n✅ Sandbox seeded (all synthetic):');
     console.log(`   contractors:   ${await q('SELECT COUNT(*)::int c FROM contractors')}`);
     console.log(`   accommodations:${await q('SELECT COUNT(*)::int c FROM accommodations')}  rooms:${await q('SELECT COUNT(*)::int c FROM accommodation_rooms')}  beds:${await q('SELECT COALESCE(SUM(beds),0)::int c FROM accommodation_rooms')}`);
+    console.log(`   roles:         core=${await q("SELECT COUNT(*)::int c FROM accommodations WHERE consolidation_role='core'")}  buffer=${await q("SELECT COUNT(*)::int c FROM accommodations WHERE consolidation_role='buffer'")}  phase_out=${await q("SELECT COUNT(*)::int c FROM accommodations WHERE consolidation_role='phase_out'")}  locked=${await q('SELECT COUNT(*)::int c FROM accommodations WHERE consolidation_locked')}`);
+    console.log(`   workplace-binds:${await q('SELECT COUNT(*)::int c FROM accommodation_workplaces')}`);
     console.log(`   employees:     ${await q('SELECT COUNT(*)::int c FROM employees')}  assigned:${await q('SELECT COUNT(*)::int c FROM employees WHERE room_id IS NOT NULL')}  unassigned:${await q('SELECT COUNT(*)::int c FROM employees WHERE room_id IS NULL')}`);
     console.log(`   edge cases:    mixed-gender rooms=${mixG}  mixed day/night rooms=${mixS}`);
     console.log(`   tickets:${await q('SELECT COUNT(*)::int c FROM tickets')}  expenses:${await q('SELECT COUNT(*)::int c FROM accommodation_expenses')}`);
@@ -209,6 +252,7 @@ async function main() {
   } catch (e) {
     await c.query('ROLLBACK').catch(() => {});
     console.error('Seed failed:', e.message);
+    console.error(e.stack);
     process.exitCode = 1;
   } finally {
     c.release();
