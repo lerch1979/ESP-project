@@ -4,6 +4,8 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { sendEmail } = require('../utils/emailService');
 const { buildFilterWhere } = require('../utils/filterBuilder');
+const storage = require('./storage.service');
+const { alertOps } = require('../utils/opsAlert');
 
 // ============================================================
 // Data generators — one per report type
@@ -221,12 +223,43 @@ async function generateOccupancyData() {
   return { records, sheetName: 'Kihasználtság' };
 }
 
+// Monthly cost summary ("Havi költséghely összesítő"). The live cost data is
+// accommodation_expenses (the old cost_centers pipeline has 0 finalized rows);
+// summarize the CURRENT billing month by accommodation + category. Month is
+// computed in SQL as a 'YYYY-MM' string (billing_month is char(7)) — this
+// sidesteps the pg DATE→JS UTC-drift footgun entirely (no JS Date on a boundary).
+// An empty month yields a single "no data" row, not a failure.
+async function generateCostSummaryData() {
+  const result = await query(
+    `SELECT a.name AS accommodation, ae.category,
+            SUM(ae.amount)::numeric AS total, COUNT(*)::int AS items
+       FROM accommodation_expenses ae
+       JOIN accommodations a ON a.id = ae.accommodation_id
+      WHERE ae.deleted_at IS NULL
+        AND ae.billing_month = to_char(CURRENT_DATE, 'YYYY-MM')
+      GROUP BY a.name, ae.category
+      ORDER BY a.name, ae.category`
+  );
+  const CAT = { rezsi: 'Rezsi', karbantartas: 'Karbantartás', takaritas: 'Takarítás', egyeb: 'Egyéb' };
+  const records = result.rows.map((r) => ({
+    'Szálláshely': r.accommodation,
+    'Kategória': CAT[r.category] || r.category,
+    'Összeg (Ft)': Number(r.total),
+    'Tételek száma': r.items,
+  }));
+  if (records.length === 0) {
+    records.push({ 'Szálláshely': 'Nincs költségadat erre a hónapra', 'Kategória': '', 'Összeg (Ft)': 0, 'Tételek száma': 0 });
+  }
+  return { records, sheetName: 'Havi költségek' };
+}
+
 const DATA_GENERATORS = {
   employees: generateEmployeesData,
   accommodations: generateAccommodationsData,
   tickets: generateTicketsData,
   contractors: generateContractorsData,
   occupancy: generateOccupancyData,
+  cost_centers: generateCostSummaryData, // the previously-missing type that failed
 };
 
 // ============================================================
@@ -300,6 +333,11 @@ async function executeReport(report) {
     const { records, sheetName } = await generator(filters);
     const buffer = generateExcelBuffer(records, sheetName);
 
+    // Store the output so it's ALWAYS retrievable from the admin (email delivery
+    // is flaky/unconfigured) — independent of whether the emails go out.
+    const relPath = `reports/${runId}.xlsx`;
+    await storage.saveAtPath({ relPath, buffer });
+
     const recipients = report.recipients || [];
     const reportTypeLabels = {
       employees: 'Munkavállalók összesítő',
@@ -307,12 +345,17 @@ async function executeReport(report) {
       tickets: 'Hibajegyek',
       contractors: 'Alvállalkozók',
       occupancy: 'Kihasználtság',
+      cost_centers: 'Havi költséghely összesítő',
     };
     const typeName = reportTypeLabels[report.report_type] || report.report_type;
     const dateStr = new Date().toLocaleDateString('hu-HU');
 
+    // Track REAL delivery — sendEmail swallows errors and returns {success},
+    // so a failed send must be counted, not silently treated as delivered.
+    let delivered = 0;
+    let deliveryError = null;
     for (const email of recipients) {
-      await sendEmail({
+      const r = await sendEmail({
         to: email,
         subject: `${report.name} - ${typeName} riport (${dateStr})`,
         html: `
@@ -323,7 +366,7 @@ async function executeReport(report) {
             <li><strong>Rekordok száma:</strong> ${records.length}</li>
             <li><strong>Generálva:</strong> ${dateStr}</li>
           </ul>
-          <p>Az Excel fájl csatolva található.</p>
+          <p>Az Excel fájl csatolva található. (A riport az adminban is letölthető.)</p>
         `,
         attachments: [{
           filename: `${report.name.replace(/[^a-zA-Z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ _-]/g, '')}_${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -331,13 +374,23 @@ async function executeReport(report) {
           contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         }],
       });
+      if (r && r.success) delivered += 1;
+      else deliveryError = r?.error || 'ismeretlen kézbesítési hiba';
     }
+
+    // Loud on incomplete delivery: the report generated + stored, but if it was
+    // meant to be emailed and NOT every recipient got it, record it + alert.
+    const deliveryFailed = recipients.length > 0 && delivered < recipients.length;
+    const runError = deliveryFailed
+      ? `Kézbesítés: ${delivered}/${recipients.length} sikeres. Hiba: ${deliveryError}`
+      : null;
 
     await query(
       `UPDATE scheduled_report_runs
-       SET status = 'success', completed_at = NOW(), records_count = $1, file_size = $2, recipients_count = $3
-       WHERE id = $4`,
-      [records.length, buffer.length, recipients.length, runId]
+       SET status = 'success', completed_at = NOW(), records_count = $1, file_size = $2,
+           recipients_count = $3, delivered_count = $4, file_path = $5, error_message = $6
+       WHERE id = $7`,
+      [records.length, buffer.length, recipients.length, delivered, relPath, runError, runId]
     );
 
     // Update next_run_at
@@ -346,13 +399,18 @@ async function executeReport(report) {
       await query(`UPDATE scheduled_reports SET next_run_at = $1 WHERE id = $2`, [nextRun, report.id]);
     }
 
-    logger.info(`Scheduled report completed: ${report.name}`, { reportId: report.id, records: records.length });
+    if (deliveryFailed) {
+      await alertOps(`Ütemezett riport "${report.name}" elkészült, de a kézbesítés részleges (${delivered}/${recipients.length}). ${deliveryError}. A riport az adminban letölthető.`);
+    }
+    logger.info(`Scheduled report completed: ${report.name}`, { reportId: report.id, records: records.length, delivered, recipients: recipients.length });
   } catch (error) {
     logger.error(`Scheduled report failed: ${report.name}`, { reportId: report.id, error: error.message });
     await query(
       `UPDATE scheduled_report_runs SET status = 'failed', completed_at = NOW(), error_message = $1 WHERE id = $2`,
       [error.message, runId]
     );
+    // Fail LOUDLY — the whole point of this fix (silent failures were discovered by the user).
+    await alertOps(`Ütemezett riport HIBA: "${report.name}" — ${error.message}`);
   }
 }
 

@@ -13,6 +13,7 @@ import {
   PlayArrow as PlayArrowIcon,
   History as HistoryIcon,
   Close as CloseIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { scheduledReportsAPI } from '../services/api';
@@ -224,6 +225,23 @@ export default function ScheduledReports() {
     }
   };
 
+  // Download a stored report run output (retrievable even if email delivery failed).
+  const handleDownloadRun = async (run) => {
+    try {
+      const response = await scheduledReportsAPI.downloadRun(run.id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${(historyTarget?.name || 'riport').replace(/[^\w áéíóöőúüűÁÉÍÓÖŐÚÜŰ-]/g, '')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('A riport fájl nem tölthető le (régi vagy sikertelen futás).');
+    }
+  };
+
   return (
     <>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -417,8 +435,8 @@ export default function ScheduledReports() {
                     <TableCell sx={{ fontWeight: 700 }}>Befejezés</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Státusz</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Rekordok</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Fájlméret</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Címzettek</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Kézbesítve</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Letöltés</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Hiba</TableCell>
                   </TableRow>
                 </TableHead>
@@ -432,9 +450,18 @@ export default function ScheduledReports() {
                           color={STATUS_COLORS[run.status] || 'default'} />
                       </TableCell>
                       <TableCell>{run.records_count ?? '-'}</TableCell>
-                      <TableCell>{formatFileSize(run.file_size)}</TableCell>
-                      <TableCell>{run.recipients_count ?? '-'}</TableCell>
-                      <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <TableCell>
+                        {run.recipients_count ? `${run.delivered_count ?? 0}/${run.recipients_count}` : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {run.file_path ? (
+                          <Button size="small" startIcon={<DownloadIcon />} onClick={() => handleDownloadRun(run)}>
+                            Letöltés
+                          </Button>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        title={run.error_message || ''}>
                         {run.error_message || '-'}
                       </TableCell>
                     </TableRow>

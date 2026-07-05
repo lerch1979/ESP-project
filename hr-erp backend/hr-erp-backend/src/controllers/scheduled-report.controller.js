@@ -1,6 +1,9 @@
+const path = require('path');
+const fs = require('fs');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { executeReport, calculateNextRun } = require('../services/report-scheduler.service');
+const storage = require('../services/storage.service');
 
 /**
  * GET / — list all scheduled reports with last run info
@@ -150,6 +153,35 @@ const getRunHistory = async (req, res) => {
 };
 
 /**
+ * GET /runs/:runId/download — download the stored output of a report run.
+ * Makes outputs retrievable from the admin independent of email delivery.
+ */
+const downloadRun = async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const r = await query(
+      `SELECT sr.name, run.file_path FROM scheduled_report_runs run
+         JOIN scheduled_reports sr ON sr.id = run.scheduled_report_id WHERE run.id = $1`,
+      [runId]
+    );
+    if (r.rows.length === 0 || !r.rows[0].file_path) {
+      return res.status(404).json({ success: false, message: 'A riport fájl nem található (régi vagy sikertelen futás).' });
+    }
+    const abs = path.join(storage.UPLOAD_ROOT, r.rows[0].file_path);
+    if (!fs.existsSync(abs)) {
+      return res.status(404).json({ success: false, message: 'A riport fájl nem található a szerveren.' });
+    }
+    const safeName = (r.rows[0].name || 'riport').replace(/[^a-zA-Z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ _-]/g, '');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.xlsx"`);
+    fs.createReadStream(abs).pipe(res);
+  } catch (error) {
+    logger.error('Scheduled report download error:', error);
+    res.status(500).json({ success: false, message: 'Letöltési hiba' });
+  }
+};
+
+/**
  * PATCH /:id/toggle — toggle active/inactive
  */
 const toggleActive = async (req, res) => {
@@ -189,5 +221,6 @@ module.exports = {
   remove,
   triggerRun,
   getRunHistory,
+  downloadRun,
   toggleActive,
 };

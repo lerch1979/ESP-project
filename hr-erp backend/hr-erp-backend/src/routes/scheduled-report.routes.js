@@ -9,11 +9,14 @@ const {
   remove,
   triggerRun,
   getRunHistory,
+  downloadRun,
   toggleActive,
 } = require('../controllers/scheduled-report.controller');
 
 router.get('/', authenticateToken, checkPermission('reports.schedule'), getAll);
 router.post('/', authenticateToken, checkPermission('reports.schedule'), create);
+// literal path before /:id params so it isn't captured
+router.get('/runs/:runId/download', authenticateToken, checkPermission('reports.schedule'), downloadRun);
 router.put('/:id', authenticateToken, checkPermission('reports.schedule'), update);
 router.delete('/:id', authenticateToken, checkPermission('reports.schedule'), remove);
 router.post('/:id/run', authenticateToken, checkPermission('reports.schedule'), triggerRun);

@@ -934,6 +934,7 @@ export const scheduledReportsAPI = {
     const response = await api.get(`/scheduled-reports/${id}/runs`);
     return response.data;
   },
+  downloadRun: (runId) => api.get(`/scheduled-reports/runs/${runId}/download`, { responseType: 'blob' }),
   toggleActive: async (id) => {
     const response = await api.patch(`/scheduled-reports/${id}/toggle`);
     return response.data;
