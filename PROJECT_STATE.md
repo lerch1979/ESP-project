@@ -1,6 +1,6 @@
 # HR-ERP PROJECT STATE
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-06
 **Maintainer:** lerchbalazs@gmail.com
 
 > ⚠️ **PRODUCTION IS LIVE** at **https://app.housingsolutions.hu** — Hetzner VM `167.233.122.3`, Docker Compose stack (caddy → backend + admin → postgres + redis). Deploy = SSH `deploy@167.233.122.3` + `docker compose -f docker-compose.prod.yml pull backend && up -d backend`. CI (push to `main`) builds + pushes GHCR images; the k8s deploy job is `if:false` so the pull is manual. See `HETZNER_DEPLOY.md` (now the as-built reference).
@@ -90,6 +90,7 @@ Companion docs:
 
 | Date | Commit | Summary |
 |---|---|---|
+| 2026-07-06 | _main→prod_ | **Stabilization round — production hardening + housekeeping.** (1) **Offsite backup (P0-1):** `deploy/backup.sh` + prod `backup.sh` now encrypt offsite copies (AES-256/PBKDF2 → `backups/offsite/*.enc`), push **only** encrypted artifacts (rsync `--delete` mirror, 30-day retention), and **alert on failure** via `OPS_ALERT_WEBHOOK`. `BACKUP_ENCRYPTION_KEY` generated on the VM. **Restore verified** from the encrypted copy (decrypt → `pg_restore` rc=0 → users=7/employees=288 intact + uploads-extract). `docs/BACKUP_RESTORE.md` written. **Remaining owner action:** provision a Hetzner Storage Box (paid, console) + add the backup pubkey + fill `STORAGEBOX_HOST/USER` — until then offsite is local-only. (2) Cherry-picked the **public/locales → src/i18n/locales** Vite dev-import fix to main (local dev no longer blank; verified). (3) Added **FUTURE ROADMAP — Digital HR services** (Phase A self-service/KPIs · B payroll via integration, never our own calc · C partner API gated on RLS). (4) Housekeeping: Gmail poller disabled on prod (`GMAIL_POLLING_ENABLED=false` — was spamming `invalid_grant`); invoice_drafts already converted (nothing to archive); health check green (containers healthy, hygiene toggle OFF, deduction OFF, disk 12%). |
 | 2026-07-05 | _main→prod_ | **Room-hygiene house-rule fine — OUR process, independent toggle (deployed, default OFF).** Business rule: N consecutive failing hygiene inspections on a room → a `HOUSE_RULES` fine (defaults 2 → 10,000 Ft/resident). Discovery: this auto-rule did NOT exist (only the fine types + manual `POST /fines`; `runAutoConversions` is deduction-only) — so built net-new. mig 136 (`hygiene_fine_config`: enabled/consecutive_fails/fail_hygiene_max/fine_amount/fine_type_code, singleton, default OFF). `hygieneFine.service.js` detects rooms whose latest N completed inspections all have `hygiene_score ≤ threshold`, creates ONE fine per room via the existing `createFine` (idempotent, keyed to latest inspection+room), reusing residents from `room_inspections.residents_snapshot`. **Independent of `DEDUCTION_EXECUTION_ENABLED`** — its own config toggle; wired into `inspectionAutomation.runDaily` gated by `hygiene_fine_config.enabled`. Creates the debt record + the existing resident notification only — **NO `compensation_payments`, NO deduction**; payable via cash or forwarded. `createFine` gained an `amountOverride`. Admin page under Ingatlan Ellenőrzés → "Házirend-bírság" (toggle + amount + consecutive-count + threshold + run-now). Tests 14/14 (toggle off/on, exactly-one fine, idempotent, no payments/deductions, cash works, single-fail→no-fine). Sandbox HTTP demo: 2 failing inspections → fine `BIR-2026-0003` (60,000 Ft / 6 residents). Deployed default OFF. |
 | 2026-07-05 | _main→prod_ | **Deduction-execution MOTHBALLED (deployed to prod).** Decision: we only produce the damage jegyzőkönyv; the client's payroll runs deductions. New reversible feature flag `DEDUCTION_EXECUTION_ENABLED` (default off) in `src/config/deductionExecution.js`. OFF (prod): `POST /fines/payroll/run`, `POST /compensations/:id/salary-deduction`, `POST /fines/residents/:id/convert-to-deduction` → **403** (clear HU message); the daily auto-conversion (`inspectionAutomation` → `runAutoConversions`) is skipped; the monthly payroll cron is **not scheduled** (logs "MOTHBALLED"). KEPT working: on-site/cash repayments, `compensation_payments` for cash, payment-history reads, GDPR anonymization of `salary_deductions`, and the jegyzőkönyv PDF unchanged in all 5 locales (incl. `payment_plan` section). UI: run-payroll + schedule/convert controls hidden behind a mirrored `DEDUCTION_EXECUTION_ENABLED=false` const (SalaryDeductionsList read-only history; CompensationDetail). Service engine left intact + callable (EOR re-enable = one env + two UI consts). Tests: new mothball guard 7/7 + cash/damage/compensation/inspection suites green (deduction engine still works when flag on). Verified on sandbox (3 endpoints 403, cash 404-not-gated, cron mothballed, admin builds). |
 | 2026-07-05 | _sandbox_ | **Room Consolidation Suggestion Engine v1 (SANDBOX ONLY — not deployed).** `consolidationEngine.service.js` + mig 132 (`consolidation_config` weights + shift-matrix, read-fresh-each-run; `consolidation_runs` site-level summary) reusing `agent_suggestions` (mig 123) as the per-move approval queue. Proposes within-accommodation moves to free whole rooms; **never moves anyone** — a human approves a site's plan (atomic apply — moves are interdependent) → applies `room_id` + logs `entity_status_history`; reject archives with reason. HARD constraints (no mixed-gender, shift matrix, bed capacity, same-accommodation) proven on ALL suggestions by `tests/consolidationEngine.script.js` (24/24; 6 seeded conflicts → 0 in touched sites). Admin page `/accommodations/consolidation`. **mig 132 NOT applied to prod.** Shift-matrix default: day/night never share; rotating own group; flexible ↔ anything. |
@@ -176,12 +177,12 @@ For older history: `git log --oneline --since="2026-04-01"`.
 
 | Item | Severity | Notes |
 |---|---|---|
-| Gmail poller may still be running | medium | Verify `src/services/gmailMCP.service.js` cron registration. If active, new orphan drafts pile up. |
+| ~~Gmail poller may still be running~~ ✅ RESOLVED 2026-07-06 | — | On prod `GMAIL_POLLING_ENABLED=true` had the (dormant) universal poller scheduled every 5 min and **failing `invalid_grant`** repeatedly (log spam). Set `GMAIL_POLLING_ENABLED=false` in the prod `.env.production` + recreated the backend → poller no longer scheduled. (`gmailMCP.service.js` is a deprecated stub delegating to `gmailUniversalPoller`; the invoice pipeline stays dormant.) Re-enable only if the invoice pipeline is revived with a fresh Gmail refresh token. |
 | **Prod SMTP not configured** | **medium** | `SMTP_USER`/`SMTP_PASS` (or `EMAIL_USER`/`EMAIL_PASSWORD`) are unset on prod — only GMAIL OAuth is set. So scheduled-report **emails don't deliver** (`Missing credentials for "PLAIN"`). Mitigated 2026-07-05: report outputs are now stored + **downloadable in the admin** (Ütemezett riportok → Előzmények → Letöltés) regardless of email. To restore email delivery, set SMTP creds in the prod `.env` (Gmail app-password or a real SMTP). Ties to the "personal-gmail sender" open item. |
 | **`OPS_ALERT_WEBHOOK` unset on prod** | low | Backend `alertOps()` + the shell disk-alert both post to a Slack webhook in `OPS_ALERT_WEBHOOK` (in `~/hr-erp/backup.env`). Until set, alerts **log loudly** (error log) but don't reach Slack. Add a Slack incoming-webhook URL to `backup.env` to activate push alerts for cron failures + disk/backup. |
-| ~~`uploads/expenses/` not in backup cron~~ ✅ RESOLVED (verified 2026-07-04) | — | STALE. The nightly `backup.sh` (line 20) already tars all of `/app/uploads` → `uploads-$STAMP.tgz` with the same rotation/retention as the DB dump. Verified on prod: a manual backup produced an archive containing real files under `uploads/expenses/2026/06/<id>/…pdf`, `uploads/tickets/…`, `uploads/documents/…`, `uploads/employees/…`. **Caveat:** coverage is LOCAL-only — offsite push is still skipped (`backup.env` unconfigured); that offsite gap is tracked in the scale-readiness report (P0-1), separate from this item. S3 migration remains a future decision (`storage.service.js` is the pluggable seam). |
+| ~~`uploads/expenses/` not in backup cron~~ ✅ RESOLVED (verified 2026-07-04) | — | STALE. The nightly `backup.sh` (line 20) already tars all of `/app/uploads` → `uploads-$STAMP.tgz` with the same rotation/retention as the DB dump. Verified on prod: a manual backup produced an archive containing real files under `uploads/expenses/2026/06/<id>/…pdf`, `uploads/tickets/…`, `uploads/documents/…`, `uploads/employees/…`. **Offsite (P0-1) — 2026-07-06:** `backup.sh` now produces **AES-256-encrypted** offsite copies (`backups/offsite/*.enc`), pushes **only** encrypted artifacts via rsync (`--delete` mirror, 30-day retention), and **alerts on any failure** via `OPS_ALERT_WEBHOOK`. Encrypt→decrypt→`pg_restore`→data-intact + uploads-extract **verified** from the encrypted copy (see `docs/BACKUP_RESTORE.md`). **Remaining owner action:** provision a Hetzner Storage Box + add the backup pubkey + fill `STORAGEBOX_HOST/USER` in `backup.env` (steps in the doc) — until then offsite is "SKIPPED, local only". `BACKUP_ENCRYPTION_KEY` is on the VM; **store it off-server (password manager)** for DR. S3 migration remains a future decision (`storage.service.js` is the pluggable seam). |
 | pg returns DATE columns as JS Date objects (UTC drift footgun) | medium | pg-node parses DATE as local-midnight `Date`. `JSON.stringify` then calls `.toISOString()` which shifts the day by -1 under CEST. Bit us twice (frontend convert dialog 2026-05-21; convert backend smoke 2026-05-21). Workaround: `fmtDateInput` in `Billing.jsx`, `dateToISODate` in `invoiceDraft.controller.js`, `asLocalDate` in tests. **Better systemic fix:** `pg-types.setTypeParser(1082, (v) => v)` to return DATE columns as raw `'YYYY-MM-DD'` strings — single global change, kills the footgun for every consumer. Deferred because broad blast radius (every consumer of DATE columns would suddenly receive strings); should be a dedicated session with full regression. |
-| 5 stale `invoice_drafts` rows (since 2026-04-21) | low | Either review + enter manually into `accommodation_expenses` or archive |
+| ~~5 stale `invoice_drafts` rows (since 2026-04-21)~~ ✅ RESOLVED 2026-07-06 | — | STALE. On **prod** all 7 drafts are `status='converted'` (0 pending) — they were already turned into `accommodation_expenses` by the Billing Day 3–4 work. Nothing to archive; the doc's recommendation ("review + enter into accommodation_expenses") is done. |
 | 11 of 20 classification rules never matched | low | Cleanup candidate once pipeline disposition decided |
 | ~~Tab 4 fixes uncommitted~~ ✅ RESOLVED | — | Long since committed; working tree is clean. Stale entry removed. |
 | Billing UI tabs 2 + 3 are placeholders | low | "Billing runs" and "Billings list" views not yet built |
@@ -228,3 +229,49 @@ For older history: `git log --oneline --since="2026-04-01"`.
 **Not in current scope:**
 - GDPR v2 (translation_cache purge, auto retention-expiry, data export) — NOTE: activity_logs scrubbing is now DONE (folded into the #5 erasure fix, 2026-07-04)
 - OCR re-integration (Phase 3); outgoing billing (Phase 2); currency expansion beyond HUF
+
+---
+
+## FUTURE ROADMAP — Digital HR services
+
+**Status: APPROVED DIRECTION, not in current scope.** The strategic arc is to grow from
+housing-ops into a digital HR platform. Sequenced so each phase reuses what's already built and
+each external-facing step is gated on a security prerequisite.
+
+### Phase A — Employee self-service, digital onboarding & HR KPI dashboards
+Extend the resident/employee portal into HR self-service (onboarding flows, document submission,
+e-signing of contracts/policies) + management KPI dashboards (headcount, turnover, time-to-fill,
+document-expiry compliance, wellbeing trends). **Reuse, don't rebuild:**
+- **Signature capture** — the damage-report jegyzőkönyv already captures employee/manager/witness
+  signatures; the same mechanism signs onboarding docs.
+- **Documents module** — `documents`/`employee_documents` (expiry-aware) already store + scope
+  per-employee files; onboarding uploads land here. (Attaching docs to contractor/partner/
+  accommodation is a known gap to close first — see the client+partner+contract inventory.)
+- **Chatbot + FAQ** — multilingual (5-locale), cache-backed; becomes the onboarding assistant / HR
+  helpdesk with no new NLP work.
+- **`entity_status_history`** — already records every status transition; it's the substrate for
+  onboarding-stage tracking + the KPI/audit dashboards.
+
+### Phase B — Payroll via INTEGRATION with Hungarian payroll software/bureau
+**Hard rule: we NEVER build the payroll calculation engine.** HU payroll (adó/járulék tables,
+SZÉP, cafeteria, TB) changes constantly and is a compliance liability. We integrate with an
+established HU payroll product/bureau and only feed/receive data.
+- **v1 — file export/import:** generate the monthly payroll input file (hours, absences, fines/
+  deductions-as-data, allowances) in the partner's format; import their output (net pay, payslips)
+  for display. Lowest-risk first step. (Note: our own deduction *executor* is mothballed behind
+  `DEDUCTION_EXECUTION_ENABLED` — see decisions log; if we ever run payroll ourselves it's an **EOR**
+  model, still on top of a licensed engine, never our own calc.)
+- **v2 — API integration** once a partner + volume justify it.
+- **Candidate products/bureaus:** XL BÉR, Abacus, infotéka, Deltha.
+- **OPEN DECISION:** bureau **partner** (they run payroll as a service) vs **in-house licence** (we
+  operate their software). Affects data-flow, liability, and cost — decide before Phase B build.
+
+### Phase C — Public partner API + tenant-isolation (RLS) hardening — REQUIRED GATE
+Before exposing anything as external SaaS (partner API, multi-tenant self-serve), tenant isolation
+must be real. **Today it is app-layer `WHERE` only** — RLS is inert in prod (app connects as the
+postgres superuser; `setDatabaseUser` unmounted — see 2026-07-02 decision). That is acceptable for
+first-party staff use but **NOT** for an external/public API where a bug leaks cross-tenant data.
+- **Prerequisite (blocking):** proper RLS — a non-superuser DB role, `FORCE ROW LEVEL SECURITY`,
+  per-request tenant context in a transaction — before the first external consumer.
+- Then: a versioned, authenticated, rate-limited partner API.
+- **Gate:** no external SaaS exposure ships until Phase C's isolation is in place and tested.
