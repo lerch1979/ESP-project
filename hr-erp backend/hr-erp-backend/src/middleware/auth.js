@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('./permission');
+const { authenticatedLimiter } = require('./rateLimiter');
 
 /**
  * JWT token ellenőrzés middleware
@@ -71,7 +72,12 @@ const authenticateToken = async (req, res, next) => {
       permissions: permissions
     };
 
-    next();
+    // Per-USER rate budget (generous; keyed by user id) — applied here, AFTER
+    // req.user is set, so authenticated traffic is bounded per-account rather than
+    // per-IP. A shared-NAT accommodation is never throttled by its neighbours, and
+    // one runaway account can't exhaust everyone's budget. The coarse per-IP
+    // globalLimiter (anti-DoS) still runs first at app.use('/api/').
+    return authenticatedLimiter(req, res, next);
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({

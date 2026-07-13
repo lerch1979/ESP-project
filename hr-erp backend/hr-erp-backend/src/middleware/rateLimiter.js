@@ -37,7 +37,14 @@ if (isTest) {
     global: {
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
       maxDev: 10000,
-      maxProd: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000,
+      // Coarse per-IP ANTI-DoS ceiling ONLY — must never brake legitimate use.
+      // An authenticated admin power-user (data-heavy pages fan out ~15–20 calls
+      // each) easily does 1000+ requests in 15 min; a shared-NAT accommodation
+      // (many residents on one public IP) adds more. 5000/15min per IP is ~5.5/s
+      // sustained — ample headroom for real use, still caps a genuine flood.
+      // Per-USER budgets are enforced separately by authenticatedLimiter (post-auth).
+      // (2026-07-13 incident: a prod env override of 200 throttled the owner mid-work.)
+      maxProd: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5000,
       message: 'Túl sok kérés ebből a címből. Kérjük várjon 15 percet.',
     },
     auth: {
@@ -63,18 +70,28 @@ if (isTest) {
     authenticated: {
       windowMs: 60 * 60 * 1000,
       maxDev: 100000,
-      maxProd: 10000,
+      // Per-USER budget (keyed by user id, applied post-auth in authenticateToken).
+      // Generous — 10000/hour/user is ~2.8/s sustained per account; a real admin
+      // never approaches it, but one runaway/compromised account is still bounded.
+      // Env-tunable so ops can adjust without a redeploy.
+      maxProd: parseInt(process.env.RATE_LIMIT_AUTHENTICATED_MAX) || 10000,
       message: 'Túl sok kérés. Kérjük várjon 1 órát.',
     },
   };
 
   function onLimitReached(req, res, options) {
-    logger.warn('Rate limit exceeded', {
+    // Log LOUDLY and greppably. A 429 hitting an AUTHENTICATED admin is a red flag
+    // that a limit is mis-sized (this is exactly how the 2026-07 owner incident
+    // would have surfaced) — surface the userId so legit-use hits stand out from
+    // anonymous flood/brute-force.
+    logger.warn('[RATE-LIMIT] 429 blocked — request rejected', {
+      limiter: options.limiterName || 'global',
       ip: req.ip,
       path: req.originalUrl,
       method: req.method,
       userId: req.user?.id || 'anonymous',
-      limit: options.max,
+      authenticated: !!req.user,
+      max: options.max,
       windowMs: options.windowMs,
     });
   }
@@ -85,6 +102,7 @@ if (isTest) {
     return rateLimit({
       windowMs: config.windowMs,
       max,
+      limiterName: opts.name || 'global',   // surfaced in the 429 log so we know which limiter fired
       message: { success: false, message: config.message },
       standardHeaders: true,
       legacyHeaders: false,
@@ -103,11 +121,12 @@ if (isTest) {
     });
   }
 
-  const globalLimiter = createLimiter(RATE_LIMITS.global);
-  const authLimiter = createLimiter(RATE_LIMITS.auth, { skipSuccessfulRequests: true });
-  const passwordResetLimiter = createLimiter(RATE_LIMITS.passwordReset);
-  const uploadLimiter = createLimiter(RATE_LIMITS.upload);
+  const globalLimiter = createLimiter(RATE_LIMITS.global, { name: 'global' });
+  const authLimiter = createLimiter(RATE_LIMITS.auth, { name: 'auth-login', skipSuccessfulRequests: true });
+  const passwordResetLimiter = createLimiter(RATE_LIMITS.passwordReset, { name: 'password-reset' });
+  const uploadLimiter = createLimiter(RATE_LIMITS.upload, { name: 'upload' });
   const authenticatedLimiter = createLimiter(RATE_LIMITS.authenticated, {
+    name: 'authenticated-per-user',
     keyGenerator: (req) => req.user?.id?.toString() || req.ip,
   });
 
