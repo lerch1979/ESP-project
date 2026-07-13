@@ -1,8 +1,9 @@
 /**
  * Regression: employees.shift_schedule (room-consolidation-engine input).
+ * THREE-shift model (mig 137): delelott | delutan | ejszaka | valtott.
  *  - updateEmployee persists a valid slug.
- *  - Hungarian/English variants normalize to a slug (day/night/rotating/flexible).
- *  - An unrecognized value → NULL (never violates the CHECK constraint).
+ *  - Hungarian/English variants normalize to a slug.
+ *  - An unrecognized value (incl. retired 'day'/'flexible') → NULL (never violates the CHECK).
  *
  * Pure Node, real DB, cleans up. Run: node tests/employeeShiftSchedule.script.js
  */
@@ -23,24 +24,34 @@ const shiftOf = async (id) => (await pool.query('SELECT shift_schedule FROM empl
   const upd = async (val) => { const res = mockRes(); await employee.updateEmployee({ params: { id: emp }, body: { shift_schedule: val }, user: { id: admin, contractorId: CONTRACTOR } }, res); return res; };
 
   try {
-    let res = await upd('night');
-    check('update with valid slug "night" → 200', res.statusCode === 200);
-    check('persisted as night', await shiftOf(emp) === 'night');
+    let res = await upd('ejszaka');
+    check('update with valid slug "ejszaka" → 200', res.statusCode === 200);
+    check('persisted as ejszaka', await shiftOf(emp) === 'ejszaka');
 
-    await upd('nappali');   // Hungarian "day"
-    check('Hungarian "nappali" normalized → day', await shiftOf(emp) === 'day');
+    await upd('délelőttös');   // Hungarian "morning shift"
+    check('Hungarian "délelőttös" normalized → delelott', await shiftOf(emp) === 'delelott');
 
-    await upd('éjszakai');  // Hungarian "night"
-    check('Hungarian "éjszakai" normalized → night', await shiftOf(emp) === 'night');
+    await upd('délutáni');     // Hungarian "afternoon"
+    check('Hungarian "délutáni" normalized → delutan', await shiftOf(emp) === 'delutan');
 
-    await upd('váltott');   // Hungarian "rotating"
-    check('Hungarian "váltott" normalized → rotating', await shiftOf(emp) === 'rotating');
+    await upd('éjszakai');     // Hungarian "night"
+    check('Hungarian "éjszakai" normalized → ejszaka', await shiftOf(emp) === 'ejszaka');
+
+    await upd('váltott');      // Hungarian "rotating/alternating"
+    check('Hungarian "váltott" normalized → valtott', await shiftOf(emp) === 'valtott');
+
+    await upd('valtott');      // slug persists
+    check('valid slug "valtott" persists', await shiftOf(emp) === 'valtott');
+
+    await upd('nappali');      // retired legacy "day" → no clean 3-shift target
+    check('retired "nappali"/day → NULL (removed)', (await shiftOf(emp)) === null);
+
+    await upd('ejszaka');      // set again to prove the next line clears it
+    res = await upd('flexible');  // retired value
+    check('retired "flexible" → NULL (removed)', (await shiftOf(emp)) === null);
 
     res = await upd('totally-invalid-shift');
     check('unrecognized value → NULL (no CHECK violation, 200)', res.statusCode === 200 && (await shiftOf(emp)) === null);
-
-    await upd('flexible');
-    check('valid slug "flexible" persists', await shiftOf(emp) === 'flexible');
   } finally {
     await pool.query('DELETE FROM employees WHERE id=$1', [emp]).catch(()=>{});
   }

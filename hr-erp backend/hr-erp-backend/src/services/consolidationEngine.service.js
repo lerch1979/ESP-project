@@ -10,8 +10,10 @@
  * HARD constraints — a suggestion may NEVER violate these (validated on every
  * emitted assignment; an accommodation that can't be solved cleanly is skipped):
  *   • no mixed-gender rooms
- *   • shift compatibility (configurable matrix; default: day/night never share,
- *     rotating its own group, flexible ↔ anything)
+ *   • shift compatibility — SAME SHIFT ONLY (configurable identity matrix): every
+ *     cross-shift pairing is incompatible. An EMPTY/unknown shift is incompatible
+ *     with everyone (incl. other empties) → those employees are NEVER auto-placed;
+ *     they are pinned in place and flagged for data entry (see `flagged` in the run).
  *   • bed capacity per room
  *   • v1 moves stay within the same accommodation
  *
@@ -23,18 +25,22 @@ const { logger } = require('../utils/logger');
 const statusHistory = require('./entityStatusHistory.service');
 
 const AGENT = 'room_consolidation';
-// A null/unknown shift is treated as 'flexible' (compatible with any) — documented.
-const shiftBucket = (s) => (s === 'day' || s === 'night' || s === 'rotating' ? s : 'flexible');
+const KNOWN_SHIFTS = ['delelott', 'delutan', 'ejszaka', 'valtott'];
+// The stored shift slug if it's a known shift, else null ("unknown"). A null slug
+// has NO matrix key, so `compatible()` returns false for it against every shift —
+// including another unknown — i.e. an empty shift is incompatible with everyone.
+const shiftBucket = (s) => (KNOWN_SHIFTS.includes(s) ? s : null);
 
 async function getConfig() {
   const r = await query(`SELECT * FROM consolidation_config ORDER BY created_at ASC LIMIT 1`);
   return r.rows[0] || {
     is_enabled: true, weight_freed_rooms: 10, weight_min_moves: 3, weight_underutilized: 5,
+    // SAME SHIFT ONLY (identity) — mirrors mig 132 / mig 137 default.
     shift_compatibility: {
-      day: { day: true, night: false, rotating: false, flexible: true },
-      night: { day: false, night: true, rotating: false, flexible: true },
-      rotating: { day: false, night: false, rotating: true, flexible: true },
-      flexible: { day: true, night: true, rotating: true, flexible: true },
+      delelott: { delelott: true, delutan: false, ejszaka: false, valtott: false },
+      delutan: { delelott: false, delutan: true, ejszaka: false, valtott: false },
+      ejszaka: { delelott: false, delutan: false, ejszaka: true, valtott: false },
+      valtott: { delelott: false, delutan: false, ejszaka: false, valtott: true },
     },
   };
 }
@@ -61,33 +67,35 @@ function groupValid(members, matrix) {
  * caller skips it — never emits an unsafe suggestion).
  */
 function consolidateAccommodation(rooms, employees, matrix) {
-  if (employees.length === 0) return { valid: false };
+  if (employees.length === 0) return { valid: false, flaggedUnknownShift: [] };
   const bedsOf = new Map(rooms.map((r) => [r.id, r.beds]));
 
-  // Cohorts: (gender × shift bucket), with flexible merged into the largest
-  // same-gender non-flexible bucket so it helps fill rather than needing its own room.
-  const cohorts = [];
-  const byGender = new Map();
-  for (const e of employees) {
-    if (!byGender.has(e.gender)) byGender.set(e.gender, []);
-    byGender.get(e.gender).push(e);
+  // EMPTY/unknown-shift employees are NEVER auto-placed. They pin to their current
+  // room, that room is LOCKED (neither a move source nor a target), and they are
+  // flagged for data entry. Anyone sharing a locked room is pinned too — we won't
+  // co-locate a known-shift resident with an unknown one, and we can't safely move
+  // the unknown. Consolidation runs ONLY over known-shift residents in free rooms.
+  const flagged = employees.filter((e) => shiftBucket(e.shift) === null);
+  const lockedRoomIds = new Set(flagged.map((e) => e.room_id).filter(Boolean));
+  const movable = employees.filter(
+    (e) => shiftBucket(e.shift) !== null && !lockedRoomIds.has(e.room_id)
+  );
+  const availableRooms = rooms.filter((r) => !lockedRoomIds.has(r.id));
+
+  // Cohorts: (gender × shift). SAME SHIFT ONLY — each cohort is one gender + one
+  // shift and gets its own room(s). There is NO "compatible with anything" bucket,
+  // so two different shifts can never be greedily merged into a room.
+  const byKey = new Map();
+  for (const e of movable) {
+    const key = `${e.gender}|${shiftBucket(e.shift)}`;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(e);
   }
-  for (const [, emps] of byGender) {
-    const buckets = { day: [], night: [], rotating: [], flexible: [] };
-    for (const e of emps) buckets[shiftBucket(e.shift)].push(e);
-    const nonFlex = ['day', 'night', 'rotating'].filter((b) => buckets[b].length > 0);
-    if (nonFlex.length === 0) {
-      if (buckets.flexible.length) cohorts.push(buckets.flexible);
-    } else {
-      const largest = nonFlex.reduce((a, b) => (buckets[b].length > buckets[a].length ? b : a));
-      buckets[largest] = buckets[largest].concat(buckets.flexible);
-      for (const b of nonFlex) cohorts.push(buckets[b]);
-    }
-  }
+  const cohorts = [...byKey.values()];
 
   // Greedy: largest cohort → largest rooms. Fewest rooms per cohort → frees the rest.
   cohorts.sort((a, b) => b.length - a.length);
-  const roomsSorted = [...rooms].sort((a, b) => b.beds - a.beds);
+  const roomsSorted = [...availableRooms].sort((a, b) => b.beds - a.beds);
   let ri = 0;
   const assignment = new Map(); // employeeId -> roomId
   for (const cohort of cohorts) {
@@ -95,7 +103,7 @@ function consolidateAccommodation(rooms, employees, matrix) {
     const allocated = [];
     let cap = 0;
     while (cap < need && ri < roomsSorted.length) { allocated.push(roomsSorted[ri]); cap += roomsSorted[ri].beds; ri++; }
-    if (cap < need) return { valid: false }; // couldn't fit — skip this accommodation
+    if (cap < need) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) }; // couldn't fit — skip
 
     // Assign members to the cohort's rooms, KEEPING people in place where possible.
     const fill = new Map(allocated.map((r) => [r.id, 0]));
@@ -112,6 +120,9 @@ function consolidateAccommodation(rooms, employees, matrix) {
     }
   }
 
+  // Pinned residents (unknown-shift + their locked-room roommates) keep their room.
+  for (const e of employees) if (!assignment.has(e.id)) assignment.set(e.id, e.room_id);
+
   // Validate the FULL result — hard-constraint guarantee before we emit anything.
   const byRoom = new Map();
   for (const e of employees) {
@@ -120,8 +131,13 @@ function consolidateAccommodation(rooms, employees, matrix) {
     byRoom.get(rid).push(e);
   }
   for (const [rid, members] of byRoom) {
-    if (members.length > bedsOf.get(rid)) return { valid: false };     // capacity
-    if (!groupValid(members, matrix)) return { valid: false };          // gender + shift
+    if (members.length > bedsOf.get(rid)) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) }; // capacity
+    if (lockedRoomIds.has(rid)) {
+      // Pinned room — never touched. Only guarantee we didn't create mixed-gender.
+      if (members.some((m) => m.gender !== members[0].gender)) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) };
+      continue;
+    }
+    if (!groupValid(members, matrix)) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) }; // gender + same-shift
   }
 
   const prevOccupied = new Set(employees.map((e) => e.room_id).filter(Boolean));
@@ -136,7 +152,8 @@ function consolidateAccommodation(rooms, employees, matrix) {
   const totalBeds = rooms.reduce((s, r) => s + r.beds, 0);
   const utilizationBefore = totalBeds ? employees.length / totalBeds : 0;
 
-  return { valid: true, moves, freedRooms: freed, freedBeds, utilizationBefore };
+  return { valid: true, moves, freedRooms: freed, freedBeds, utilizationBefore,
+           flaggedUnknownShift: flagged.map((e) => e.id) };
 }
 
 /**
@@ -172,7 +189,13 @@ async function generateRun(triggeredBy = null) {
 
   const perAcc = [];
   const allMoves = [];
+  const flaggedUnknownShift = []; // employees with an EMPTY shift — never moved, need data entry
   for (const [accId, emps] of empByAcc) {
+    // Flag empty-shift employees regardless of whether this accommodation yields a
+    // proposal — they must be surfaced for data entry, not silently skipped.
+    for (const e of emps.filter((x) => shiftBucket(x.shift) === null)) {
+      flaggedUnknownShift.push({ employee_id: e.id, accommodation_id: accId, accommodation_name: emps[0].accommodation_name });
+    }
     const accRooms = roomsByAcc.get(accId) || [];
     const res = consolidateAccommodation(accRooms, emps, matrix);
     if (!res.valid || res.moves.length === 0 || res.freedRooms.length === 0) continue;
@@ -186,6 +209,7 @@ async function generateRun(triggeredBy = null) {
       freed_rooms: res.freedRooms.length,
       freed_beds: res.freedBeds,
       moves: res.moves.length,
+      flagged_unknown_shift: (res.flaggedUnknownShift || []).length,
       utilization_before: Number(res.utilizationBefore.toFixed(3)),
       score: Number(score.toFixed(2)),
     });
@@ -195,7 +219,15 @@ async function generateRun(triggeredBy = null) {
 
   const totalFreedRooms = perAcc.reduce((s, a) => s + a.freed_rooms, 0);
   const totalFreedBeds = perAcc.reduce((s, a) => s + a.freed_beds, 0);
-  const summary = { by_accommodation: perAcc, generated_at: new Date().toISOString() };
+  const summary = {
+    by_accommodation: perAcc,
+    flagged_unknown_shift: flaggedUnknownShift,
+    flagged_unknown_shift_count: flaggedUnknownShift.length,
+    generated_at: new Date().toISOString(),
+  };
+  if (flaggedUnknownShift.length) {
+    logger.info(`[consolidation] ${flaggedUnknownShift.length} employee(s) have an empty shift → not auto-placed, flagged for data entry`);
+  }
 
   const runId = await transaction(async (client) => {
     const run = await client.query(
@@ -237,7 +269,11 @@ async function assertAccommodationsValid(client, accIds, matrix) {
   for (const [, members] of byRoom) {
     const r0 = members[0];
     if (members.length > r0.beds) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szoba túltöltött (${members.length}/${r0.beds}).`);
-    if (!groupValid(members, matrix)) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szobában nem/műszak ütközés keletkezne.`);
+    if (members.some((m) => m.gender !== r0.gender)) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szobában nemek keverednének.`);
+    // Shift is validated among KNOWN-shift residents only: an empty-shift resident
+    // is pinned + flagged for data entry, not an engine-created conflict.
+    const known = members.filter((m) => shiftBucket(m.shift) !== null);
+    if (!groupValid(known, matrix)) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szobában műszak-ütközés keletkezne.`);
   }
 }
 

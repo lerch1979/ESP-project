@@ -1186,7 +1186,7 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
       <DetailRow label="Munkahely" value={employee.workplace || '-'} />
       <DetailRow label="Személyes email" value={employee.personal_email || employee.email || '-'} />
       <DetailRow label="Személyes telefon" value={employee.personal_phone || employee.phone || '-'} />
-      <DetailRow label="Műszak" value={{ day: 'Nappali', night: 'Éjszakai', rotating: 'Váltott', flexible: 'Rugalmas' }[employee.shift_schedule] || '-'} />
+      <DetailRow label="Műszak" value={{ delelott: 'Délelőttös', delutan: 'Délutános', ejszaka: 'Éjszakás', valtott: 'Váltott' }[employee.shift_schedule] || '-'} />
       <DetailRow label="Céges email" value={employee.company_email || '-'} />
       <DetailRow label="Céges telefon" value={employee.company_phone || '-'} />
       <DetailRow label="Érkezés dátuma" value={fmtDate(employee.arrival_date)} />
@@ -1511,10 +1511,10 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
           <Select value={formData.shift_schedule || ''} label="Műszak"
             onChange={(e) => handleChange('shift_schedule', e.target.value)}>
             <MenuItem value=""><em>Nincs megadva</em></MenuItem>
-            <MenuItem value="day">Nappali</MenuItem>
-            <MenuItem value="night">Éjszakai</MenuItem>
-            <MenuItem value="rotating">Váltott</MenuItem>
-            <MenuItem value="flexible">Rugalmas</MenuItem>
+            <MenuItem value="delelott">Délelőttös</MenuItem>
+            <MenuItem value="delutan">Délutános</MenuItem>
+            <MenuItem value="ejszaka">Éjszakás</MenuItem>
+            <MenuItem value="valtott">Váltott</MenuItem>
           </Select>
         </FormControl>
       </Grid>

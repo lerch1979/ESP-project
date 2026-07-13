@@ -14,13 +14,15 @@ CREATE TABLE IF NOT EXISTS consolidation_config (
   weight_freed_rooms   NUMERIC NOT NULL DEFAULT 10,  -- maximize freed rooms
   weight_min_moves     NUMERIC NOT NULL DEFAULT 3,   -- minimize moves (disruption)
   weight_underutilized NUMERIC NOT NULL DEFAULT 5,   -- prefer under-utilized sites
-  -- shift compatibility matrix (who may share a room). DEFAULT documented below:
-  --   day+night NEVER share; rotating is its own group; flexible ↔ anything.
+  -- shift compatibility matrix (who may share a room). DEFAULT = SAME SHIFT ONLY
+  -- (identity): every cross-shift pairing is incompatible. An empty shift is
+  -- incompatible with everyone (handled in the engine, not the matrix — a null
+  -- shift has no matrix key so it never matches). See mig 137 for the shift set.
   shift_compatibility  JSONB NOT NULL DEFAULT '{
-    "day":      {"day": true,  "night": false, "rotating": false, "flexible": true},
-    "night":    {"day": false, "night": true,  "rotating": false, "flexible": true},
-    "rotating": {"day": false, "night": false, "rotating": true,  "flexible": true},
-    "flexible": {"day": true,  "night": true,  "rotating": true,  "flexible": true}
+    "delelott": {"delelott": true,  "delutan": false, "ejszaka": false, "valtott": false},
+    "delutan":  {"delelott": false, "delutan": true,  "ejszaka": false, "valtott": false},
+    "ejszaka":  {"delelott": false, "delutan": false, "ejszaka": true,  "valtott": false},
+    "valtott":  {"delelott": false, "delutan": false, "ejszaka": false, "valtott": true}
   }'::jsonb,
   updated_by           UUID,
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -35,7 +35,7 @@ const SUR = ['Kovács','Szabó','Horváth','Nagy','Tóth','Varga','Kiss','Molná
 const MALE = ['Bence','Máté','Levente','Dominik','Ádám','Balázs','Gábor','Zoltán','Tamás','András','Péter','László','Dániel','Márk','Norbert'];
 const FEMALE = ['Anna','Zsófia','Petra','Réka','Eszter','Kata','Nóra','Dóra','Vivien','Boglárka','Fanni','Lilla','Emma','Hanna'];
 const WORKPLACES = ['Audi Győr','Mercedes Kecskemét','Bosch Miskolc','Samsung Göd','BMW Debrecen','Continental Veszprém','Lego Nyíregyháza','Flex Zalaegerszeg','Michelin Nyíregyháza','Stellantis Szentgotthárd'];
-const SHIFTS = ['day','night','rotating','flexible'];
+const SHIFTS = ['delelott','delutan','ejszaka','valtott']; // three-shift model (mig 137)
 const CITIES = ['Győr','Kecskemét','Miskolc','Debrecen','Veszprém','Szeged','Pécs','Budapest'];
 
 async function main() {
@@ -116,7 +116,8 @@ async function main() {
       const first = pick(isMale ? MALE : FEMALE);
       const last = pick(SUR);
       const mother = `${pick(SUR)} ${pick(FEMALE)}`;
-      const shift = pick(SHIFTS);
+      // ~12% deliberately have NO shift set → the engine must FLAG (never move) them.
+      const shift = rnd() < 0.12 ? null : pick(SHIFTS);
       const acc = pick(accommodations);
       const empNo = `SBX-${pad(e)}`;
       // ~70% assigned to a room, ~30% unassigned (room_id null) — the fill target.
@@ -145,15 +146,56 @@ async function main() {
       );
     }
 
+    // ── deterministic CONSOLIDATION DEMO: 2 accommodations, each a clean same-shift
+    //    opportunity (4 same-gender same-shift residents spread 1-per-room across 4
+    //    half-full rooms → pack into 2, free 2) PLUS one empty-shift resident in a
+    //    5th room (must be FLAGGED + locked + never moved). Guarantees the full
+    //    run→approve flow has real same-shift moves to work with. ──
+    let demoNo = NUM_EMP;
+    const mkDemoEmp = async (accId, roomId, shiftVal) => {
+      demoNo++;
+      await c.query(
+        `INSERT INTO employees
+          (contractor_id, accommodation_id, room_id, employee_number, status_id,
+           first_name, last_name, gender, birth_date, mothers_name, workplace, shift_schedule,
+           personal_email, personal_phone, nationality, start_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'male','1990-01-01',$8,$9,$10,$11,$12,'HU',CURRENT_DATE)`,
+        [contractorId, accId, roomId, `SBX-${pad(demoNo)}`, activeStatus,
+         pick(MALE), pick(SUR), `${pick(SUR)} ${pick(FEMALE)}`, pick(WORKPLACES), shiftVal,
+         `sbx-emp-${pad(demoNo)}@sandbox.local`, `+36 30 000 ${pad(demoNo)}`]
+      );
+    };
+    for (let d = 1; d <= 2; d++) {
+      const accId = (await c.query(
+        `INSERT INTO accommodations (name, address, type, current_contractor_id, status, monthly_rent)
+         VALUES ($1,$2,'worker_hostel',$3,'occupied',250000) RETURNING id`,
+        [`Konszolidáció Demo ${d} — ${pick(CITIES)}`, `Demo u. ${d}.`, contractorId]
+      )).rows[0].id;
+      await c.query(`INSERT INTO accommodation_contractors (accommodation_id, contractor_id, check_in) VALUES ($1,$2,CURRENT_DATE)`, [accId, contractorId]);
+      const demoRooms = [];
+      for (let r = 1; r <= 5; r++) {
+        demoRooms.push((await c.query(
+          `INSERT INTO accommodation_rooms (accommodation_id, room_number, floor, beds, room_type, is_active)
+           VALUES ($1,$2,0,2,'standard',true) RETURNING id`, [accId, `D${d}0${r}`]
+        )).rows[0].id);
+      }
+      for (let r = 0; r < 4; r++) await mkDemoEmp(accId, demoRooms[r], 'delelott'); // 4 same-shift → free 2 rooms
+      await mkDemoEmp(accId, demoRooms[4], null);                                   // empty shift → flagged, never moved
+    }
+
     // Fetch room composition to report the edge cases actually generated.
     const mixG = (await c.query(
       `SELECT COUNT(*)::int c FROM (
          SELECT room_id FROM employees WHERE room_id IS NOT NULL GROUP BY room_id
          HAVING COUNT(DISTINCT gender) > 1) x`)).rows[0].c;
+    // cross-shift rooms = ≥2 DIFFERENT known shifts sharing a room (engine must never keep/create these).
     const mixS = (await c.query(
       `SELECT COUNT(*)::int c FROM (
-         SELECT room_id FROM employees WHERE room_id IS NOT NULL GROUP BY room_id
-         HAVING COUNT(DISTINCT CASE WHEN shift_schedule IN ('day','night') THEN shift_schedule END) > 1) x`)).rows[0].c;
+         SELECT room_id FROM employees WHERE room_id IS NOT NULL AND shift_schedule IS NOT NULL
+         GROUP BY room_id HAVING COUNT(DISTINCT shift_schedule) > 1) x`)).rows[0].c;
+    // roomed employees with an EMPTY shift — the engine must flag, not move, these.
+    const emptyShift = (await c.query(
+      `SELECT COUNT(*)::int c FROM employees WHERE room_id IS NOT NULL AND shift_schedule IS NULL`)).rows[0].c;
 
     // ── a few tickets + expenses so dashboards aren't empty ──
     const someEmployees = (await c.query(`SELECT id, user_id FROM employees LIMIT 20`)).rows;
@@ -203,7 +245,7 @@ async function main() {
     console.log(`   contractors:   ${await q('SELECT COUNT(*)::int c FROM contractors')}`);
     console.log(`   accommodations:${await q('SELECT COUNT(*)::int c FROM accommodations')}  rooms:${await q('SELECT COUNT(*)::int c FROM accommodation_rooms')}  beds:${await q('SELECT COALESCE(SUM(beds),0)::int c FROM accommodation_rooms')}`);
     console.log(`   employees:     ${await q('SELECT COUNT(*)::int c FROM employees')}  assigned:${await q('SELECT COUNT(*)::int c FROM employees WHERE room_id IS NOT NULL')}  unassigned:${await q('SELECT COUNT(*)::int c FROM employees WHERE room_id IS NULL')}`);
-    console.log(`   edge cases:    mixed-gender rooms=${mixG}  mixed day/night rooms=${mixS}`);
+    console.log(`   edge cases:    mixed-gender rooms=${mixG}  cross-shift rooms=${mixS}  empty-shift (roomed)=${emptyShift}`);
     console.log(`   tickets:${await q('SELECT COUNT(*)::int c FROM tickets')}  expenses:${await q('SELECT COUNT(*)::int c FROM accommodation_expenses')}`);
     console.log('   logins (pw "sandbox123"): superadmin@ / admin@ / resident1@ / resident2@ sandbox.local\n');
   } catch (e) {

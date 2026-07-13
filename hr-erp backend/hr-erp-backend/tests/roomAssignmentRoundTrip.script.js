@@ -48,12 +48,12 @@ const one = async (s, p) => (await pool.query(s, p)).rows[0];
     const before = await one('SELECT COUNT(*)::int c FROM employees WHERE last_name LIKE $1', [`${TAG}%`]);
     res = resCapture();
     await emp.bulkAssignRooms(fileReq([
-      { 'Vezetéknév': `${TAG}A`, 'Keresztnév': 'Anna', 'Anyja neve': `${TAG}anyaA`, 'Szálláshely': `${TAG} Szálló`, 'Szoba': '101', 'Műszak': 'Éjszakai' },
-      { 'Vezetéknév': `${TAG}B`, 'Keresztnév': 'Béla', 'Anyja neve': `${TAG}anyaB`, 'Szálláshely': `${TAG} Szálló`, 'Szoba': '101', 'Műszak': 'nappali' },
+      { 'Vezetéknév': `${TAG}A`, 'Keresztnév': 'Anna', 'Anyja neve': `${TAG}anyaA`, 'Szálláshely': `${TAG} Szálló`, 'Szoba': '101', 'Műszak': 'Éjszakás' },
+      { 'Vezetéknév': `${TAG}B`, 'Keresztnév': 'Béla', 'Anyja neve': `${TAG}anyaB`, 'Szálláshely': `${TAG} Szálló`, 'Szoba': '101', 'Műszak': 'délutános' },
     ]), res);
     check('upload reports 2 updated, 0 errors', res.body?.data?.updated_count === 2 && res.body?.data?.error_count === 0);
-    check('e1 room_id set (101) + shift night', (await one('SELECT ar.room_number, e.shift_schedule FROM employees e JOIN accommodation_rooms ar ON ar.id=e.room_id WHERE e.id=$1', [e1.id]))?.room_number === '101');
-    check('e2 shift normalized to day', (await one('SELECT shift_schedule FROM employees WHERE id=$1', [e2.id])).shift_schedule === 'day');
+    check('e1 room_id set (101) + shift ejszaka', (await one('SELECT ar.room_number, e.shift_schedule FROM employees e JOIN accommodation_rooms ar ON ar.id=e.room_id WHERE e.id=$1', [e1.id]))?.shift_schedule === 'ejszaka');
+    check('e2 shift normalized to delutan', (await one('SELECT shift_schedule FROM employees WHERE id=$1', [e2.id])).shift_schedule === 'delutan');
     const after = await one('SELECT COUNT(*)::int c FROM employees WHERE last_name LIKE $1', [`${TAG}%`]);
     check('NO duplicates created (count unchanged)', before.c === after.c);
 

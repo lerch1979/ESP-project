@@ -11,7 +11,7 @@ import { consolidationAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 const GOLD = '#8B6B33';
-const SHIFT_LABEL = { day: 'Nappali', night: 'Éjszakai', rotating: 'Váltott', flexible: 'Rugalmas' };
+const SHIFT_LABEL = { delelott: 'Délelőttös', delutan: 'Délutános', ejszaka: 'Éjszakás', valtott: 'Váltott' };
 const GENDER_LABEL = { male: 'Férfi', female: 'Nő', other: 'Egyéb' };
 
 export default function ConsolidationEngine() {
@@ -109,8 +109,17 @@ export default function ConsolidationEngine() {
             <Summary label="Felszabaduló szobák" value={run.freed_rooms} />
             <Summary label="Felszabaduló ágyak" value={run.freed_beds} />
             <Summary label="Érintett szálláshelyek" value={byAcc.length} />
+            {run.summary?.flagged_unknown_shift_count > 0 && (
+              <Summary label="Hiányzó műszak (nem mozgatható)" value={run.summary.flagged_unknown_shift_count} />
+            )}
             <Box sx={{ ml: 'auto', alignSelf: 'center' }}>{statusChip(run.status === 'applied' ? 'applied' : 'pending')}</Box>
           </Paper>
+
+          {run.summary?.flagged_unknown_shift_count > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {run.summary.flagged_unknown_shift_count} dolgozónak nincs megadva a műszakja — őket a motor <b>nem mozgatja</b> és nem is helyezi senki mellé. Töltsd ki a műszakjukat (Dolgozók → Műszak / Szoba-sablon), majd futtasd újra.
+            </Alert>
+          )}
 
           {byAcc.length === 0 && <Alert severity="success">Nincs konszolidálható szálláshely — minden optimális.</Alert>}
 

@@ -169,16 +169,25 @@ const EMPLOYEE_DIRECT_FIELDS = [
   'company_phone', 'room_id', 'nationality', 'end_date',
   // Personal contact — editable so HR can provision resident login invites.
   'personal_email', 'personal_phone',
-  // Shift pattern — room-consolidation-engine input (day/night must not mix).
+  // Shift pattern — room-consolidation-engine input (only same-shift may share a room).
   'shift_schedule',
 ];
 
 // Normalize a shift value (hu/en variants) to a stored slug, else null.
+// THREE-shift model (mig 137): delelott | delutan | ejszaka | valtott. Legacy
+// values day/night/rotating/flexible are intentionally NOT mapped here — "night"→
+// ejszaka and "rotating"→valtott are handled once in the migration; "day"/"flexible"
+// have no clean three-shift target, so any such input normalizes to null (flagged).
 const SHIFT_ALIASES = {
-  day: 'day', nappal: 'day', nappali: 'day',
-  night: 'night', ejszaka: 'night', ejszakai: 'night', 'éjszaka': 'night', 'éjszakai': 'night',
-  rotating: 'rotating', valtott: 'rotating', 'váltott': 'rotating', valto: 'rotating', 'váltó': 'rotating', forgo: 'rotating', 'forgó': 'rotating',
-  flexible: 'flexible', rugalmas: 'flexible', flex: 'flexible',
+  delelott: 'delelott', delelotti: 'delelott', delelottos: 'delelott',
+  'délelőtt': 'delelott', 'délelőtti': 'delelott', 'délelőttös': 'delelott', morning: 'delelott',
+  delutan: 'delutan', delutani: 'delutan', delutanos: 'delutan',
+  'délután': 'delutan', 'délutáni': 'delutan', 'délutános': 'delutan', afternoon: 'delutan',
+  ejszaka: 'ejszaka', ejszakai: 'ejszaka', ejszakas: 'ejszaka',
+  'éjszaka': 'ejszaka', 'éjszakai': 'ejszaka', 'éjszakás': 'ejszaka', night: 'ejszaka',
+  valtott: 'valtott', valto: 'valtott', valtos: 'valtott',
+  'váltott': 'valtott', 'váltó': 'valtott', 'váltós': 'valtott',
+  forgo: 'valtott', 'forgó': 'valtott', rotating: 'valtott',
 };
 const normalizeShift = (v) => {
   if (v === undefined || v === null || v === '') return null;
@@ -1785,7 +1794,7 @@ const bulkExport = async (req, res) => {
 };
 
 // Hungarian shift labels for the round-trip template (slug → label / label → slug via normalizeShift).
-const SHIFT_LABELS = { day: 'Nappali', night: 'Éjszakai', rotating: 'Váltott', flexible: 'Rugalmas' };
+const SHIFT_LABELS = { delelott: 'Délelőttös', delutan: 'Délutános', ejszaka: 'Éjszakás', valtott: 'Váltott' };
 
 /**
  * GET /api/v1/employees/room-template
