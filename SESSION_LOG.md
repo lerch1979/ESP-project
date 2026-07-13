@@ -6,6 +6,22 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-13c — Gap-audit fix round (A1 + A3 fixed & deployed; room-linker built, awaiting approval)
+
+Acting on `docs/GAP_AUDIT_2026-07.md`. Sandbox-tested → deployed → verified live.
+
+**A1 — consolidation page 500 FIXED.** Root cause: migration **132 was the ONLY missing one** — 133–135 never existed on `main` (sandbox-branch-only, never merged), and the deployed engine references nothing from them. Applied **mig 132 to prod via psql**; `consolidation_config` (seeded with the identity 3-shift matrix) + `consolidation_runs` now exist; the page's read queries return cleanly (were `relation does not exist`). Consolidation still data-starved (see room-linker).
+
+**A3 — Slack page 500 FIXED.** `column u.name does not exist` — **three** queries joined `u.name` (users has `first_name`/`last_name`): `slack.controller.getSlackUsers`, `slack/slackBot.service`, `nlp/sentimentAnalysis.service` — all changed to `NULLIF(TRIM(first_name||' '||last_name),'')`. Regression test `tests/slackUsers.test.js` (exercises the real controller query). Deployed (backend recreated) + query verified live on prod. CI green (full jest). *(Slack still has no bot token — unconfigured, but no longer errors.)*
+
+**Room-linker built + dry-run (awaiting owner approval before write).** `scripts/link-room-ids.js` (self-contained, own pg pool, runs inside the prod container). Matches `employees.room_number` text → `accommodation_rooms` per accommodation, creates missing rooms (**beds=0**, flagged — `beds` is NOT NULL so 0 is the "enter real count" sentinel), sets `employees.room_id`; per-accommodation match/miss report; DRY-RUN default, `--execute` to write. Sandbox-tested (existing→original room, missing→new beds=0 room, all linked). **Prod DRY-RUN 2026-07-13:** 287 employees to link — **33 to existing rooms, 254 via 116 NEW rooms (beds=0)**; 0 already-linked, 0 without accommodation. Key caveat surfaced to owner: only 24 real rooms exist on prod (mostly Fertőszéplak/Bük), so 116 rooms would be created with unknown bed counts → consolidation still needs bed counts + shifts entered after linking. **NOT executed — waiting for the owner's go.**
+
+**Item 4 (SMTP + ops webhook) — deferred:** awaiting owner-provided values; then wire + restart + send one test report email + one test Slack alert.
+
+**Deploy:** commits `cbc3d1c7` (A3 + linker), mig 132 psql-applied to prod. Backend recreated + healthy; A1/A3 verified live. Audit doc A1/A3/C3 marked resolved, B1 annotated.
+
+---
+
 ## SESSION 2026-07-13b — Three-shift operating model (shift_schedule) + same-shift-only consolidation (deployed)
 
 **Correction before data entry starts:** the real operation runs THREE shifts, not day/night. Replaced the `shift_schedule` value set **everywhere**: `day/night/rotating/flexible` → **`delelott` (délelőttös) · `delutan` (délutános) · `ejszaka` (éjszakás) · `valtott` (váltott)**. "flexible" removed.
