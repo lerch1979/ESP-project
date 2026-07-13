@@ -17,7 +17,7 @@
 | `workplace` | **283 / 288 (98%)** | — (fine) |
 | `room_number` (free text) | **287 / 288 (99.7%)** | shown in reports (OK) |
 | `arrival_date` | **287 / 288** | shown in reports (OK) |
-| **`room_id` (FK to a real room)** | **0 / 288 (0%)** | **Consolidation engine, bed-utilization billing** — the text room number exists but was never linked to the room FK, so nothing that keys on `room_id` can use it |
+| **`room_id` (FK to a real room)** | ✅ **287 / 288 (99.7%)** *(linked 2026-07-13 by the room-linker; was 0)* | Consolidation/bed-billing — FK gap closed. **BUT** 116 of the 140 rooms were created with `beds=0` (unknown) → still need bed counts before consolidation is useful |
 | **`shift_schedule`** | **0 / 288 (0%)** | **Consolidation engine** (just migrated to the 3-shift model; nobody assigned yet) |
 | **`nationality`** | **0 / 288 (0%)** | **Expiry monitor** per-nationality permit lead-times |
 | **`visa_expiry`** | **2 / 288 (0.7%)** | **Expiry monitor**; "Vízum lejárat" column in the employee report |
@@ -46,7 +46,7 @@ Row = a page/feature that loads without error but shows nothing (or near-nothing
 
 | # | Page / feature | Prod data | Who must provide the data | Severity |
 |---|---|---|---|---|
-| B1 | **Consolidation engine** (A1 fixed) | `room_id` 0/288, `shift_schedule` 0/288 | **Room-linker built** (`scripts/link-room-ids.js`) — dry-run on prod 2026-07-13: would link 287 employees (33 to existing rooms, 254 via **116 new rooms created with beds=0**), **awaiting owner approval to execute**. After linking, HR still must (a) enter **bed counts** for the 116 new rooms, (b) fill `shift_schedule` | **blocks** the feature's purpose |
+| B1 | **Consolidation engine** (A1 fixed) | `room_id` ✅ 287/288 (linked), but 116 rooms `beds=0`; `shift_schedule` 0/288 | **Room-linker EXECUTED on prod 2026-07-13** (`scripts/link-room-ids.js`): 287 employees linked (33 to existing rooms, 254 via **116 new rooms, beds=0**). **Remaining for HR:** (a) enter **bed counts** for the 116 flagged rooms — a per-accommodation fill-in Excel was exported to `uploads/reports/agyszam-kitoltendo-2026-07-13.xlsx` (9 manager sheets); (b) fill `shift_schedule` | **blocks** until beds+shifts entered |
 | B2 | **Expiry monitor** (`/expiry-monitor`, toggle ON) | `visa_expiry` 2/288, `nationality` 0/288, `end_date` 0/288 | HR: enter visa/permit dates + nationality | **blocks** (monitors ~nothing) |
 | B3 | **Inspections module** (dashboard, reports, schedules, tasks, room-trends) | `room_inspections` 0, `inspection_schedules` 0, `inspection_tasks` 0, `inspection_item_scores` 0, `inspection_photos` 0, `*_trends` 0 — only **1** inspection ever | Inspectors: actually perform inspections in-app | **blocks** (5 empty menu pages) |
 | B4 | **Hygiene fine** (`/inspections/hygiene-fine`) | Depends on `room_inspections` (0); can never fire | Needs B3 first (+ enable toggle, see C3) | annoys |
