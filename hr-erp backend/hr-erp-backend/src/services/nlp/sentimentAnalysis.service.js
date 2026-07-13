@@ -316,7 +316,7 @@ class SentimentAnalysisService {
 
   async getAlerts(contractorId, { urgency, escalated, limit = 50, offset = 0 } = {}) {
     let sql = `
-      SELECT sa.*, u.name AS user_name
+      SELECT sa.*, NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), '') AS user_name
       FROM wellbeing_sentiment_analysis sa
       JOIN users u ON u.id = sa.user_id
       WHERE sa.contractor_id = $1`;

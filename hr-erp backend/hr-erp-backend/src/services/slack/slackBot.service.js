@@ -179,7 +179,7 @@ class SlackBotService {
 
     // Get all enabled Slack users
     const usersResult = await query(
-      `SELECT su.*, u.name
+      `SELECT su.*, NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), '') AS name
        FROM slack_users su
        JOIN users u ON u.id = su.user_id
        WHERE su.contractor_id = $1 AND su.enabled = true AND u.is_active = true`,

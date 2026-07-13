@@ -167,7 +167,8 @@ const getSlackUsers = async (req, res) => {
   try {
     const result = await query(
       `SELECT su.id, su.slack_user_id, su.slack_email, su.slack_real_name,
-              su.enabled, su.created_at, su.updated_at, u.name AS user_name
+              su.enabled, su.created_at, su.updated_at,
+              NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), '') AS user_name
        FROM slack_users su
        JOIN users u ON u.id = su.user_id
        WHERE su.contractor_id = $1
