@@ -6,6 +6,26 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-13b — Three-shift operating model (shift_schedule) + same-shift-only consolidation (deployed)
+
+**Correction before data entry starts:** the real operation runs THREE shifts, not day/night. Replaced the `shift_schedule` value set **everywhere**: `day/night/rotating/flexible` → **`delelott` (délelőttös) · `delutan` (délutános) · `ejszaka` (éjszakás) · `valtott` (váltott)**. "flexible" removed.
+
+**Prod data report (BEFORE migrating, as asked):** all **288** employees had `shift_schedule = NULL`; **ZERO** rows used any legacy value (no `flexible` anywhere). So the data remap was a genuine no-op on prod (the applied migration logged `UPDATE 0` ×3). Field re-verified NULL/288 after deploy.
+
+**Migration (137, deployed to prod via psql + dev + sandbox):** discovers & drops mig 130's CHECK, maps any legacy data (night→ejszaka, rotating→valtott, day/flexible→NULL — dev/fresh only), adds the new CHECK, updates the COMMENT, and — guarded on table existence — re-aligns `consolidation_config.shift_compatibility` to the identity matrix (prod has no `consolidation_config`, so the guard skipped it there). mig 132's default JSONB also updated for fresh sandbox resets. Prod now shows `employees_shift_schedule_check = (delelott|delutan|ejszaka|valtott)`.
+
+**Consolidation engine — SAME SHIFT ONLY + empty=incompatible.** Matrix is now identity (every cross-shift pairing incompatible). A **null/empty shift is incompatible with everyone (incl. other empties)**: such employees are **pinned, their room locked, and FLAGGED for data entry in the run summary — never auto-placed or moved** (this reverses the old "null → flexible → compatible-with-all" behavior). Cohorts are strictly single-shift (dropped the flexible-merge). `assertAccommodationsValid` checks gender+capacity on all rooms, shift only among known-shift residents. `generateRun` surfaces `flagged_unknown_shift[]` + count; the admin ConsolidationEngine page shows the flagged count + a "fill their shift, then re-run" warning.
+
+**Everywhere else updated:** employee bulk-Excel normalizer + "Műszak" template labels (Délelőttös/Délutános/Éjszakás/Váltott; legacy day/flexible → NULL); EmployeeDetailModal dropdown + detail; ConsolidationEngine label map; sandbox seed (three shifts + ~12% empty-shift edge cases + **2 deterministic consolidation-demo accommodations** giving a clean same-shift merge + a flagged empty-shift resident).
+
+**Tests (manual `.script.js`; NOT in CI's jest set):** `consolidationEngine.script.js` reworked — matrix + `groupValid` incl. empty-incompatible, **deterministic scenarios (same-shift consolidates / cross-shift blocked / empty-shift flagged-not-moved)**, full run→reject→approve — **30/30 green** on a fresh sandbox (run: 4 moves, frees 4 rooms/8 beds, 33 empty-shift flagged). `employeeShiftSchedule.script.js` + `roomAssignmentRoundTrip.script.js` updated to new slugs — all green (against dev, after applying 137 there). **CI full jest green** (no jest test references shifts). Admin build clean.
+
+**i18n:** shift labels are **staff-admin-only hardcoded Hungarian**, not part of the resident 5-locale system — there are **no resident-facing shift enums** to translate, so nothing in the locale JSONs changed. (The resident i18n guard covers ticket category/status/priority, not shifts.)
+
+**Deploy:** merged to main, CI green (both images), **mig 137 applied to prod via psql**, backend + admin pulled + recreated (both healthy). Prod field still 288 NULL — the three-shift model is live and ready for data entry.
+
+---
+
 ## SESSION 2026-07-13 — Prod rate-limit incident: legit admin traffic throttled (fix deployed)
 
 **Incident.** The owner was 429'd ("Túl sok kérés ebből a címből… 15 percet") doing NORMAL admin work — not failed logins. **Root cause:** the **global per-IP limiter** (`app.use('/api/', globalLimiter)`, in-memory MemoryStore) was **env-overridden to `RATE_LIMIT_MAX_REQUESTS=200`** /15min and counts *successful* requests, applied to ALL authenticated admin traffic. Data-heavy admin pages fan out per load (**Billing ~20, GTDDashboard ~15, Invoices ~12** calls) and two endpoints are polled continuously by the admin shell (`/tasks/my/stats`, `/notification-center/unread-count`), so ~10–15 page views exhausted the 200 budget and the next click 429'd. The generous `authenticatedLimiter` (per-user) existed but was **never mounted**. The strict `authLimiter` was already correctly scoped (only `POST /auth/login`, 10 FAILED/15min) — *not* the culprit. **Log evidence** (persistent `/app/logs/combined-2026-07-13.log`): **27 × 429 today, all from one IP `145.236.147.180`** (owner), from 18:46, spread across the whole admin surface (tasks, notifications, wellmind admin, rooms, fines, compensations) — confirming broad navigation + pollers, not a single page and not an attack.
