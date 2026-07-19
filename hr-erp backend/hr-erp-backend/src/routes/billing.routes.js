@@ -14,6 +14,15 @@ router.post('/rates', checkPermission('settings.edit'), ctrl.createRate);
 router.put('/rates/:id', checkPermission('settings.edit'), ctrl.updateRate);
 router.delete('/rates/:id', checkPermission('settings.edit'), ctrl.deleteRate);
 
+// per-client billing profile (invoicing on/off · legal type · VAT-exempt reason)
+router.get('/profiles', checkPermission('settings.edit'), ctrl.listProfiles);
+router.put('/profiles/:contractorId', checkPermission('settings.edit'), ctrl.upsertProfile);
+
+// rate coverage (who would bill $0) + per-accommodation utilities-billing flag
+router.get('/rate-coverage', checkPermission('settings.edit'), ctrl.rateCoverage);
+router.get('/accommodations', checkPermission('settings.edit'), ctrl.listAccommodationsUtil);
+router.put('/accommodations/:id/utilities', checkPermission('settings.edit'), ctrl.setUtilities);
+
 // per-worker billing_client (who pays for housing)
 router.put('/employees/:id/client', checkPermission('settings.edit'), ctrl.setEmployeeClient);
 router.post('/employees/bulk-client', checkPermission('settings.edit'), ctrl.bulkSetEmployeeClient);

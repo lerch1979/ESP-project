@@ -1,33 +1,31 @@
 /**
  * Billing Engine — monthly incoming billing calculation.
  *
- * Reads occupancy_snapshots for a target month, groups by (partner,
- * accommodation), and writes one accommodation_billings row per group
- * inside a fresh billing_run. The full audit trail (rooms → days →
- * employees breakdown) lives in calculation_details JSONB so the math
- * is reverse-engineerable from a single row.
+ * Reads occupancy_snapshots for a target month, groups by (accommodation,
+ * billing_client), and writes one accommodation_billings row per group inside a
+ * fresh billing_run. The full audit trail lives in calculation_details JSONB.
  *
- * Idempotency contract:
- *   • Re-running for the same month is safe. Any existing non-finalized
- *     run for that (month, run_type) is cancelled first; finalized runs
- *     are protected and the call rejects (cancel via the controller if
- *     a re-bill is intentional).
- *   • Cancelled runs and their accommodation_billings rows stay in the
- *     DB for audit — only the (status <> 'cancelled') partial UNIQUE
- *     keeps the new run as the active one.
+ * REVENUE is driven by client_night_rates (resolved per client × accommodation ×
+ * day). Each applicable rate row carries a `billing_basis`:
+ *   • per_person — net = Σ(rate_per_night × person-nights)
+ *   • flat       — net = Σ over covered days of (flat_amount / days_in_month)
+ *                  → a flat property rent, prorated by the days actually occupied
+ *                  (full flat only when the whole month is covered).
+ * One basis wins per (client, accommodation, day) — an accommodation is EITHER
+ * per_person OR flat within a month; a mixed flat-base + per-person-surcharge would
+ * need two applicable rows and is intentionally not modelled.
  *
- * Scope: MVP — incoming only, no billing templates (VAT/discount/line
- * breakdown). All those can live as a future template-driven post-pass
- * over the JSONB without changing this engine's contract.
+ * UTILITIES: if accommodations.utilities_billing = 'billed_separately', the month's
+ * recorded `rezsi` expense for the accommodation is passed through to the client
+ * (split pro-rata by employee-days across the accommodation's client groups). VAT is
+ * applied at the rate's vat_rate. 'included'/'we_pay' add nothing to the client bill.
  *
- * NULL handling:
- *   • Snapshots with per_occupant_daily_share IS NULL (no rent set on
- *     the accommodation) are SKIPPED — they don't contribute to the
- *     total and don't generate a billing row.
- *   • Snapshots with contractor_id IS NULL (accommodation has no
- *     current_contractor_id) are STILL billed but partner_contractor_id
- *     ends up NULL — the run records the work but no partner can be
- *     invoiced until one is assigned. Surfaced in the return summary.
+ * VAT: gross = net × (1 + vat_rate). `total_amount` stays NET (the margin basis so
+ * the profit dashboard reconciles); `vat_amount` + `gross_amount` are stored for the
+ * invoice. COST = rent allocation + operating expenses (unchanged). margin = net − cost.
+ *
+ * Idempotency: re-running a month cancels the prior non-finalized run first;
+ * finalized runs are protected (cancel via the controller to re-bill).
  */
 const { transaction, query } = require('../database/connection');
 const { logger } = require('../utils/logger');
@@ -38,14 +36,8 @@ function assertMonth(month) {
   }
 }
 
-/**
- * Format a JS Date as YYYY-MM-DD in *local* time.
- *
- * pg returns DATE columns as JS Date objects with the local-midnight
- * interpretation, e.g. 2026-05-19 (DB) becomes `2026-05-18T22:00:00Z`
- * in CEST. Using .toISOString().slice(0,10) on that would silently
- * shift the date by a day. Always read via local components instead.
- */
+// pg returns DATE columns as local-midnight Date objects; read via local components
+// (never .toISOString(), which would shift the day under CEST).
 function localDateStr(d) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -53,11 +45,17 @@ function localDateStr(d) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+const round2 = (n) => Math.round(n * 100) / 100;
+
+function daysInMonthOf(month) {
+  const [Y, M] = month.split('-').map(Number);
+  return new Date(Y, M, 0).getDate();
+}
+
 /**
- * Resolve the per-night client rate for (clientId, accId, dateStr) from a
- * preloaded client_night_rates array. Prefers an accommodation-specific row
- * over the client default (NULL accommodation); within the same specificity,
- * the later valid_from wins. Returns a Number or null (no rate configured).
+ * Resolve the full applicable client_night_rates ROW for (clientId, accId, dateStr):
+ * an accommodation-specific row beats the client default (NULL accommodation); within
+ * the same specificity the later valid_from wins. Returns the row or null.
  */
 function makeRateResolver(rates) {
   return (clientId, accId, dateStr) => {
@@ -74,226 +72,254 @@ function makeRateResolver(rates) {
       if (rSpec !== bSpec) { if (rSpec) best = r; continue; }
       if (r.valid_from > best.valid_from) best = r;
     }
-    return best ? Number(best.rate_per_night) : null;
+    return best;
   };
 }
 
 /**
- * Build one calculation_details JSONB payload from the raw snapshot
- * rows belonging to a single (accommodation, billing_client) group.
- * Tracks BOTH cost (rent allocation) and revenue (resolved client rate)
- * per employee. resolveRate(clientId, accId, dateStr) → Number|null.
- *
- * Rows must already be sorted by (room_id, employee_id, snapshot_date).
+ * COST-side breakdown for one (accommodation, client) group: rent allocation per
+ * room/employee + total employee-days. Revenue is computed separately (basis-aware).
+ * Rows must be sorted by (room_id, employee_id, snapshot_date).
  */
-const round2 = (n) => Math.round(n * 100) / 100;
-
-function buildCalculationDetails(rows, computedAt, resolveRate, accId, clientId) {
+function buildCostDetails(rows) {
   const roomsByKey = new Map();
-
   for (const r of rows) {
     const roomKey = r.room_id || '__no_room__';
     if (!roomsByKey.has(roomKey)) {
       roomsByKey.set(roomKey, {
-        room_id: r.room_id,
-        room_number: r.room_number,
+        room_id: r.room_id, room_number: r.room_number,
         monthly_rent: r.accommodation_monthly_rent != null ? Number(r.accommodation_monthly_rent) : null,
-        days: new Map(),       // date → { date, occupants, cost_share, rate }
-        employees: new Map(),  // employee_id → { employee_id, name, days, cost, revenue }
+        days: new Map(), employees: new Map(),
       });
     }
     const room = roomsByKey.get(roomKey);
-
     const dateStr = localDateStr(r.snapshot_date);
     const costShare = r.per_occupant_daily_share != null ? Number(r.per_occupant_daily_share) : 0;
-    const rate = resolveRate(clientId, accId, dateStr) || 0; // per-occupant-night revenue
-
-    if (!room.days.has(dateStr)) {
-      room.days.set(dateStr, { date: dateStr, occupants: r.room_occupant_count, cost_share: costShare, rate });
-    }
-    if (!room.employees.has(r.employee_id)) {
-      room.employees.set(r.employee_id, { employee_id: r.employee_id, name: r.employee_name, days: 0, cost: 0, revenue: 0 });
-    }
+    if (!room.days.has(dateStr)) room.days.set(dateStr, { date: dateStr, occupants: r.room_occupant_count, cost_share: costShare });
+    if (!room.employees.has(r.employee_id)) room.employees.set(r.employee_id, { employee_id: r.employee_id, name: r.employee_name, days: 0, cost: 0 });
     const emp = room.employees.get(r.employee_id);
     emp.days += 1;
     emp.cost = round2(emp.cost + costShare);
-    emp.revenue = round2(emp.revenue + rate);
   }
-
   let totalEmployeeDays = 0;
-  let revenue = 0;
   let rentCost = 0;
   const roomsArr = [];
   for (const room of roomsByKey.values()) {
     const empArr = [...room.employees.values()];
-    const daysArr = [...room.days.values()].sort((a, b) => a.date.localeCompare(b.date));
-    for (const e of empArr) { totalEmployeeDays += e.days; revenue += e.revenue; rentCost += e.cost; }
+    for (const e of empArr) { totalEmployeeDays += e.days; rentCost += e.cost; }
     roomsArr.push({
-      room_id: room.room_id,
-      room_number: room.room_number,
-      monthly_rent: room.monthly_rent,
-      days: daysArr,
+      room_id: room.room_id, room_number: room.room_number, monthly_rent: room.monthly_rent,
+      days: [...room.days.values()].sort((a, b) => a.date.localeCompare(b.date)),
       employees: empArr.sort((a, b) => (a.name || '').localeCompare(b.name || '')),
     });
   }
-  revenue = round2(revenue);
-  rentCost = round2(rentCost);
-
-  return {
-    rooms: roomsArr,
-    totalEmployeeDays,
-    revenue,
-    rentCost, // expense allocation + final cost/margin are added by the caller
-  };
+  return { rooms: roomsArr, totalEmployeeDays, rentCost: round2(rentCost) };
 }
 
 /**
- * Compute incoming billing for a month and persist it as a new
- * billing_run + accommodation_billings rows.
- *
- * @param {string} month   'YYYY-MM'
- * @param {object} [opts]
- * @param {string} [opts.createdBy]   user UUID for the billing_run record
- * @param {string} [opts.runType='incoming']
- * @param {string} [opts.notes]       free-text tag, e.g. '[auto] cron monthly billing'
- * @returns {Promise<{run_id, month, run_type, status, total_amount,
- *                    billing_count, partner_count, skipped_no_rent,
- *                    skipped_no_partner, replaced_run_id}>}
+ * REVENUE for one (accommodation, client) group: base (per_person or flat) + optional
+ * utilities pass-through, each with VAT. `resolveRow(clientId, accId, dateStr)` returns
+ * the applicable rate row (or null → 0 for that day).
  */
+function computeGroupRevenue(rows, resolveRow, accId, clientId, daysInMonth, opts = {}) {
+  const { rezsiTotal = 0, utilitiesBilling = 'we_pay', groupEmpDays = 0, accEmpDays = 0 } = opts;
+  const dayRow = new Map();
+  for (const r of rows) {
+    const d = localDateStr(r.snapshot_date);
+    if (!dayRow.has(d)) dayRow.set(d, resolveRow(clientId, accId, d));
+  }
+
+  let baseNet = 0, baseVat = 0, vatRate = 0, basis = null, vatExempt = false;
+  const flatDaysSeen = new Set();
+  for (const r of rows) {
+    const d = localDateStr(r.snapshot_date);
+    const row = dayRow.get(d);
+    if (!row) continue; // no rate that day → contributes nothing (surfaced by coverage view)
+    // VAT-exempt (áfamentes) → 0 VAT that day; net is unaffected.
+    const dayVat = row.vat_exempt ? 0 : (Number(row.vat_rate) || 0);
+    vatRate = dayVat;
+    if (row.vat_exempt) vatExempt = true;
+    if (row.billing_basis === 'flat') {
+      basis = basis || 'flat';
+      if (!flatDaysSeen.has(d)) { // per PROPERTY-day, headcount-independent
+        flatDaysSeen.add(d);
+        const dayNet = Number(row.flat_amount || 0) / daysInMonth;
+        baseNet = round2(baseNet + dayNet);
+        baseVat = round2(baseVat + dayNet * dayVat);
+      }
+    } else {
+      basis = basis || 'per_person';
+      const rate = Number(row.rate_per_night) || 0; // per employee-day
+      baseNet = round2(baseNet + rate);
+      baseVat = round2(baseVat + rate * dayVat);
+    }
+  }
+
+  // Utilities pass-through (billed_separately): the month rezsi, split by employee-days.
+  let utilityNet = 0, utilityVat = 0;
+  if (utilitiesBilling === 'billed_separately' && rezsiTotal > 0 && accEmpDays > 0) {
+    utilityNet = round2(rezsiTotal * (groupEmpDays / accEmpDays));
+    utilityVat = round2(utilityNet * vatRate);
+  }
+
+  const net = round2(baseNet + utilityNet);
+  const vat = round2(baseVat + utilityVat);
+  return { basis, base_net: baseNet, base_vat: baseVat, utility_net: utilityNet, utility_vat: utilityVat,
+           net, vat, gross: round2(net + vat), vat_rate: vatRate, vat_exempt: vatExempt };
+}
+
 async function calculateMonthlyBilling(month, opts = {}) {
   assertMonth(month);
   const runType = opts.runType || 'incoming';
   if (runType !== 'incoming') {
     throw new Error(`billingEngine: runType '${runType}' not supported in MVP (Phase 2)`);
   }
+  const dim = daysInMonthOf(month);
 
   return transaction(async (client) => {
     // ─── 1. Replace any non-finalized active run for this (month, type) ───
     const existing = await client.query(
       `SELECT id, status FROM billing_runs
-       WHERE billing_month = $1 AND run_type = $2 AND status <> 'cancelled'
-       FOR UPDATE`,
+       WHERE billing_month = $1 AND run_type = $2 AND status <> 'cancelled' FOR UPDATE`,
       [month, runType]
     );
     let replacedRunId = null;
     if (existing.rows.length > 0) {
       const prev = existing.rows[0];
       if (prev.status === 'finalized') {
-        throw new Error(
-          `billingEngine: run ${prev.id} for ${month}/${runType} is finalized; cancel via controller before re-billing`
-        );
+        throw new Error(`billingEngine: run ${prev.id} for ${month}/${runType} is finalized; cancel via controller before re-billing`);
       }
       await client.query(
         `UPDATE billing_runs SET status='cancelled', completed_at=NOW(),
-           notes = COALESCE(notes,'') || E'\nReplaced by re-bill at ' || NOW()
-         WHERE id = $1`,
+           notes = COALESCE(notes,'') || E'\nReplaced by re-bill at ' || NOW() WHERE id = $1`,
         [prev.id]
       );
       replacedRunId = prev.id;
     }
 
-    // ─── 2. Snapshot rows for the month — ALL of them (no rent filter; option C
-    //        revenue comes from the client rate, not the rent). The billable
-    //        client is the WORKER's billing_client_id (the accommodation-payer),
-    //        NOT the snapshot's accommodation contractor. ───
+    // ─── 2. Snapshot rows for the month. Billable client = the WORKER's billing_client_id. ───
     const snapRows = await client.query(
-      `SELECT
-         os.snapshot_date,
-         os.employee_id,
-         (e.first_name || ' ' || COALESCE(e.last_name, '')) AS employee_name,
-         e.billing_client_id,
-         os.accommodation_id,
-         os.room_id,
-         ar.room_number,
-         os.accommodation_monthly_rent,
-         os.room_occupant_count,
-         os.per_occupant_daily_share
-       FROM occupancy_snapshots os
-       JOIN employees e ON e.id = os.employee_id
-       JOIN accommodations a ON a.id = os.accommodation_id
-       LEFT JOIN accommodation_rooms ar ON ar.id = os.room_id
-       WHERE TO_CHAR(os.snapshot_date, 'YYYY-MM') = $1
-       ORDER BY os.accommodation_id, e.billing_client_id NULLS LAST, os.room_id NULLS LAST,
-                os.employee_id, os.snapshot_date`,
+      `SELECT os.snapshot_date, os.employee_id,
+              (e.first_name || ' ' || COALESCE(e.last_name, '')) AS employee_name,
+              e.billing_client_id, os.accommodation_id, os.room_id, ar.room_number,
+              os.accommodation_monthly_rent, os.room_occupant_count, os.per_occupant_daily_share
+         FROM occupancy_snapshots os
+         JOIN employees e ON e.id = os.employee_id
+         JOIN accommodations a ON a.id = os.accommodation_id
+         LEFT JOIN accommodation_rooms ar ON ar.id = os.room_id
+        WHERE TO_CHAR(os.snapshot_date, 'YYYY-MM') = $1
+        ORDER BY os.accommodation_id, e.billing_client_id NULLS LAST, os.room_id NULLS LAST,
+                 os.employee_id, os.snapshot_date`,
       [month]
     );
 
-    // Preload client rates (resolver) + operating expenses per accommodation.
+    // Preloads: rate rows (with basis/vat/flat), operating expenses, rezsi, utilities flag.
     const rateRows = await client.query(
-      `SELECT contractor_id, accommodation_id, rate_per_night,
-              TO_CHAR(valid_from, 'YYYY-MM-DD') AS valid_from,
-              TO_CHAR(valid_to, 'YYYY-MM-DD') AS valid_to
+      `SELECT contractor_id, accommodation_id, rate_per_night, flat_amount, billing_basis, vat_rate, vat_exempt,
+              TO_CHAR(valid_from, 'YYYY-MM-DD') AS valid_from, TO_CHAR(valid_to, 'YYYY-MM-DD') AS valid_to
          FROM client_night_rates`
     );
-    const resolveRate = makeRateResolver(rateRows.rows);
+    const resolveRow = makeRateResolver(rateRows.rows);
+
+    // Per-client billing profile (invoicing on/off + legal type). Missing profile →
+    // defaults (invoiced, company); coverage surfaces unset profiles separately.
+    const profRows = await client.query(`SELECT contractor_id, invoicing_enabled, legal_type FROM client_billing_profiles`);
+    const profByClient = new Map();
+    for (const p of profRows.rows) profByClient.set(p.contractor_id, p);
 
     const expRows = await client.query(
-      `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total
-         FROM accommodation_expenses
-        WHERE billing_month = $1 AND deleted_at IS NULL
-        GROUP BY accommodation_id`,
-      [month]
-    );
+      `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
+        WHERE billing_month = $1 AND deleted_at IS NULL GROUP BY accommodation_id`, [month]);
     const expenseByAcc = new Map();
     for (const r of expRows.rows) expenseByAcc.set(r.accommodation_id, Number(r.total));
 
-    // ─── 3. Group by (accommodation_id, billing_client_id) ───
-    const groups = new Map(); // "accId|clientId" → {accommodation_id, billing_client_id, rows:[]}
+    const rezsiRows = await client.query(
+      `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
+        WHERE billing_month = $1 AND deleted_at IS NULL AND category = 'rezsi' GROUP BY accommodation_id`, [month]);
+    const rezsiByAcc = new Map();
+    for (const r of rezsiRows.rows) rezsiByAcc.set(r.accommodation_id, Number(r.total));
+
+    const utilRows = await client.query(`SELECT id, utilities_billing FROM accommodations`);
+    const utilByAcc = new Map();
+    for (const r of utilRows.rows) utilByAcc.set(r.id, r.utilities_billing);
+
+    // ─── 3. Group by (accommodation_id, billing_client_id). Clients whose profile
+    //        has invoicing_enabled=false are SKIPPED entirely (no billing row); their
+    //        occupancy is excluded from the run (their unbilled cost is absorbed). ───
+    const groups = new Map();
+    const skippedClients = new Set();
     for (const r of snapRows.rows) {
+      const prof = profByClient.get(r.billing_client_id);
+      if (prof && prof.invoicing_enabled === false) { skippedClients.add(r.billing_client_id); continue; }
       const key = `${r.accommodation_id}|${r.billing_client_id || ''}`;
-      if (!groups.has(key)) {
-        groups.set(key, { accommodation_id: r.accommodation_id, billing_client_id: r.billing_client_id, rows: [] });
-      }
+      if (!groups.has(key)) groups.set(key, { accommodation_id: r.accommodation_id, billing_client_id: r.billing_client_id, rows: [] });
       groups.get(key).rows.push(r);
     }
 
-    // ─── 4. Pass 1: compute per-group revenue/rent + accumulate accommodation totals ───
+    // ─── 4. Pass 1: cost details + accumulate accommodation employee-days ───
     const computedAt = new Date().toISOString();
     const computed = [];
     const accTotalDays = new Map();
-    let noClientGroups = 0;
-    let noRateGroups = 0;
+    let noClientGroups = 0, noRateGroups = 0;
     const partnerIds = new Set();
-
     for (const grp of groups.values()) {
-      const built = buildCalculationDetails(grp.rows, computedAt, resolveRate, grp.accommodation_id, grp.billing_client_id);
-      computed.push({ grp, built });
-      accTotalDays.set(grp.accommodation_id, (accTotalDays.get(grp.accommodation_id) || 0) + built.totalEmployeeDays);
+      const cost = buildCostDetails(grp.rows);
+      computed.push({ grp, cost });
+      accTotalDays.set(grp.accommodation_id, (accTotalDays.get(grp.accommodation_id) || 0) + cost.totalEmployeeDays);
       if (grp.billing_client_id) partnerIds.add(grp.billing_client_id); else noClientGroups++;
-      if (grp.billing_client_id && built.revenue === 0) noRateGroups++;
     }
 
-    // ─── 5. Create run, then one billing row per group (revenue/cost/margin) ───
+    // ─── 5. Create run, then one billing row per group (revenue/vat/cost/margin) ───
     const noteParts = [];
     if (opts.notes) noteParts.push(opts.notes);
     if (replacedRunId) noteParts.push(`Replaces ${replacedRunId}`);
-    const runNotes = noteParts.length ? noteParts.join(' | ') : null;
-
     const runIns = await client.query(
       `INSERT INTO billing_runs (billing_month, run_type, status, created_by, notes)
        VALUES ($1, $2, 'draft', $3, $4) RETURNING id`,
-      [month, runType, opts.createdBy || null, runNotes]
+      [month, runType, opts.createdBy || null, noteParts.length ? noteParts.join(' | ') : null]
     );
     const runId = runIns.rows[0].id;
 
-    let grandRevenue = 0;
-    for (const { grp, built } of computed) {
-      // Operating expenses allocated pro-rata by this group's share of the
-      // accommodation's employee-days (cost = rent allocation + expenses).
+    let grandRevenue = 0, grandGross = 0;
+    for (const { grp, cost } of computed) {
+      const accEmpDays = accTotalDays.get(grp.accommodation_id) || 0;
+      const rev = computeGroupRevenue(grp.rows, resolveRow, grp.accommodation_id, grp.billing_client_id, dim, {
+        rezsiTotal: rezsiByAcc.get(grp.accommodation_id) || 0,
+        utilitiesBilling: utilByAcc.get(grp.accommodation_id) || 'we_pay',
+        groupEmpDays: cost.totalEmployeeDays,
+        accEmpDays,
+      });
+      if (grp.billing_client_id && rev.net === 0) noRateGroups++;
+
       const accExpense = expenseByAcc.get(grp.accommodation_id) || 0;
-      const accDays = accTotalDays.get(grp.accommodation_id) || 0;
-      const expenseCost = accDays > 0 ? round2(accExpense * (built.totalEmployeeDays / accDays)) : 0;
-      const cost = round2(built.rentCost + expenseCost);
-      const margin = round2(built.revenue - cost);
-      grandRevenue = round2(grandRevenue + built.revenue);
+      const expenseCost = accEmpDays > 0 ? round2(accExpense * (cost.totalEmployeeDays / accEmpDays)) : 0;
+      const totalCost = round2(cost.rentCost + expenseCost);
+      const margin = round2(rev.net - totalCost);
+      grandRevenue = round2(grandRevenue + rev.net);
+      grandGross = round2(grandGross + rev.gross);
+
+      // Private individual → payroll handoff: record the gross owed + a clear marker;
+      // NEVER compute net-to-person or tax-to-NAV (the accountant's job).
+      const legalType = profByClient.get(grp.billing_client_id)?.legal_type || 'company';
+      const payrollHandoff = legalType === 'private';
 
       const details = {
-        rooms: built.rooms,
-        total_employee_days: built.totalEmployeeDays,
-        revenue: built.revenue,
-        rent_cost: built.rentCost,
+        rooms: cost.rooms,
+        total_employee_days: cost.totalEmployeeDays,
+        billing_basis: rev.basis,
+        legal_type: legalType,
+        payroll_handoff: payrollHandoff,
+        payroll_handoff_note: payrollHandoff ? 'Bérszámfejtendő magánszemély — bruttó összeg; nettó + NAV a könyvelő feladata' : null,
+        vat_exempt: rev.vat_exempt,
+        revenue_net: rev.net,
+        base_net: rev.base_net,
+        utility_net: rev.utility_net,
+        vat_rate: rev.vat_rate,
+        vat_amount: rev.vat,
+        gross_amount: rev.gross,
+        rent_cost: cost.rentCost,
         expense_cost: expenseCost,
-        cost,
+        cost: totalCost,
         margin,
         computed_at: computedAt,
       };
@@ -301,30 +327,28 @@ async function calculateMonthlyBilling(month, opts = {}) {
       await client.query(
         `INSERT INTO accommodation_billings (
            billing_run_id, billing_month, accommodation_id, partner_contractor_id,
-           total_amount, cost_amount, margin_amount, total_employee_days,
-           calculation_details, status
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft')`,
+           total_amount, vat_amount, gross_amount, cost_amount, margin_amount, total_employee_days,
+           payroll_handoff, calculation_details, status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'draft')`,
         [runId, month, grp.accommodation_id, grp.billing_client_id,
-         built.revenue, cost, margin, built.totalEmployeeDays, details]
+         rev.net, rev.vat, rev.gross, totalCost, margin, cost.totalEmployeeDays, payrollHandoff, details]
       );
     }
 
     await client.query(
-      `UPDATE billing_runs SET status='calculated', total_amount=$2, partner_count=$3, completed_at=NOW()
-       WHERE id = $1`,
+      `UPDATE billing_runs SET status='calculated', total_amount=$2, partner_count=$3, completed_at=NOW() WHERE id = $1`,
       [runId, grandRevenue, partnerIds.size]
     );
 
     const summary = {
-      run_id: runId,
-      month,
-      run_type: runType,
-      status: 'calculated',
-      total_amount: grandRevenue,            // total REVENUE billed
+      run_id: runId, month, run_type: runType, status: 'calculated',
+      total_amount: grandRevenue,   // total NET revenue billed
+      total_gross: grandGross,      // NET + VAT
       billing_count: groups.size,
       partner_count: partnerIds.size,
-      groups_no_billing_client: noClientGroups, // workers with no billing_client_id set
-      groups_no_rate: noRateGroups,             // billing_client set but no rate configured → 0 revenue
+      groups_no_billing_client: noClientGroups,
+      groups_no_rate: noRateGroups,
+      skipped_clients: skippedClients.size,   // invoicing_enabled=false → intentionally not billed
       replaced_run_id: replacedRunId,
     };
     logger.info(`[billingEngine] ${JSON.stringify(summary)}`);
@@ -332,4 +356,4 @@ async function calculateMonthlyBilling(month, opts = {}) {
   });
 }
 
-module.exports = { calculateMonthlyBilling, buildCalculationDetails, makeRateResolver };
+module.exports = { calculateMonthlyBilling, buildCostDetails, computeGroupRevenue, makeRateResolver };
