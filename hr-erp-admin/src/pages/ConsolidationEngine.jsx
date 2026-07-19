@@ -109,15 +109,15 @@ export default function ConsolidationEngine() {
             <Summary label="Felszabaduló szobák" value={run.freed_rooms} />
             <Summary label="Felszabaduló ágyak" value={run.freed_beds} />
             <Summary label="Érintett szálláshelyek" value={byAcc.length} />
-            {run.summary?.flagged_unknown_shift_count > 0 && (
-              <Summary label="Hiányzó műszak (nem mozgatható)" value={run.summary.flagged_unknown_shift_count} />
+            {run.summary?.flagged_incomplete_count > 0 && (
+              <Summary label="Hiányzó műszak/munkahely (nem mozgatható)" value={run.summary.flagged_incomplete_count} />
             )}
             <Box sx={{ ml: 'auto', alignSelf: 'center' }}>{statusChip(run.status === 'applied' ? 'applied' : 'pending')}</Box>
           </Paper>
 
-          {run.summary?.flagged_unknown_shift_count > 0 && (
+          {run.summary?.flagged_incomplete_count > 0 && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              {run.summary.flagged_unknown_shift_count} dolgozónak nincs megadva a műszakja — őket a motor <b>nem mozgatja</b> és nem is helyezi senki mellé. Töltsd ki a műszakjukat (Dolgozók → Műszak / Szoba-sablon), majd futtasd újra.
+              {run.summary.flagged_incomplete_count} dolgozónak hiányzik a műszakja vagy a munkahelye — őket a motor <b>nem mozgatja</b> és nem is helyezi senki mellé. Töltsd ki az adataikat (Dolgozók → Műszak / Munkahely), majd futtasd újra.
             </Alert>
           )}
 

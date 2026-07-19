@@ -48,11 +48,15 @@ async function getConfig() {
 // Do two shift buckets share a room? (matrix, symmetric by construction)
 const compatible = (a, b, matrix) => !!(matrix?.[a]?.[b]);
 
-// A set of employees may share a room iff same gender AND pairwise shift-compatible.
+// A set of employees may share a room iff same gender AND same workplace AND
+// pairwise shift-compatible. Workplace is a HARD constraint — never mix employers
+// in a room (same rule as gender/shift).
 function groupValid(members, matrix) {
   if (members.length === 0) return true;
   const g = members[0].gender;
   if (members.some((m) => m.gender !== g)) return false;
+  const w = members[0].workplace;
+  if (members.some((m) => m.workplace !== w)) return false;
   for (let i = 0; i < members.length; i++) {
     for (let j = i + 1; j < members.length; j++) {
       if (!compatible(shiftBucket(members[i].shift), shiftBucket(members[j].shift), matrix)) return false;
@@ -67,27 +71,25 @@ function groupValid(members, matrix) {
  * caller skips it — never emits an unsafe suggestion).
  */
 function consolidateAccommodation(rooms, employees, matrix) {
-  if (employees.length === 0) return { valid: false, flaggedUnknownShift: [] };
+  if (employees.length === 0) return { valid: false, flaggedIncomplete: [] };
   const bedsOf = new Map(rooms.map((r) => [r.id, r.beds]));
 
-  // EMPTY/unknown-shift employees are NEVER auto-placed. They pin to their current
-  // room, that room is LOCKED (neither a move source nor a target), and they are
-  // flagged for data entry. Anyone sharing a locked room is pinned too — we won't
-  // co-locate a known-shift resident with an unknown one, and we can't safely move
-  // the unknown. Consolidation runs ONLY over known-shift residents in free rooms.
-  const flagged = employees.filter((e) => shiftBucket(e.shift) === null);
+  // "Placeable" = has a known shift AND a known workplace. An employee missing
+  // EITHER is NEVER auto-placed (we can't safely co-locate them): they pin to their
+  // current room, that room is LOCKED (neither move source nor target), and they are
+  // flagged for data entry. Anyone sharing a locked room is pinned too.
+  const placeable = (e) => shiftBucket(e.shift) !== null && !!e.workplace;
+  const flagged = employees.filter((e) => !placeable(e));
   const lockedRoomIds = new Set(flagged.map((e) => e.room_id).filter(Boolean));
-  const movable = employees.filter(
-    (e) => shiftBucket(e.shift) !== null && !lockedRoomIds.has(e.room_id)
-  );
+  const movable = employees.filter((e) => placeable(e) && !lockedRoomIds.has(e.room_id));
   const availableRooms = rooms.filter((r) => !lockedRoomIds.has(r.id));
 
-  // Cohorts: (gender × shift). SAME SHIFT ONLY — each cohort is one gender + one
-  // shift and gets its own room(s). There is NO "compatible with anything" bucket,
-  // so two different shifts can never be greedily merged into a room.
+  // Cohorts: (gender × shift × workplace). SAME gender, SAME shift, SAME workplace —
+  // each cohort gets its own room(s), so gender/shift/workplace can never be mixed
+  // in a room. There is NO "compatible with anything" bucket.
   const byKey = new Map();
   for (const e of movable) {
-    const key = `${e.gender}|${shiftBucket(e.shift)}`;
+    const key = `${e.gender}|${shiftBucket(e.shift)}|${e.workplace}`;
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key).push(e);
   }
@@ -103,7 +105,7 @@ function consolidateAccommodation(rooms, employees, matrix) {
     const allocated = [];
     let cap = 0;
     while (cap < need && ri < roomsSorted.length) { allocated.push(roomsSorted[ri]); cap += roomsSorted[ri].beds; ri++; }
-    if (cap < need) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) }; // couldn't fit — skip
+    if (cap < need) return { valid: false, flaggedIncomplete: flagged.map((e) => e.id) }; // couldn't fit — skip
 
     // Assign members to the cohort's rooms, KEEPING people in place where possible.
     const fill = new Map(allocated.map((r) => [r.id, 0]));
@@ -131,13 +133,13 @@ function consolidateAccommodation(rooms, employees, matrix) {
     byRoom.get(rid).push(e);
   }
   for (const [rid, members] of byRoom) {
-    if (members.length > bedsOf.get(rid)) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) }; // capacity
+    if (members.length > bedsOf.get(rid)) return { valid: false, flaggedIncomplete: flagged.map((e) => e.id) }; // capacity
     if (lockedRoomIds.has(rid)) {
       // Pinned room — never touched. Only guarantee we didn't create mixed-gender.
-      if (members.some((m) => m.gender !== members[0].gender)) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) };
+      if (members.some((m) => m.gender !== members[0].gender)) return { valid: false, flaggedIncomplete: flagged.map((e) => e.id) };
       continue;
     }
-    if (!groupValid(members, matrix)) return { valid: false, flaggedUnknownShift: flagged.map((e) => e.id) }; // gender + same-shift
+    if (!groupValid(members, matrix)) return { valid: false, flaggedIncomplete: flagged.map((e) => e.id) }; // gender + same-shift
   }
 
   const prevOccupied = new Set(employees.map((e) => e.room_id).filter(Boolean));
@@ -153,7 +155,7 @@ function consolidateAccommodation(rooms, employees, matrix) {
   const utilizationBefore = totalBeds ? employees.length / totalBeds : 0;
 
   return { valid: true, moves, freedRooms: freed, freedBeds, utilizationBefore,
-           flaggedUnknownShift: flagged.map((e) => e.id) };
+           flaggedIncomplete: flagged.map((e) => e.id) };
 }
 
 /**
@@ -167,7 +169,7 @@ async function generateRun(triggeredBy = null) {
 
   // Active employees WITH a room, + their room's beds + accommodation.
   const emp = await query(`
-    SELECT e.id, e.gender, e.shift_schedule AS shift, e.room_id, e.accommodation_id,
+    SELECT e.id, e.gender, e.shift_schedule AS shift, e.workplace, e.room_id, e.accommodation_id,
            a.name AS accommodation_name
       FROM employees e
       JOIN employee_status_types est ON est.id = e.status_id AND est.slug = 'active'
@@ -189,12 +191,12 @@ async function generateRun(triggeredBy = null) {
 
   const perAcc = [];
   const allMoves = [];
-  const flaggedUnknownShift = []; // employees with an EMPTY shift — never moved, need data entry
+  const flaggedIncomplete = []; // employees with an EMPTY shift — never moved, need data entry
   for (const [accId, emps] of empByAcc) {
-    // Flag empty-shift employees regardless of whether this accommodation yields a
-    // proposal — they must be surfaced for data entry, not silently skipped.
-    for (const e of emps.filter((x) => shiftBucket(x.shift) === null)) {
-      flaggedUnknownShift.push({ employee_id: e.id, accommodation_id: accId, accommodation_name: emps[0].accommodation_name });
+    // Flag employees missing a shift OR a workplace regardless of whether this
+    // accommodation yields a proposal — they must be surfaced for data entry.
+    for (const e of emps.filter((x) => shiftBucket(x.shift) === null || !x.workplace)) {
+      flaggedIncomplete.push({ employee_id: e.id, accommodation_id: accId, accommodation_name: emps[0].accommodation_name });
     }
     const accRooms = roomsByAcc.get(accId) || [];
     const res = consolidateAccommodation(accRooms, emps, matrix);
@@ -209,7 +211,7 @@ async function generateRun(triggeredBy = null) {
       freed_rooms: res.freedRooms.length,
       freed_beds: res.freedBeds,
       moves: res.moves.length,
-      flagged_unknown_shift: (res.flaggedUnknownShift || []).length,
+      flagged_incomplete: (res.flaggedIncomplete || []).length,
       utilization_before: Number(res.utilizationBefore.toFixed(3)),
       score: Number(score.toFixed(2)),
     });
@@ -221,12 +223,12 @@ async function generateRun(triggeredBy = null) {
   const totalFreedBeds = perAcc.reduce((s, a) => s + a.freed_beds, 0);
   const summary = {
     by_accommodation: perAcc,
-    flagged_unknown_shift: flaggedUnknownShift,
-    flagged_unknown_shift_count: flaggedUnknownShift.length,
+    flagged_incomplete: flaggedIncomplete,
+    flagged_incomplete_count: flaggedIncomplete.length,
     generated_at: new Date().toISOString(),
   };
-  if (flaggedUnknownShift.length) {
-    logger.info(`[consolidation] ${flaggedUnknownShift.length} employee(s) have an empty shift → not auto-placed, flagged for data entry`);
+  if (flaggedIncomplete.length) {
+    logger.info(`[consolidation] ${flaggedIncomplete.length} employee(s) missing shift or workplace → not auto-placed, flagged for data entry`);
   }
 
   const runId = await transaction(async (client) => {
@@ -259,7 +261,7 @@ async function generateRun(triggeredBy = null) {
 async function assertAccommodationsValid(client, accIds, matrix) {
   if (accIds.length === 0) return;
   const rows = (await client.query(
-    `SELECT e.room_id, e.gender, e.shift_schedule AS shift, r.beds, r.room_number, a.name AS accommodation_name
+    `SELECT e.room_id, e.gender, e.shift_schedule AS shift, e.workplace, r.beds, r.room_number, a.name AS accommodation_name
        FROM employees e
        JOIN accommodation_rooms r ON r.id = e.room_id
        JOIN accommodations a ON a.id = e.accommodation_id
@@ -270,10 +272,10 @@ async function assertAccommodationsValid(client, accIds, matrix) {
     const r0 = members[0];
     if (members.length > r0.beds) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szoba túltöltött (${members.length}/${r0.beds}).`);
     if (members.some((m) => m.gender !== r0.gender)) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szobában nemek keverednének.`);
-    // Shift is validated among KNOWN-shift residents only: an empty-shift resident
-    // is pinned + flagged for data entry, not an engine-created conflict.
-    const known = members.filter((m) => shiftBucket(m.shift) !== null);
-    if (!groupValid(known, matrix)) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szobában műszak-ütközés keletkezne.`);
+    // Shift + workplace validated among PLACEABLE residents only (known shift AND
+    // workplace): an incomplete-data resident is pinned + flagged, not an engine conflict.
+    const placeable = members.filter((m) => shiftBucket(m.shift) !== null && !!m.workplace);
+    if (!groupValid(placeable, matrix)) throw new Error(`A(z) "${r0.accommodation_name}" ${r0.room_number} szobában műszak- vagy munkahely-ütközés keletkezne.`);
   }
 }
 

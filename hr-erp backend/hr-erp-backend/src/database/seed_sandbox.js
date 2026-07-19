@@ -152,6 +152,9 @@ async function main() {
     //    5th room (must be FLAGGED + locked + never moved). Guarantees the full
     //    run→approve flow has real same-shift moves to work with. ──
     let demoNo = NUM_EMP;
+    // Demo employees share ONE workplace (WORKPLACES[0]) so the same-gender +
+    // same-shift + same-workplace cohort is genuinely consolidatable now that
+    // workplace is a hard constraint.
     const mkDemoEmp = async (accId, roomId, shiftVal) => {
       demoNo++;
       await c.query(
@@ -161,7 +164,7 @@ async function main() {
            personal_email, personal_phone, nationality, start_date)
          VALUES ($1,$2,$3,$4,$5,$6,$7,'male','1990-01-01',$8,$9,$10,$11,$12,'HU',CURRENT_DATE)`,
         [contractorId, accId, roomId, `SBX-${pad(demoNo)}`, activeStatus,
-         pick(MALE), pick(SUR), `${pick(SUR)} ${pick(FEMALE)}`, pick(WORKPLACES), shiftVal,
+         pick(MALE), pick(SUR), `${pick(SUR)} ${pick(FEMALE)}`, WORKPLACES[0], shiftVal,
          `sbx-emp-${pad(demoNo)}@sandbox.local`, `+36 30 000 ${pad(demoNo)}`]
       );
     };
