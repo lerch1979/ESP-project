@@ -6,6 +6,26 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-19e — Billing Phase 1b: per-bed formula + compensation pass-through (deployed + live-verified)
+
+Built the confirmed per-bed billing formula into the engine + the compensation→invoice line + lekötetlen on the profit dashboard.
+
+**mig 141:** `client_night_rates` gains `per_bed_night` basis (`rate_used`, `rate_empty`, `occupancy_floor_pct`, `contracted_beds`); `accommodation_billings.compensation_amount`.
+
+**Per-bed engine** (`computePerBed`, day-driven over the whole month so the contracted block bills even on low/zero-occupancy days): `full = max(occupied, ceil(capacity×floor_pct))`, `reduced = max(0, capacity−full)`, `net/day = full×rate_used + reduced×rate_empty`. capacity = `contracted_beds` (lekötött, per megbízó×szállás) else the accommodation's physical beds (Σ `accommodation_rooms.beds`). Degenerates to per-occupied-bed when floor=0 & empty=0. One basis per group/month.
+
+**Compensation pass-through:** approved damage claims billed to the worker's **megbízó** (via `compensation_residents.resident_id → employees.user_id → billing_client_id`) as a SEPARATE line (`compensation_amount`), kept OUT of housing net/margin. Billable statuses = **issued, notified, partial_paid, escalated** (owner-confirmed; **disputed EXCLUDED** — only bill once resolved; draft/waived/worker-settled excluded). Attribution month = `issued_date`. Unresolvable comps (no megbízó / no matching housing group) surfaced in the run summary (`unattached_compensations`), never dropped.
+
+**Profit dashboard "lekötetlen":** per accommodation — physical beds, committed beds, **uncommitted = physical − committed** (rent paid, no megbízó), empty bed-nights (billed vacancy), compensation column + summary totals.
+
+**Admin:** rate form "Ágy / éj (lekötött blokk)" basis + 4 fields (floor entered as %); profit table **Lekötetlen ágy** + **Kártérítés** columns.
+
+**Verified:** owner worked examples exact — cap100/3500/1500/floor90 → 95=340000, 80=330000, 92=334000/night; **Autoliv 60 beds @ 90% floor, 40 occ → 198000/night** (billed at the 54 floor). Unit 17, CI jest `billingPerBed.test.js` 6/6, full-engine integration 12/12 (net 5.94M + VAT + 50k comp separate + profit lekötetlen), regression `billingProfileMatrix`/`OptionC` 14/14 (per_person/flat unchanged).
+
+**Deploy:** commit `43435abc`, CI green (1434 passed), mig 141 applied to prod via psql, backend+admin recreated + healthy. Live-verified: all 3 new engine/profit SQL paths run clean against prod schema (0 rows now — real numbers appear once beds + megbízók + per-bed rates are populated). **Bills real per-bed numbers once the owner enters bed counts (116 rooms @ 0), megbízó-on-employee, and per-bed rates.** Phase 2 = progressive tiered pricing (Autoliv, when signed).
+
+---
+
 ## SESSION 2026-07-19d — Full billing model settled: Phase 1a contractor_roles (deployed + live-verified)
 
 Owner **reversed** the earlier "Option A" (accommodation-derived client) after I surfaced the semantic conflict: `accommodations.current_contractor_id` is the **SZÁLLÁSADÓ** (landlord we pay rent → COST), NOT the billing client. Settled model is **per-employee MEGBÍZÓ** (`employees.billing_client_id` → REVENUE). Reverted the uncommitted Option-A engine/coverage edits (back to `billing_client_id`). Produced a full read-only inventory + phased plan; owner approved **Phase 1a** (role foundation + data-entry enablers; no engine change — that's 1b).
