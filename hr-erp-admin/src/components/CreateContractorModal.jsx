@@ -17,7 +17,7 @@ import {
 import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
-function CreateContractorModal({ open, onClose, onSuccess, defaultType, lockType = false }) {
+function CreateContractorModal({ open, onClose, onSuccess, defaultType, defaultRoles = [], lockType = false }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -49,7 +49,9 @@ function CreateContractorModal({ open, onClose, onSuccess, defaultType, lockType
 
     setLoading(true);
     try {
-      const response = await contractorsAPI.create(formData);
+      const response = await contractorsAPI.create(
+        defaultRoles.length ? { ...formData, roles: defaultRoles } : formData
+      );
 
       if (response.success) {
         toast.success('Alvállalkozó sikeresen létrehozva!');
@@ -76,7 +78,7 @@ function CreateContractorModal({ open, onClose, onSuccess, defaultType, lockType
       <DialogTitle>
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
           {lockType && formData.type === 'property_owner'
-            ? 'Új ingatlan tulajdonos'
+            ? 'Új szállásadó'
             : 'Új alvállalkozó létrehozása'}
         </Typography>
       </DialogTitle>
@@ -103,7 +105,7 @@ function CreateContractorModal({ open, onClose, onSuccess, defaultType, lockType
                   onChange={(e) => handleChange('type', e.target.value)}
                   label="Típus"
                 >
-                  <MenuItem value="property_owner">Ingatlan tulajdonos</MenuItem>
+                  <MenuItem value="property_owner">Szállásadó</MenuItem>
                   <MenuItem value="service_provider">Szolgáltató</MenuItem>
                 </Select>
               </FormControl>

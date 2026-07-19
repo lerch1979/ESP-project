@@ -236,6 +236,11 @@ export const contractorsAPI = {
     return response.data;
   },
 
+  setRoles: async (id, roles) => {
+    const response = await api.put(`/contractors/${id}/roles`, { roles });
+    return response.data;
+  },
+
   delete: async (id) => {
     const response = await api.delete(`/contractors/${id}`);
     return response.data;

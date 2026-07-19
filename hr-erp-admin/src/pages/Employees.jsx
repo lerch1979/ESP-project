@@ -119,7 +119,8 @@ function Employees() {
   const [bulkBillingClientId, setBulkBillingClientId] = useState('');
   const [billingClients, setBillingClients] = useState([]);
   useEffect(() => {
-    contractorsAPI.getAll().then((r) => {
+    // Megbízó picker: only contractors tagged with the megbizo role (mig 140).
+    contractorsAPI.getAll({ limit: 500, is_active: 'true', role: 'megbizo' }).then((r) => {
       const d = r?.data ?? r;
       const list = Array.isArray(d) ? d : (d?.contractors ?? []);
       setBillingClients(list);
@@ -728,7 +729,7 @@ function Employees() {
             onClick={() => setBillingClientDialogOpen(true)}
             sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
           >
-            Számlázási ügyfél
+            Megbízó
           </Button>
           <Button
             size="small"
@@ -763,14 +764,14 @@ function Employees() {
 
       {/* Bulk Status Change Dialog */}
       <Dialog open={billingClientDialogOpen} onClose={() => setBillingClientDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Számlázási ügyfél beállítása</DialogTitle>
+        <DialogTitle>Megbízó beállítása</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {selectedIds.length} munkavállaló számlázási ügyfele (ki fizet a szállásért):
+            {selectedIds.length} munkavállaló megbízója (ki fizet nekünk a szállásukért):
           </Typography>
           <FormControl fullWidth size="small">
-            <InputLabel>Számlázási ügyfél</InputLabel>
-            <Select value={bulkBillingClientId} onChange={(e) => setBulkBillingClientId(e.target.value)} label="Számlázási ügyfél">
+            <InputLabel>Megbízó</InputLabel>
+            <Select value={bulkBillingClientId} onChange={(e) => setBulkBillingClientId(e.target.value)} label="Megbízó">
               <MenuItem value=""><em>(nincs / törlés)</em></MenuItem>
               {billingClients.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
             </Select>

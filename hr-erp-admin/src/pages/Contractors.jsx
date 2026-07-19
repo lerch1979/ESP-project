@@ -43,6 +43,9 @@ const CONTRACTOR_PRESET_VALUES = {
   ],
 };
 
+// contractor_roles (mig 140) display labels.
+const ROLE_LABELS = { megbizo: 'Megbízó', szallasado: 'Szállásadó', alvallalkozo: 'Alvállalkozó' };
+
 function Contractors() {
   const [loading, setLoading] = useState(true);
   const [contractors, setContractors] = useState([]);
@@ -246,6 +249,7 @@ function Contractors() {
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 600 }}>Név</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Szerepkör</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Telefon</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Cím</TableCell>
@@ -269,6 +273,16 @@ function Contractors() {
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#8B6B33' }}>
                           {contractor.name}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {(contractor.roles || []).length === 0
+                            ? <Typography variant="body2" color="text.disabled">-</Typography>
+                            : (contractor.roles || []).map((r) => (
+                                <Chip key={r} label={ROLE_LABELS[r] || r} size="small" variant="outlined"
+                                  sx={{ borderColor: '#8B6B33', color: '#8B6B33' }} />
+                              ))}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">

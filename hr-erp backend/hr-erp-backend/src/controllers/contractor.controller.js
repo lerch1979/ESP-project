@@ -31,6 +31,16 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// contractor_roles (mig 140): multi-role tags. Authoritative for billing.
+const VALID_ROLES = ['megbizo', 'szallasado', 'alvallalkozo'];
+// Business rule: megbízó (revenue side) and szállásadó (cost side) are MUTUALLY
+// EXCLUSIVE — one legal entity can't be both a client we invoice and a landlord we
+// pay. Alvállalkozó is a separate axis and may combine with either.
+const ROLE_CONFLICT_MSG = 'Egy partner nem lehet egyszerre megbízó és szállásadó — a kettő kizárja egymást (bevételi vs. költség oldal).';
+const hasRoleConflict = (roles) => roles.includes('megbizo') && roles.includes('szallasado');
+// SELECT sub-expression: contractor's roles as a text[] (empty array when none).
+const ROLES_AGG = `COALESCE((SELECT array_agg(cr.role ORDER BY cr.role) FROM contractor_roles cr WHERE cr.contractor_id = t.id), ARRAY[]::varchar[]) AS roles`;
+
 // Column header mapping (Hungarian → DB field)
 const COLUMN_MAP = {
   'név': 'name',
@@ -50,7 +60,7 @@ const COLUMN_MAP = {
  */
 const getContractors = async (req, res) => {
   try {
-    const { search, is_active, type, page = 1, limit = 20 } = req.query;
+    const { search, is_active, type, role, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
     let whereConditions = [];
@@ -60,6 +70,13 @@ const getContractors = async (req, res) => {
     if (type) {
       whereConditions.push(`t.type = $${paramIndex}`);
       params.push(type);
+      paramIndex++;
+    }
+
+    // Role filter (contractor_roles multi-tag) — used by the szállásadó / megbízó pickers.
+    if (role && VALID_ROLES.includes(role)) {
+      whereConditions.push(`EXISTS (SELECT 1 FROM contractor_roles cr WHERE cr.contractor_id = t.id AND cr.role = $${paramIndex})`);
+      params.push(role);
       paramIndex++;
     }
 
@@ -99,6 +116,7 @@ const getContractors = async (req, res) => {
     const contractorsQuery = `
       SELECT
         t.*,
+        ${ROLES_AGG},
         (SELECT COUNT(*) FROM users u WHERE u.contractor_id = t.id AND u.is_active = true) as user_count
       FROM contractors t
       ${whereClause}
@@ -140,6 +158,7 @@ const getContractorById = async (req, res) => {
     const contractorQuery = `
       SELECT
         t.*,
+        ${ROLES_AGG},
         (SELECT COUNT(*) FROM users u WHERE u.contractor_id = t.id AND u.is_active = true) as user_count
       FROM contractors t
       WHERE t.id = $1
@@ -172,7 +191,11 @@ const getContractorById = async (req, res) => {
  */
 const createContractor = async (req, res) => {
   try {
-    const { name, email, phone, address, type } = req.body;
+    const { name, email, phone, address, type, roles } = req.body;
+    const initialRoles = Array.isArray(roles) ? [...new Set(roles)].filter(r => VALID_ROLES.includes(r)) : [];
+    if (hasRoleConflict(initialRoles)) {
+      return res.status(400).json({ success: false, message: ROLE_CONFLICT_MSG });
+    }
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -215,6 +238,20 @@ const createContractor = async (req, res) => {
       address || null,
       type || 'service_provider',
     ]);
+
+    // Seed roles if the caller supplied any (e.g. inline "new szállásadó" from the
+    // accommodation modal passes roles:['szallasado']).
+    if (initialRoles.length) {
+      await query(
+        `INSERT INTO contractor_roles (contractor_id, role, created_by)
+         SELECT $1, r, $2 FROM unnest($3::varchar[]) r
+         ON CONFLICT (contractor_id, role) DO NOTHING`,
+        [result.rows[0].id, req.user?.id || null, initialRoles]
+      );
+      result.rows[0].roles = initialRoles.slice().sort();
+    } else {
+      result.rows[0].roles = [];
+    }
 
     logActivity({
       userId: req.user?.id,
@@ -512,6 +549,63 @@ const bulkImportContractors = async (req, res) => {
   }
 };
 
+/**
+ * Set a contractor's role tags (replace the whole set).
+ * PUT /api/v1/contractors/:id/roles  body: { roles: ['megbizo','szallasado',...] }
+ */
+const setContractorRoles = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roles } = req.body || {};
+    if (!Array.isArray(roles)) {
+      return res.status(400).json({ success: false, message: 'roles tömb kötelező' });
+    }
+    const clean = [...new Set(roles)].filter(r => VALID_ROLES.includes(r));
+    if (clean.length !== new Set(roles).size) {
+      return res.status(400).json({ success: false, message: `Érvénytelen szerepkör (engedélyezett: ${VALID_ROLES.join(', ')})` });
+    }
+    if (hasRoleConflict(clean)) {
+      return res.status(400).json({ success: false, message: ROLE_CONFLICT_MSG });
+    }
+
+    const existing = await query('SELECT id, name FROM contractors WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Alvállalkozó nem található' });
+    }
+
+    await transaction(async (client) => {
+      const prev = (await client.query('SELECT role FROM contractor_roles WHERE contractor_id = $1', [id])).rows.map(r => r.role);
+      const toAdd = clean.filter(r => !prev.includes(r));
+      const toRemove = prev.filter(r => !clean.includes(r));
+      if (toRemove.length) {
+        await client.query('DELETE FROM contractor_roles WHERE contractor_id = $1 AND role = ANY($2::varchar[])', [id, toRemove]);
+      }
+      if (toAdd.length) {
+        await client.query(
+          `INSERT INTO contractor_roles (contractor_id, role, created_by)
+           SELECT $1, r, $2 FROM unnest($3::varchar[]) r
+           ON CONFLICT (contractor_id, role) DO NOTHING`,
+          [id, req.user?.id || null, toAdd]
+        );
+      }
+    });
+
+    logActivity({
+      userId: req.user?.id,
+      entityType: 'contractor',
+      entityId: id,
+      action: 'update',
+      metadata: { name: existing.rows[0].name, roles: clean.slice().sort() },
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, data: { roles: clean.slice().sort() } });
+  } catch (error) {
+    logger.error('Szerepkör beállítási hiba:', error);
+    res.status(500).json({ success: false, message: 'Szerepkör beállítási hiba' });
+  }
+};
+
 module.exports = {
   getContractors,
   getContractorById,
@@ -519,4 +613,5 @@ module.exports = {
   updateContractor,
   deleteContractor,
   bulkImportContractors,
+  setContractorRoles,
 };

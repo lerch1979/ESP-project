@@ -52,6 +52,12 @@ router.post('/', contractorController.createContractor);
 router.post('/bulk', upload.single('file'), contractorController.bulkImportContractors);
 
 /**
+ * PUT /api/v1/contractors/:id/roles
+ * Szerepkör-címkék beállítása (megbizo/szallasado/alvallalkozo) — teljes halmaz csere
+ */
+router.put('/:id/roles', contractorController.setContractorRoles);
+
+/**
  * PUT /api/v1/contractors/:id
  * Alvállalkozó frissítése
  */

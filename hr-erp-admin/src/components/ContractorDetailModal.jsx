@@ -16,9 +16,20 @@ import {
 import { contractorsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
+// contractor_roles (mig 140): multi-role tags. Authoritative for billing.
+const ALL_ROLES = ['megbizo', 'szallasado', 'alvallalkozo'];
+const ROLE_LABELS = { megbizo: 'Megbízó', szallasado: 'Szállásadó', alvallalkozo: 'Alvállalkozó' };
+const ROLE_HELP = {
+  megbizo: 'Nekünk fizető ügyfél (bevétel) — munkavállalókhoz kötve',
+  szallasado: 'Bérbeadó, akinek mi fizetünk bérleti díjat (költség)',
+  alvallalkozo: 'Alvállalkozó, saját hozzáféréssel',
+};
+
 function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingRoles, setSavingRoles] = useState(false);
+  const [roles, setRoles] = useState([]);
   const [editing, setEditing] = useState(false);
   const [contractor, setContractor] = useState(null);
   const [formData, setFormData] = useState({
@@ -41,6 +52,7 @@ function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
       const response = await contractorsAPI.getById(contractorId);
       if (response.success) {
         setContractor(response.data.contractor);
+        setRoles(Array.isArray(response.data.contractor.roles) ? response.data.contractor.roles : []);
         setFormData({
           name: response.data.contractor.name || '',
           email: response.data.contractor.email || '',
@@ -85,6 +97,31 @@ function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
       toast.error(error.response?.data?.message || 'Hiba az alvállalkozó frissítésekor');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleRole = async (role) => {
+    let next = roles.includes(role) ? roles.filter(r => r !== role) : [...roles, role];
+    // Mutual exclusivity: megbízó (revenue) and szállásadó (cost) can't coexist —
+    // enabling one auto-clears the other. Alvállalkozó is independent.
+    if (role === 'megbizo') next = next.filter(r => r !== 'szallasado');
+    if (role === 'szallasado') next = next.filter(r => r !== 'megbizo');
+    const prev = roles;
+    setRoles(next);           // optimistic
+    setSavingRoles(true);
+    try {
+      const response = await contractorsAPI.setRoles(contractorId, next);
+      if (response.success) {
+        setRoles(response.data.roles);
+        onSuccess();          // refresh the list so its role chips update
+      } else {
+        setRoles(prev);
+      }
+    } catch (error) {
+      setRoles(prev);         // rollback
+      toast.error(error.response?.data?.message || 'Hiba a szerepkör mentésekor');
+    } finally {
+      setSavingRoles(false);
     }
   };
 
@@ -184,6 +221,36 @@ function ContractorDetailModal({ open, onClose, contractorId, onSuccess }) {
               <DetailRow label="Email" value={contractor.email || '-'} />
               <DetailRow label="Telefon" value={contractor.phone || '-'} />
               <DetailRow label="Cím" value={contractor.address || '-'} />
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ py: 0.75 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    Szerepkörök:
+                  </Typography>
+                  {savingRoles && <CircularProgress size={14} />}
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {ALL_ROLES.map((role) => {
+                    const active = roles.includes(role);
+                    return (
+                      <Chip
+                        key={role}
+                        label={ROLE_LABELS[role]}
+                        title={ROLE_HELP[role]}
+                        onClick={() => !savingRoles && toggleRole(role)}
+                        color={active ? 'primary' : 'default'}
+                        variant={active ? 'filled' : 'outlined'}
+                        size="small"
+                        sx={active ? { bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6f552a' } } : { cursor: 'pointer' }}
+                      />
+                    );
+                  })}
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Kattints egy címkére a be-/kikapcsoláshoz. A <b>megbízó</b> és <b>szállásadó</b> kizárja egymást
+                  (bevétel vs. költség) — az egyik bekapcsolása kikapcsolja a másikat. Az alvállalkozó bármelyikkel kombinálható.
+                </Typography>
+              </Box>
               <Divider sx={{ my: 2 }} />
               <DetailRow label="Felhasználók száma" value={contractor.user_count} />
               <DetailRow

@@ -156,7 +156,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
 
   const loadContractors = async () => {
     try {
-      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true', type: 'property_owner' });
+      const response = await contractorsAPI.getAll({ limit: 500, is_active: 'true', role: 'szallasado' });
       if (response.success) {
         setContractors(response.data.contractors);
       }
@@ -433,11 +433,11 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               <Grid item xs={12}>
                 <Stack direction="row" spacing={1} alignItems="stretch">
                   <FormControl fullWidth>
-                    <InputLabel>Ingatlan tulajdonos</InputLabel>
+                    <InputLabel>Szállásadó</InputLabel>
                     <Select
                       value={formData.current_contractor_id}
                       onChange={(e) => handleChange('current_contractor_id', e.target.value)}
-                      label="Ingatlan tulajdonos"
+                      label="Szállásadó"
                     >
                       <MenuItem value="">Nincs</MenuItem>
                       {contractors.map((t) => (
@@ -772,6 +772,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
           }
         }}
         defaultType="property_owner"
+        defaultRoles={['szallasado']}
         lockType
       />
     </Dialog>
