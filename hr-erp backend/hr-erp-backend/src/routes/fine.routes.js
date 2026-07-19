@@ -16,9 +16,9 @@ router.post('/residents/:residentId/on-site-payment',      checkPermission('sett
 router.post('/residents/:residentId/payments',             checkPermission('settings.edit'), ctrl.recordPayment);
 router.post('/residents/:residentId/convert-to-deduction', checkPermission('settings.edit'), ctrl.convertToDeduction);
 
-// Reads
-router.get('/compensations/:id/residents', ctrl.listResidentsForCompensation);
-router.get('/salary-deductions',           ctrl.listDeductions);
+// Reads — staff-only (settings.edit) + contractor-scoped (DEEP_AUDIT finding 2).
+router.get('/compensations/:id/residents', checkPermission('settings.edit'), ctrl.listResidentsForCompensation);
+router.get('/salary-deductions',           checkPermission('settings.edit'), ctrl.listDeductions);
 
 // Payroll
 router.post('/payroll/run', checkPermission('settings.edit'), ctrl.runPayroll);

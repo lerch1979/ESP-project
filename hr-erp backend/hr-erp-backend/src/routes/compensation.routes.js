@@ -6,9 +6,11 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticateToken);
 
-router.get('/',        ctrl.list);
-router.get('/:id',     ctrl.getById);
-router.get('/:id/pdf', ctrl.pdfNotice);
+// Reads are staff-only (settings.edit) + contractor-scoped in the controller.
+// Residents hold no permissions → 403 (GAP_AUDIT / DEEP_AUDIT finding 1).
+router.get('/',        checkPermission('settings.edit'), ctrl.list);
+router.get('/:id',     checkPermission('settings.edit'), ctrl.getById);
+router.get('/:id/pdf', checkPermission('settings.edit'), ctrl.pdfNotice);
 
 // Write — settings.edit as proxy permission (matches existing inspection routes)
 router.post('/',                    checkPermission('settings.edit'), ctrl.create);

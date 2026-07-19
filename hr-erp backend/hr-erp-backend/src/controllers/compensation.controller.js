@@ -6,9 +6,13 @@ const pdfSvc = require('../services/inspectionPDF.service');
 const { logger } = require('../utils/logger');
 const { isDeductionExecutionEnabled, DEDUCTION_DISABLED_MESSAGE } = require('../config/deductionExecution');
 
+// Contractor scope: superadmin sees all; everyone else only their own contractor's
+// (owning contractor = the accommodation's current_contractor_id). DEEP_AUDIT finding 1.
+const scopeOf = (req) => ({ all: !!req.user.roles?.includes('superadmin'), contractorId: req.user.contractorId });
+
 const list = async (req, res) => {
   try {
-    const result = await svc.listCompensations(req.query);
+    const result = await svc.listCompensations(req.query, scopeOf(req));
     res.json({ success: true, ...result });
   } catch (err) {
     logger.error('[compensation.list]', err);
@@ -18,7 +22,7 @@ const list = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    const data = await svc.getCompensation(req.params.id);
+    const data = await svc.getCompensation(req.params.id, scopeOf(req));
     if (!data) return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
     res.json({ success: true, data });
   } catch (err) {
@@ -115,6 +119,10 @@ const escalate = async (req, res) => {
 /** GET /compensations/:id/pdf — compensation notice */
 const pdfNotice = async (req, res) => {
   try {
+    // Ownership gate: the scoped fetch returns null if this compensation isn't the
+    // caller's tenant → 404 before we generate/stream the PDF.
+    const owned = await svc.getCompensation(req.params.id, scopeOf(req));
+    if (!owned) return res.status(404).json({ success: false, message: 'Kártérítés nem található' });
     const doc = await pdfSvc.generateCompensationNotice(req.params.id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="karteriteses-ertesitó-${req.params.id}.pdf"`);

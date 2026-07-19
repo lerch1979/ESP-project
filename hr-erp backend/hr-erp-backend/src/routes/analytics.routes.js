@@ -2,10 +2,20 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
 const { authenticateToken } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 const { logger } = require('../utils/logger');
 const analyticsService = require('../services/analytics.service');
 
 router.use(authenticateToken);
+
+// Server-side tenant id (DEEP_AUDIT finding 4). NEVER trust a client-supplied
+// contractor id — only a superadmin may target another contractor via ?contractorId.
+const tenantId = (req) =>
+  (req.user.roles?.includes('superadmin') && req.query.contractorId)
+    ? req.query.contractorId
+    : req.user.contractorId;
+// Pulse wellbeing data is sensitive → staff-only gate (residents hold no perms → 403).
+const pulseGate = checkPermission('wellbeing.admin.view');
 
 // GET /api/v1/analytics/overview — BI Insights page (read-only, aggregate metrics:
 // occupancy, expiry horizon, ticket age/SLA/throughput, workforce composition,
@@ -21,9 +31,9 @@ router.get('/overview', async (req, res) => {
 });
 
 // GET /api/v1/analytics/pulse/overview — contractor pulse summary
-router.get('/pulse/overview', async (req, res) => {
+router.get('/pulse/overview', pulseGate, async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    const contractorId = tenantId(req);
 
     const [daily, alerts, categories] = await Promise.all([
       query(`SELECT * FROM v_pulse_contractor_daily WHERE contractor_id = $1 ORDER BY survey_date DESC LIMIT 30`, [contractorId]),
@@ -55,9 +65,9 @@ router.get('/pulse/overview', async (req, res) => {
 });
 
 // GET /api/v1/analytics/pulse/trend — daily trend with filters
-router.get('/pulse/trend', async (req, res) => {
+router.get('/pulse/trend', pulseGate, async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    const contractorId = tenantId(req);
     const days = Math.min(parseInt(req.query.days) || 30, 90);
 
     const result = await query(
@@ -74,9 +84,9 @@ router.get('/pulse/trend', async (req, res) => {
 });
 
 // GET /api/v1/analytics/pulse/alerts — active wellbeing alerts
-router.get('/pulse/alerts', async (req, res) => {
+router.get('/pulse/alerts', pulseGate, async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    const contractorId = tenantId(req);
     const result = await query(`SELECT * FROM v_pulse_alerts WHERE contractor_id = $1`, [contractorId]);
 
     const grouped = {
@@ -92,9 +102,9 @@ router.get('/pulse/alerts', async (req, res) => {
 });
 
 // GET /api/v1/analytics/pulse/housing — housing wellbeing insights
-router.get('/pulse/housing', async (req, res) => {
+router.get('/pulse/housing', pulseGate, async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    const contractorId = tenantId(req);
     const result = await query(
       `SELECT * FROM v_pulse_housing_daily WHERE contractor_id = $1 ORDER BY inspection_date DESC LIMIT 30`,
       [contractorId]
@@ -117,7 +127,7 @@ router.get('/pulse/housing', async (req, res) => {
 });
 
 // GET /api/v1/analytics/pulse/categories — question category stats
-router.get('/pulse/categories', async (req, res) => {
+router.get('/pulse/categories', pulseGate, async (req, res) => {
   try {
     const result = await query(`SELECT * FROM v_pulse_category_stats`);
     res.json({ success: true, data: result.rows });
@@ -128,9 +138,9 @@ router.get('/pulse/categories', async (req, res) => {
 });
 
 // GET /api/v1/analytics/pulse/export — CSV export
-router.get('/pulse/export', async (req, res) => {
+router.get('/pulse/export', pulseGate, async (req, res) => {
   try {
-    const contractorId = req.query.contractorId || req.user.contractorId;
+    const contractorId = tenantId(req);
     const result = await query(
       `SELECT survey_date, avg_mood, avg_stress, avg_sleep, avg_workload, respondents
        FROM v_pulse_contractor_daily WHERE contractor_id = $1 ORDER BY survey_date DESC`,

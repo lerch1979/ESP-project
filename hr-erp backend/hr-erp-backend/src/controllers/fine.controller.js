@@ -162,9 +162,13 @@ const convertToDeduction = async (req, res) => {
 
 // ─── Reads ──────────────────────────────────────────────────────────
 
+// Contractor scope (superadmin bypass) — owning contractor = the compensation's
+// accommodation's current_contractor_id. DEEP_AUDIT finding 2.
+const scopeOf = (req) => ({ all: !!req.user.roles?.includes('superadmin'), contractorId: req.user.contractorId });
+
 const listResidentsForCompensation = async (req, res) => {
   try {
-    res.json({ success: true, data: await svc.listResidentsFor(req.params.id) });
+    res.json({ success: true, data: await svc.listResidentsFor(req.params.id, scopeOf(req)) });
   } catch (err) {
     logger.error('[fine.listResidents]', err);
     res.status(500).json({ success: false, message: 'Lakók lekérési hiba' });
@@ -179,7 +183,7 @@ const listDeductions = async (req, res) => {
         employeeId: req.query.employee_id || null,
         status: req.query.status || null,
         limit: parseInt(req.query.limit, 10) || 100,
-      }),
+      }, scopeOf(req)),
     });
   } catch (err) {
     logger.error('[fine.listDeductions]', err);

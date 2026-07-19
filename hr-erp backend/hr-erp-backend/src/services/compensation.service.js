@@ -682,7 +682,7 @@ async function logReminder(client, compensationId, r) {
 
 // ─── Read queries ───────────────────────────────────────────────────
 
-async function listCompensations(filters = {}) {
+async function listCompensations(filters = {}, scope = { all: true }) {
   const { status, accommodation_id, responsible_user_id, overdue, limit = 50, offset = 0 } = filters;
   const clauses = [];
   const params = [];
@@ -692,6 +692,9 @@ async function listCompensations(filters = {}) {
     params.push(...vals);
   };
 
+  // Tenant scope: non-superadmin sees only compensations for their contractor's
+  // accommodations. Rows with no accommodation are not visible to a scoped user.
+  if (!scope.all) push('a.current_contractor_id = ??', scope.contractorId);
   if (status) push('c.status = ??', status);
   if (accommodation_id) push('c.accommodation_id = ??', accommodation_id);
   if (responsible_user_id) push('c.responsible_user_id = ??', responsible_user_id);
@@ -717,7 +720,8 @@ async function listCompensations(filters = {}) {
     [...params, lim, off]
   );
   const count = await query(
-    `SELECT COUNT(*)::int AS total FROM compensations c ${where}`,
+    `SELECT COUNT(*)::int AS total FROM compensations c
+     LEFT JOIN accommodations a ON c.accommodation_id = a.id ${where}`,
     params
   );
   return {
@@ -726,7 +730,7 @@ async function listCompensations(filters = {}) {
   };
 }
 
-async function getCompensation(id) {
+async function getCompensation(id, scope = { all: true }) {
   const r = await query(
     `SELECT c.*,
             a.name AS accommodation_name,
@@ -734,8 +738,9 @@ async function getCompensation(id) {
      FROM compensations c
      LEFT JOIN accommodations a ON c.accommodation_id = a.id
      LEFT JOIN users u ON c.created_by = u.id
-     WHERE c.id = $1`,
-    [id]
+     WHERE c.id = $1
+       AND ($2::boolean OR a.current_contractor_id = $3)`,
+    [id, scope.all === true, scope.all ? null : scope.contractorId]
   );
   if (r.rows.length === 0) return null;
 

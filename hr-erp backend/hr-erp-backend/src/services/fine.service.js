@@ -713,31 +713,38 @@ async function processMonthlyDeductions(targetMonth, { userId } = {}) {
 
 // ─── Reads ──────────────────────────────────────────────────────────
 
-async function listResidentsFor(compensationId) {
+async function listResidentsFor(compensationId, scope = { all: true }) {
+  // Tenant scope via the compensation's accommodation (DEEP_AUDIT finding 2).
   const r = await query(
     `SELECT cr.*,
             u.email AS user_email,
             (cr.amount_assigned - cr.amount_paid) AS outstanding
      FROM compensation_residents cr
      LEFT JOIN users u ON cr.resident_id = u.id
+     JOIN compensations comp ON comp.id = cr.compensation_id
+     LEFT JOIN accommodations a ON a.id = comp.accommodation_id
      WHERE cr.compensation_id = $1
+       AND ($2::boolean OR a.current_contractor_id = $3)
      ORDER BY cr.created_at`,
-    [compensationId]
+    [compensationId, scope.all === true, scope.all ? null : scope.contractorId]
   );
   return r.rows;
 }
 
-async function listSalaryDeductions({ employeeId, status = 'active', limit = 100 } = {}) {
+async function listSalaryDeductions({ employeeId, status = 'active', limit = 100 } = {}, scope = { all: true }) {
   const clauses = [];
   const params = [];
-  if (employeeId) { params.push(employeeId); clauses.push(`user_id = $${params.length}`); }
-  if (status)     { params.push(status);     clauses.push(`status = $${params.length}`); }
+  if (employeeId) { params.push(employeeId); clauses.push(`sd.user_id = $${params.length}`); }
+  if (status)     { params.push(status);     clauses.push(`sd.status = $${params.length}`); }
+  // Tenant scope via the deduction's compensation → accommodation.
+  if (!scope.all) { params.push(scope.contractorId); clauses.push(`a.current_contractor_id = $${params.length}`); }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   params.push(Math.min(limit, 500));
   const r = await query(
     `SELECT sd.*, c.compensation_number, c.type AS compensation_type
      FROM salary_deductions sd
      LEFT JOIN compensations c ON sd.compensation_id = c.id
+     LEFT JOIN accommodations a ON a.id = c.accommodation_id
      ${where}
      ORDER BY sd.created_at DESC
      LIMIT $${params.length}`,

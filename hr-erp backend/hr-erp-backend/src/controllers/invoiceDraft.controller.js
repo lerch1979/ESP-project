@@ -102,6 +102,13 @@ const getAll = async (req, res) => {
     const params = [];
     let paramIndex = 1;
 
+    // Tenant scope: non-superadmin sees only their contractor's drafts (finding 3).
+    if (!req.user.roles?.includes('superadmin')) {
+      conditions.push(`d.contractor_id = $${paramIndex}`);
+      params.push(req.user.contractorId);
+      paramIndex++;
+    }
+
     if (status) {
       conditions.push(`d.status = $${paramIndex}`);
       params.push(status);
@@ -170,6 +177,10 @@ const getAll = async (req, res) => {
  */
 const getStats = async (req, res) => {
   try {
+    // Tenant scope: non-superadmin stats cover only their contractor (finding 3).
+    const isSuper = req.user.roles?.includes('superadmin');
+    const scopeWhere = isSuper ? '' : 'WHERE contractor_id = $1';
+    const scopeParams = isSuper ? [] : [req.user.contractorId];
     const result = await query(`
       SELECT
         COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
@@ -179,8 +190,8 @@ const getStats = async (req, res) => {
         COUNT(*) as total_count,
         COALESCE(SUM(gross_amount) FILTER (WHERE status = 'pending'), 0) as pending_total,
         COALESCE(SUM(gross_amount) FILTER (WHERE status = 'approved'), 0) as approved_total
-      FROM invoice_drafts
-    `);
+      FROM invoice_drafts ${scopeWhere}
+    `, scopeParams);
 
     const stats = result.rows[0];
 
@@ -219,7 +230,9 @@ const getById = async (req, res) => {
       LEFT JOIN cost_centers cc ON d.suggested_cost_center_id = cc.id
       LEFT JOIN users u ON d.reviewed_by = u.id
       WHERE d.id = $1
-    `, [id]);
+        AND ($2::boolean OR d.contractor_id = $3)
+    `, [id, !!req.user.roles?.includes('superadmin'),
+        req.user.roles?.includes('superadmin') ? null : req.user.contractorId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Piszkozat nem található' });

@@ -34,19 +34,20 @@ const upload = multer({
 // All routes require authentication
 router.use(authenticateToken);
 
-// GET routes
-router.get('/stats', controller.getStats);
-router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
+// GET routes — staff-only (settings.edit) + contractor-scoped (DEEP_AUDIT finding 3).
+router.get('/stats', checkPermission('settings.edit'), controller.getStats);
+router.get('/', checkPermission('settings.edit'), controller.getAll);
+router.get('/:id', checkPermission('settings.edit'), controller.getById);
 
-// Actions
-router.post('/upload', upload.single('file'), controller.uploadPDF);
+// Actions — previously-ungated upload/update/re-ocr are part of the same
+// resident-reachable hole (finding 3), now gated too.
+router.post('/upload', checkPermission('settings.edit'), upload.single('file'), controller.uploadPDF);
 router.post('/poll-emails', checkPermission('settings.edit'), controller.pollEmails);
-router.put('/:id', controller.update);
+router.put('/:id', checkPermission('settings.edit'), controller.update);
 router.post('/:id/approve', checkPermission('settings.edit'), controller.approve);
 router.post('/:id/reject',  checkPermission('settings.edit'), controller.reject);
 router.post('/:id/convert', checkPermission('settings.edit'), controller.convert);
-router.post('/:id/re-ocr', controller.reRunOCR);
+router.post('/:id/re-ocr', checkPermission('settings.edit'), controller.reRunOCR);
 router.delete('/:id', checkPermission('settings.edit'), controller.remove);
 
 module.exports = router;
