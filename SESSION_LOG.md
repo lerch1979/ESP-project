@@ -6,6 +6,21 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-19 — Deep functional audit + fix of 4 resident-reachable data leaks (deployed, live-verified)
+
+**Deep audit** (`docs/DEEP_AUDIT_2026-07.md`, committed `605a856b`): exercised every live feature against the sandbox with the real service code, hand-checked outputs. 28 findings. Highlights — **PASS:** billing pro-rata + same-day-transfer + expense allocation (controlled 3-employee + mid-month A→B transfer, numbers matched); expiry/hygiene/GDPR triggers all fire + idempotent; reports (tickets/occupancy/cost_centers) correct; no date-shift bug. **BUGS:** profit dashboard omits rent → shows a −240k loss-making accommodation as +80k/100% profit; consolidation doesn't enforce the workplace hard-constraint (merged Mercedes+Audi etc.); billing revenue = client_night_rates (0 usable on prod → $0 billed, margin −740,890); reports employees Email/Telefon from wrong source; **4 CONFIRMED resident-reachable data leaks.**
+
+**Fix round (this session, `087c7308`) — ONLY the 4 leaks (findings 1-4):**
+- `GET /compensations`(+`/:id`,`/:id/pdf`), `/fines/salary-deductions` + `/fines/compensations/:id/residents`, `/invoice-drafts`(+`/stats`,`/:id`, + the ungated upload/update/re-ocr writes), `/analytics/pulse/*` — all had only `authenticateToken`. Added `checkPermission('settings.edit')` (compensations/fines/invoice-drafts) / `checkPermission('wellbeing.admin.view')` (pulse) → residents (0 perms) get 403; superadmin bypasses.
+- **Tenant scoping (server-side, superadmin bypass, mirrors `getTickets`):** compensations + fines scope by the accommodation's `current_contractor_id`; invoice-drafts by `contractor_id`; pulse uses `req.user.contractorId` and only honours a client `?contractorId` for a superadmin (fixes the tenant-id trust bug — finding 4).
+- **Regression test** `tests/residentLeakGuards.test.js` (32 cases): resident→403 on all 14 endpoints, superadmin→not-403, scope passed to the query is the server-side contractor id. Cross-tenant "no foreign rows" proven against the sandbox (A-operator sees only A's compensation; getById on B's → null; superadmin sees both). All 4 adjacent auth suites still green (129 tests).
+- **Safe on prod:** all prod `settings.edit` holders are superadmin (bypass scoping) → live staff unaffected; pulse is empty + has no frontend caller.
+- **Deployed + LIVE-VERIFIED with a real resident JWT** (minted in-container from the prod JWT_SECRET for an actual `accommodated_employee` user): `/compensations`, `/fines/salary-deductions`, `/invoice-drafts`, `/analytics/pulse/export?contractorId=…` all → **403**; superadmin token → **200** on the same. Audit doc rows 1-4 marked FIXED.
+
+**Not fixed this round (per instruction):** findings 5-28 remain open — notably the profit-rent bug (#5), staff cross-tenant IDOR #6-8 (caveated: only live if client-scoped staff accounts exist), consolidation workplace (#9), billing revenue data gap (#10). Owner to prioritize.
+
+---
+
 ## SESSION 2026-07-13c — Gap-audit fix round (A1 + A3 fixed & deployed; room-linker built, awaiting approval)
 
 Acting on `docs/GAP_AUDIT_2026-07.md`. Sandbox-tested → deployed → verified live.
