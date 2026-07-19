@@ -6,6 +6,28 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-19c — Per-client billing package Phase 1 (addresses audit #10, deployed + live-verified)
+
+Goal: occupancy billing produced **$0** because `client_night_rates` was unconfigured (deep-audit #10). Built a proper, owner-set per-client billing model so real invoices bill real gross. Design co-shaped with the owner over three rounds; **Phase 2 (six-line utilities matrix) deferred**.
+
+**Model (migs 138 + 139, applied to prod via psql):**
+- `client_night_rates`: `billing_basis` (per_person|flat), `flat_amount`, `vat_rate`, **`vat_exempt`**; `accommodation_billings`: `vat_amount`, `gross_amount`, **`payroll_handoff`**.
+- **`client_billing_profiles`** (per client): `invoicing_enabled`, `legal_type` (company|private), `vat_exemption_reason` (alanyi|targyi).
+
+**Engine** (per client × accommodation × day): per_person = `rate × person-nights`; **flat = `Σ per covered day of flat_amount/days_in_month`** (prorated by occupied days — full only when fully covered, headcount-independent); VAT taxable → `gross = net×(1+vat_rate)`, **áfamentes → 0 VAT, gross = net**; **invoicing off → client skipped** (no billing row, `skipped_clients`); **legal_type private → `payroll_handoff=true` + "Bérszámfejtendő magánszemély" marker, NEVER computes net/tax/deduction** (standing no-payroll-engine rule). `total_amount` stays **NET** so profit/margin exclude VAT + pass-throughs (profit dashboard reconciles under all combos).
+
+**Backend:** rate CRUD (basis/flat/VAT/exempt + validation), per-client profile CRUD, coverage endpoint (missing profile / no-billing-client / no-rate; intentional skips shown separately). **Admin `/billing-rates`** extended (no new screen): profile editor (invoicing/legal-type/exemption, "bérszámfejtendő" chip), basis/VAT/exempt/flat rate form, coverage panel, run result → **Nettó / ÁFA / Bruttó** + payroll chip.
+
+**Worked example (flat proration, hand-verified):** flat 900 000/hó, 15/30 covered → daily 30 000 → net 450 000 → ÁFA 121 500 → bruttó 571 500.
+
+**Test (CI):** `tests/integration/billingProfileMatrix.test.js` — full matrix (company/private × taxable/exempt × flat/per_person × invoicing on/off) + profit reconciliation. **7/7**, green in CI. Existing `billingEngineOptionC.test.js` still green (net revenue unchanged).
+
+**Deploy:** committed `7f8eeab6`, CI green, migs 138+139 applied to prod via psql, backend+admin recreated + healthy. **Live-verified:** `/billing/profiles` (5 clients, profiles unset=defaults), `/billing/rate-coverage?month=2026-07` → surfaces the **real gap: 10 accommodations with workers lacking `billing_client_id`** (would bill $0). Audit doc #10 → "tooling shipped" (now a data-entry task). **Phase 2 (six-line utilities matrix, per-line split expenses) inert until built** (mig-138 utilities flag stays default we_pay).
+
+**Owner's remaining data entry to actually bill:** set `billing_client_id` per worker (bulk tool exists), set each client's profile, enter rates. The coverage view flags what's missing per month.
+
+---
+
 ## SESSION 2026-07-19b — Fixed 2 high-severity function bugs from the deep audit (profit-rent #5, consolidation-workplace #9)
 
 **#5 Profit dashboard omitted rent (deployed `0e0717f2`, live-verified).** `profit.service.getByAccommodation` computed `profit = income − expenses`, ignoring the accommodation rent the billing engine treats as the primary cost → badly overstated profit (a −240k loss shown as +80k/100%). Now: `rent = SUM(accommodation_billings.cost_amount) − operating expenses` (the engine's rent allocation, clamped ≥0 + COALESCE for legacy 0-cost rows), and `profit = income − (expenses + rent) = income − cost_amount` — which **reconciles EXACTLY with the billing engine's `margin_amount`**. Added `rent`/`total_rent` to the API + a "Bérleti díj" card/column in Billing Tab 4. `profit.script.js` +4 reconciliation cases (rent = cost−expenses; profit = income−(expenses+rent); profit == engine margin; summary totals) — 20/20 green. **Live:** API returns `total_rent`; 2026-07 total_profit (0) == engine margin (0).
