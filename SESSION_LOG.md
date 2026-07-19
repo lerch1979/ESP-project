@@ -6,6 +6,26 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-19d — Full billing model settled: Phase 1a contractor_roles (deployed + live-verified)
+
+Owner **reversed** the earlier "Option A" (accommodation-derived client) after I surfaced the semantic conflict: `accommodations.current_contractor_id` is the **SZÁLLÁSADÓ** (landlord we pay rent → COST), NOT the billing client. Settled model is **per-employee MEGBÍZÓ** (`employees.billing_client_id` → REVENUE). Reverted the uncommitted Option-A engine/coverage edits (back to `billing_client_id`). Produced a full read-only inventory + phased plan; owner approved **Phase 1a** (role foundation + data-entry enablers; no engine change — that's 1b).
+
+**Three roles** (`contractor_roles` junction, mig 140, multi-tag): **megbízó** (client we invoice), **szállásadó** (landlord we pay), **alvállalkozó** (subcontractor). Backfilled from **actual usage** (accommodation partner → szállásadó; night rate / billing_client_id → megbízó), never the unreliable `contractors.type`.
+
+**Business rule:** megbízó ⊕ szállásadó **mutually exclusive** (revenue vs cost); alvállalkozó independent. Enforced in `createContractor` + `PUT /contractors/:id/roles` (400 + HU msg); admin toggles auto-clear the opposite.
+
+**Backend:** roles aggregated into contractor list/detail; `?role=` filter (powers pickers); `PUT /contractors/:id/roles` replace-set. **Admin:** role chips + toggle editor on Contractors; **"Ingatlan tulajdonos" → "Szállásadó"** (picker `role=szallasado`); Employees bulk **"Számlázási ügyfél" → "Megbízó"** (picker `role=megbizo`).
+
+**Sandbox** (`seed_sandbox_billing.js` topology): role backfill + multi-role, exclusivity reject/allow, fix-procedure — **18/18 harness tests pass**; admin build + backend syntax clean.
+
+**Prod conflict fixed (reported before/after):** mig 140 backfill flagged **Házi Anikó = megbízó+szállásadó** (the only conflict). She's Bük's landlord — removed her megbízó role + **deleted the artifact `client_night_rates` row** (Bük, 2500/night, from the old "tulajdonos" mislabel) → now **szállásadó-only**, 0 conflicts. Historical Bük billings = **0.00** (engine keys off `billing_client_id`, never set) → no financial impact. **Barcza Gyuláné** (megbízó-only via a Sarród I. rate, property_owner-typed, not linked as any accommodation's szállásadó) flagged as a **likely same-class mislabel** — left for owner to resolve, not auto-guessed.
+
+**⚠ Coverage gap flagged:** **Bük now has NO megbízó** (31 workers, 0 with `billing_client_id`) — owner must set who actually pays for Bük's workers.
+
+**Deploy:** commit `b964a786`, CI green (1 flaky inspections-auth 401, passed on re-run), images built, `pull && up -d` backend+admin healthy. Prod verified: exact controller SQL runs clean, roles correct, 0 conflicts. **Next: Phase 1b** (per-bed formula rate_used/rate_empty/occupancy_floor_pct/contracted_beds + compensation→invoice line) — needs bed counts + megbízó populated to test.
+
+---
+
 ## SESSION 2026-07-19c — Per-client billing package Phase 1 (addresses audit #10, deployed + live-verified)
 
 Goal: occupancy billing produced **$0** because `client_night_rates` was unconfigured (deep-audit #10). Built a proper, owner-set per-client billing model so real invoices bill real gross. Design co-shaped with the owner over three rounds; **Phase 2 (six-line utilities matrix) deferred**.
