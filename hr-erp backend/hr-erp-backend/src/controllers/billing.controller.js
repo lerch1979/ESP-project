@@ -30,27 +30,42 @@ const createRate = async (req, res) => {
     const {
       contractor_id, accommodation_id, billing_basis = 'per_person',
       rate_per_night, flat_amount, vat_rate = 0.27, vat_exempt = false, currency, valid_from, valid_to, notes,
+      rate_used, rate_empty = 0, occupancy_floor_pct = 0, contracted_beds,
     } = req.body || {};
     if (!UUID_RE.test(contractor_id || '')) return res.status(400).json({ success: false, message: 'Ügyfél kötelező' });
-    if (!['per_person', 'flat'].includes(billing_basis)) return res.status(400).json({ success: false, message: 'Érvénytelen számlázási alap' });
+    if (!['per_person', 'flat', 'per_bed_night'].includes(billing_basis)) return res.status(400).json({ success: false, message: 'Érvénytelen számlázási alap' });
     if (billing_basis === 'per_person' && !(Number(rate_per_night) >= 0)) return res.status(400).json({ success: false, message: 'Érvénytelen díj/fő/éj' });
     if (billing_basis === 'flat') {
       if (!UUID_RE.test(accommodation_id || '')) return res.status(400).json({ success: false, message: 'Átalánydíjhoz szállás kötelező' });
       if (!(Number(flat_amount) >= 0)) return res.status(400).json({ success: false, message: 'Érvénytelen átalánydíj' });
+    }
+    // per_bed_night: rate_used required; rate_empty ≥ 0; floor 0..1; contracted_beds ≥ 0 or null.
+    if (billing_basis === 'per_bed_night') {
+      if (!(Number(rate_used) >= 0)) return res.status(400).json({ success: false, message: 'Érvénytelen díj/foglalt ágy/éj' });
+      if (rate_empty != null && !(Number(rate_empty) >= 0)) return res.status(400).json({ success: false, message: 'Érvénytelen díj/üres ágy/éj' });
+      if (occupancy_floor_pct != null && !(Number(occupancy_floor_pct) >= 0 && Number(occupancy_floor_pct) <= 1)) return res.status(400).json({ success: false, message: 'Kihasználtsági garancia 0 és 1 közötti tört (pl. 0.9)' });
+      if (contracted_beds != null && contracted_beds !== '' && !(Number.isInteger(Number(contracted_beds)) && Number(contracted_beds) >= 0)) return res.status(400).json({ success: false, message: 'Lekötött ágyszám nemnegatív egész' });
     }
     const exempt = vat_exempt === true || vat_exempt === 'true';
     const vr = exempt ? 0 : Number(vat_rate);
     if (!exempt && !(vr >= 0 && vr <= 1)) return res.status(400).json({ success: false, message: 'ÁFA 0 és 1 közötti tört (pl. 0.27)' });
     if (!valid_from) return res.status(400).json({ success: false, message: 'Érvényesség kezdete kötelező' });
     if (valid_to && valid_to < valid_from) return res.status(400).json({ success: false, message: 'Érvényesség vége nem lehet a kezdet előtt' });
+    const isBed = billing_basis === 'per_bed_night';
     const r = await query(
       `INSERT INTO client_night_rates
-         (contractor_id, accommodation_id, billing_basis, rate_per_night, flat_amount, vat_rate, vat_exempt, currency, valid_from, valid_to, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'HUF'),$9,$10,$11,$12) RETURNING id`,
+         (contractor_id, accommodation_id, billing_basis, rate_per_night, flat_amount, vat_rate, vat_exempt, currency, valid_from, valid_to, notes,
+          rate_used, rate_empty, occupancy_floor_pct, contracted_beds, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'HUF'),$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
       [contractor_id, accommodation_id || null, billing_basis,
        billing_basis === 'per_person' ? rate_per_night : null,
        billing_basis === 'flat' ? flat_amount : null,
-       vr, exempt, currency || null, valid_from, valid_to || null, notes || null, req.user.id]
+       vr, exempt, currency || null, valid_from, valid_to || null, notes || null,
+       isBed ? rate_used : null,
+       isBed ? (Number(rate_empty) || 0) : null,
+       isBed ? (Number(occupancy_floor_pct) || 0) : null,
+       isBed && contracted_beds != null && contracted_beds !== '' ? Number(contracted_beds) : null,
+       req.user.id]
     );
     res.status(201).json({ success: true, data: { id: r.rows[0].id } });
   } catch (e) { logger.error('[billing.createRate]', e.message); res.status(500).json({ success: false, message: 'Hiba' }); }
@@ -58,23 +73,36 @@ const createRate = async (req, res) => {
 
 const updateRate = async (req, res) => {
   try {
-    const { rate_per_night, flat_amount, vat_rate, currency, valid_from, valid_to, notes } = req.body || {};
+    const { rate_per_night, flat_amount, vat_rate, currency, valid_from, valid_to, notes,
+            rate_used, rate_empty, occupancy_floor_pct, contracted_beds } = req.body || {};
     if (vat_rate != null && !(Number(vat_rate) >= 0 && Number(vat_rate) <= 1)) {
       return res.status(400).json({ success: false, message: 'ÁFA 0 és 1 közötti tört' });
     }
+    if (occupancy_floor_pct != null && !(Number(occupancy_floor_pct) >= 0 && Number(occupancy_floor_pct) <= 1)) {
+      return res.status(400).json({ success: false, message: 'Kihasználtsági garancia 0 és 1 közötti tört' });
+    }
+    if (contracted_beds != null && contracted_beds !== '' && !(Number.isInteger(Number(contracted_beds)) && Number(contracted_beds) >= 0)) {
+      return res.status(400).json({ success: false, message: 'Lekötött ágyszám nemnegatív egész' });
+    }
     const r = await query(
       `UPDATE client_night_rates SET
-         rate_per_night = COALESCE($2, rate_per_night),
-         flat_amount    = COALESCE($3, flat_amount),
-         vat_rate       = COALESCE($4, vat_rate),
-         currency       = COALESCE($5, currency),
-         valid_from     = COALESCE($6, valid_from),
-         valid_to       = $7,
-         notes          = $8,
-         updated_at     = now()
+         rate_per_night      = COALESCE($2, rate_per_night),
+         flat_amount         = COALESCE($3, flat_amount),
+         vat_rate            = COALESCE($4, vat_rate),
+         currency            = COALESCE($5, currency),
+         valid_from          = COALESCE($6, valid_from),
+         valid_to            = $7,
+         notes               = $8,
+         rate_used           = COALESCE($9, rate_used),
+         rate_empty          = COALESCE($10, rate_empty),
+         occupancy_floor_pct = COALESCE($11, occupancy_floor_pct),
+         contracted_beds     = COALESCE($12, contracted_beds),
+         updated_at          = now()
        WHERE id = $1 RETURNING id`,
       [req.params.id, rate_per_night ?? null, flat_amount ?? null, vat_rate ?? null,
-       currency || null, valid_from || null, valid_to || null, notes || null]
+       currency || null, valid_from || null, valid_to || null, notes || null,
+       rate_used ?? null, rate_empty ?? null, occupancy_floor_pct ?? null,
+       (contracted_beds != null && contracted_beds !== '') ? Number(contracted_beds) : null]
     );
     if (!r.rows.length) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true });

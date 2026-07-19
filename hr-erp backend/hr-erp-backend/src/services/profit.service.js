@@ -81,6 +81,39 @@ class ProfitService {
       params,
     );
 
+    // Per-bed capacity metrics from the billing rows' calculation_details (per_bed_night
+    // basis). "Lekötetlen kapacitás" = physical beds we pay rent on that are NOT committed
+    // to a megbízó (physical − committed), plus empty bed-nights billed within contracts.
+    const capacityRows = await query(
+      `
+      SELECT ab.accommodation_id,
+             SUM(COALESCE((ab.calculation_details->'per_bed'->>'capacity')::numeric, 0))            AS committed_beds,
+             SUM(COALESCE((ab.calculation_details->'per_bed'->>'reduced_bed_nights')::numeric, 0))  AS empty_bed_nights,
+             SUM(COALESCE((ab.calculation_details->'per_bed'->>'occupied_bed_nights')::numeric, 0)) AS occupied_bed_nights,
+             SUM(COALESCE((ab.calculation_details->'per_bed'->>'full_bed_nights')::numeric, 0))     AS full_bed_nights,
+             SUM(COALESCE(ab.compensation_amount, 0))                                               AS compensation_amount
+      FROM accommodation_billings ab
+      INNER JOIN billing_runs br ON br.id = ab.billing_run_id
+      WHERE ab.billing_month = $1
+        AND ab.status <> 'cancelled'
+        AND br.status <> 'cancelled'
+        AND br.run_type = 'incoming'
+        ${accommodation_id ? 'AND ab.accommodation_id = $2' : ''}
+      GROUP BY ab.accommodation_id
+      `,
+      params,
+    );
+    const capByAcc = new Map();
+    for (const row of capacityRows.rows) {
+      capByAcc.set(row.accommodation_id, {
+        committed_beds: parseFloat(row.committed_beds) || 0,
+        empty_bed_nights: parseFloat(row.empty_bed_nights) || 0,
+        occupied_bed_nights: parseFloat(row.occupied_bed_nights) || 0,
+        full_bed_nights: parseFloat(row.full_bed_nights) || 0,
+        compensation_amount: parseFloat(row.compensation_amount) || 0,
+      });
+    }
+
     // Index income + billing cost (rent + allocated expenses) by accommodation_id
     const incomeByAcc = new Map();
     const billingCostByAcc = new Map();
@@ -104,12 +137,19 @@ class ProfitService {
     const accIds = new Set([...incomeByAcc.keys(), ...expensesByAcc.keys()]);
 
     let nameByAcc = new Map();
+    const physicalBedsByAcc = new Map();
     if (accIds.size > 0) {
       const namesRes = await query(
         'SELECT id, name FROM accommodations WHERE id = ANY($1::uuid[])',
         [[...accIds]],
       );
       for (const row of namesRes.rows) nameByAcc.set(row.id, row.name);
+      const bedsRes = await query(
+        `SELECT accommodation_id, COALESCE(SUM(beds), 0) AS beds FROM accommodation_rooms
+          WHERE is_active = true AND accommodation_id = ANY($1::uuid[]) GROUP BY accommodation_id`,
+        [[...accIds]],
+      );
+      for (const row of bedsRes.rows) physicalBedsByAcc.set(row.accommodation_id, parseInt(row.beds, 10));
     }
 
     const byAcc = [];
@@ -125,6 +165,19 @@ class ProfitService {
       const profit = round2(income - expenses.total - rent);
       const profitMargin = income > 0 ? roundPct((profit / income) * 100) : null;
 
+      // Capacity / lekötetlen: physical beds vs beds committed to a megbízó (per_bed_night).
+      const physicalBeds = physicalBedsByAcc.get(accId) || 0;
+      const cap = capByAcc.get(accId) || null;
+      const committedBeds = cap ? cap.committed_beds : 0;
+      const capacity = {
+        physical_beds: physicalBeds,
+        committed_beds: committedBeds,
+        uncommitted_beds: Math.max(0, physicalBeds - committedBeds), // lekötetlen: rent paid, no megbízó
+        empty_bed_nights: cap ? cap.empty_bed_nights : 0,            // lekötött de üres (rate_empty-vel számlázva)
+        occupied_bed_nights: cap ? cap.occupied_bed_nights : 0,
+        full_bed_nights: cap ? cap.full_bed_nights : 0,
+      };
+
       byAcc.push({
         accommodation_id: accId,
         accommodation_name: nameByAcc.get(accId) || null,
@@ -133,6 +186,8 @@ class ProfitService {
         rent,
         profit,
         profit_margin_pct: profitMargin,
+        compensation_amount: cap ? cap.compensation_amount : 0,      // pass-through billed to megbízó (separate line)
+        capacity,
       });
     }
 
@@ -147,6 +202,9 @@ class ProfitService {
     const totalRent = round2(byAcc.reduce((s, r) => s + r.rent, 0));
     const totalProfit = round2(totalIncome - totalExpenses - totalRent);
     const totalMargin = totalIncome > 0 ? roundPct((totalProfit / totalIncome) * 100) : null;
+    const totalPhysicalBeds = byAcc.reduce((s, r) => s + r.capacity.physical_beds, 0);
+    const totalCommittedBeds = byAcc.reduce((s, r) => s + r.capacity.committed_beds, 0);
+    const totalCompensation = round2(byAcc.reduce((s, r) => s + (r.compensation_amount || 0), 0));
 
     return {
       data: {
@@ -157,6 +215,10 @@ class ProfitService {
           total_rent: totalRent,
           total_profit: totalProfit,
           profit_margin_pct: totalMargin,
+          total_compensation: totalCompensation,          // pass-through billed to megbízók
+          total_physical_beds: totalPhysicalBeds,
+          total_committed_beds: totalCommittedBeds,
+          total_uncommitted_beds: Math.max(0, totalPhysicalBeds - totalCommittedBeds), // lekötetlen
         },
         by_accommodation: byAcc,
       },

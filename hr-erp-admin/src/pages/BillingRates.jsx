@@ -24,6 +24,7 @@ export default function BillingRates() {
   const [form, setForm] = useState({
     contractor_id: '', accommodation_id: '', billing_basis: 'per_person',
     rate_per_night: '', flat_amount: '', vat_exempt: false, vat_rate: '27', valid_from: thisMonth() + '-01', valid_to: '', notes: '',
+    rate_used: '', rate_empty: '0', occupancy_floor_pct: '0', contracted_beds: '',
   });
   const [month, setMonth] = useState(thisMonth());
   const [running, setRunning] = useState(false);
@@ -62,6 +63,7 @@ export default function BillingRates() {
     if (!f.contractor_id || !f.valid_from) { toast.warn('Ügyfél és érvényesség kezdete kötelező'); return; }
     if (f.billing_basis === 'per_person' && f.rate_per_night === '') { toast.warn('Díj/fő/éj kötelező'); return; }
     if (f.billing_basis === 'flat' && (f.flat_amount === '' || !f.accommodation_id)) { toast.warn('Átalányhoz szállás + átalánydíj kötelező'); return; }
+    if (f.billing_basis === 'per_bed_night' && f.rate_used === '') { toast.warn('Díj/foglalt ágy/éj kötelező'); return; }
     try {
       await billingAPI.createRate({
         contractor_id: f.contractor_id,
@@ -69,12 +71,16 @@ export default function BillingRates() {
         billing_basis: f.billing_basis,
         rate_per_night: f.billing_basis === 'per_person' ? Number(f.rate_per_night) : null,
         flat_amount: f.billing_basis === 'flat' ? Number(f.flat_amount) : null,
+        rate_used: f.billing_basis === 'per_bed_night' ? Number(f.rate_used) : null,
+        rate_empty: f.billing_basis === 'per_bed_night' ? Number(f.rate_empty || 0) : null,
+        occupancy_floor_pct: f.billing_basis === 'per_bed_night' ? Number(f.occupancy_floor_pct || 0) / 100 : null,
+        contracted_beds: f.billing_basis === 'per_bed_night' && f.contracted_beds !== '' ? Number(f.contracted_beds) : null,
         vat_exempt: f.vat_exempt,
         vat_rate: f.vat_exempt ? 0 : Number(f.vat_rate) / 100,
         valid_from: f.valid_from, valid_to: f.valid_to || null, notes: f.notes || null,
       });
       toast.success('Díj hozzáadva');
-      setForm({ ...f, rate_per_night: '', flat_amount: '', notes: '' });
+      setForm({ ...f, rate_per_night: '', flat_amount: '', rate_used: '', rate_empty: '0', occupancy_floor_pct: '0', contracted_beds: '', notes: '' });
       loadRates(); loadCoverage(month);
     } catch (e) { toast.error(e?.response?.data?.message || 'Hiba'); }
   };
@@ -95,6 +101,7 @@ export default function BillingRates() {
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
   const flat = form.billing_basis === 'flat';
+  const bed = form.billing_basis === 'per_bed_night';
 
   return (
     <Box sx={{ p: { xs: 1, md: 3 } }}>
@@ -157,6 +164,7 @@ export default function BillingRates() {
               onChange={(e) => setForm({ ...form, billing_basis: e.target.value })}>
               <MenuItem value="per_person">Fő / éj</MenuItem>
               <MenuItem value="flat">Átalány (property)</MenuItem>
+              <MenuItem value="per_bed_night">Ágy / éj (lekötött blokk)</MenuItem>
             </TextField>
           </Grid>
           <Grid item xs={12} md={2.5}>
@@ -169,8 +177,26 @@ export default function BillingRates() {
           <Grid item xs={6} md={2}>
             {flat
               ? <TextField fullWidth size="small" type="number" label="Átalánydíj / hó (Ft)" value={form.flat_amount} onChange={(e) => setForm({ ...form, flat_amount: e.target.value })} />
+              : bed
+              ? <TextField fullWidth size="small" type="number" label="Díj / foglalt ágy / éj (Ft)" value={form.rate_used} onChange={(e) => setForm({ ...form, rate_used: e.target.value })} />
               : <TextField fullWidth size="small" type="number" label="Díj / fő / éj (Ft)" value={form.rate_per_night} onChange={(e) => setForm({ ...form, rate_per_night: e.target.value })} />}
           </Grid>
+          {bed && (
+            <>
+              <Grid item xs={6} md={2}>
+                <TextField fullWidth size="small" type="number" label="Díj / üres ágy / éj (Ft)" value={form.rate_empty}
+                  onChange={(e) => setForm({ ...form, rate_empty: e.target.value })} helperText="0 = üreseket nem számlázzuk" />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField fullWidth size="small" type="number" label="Kihasználtsági garancia %" value={form.occupancy_floor_pct}
+                  onChange={(e) => setForm({ ...form, occupancy_floor_pct: e.target.value })} helperText="pl. 90 → min. 90% árazva" />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField fullWidth size="small" type="number" label="Lekötött ágyszám" value={form.contracted_beds}
+                  onChange={(e) => setForm({ ...form, contracted_beds: e.target.value })} helperText="üres = teljes szállás kapacitása" />
+              </Grid>
+            </>
+          )}
           <Grid item xs={6} md={1.3}>
             <TextField fullWidth size="small" type="number" label="ÁFA %" value={form.vat_exempt ? '' : form.vat_rate} disabled={form.vat_exempt}
               onChange={(e) => setForm({ ...form, vat_rate: e.target.value })} />
@@ -202,8 +228,14 @@ export default function BillingRates() {
               <TableRow key={r.id}>
                 <TableCell>{r.contractor_name}</TableCell>
                 <TableCell>{r.accommodation_name || <Chip size="small" label="alapdíj" />}</TableCell>
-                <TableCell>{r.billing_basis === 'flat' ? 'átalány' : 'fő/éj'}</TableCell>
-                <TableCell align="right">{fmt(r.billing_basis === 'flat' ? r.flat_amount : r.rate_per_night)}{r.billing_basis === 'flat' ? ' /hó' : ' /fő/éj'}</TableCell>
+                <TableCell>{r.billing_basis === 'flat' ? 'átalány' : r.billing_basis === 'per_bed_night' ? 'ágy/éj' : 'fő/éj'}</TableCell>
+                <TableCell align="right">
+                  {r.billing_basis === 'per_bed_night'
+                    ? <>{fmt(r.rate_used)} /foglalt{Number(r.rate_empty) > 0 ? ` · ${fmt(r.rate_empty)} /üres` : ''}
+                        {Number(r.occupancy_floor_pct) > 0 ? ` · gar. ${Math.round(Number(r.occupancy_floor_pct) * 100)}%` : ''}
+                        {r.contracted_beds != null ? ` · ${r.contracted_beds} ágy` : ''}</>
+                    : <>{fmt(r.billing_basis === 'flat' ? r.flat_amount : r.rate_per_night)}{r.billing_basis === 'flat' ? ' /hó' : ' /fő/éj'}</>}
+                </TableCell>
                 <TableCell>{r.vat_exempt ? <Chip size="small" label="áfamentes" /> : `${Math.round(Number(r.vat_rate) * 100)}%`}</TableCell>
                 <TableCell>{r.valid_from}{r.valid_to ? ` – ${r.valid_to}` : ' –'}</TableCell>
                 <TableCell align="right"><IconButton size="small" onClick={() => removeRate(r.id)}><DeleteIcon fontSize="small" /></IconButton></TableCell>

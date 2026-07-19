@@ -2111,6 +2111,8 @@ function ProfitTab() {
                   <TableCell align="right">Bérleti díj</TableCell>
                   <TableCell align="right">Profit</TableCell>
                   <TableCell align="right">Margin</TableCell>
+                  <TableCell align="right" title="Lekötetlen ágy: fizetjük a bérleti díját, de nincs megbízóhoz kötve (fizikai − lekötött)">Lekötetlen ágy</TableCell>
+                  <TableCell align="right" title="Kártérítés-átterhelés a megbízóra (külön számlasor, nem része a lakhatási árrésnek)">Kártérítés</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -2141,6 +2143,12 @@ function ProfitTab() {
                       <TableCell align="right" sx={{ color: pColor, fontWeight: 600 }}>
                         {r.profit_margin_pct == null ? '—' : `${r.profit_margin_pct}%`}
                       </TableCell>
+                      <TableCell align="right"
+                        title={r.capacity ? `Fizikai: ${r.capacity.physical_beds} · Lekötött: ${r.capacity.committed_beds} · Üres ágy-éj (számlázva): ${r.capacity.empty_bed_nights}` : ''}
+                        sx={{ color: r.capacity?.uncommitted_beds > 0 ? COLOR_EXPENSE : COLOR_NEUTRAL }}>
+                        {r.capacity ? r.capacity.uncommitted_beds : '—'}
+                      </TableCell>
+                      <TableCell align="right">{r.compensation_amount ? fmtMoney(r.compensation_amount) : '—'}</TableCell>
                     </TableRow>
                   );
                 })}
