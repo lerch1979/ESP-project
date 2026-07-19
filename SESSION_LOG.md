@@ -6,6 +6,16 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-07-19b — Fixed 2 high-severity function bugs from the deep audit (profit-rent #5, consolidation-workplace #9)
+
+**#5 Profit dashboard omitted rent (deployed `0e0717f2`, live-verified).** `profit.service.getByAccommodation` computed `profit = income − expenses`, ignoring the accommodation rent the billing engine treats as the primary cost → badly overstated profit (a −240k loss shown as +80k/100%). Now: `rent = SUM(accommodation_billings.cost_amount) − operating expenses` (the engine's rent allocation, clamped ≥0 + COALESCE for legacy 0-cost rows), and `profit = income − (expenses + rent) = income − cost_amount` — which **reconciles EXACTLY with the billing engine's `margin_amount`**. Added `rent`/`total_rent` to the API + a "Bérleti díj" card/column in Billing Tab 4. `profit.script.js` +4 reconciliation cases (rent = cost−expenses; profit = income−(expenses+rent); profit == engine margin; summary totals) — 20/20 green. **Live:** API returns `total_rent`; 2026-07 total_profit (0) == engine margin (0).
+
+**#9 Consolidation ignored workplace (deployed `0e0717f2`, live-verified).** The engine never read `workplace` and merged different employers (Mercedes+Audi) into rooms. Now workplace is a HARD constraint like gender/shift: cohort key = (gender × shift × workplace); `groupValid` rejects mixed workplace; an employee missing shift OR workplace is "incomplete" → pinned + flagged, never auto-placed (renamed `flagged_unknown_shift` → `flagged_incomplete` across engine/admin/tests); `assertAccommodationsValid` checks workplace among placeable residents. Seed: demo employees now share one workplace so the cohort is consolidatable. Constraint-proof test extended — **cross-workplace BLOCKED, empty-workplace flagged, and "NO mixed-WORKPLACE room" asserted on every suggestion of a full run** — suite ALL PASS. **Live:** POST /consolidation/run executed (0 moves as expected — prod shift 0/288), log shows the new "missing shift or workplace" flagging (285 flagged).
+
+**Deploy:** 2 commits, CI green, backend + admin recreated + healthy, both live-verified. Audit doc rows 5 + 9 marked FIXED. Remaining open audit findings: 6-8 (staff cross-tenant IDOR, caveated), 10 (billing revenue = client_night_rates unconfigured), 11-20 (reports/perms medium-low).
+
+---
+
 ## SESSION 2026-07-19 — Deep functional audit + fix of 4 resident-reachable data leaks (deployed, live-verified)
 
 **Deep audit** (`docs/DEEP_AUDIT_2026-07.md`, committed `605a856b`): exercised every live feature against the sandbox with the real service code, hand-checked outputs. 28 findings. Highlights — **PASS:** billing pro-rata + same-day-transfer + expense allocation (controlled 3-employee + mid-month A→B transfer, numbers matched); expiry/hygiene/GDPR triggers all fire + idempotent; reports (tickets/occupancy/cost_centers) correct; no date-shift bug. **BUGS:** profit dashboard omits rent → shows a −240k loss-making accommodation as +80k/100% profit; consolidation doesn't enforce the workplace hard-constraint (merged Mercedes+Audi etc.); billing revenue = client_night_rates (0 usable on prod → $0 billed, margin −740,890); reports employees Email/Telefon from wrong source; **4 CONFIRMED resident-reachable data leaks.**
