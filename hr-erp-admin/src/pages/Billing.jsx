@@ -2028,6 +2028,14 @@ function ProfitTab() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SummaryCard
+            title="Bérleti díj"
+            value={fmtMoney(summary?.total_rent ?? 0)}
+            color={COLOR_EXPENSE}
+            icon={<TrendingDownIcon />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <SummaryCard
             title="Profit"
             value={fmtMoney(summary?.total_profit ?? 0)}
             color={profitColor}
@@ -2100,6 +2108,7 @@ function ProfitTab() {
                   <TableCell align="right">Takarítás</TableCell>
                   <TableCell align="right">Egyéb</TableCell>
                   <TableCell align="right">Költség össz.</TableCell>
+                  <TableCell align="right">Bérleti díj</TableCell>
                   <TableCell align="right">Profit</TableCell>
                   <TableCell align="right">Margin</TableCell>
                 </TableRow>
@@ -2122,6 +2131,9 @@ function ProfitTab() {
                       <TableCell align="right">{fmtMoney(exp.egyeb || 0)}</TableCell>
                       <TableCell align="right" sx={{ color: COLOR_EXPENSE, fontWeight: 600 }}>
                         {fmtMoney(exp.total || 0)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: COLOR_EXPENSE }}>
+                        {fmtMoney(r.rent || 0)}
                       </TableCell>
                       <TableCell align="right" sx={{ color: pColor, fontWeight: 700 }}>
                         {fmtMoney(r.profit)}

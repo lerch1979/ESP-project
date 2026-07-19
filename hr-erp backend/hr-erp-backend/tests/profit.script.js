@@ -19,6 +19,7 @@ const TEST_MONTH_EMPTY   = '1900-02';
 const TEST_MONTH_INC_ONLY = '1900-03';
 const TEST_MONTH_EXP_ONLY = '1900-04';
 const TEST_MONTH_MULTI   = '1900-05';
+const TEST_MONTH_RECON   = '1900-06';
 
 const RUN_TAG = `profit-test-${Date.now()}`;
 
@@ -94,6 +95,21 @@ async function seedAccBilling(runId, accId, month, amount, status = 'draft') {
   return r.rows[0].id;
 }
 
+// Like seedAccBilling but also sets cost_amount (rent + allocated expenses) and
+// margin_amount (= revenue - cost) — as the real billing engine writes them.
+async function seedAccBillingFull(runId, accId, month, revenue, cost, status = 'draft') {
+  const r = await query(
+    `INSERT INTO accommodation_billings
+       (billing_run_id, billing_month, accommodation_id,
+        total_amount, cost_amount, margin_amount, total_employee_days, calculation_details, status)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, $7::jsonb, $8)
+     RETURNING id`,
+    [runId, month, accId, revenue, cost, revenue - cost, JSON.stringify({ test: RUN_TAG }), status],
+  );
+  createdAccBillings.push(r.rows[0].id);
+  return r.rows[0].id;
+}
+
 async function seedExpense(accId, month, category, amount, userId) {
   const r = await query(
     `INSERT INTO accommodation_expenses
@@ -117,6 +133,50 @@ async function main() {
 
   console.log(`\nUsing acc1=${acc1.name} (${acc1.id})`);
   if (acc2.id !== acc1.id) console.log(`      acc2=${acc2.name} (${acc2.id})`);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // RENT INCLUSION + billing-engine reconciliation (DEEP_AUDIT profit-rent fix)
+  // ────────────────────────────────────────────────────────────────────────
+  await describe('Profit includes RENT and reconciles with the billing engine margin', async () => {
+    // Mirrors the audit scenario: revenue 520000, cost 404000 (rent 300000 +
+    // allocated expenses 104000) → margin 116000; operating expenses 104000.
+    const run = await seedBillingRun(TEST_MONTH_RECON, 'finalized');
+    await seedAccBillingFull(run, acc1.id, TEST_MONTH_RECON, 520000, 404000, 'draft');
+    await seedExpense(acc1.id, TEST_MONTH_RECON, 'rezsi', 104000, usrId);
+
+    await test('rent is surfaced (= cost_amount − expenses)', async () => {
+      const r = await profitService.getByAccommodation({ month: TEST_MONTH_RECON, accommodation_id: acc1.id });
+      const row = r.data.by_accommodation.find((a) => a.accommodation_id === acc1.id);
+      if (row.rent !== 300000) throw new Error(`rent=${row.rent} (expected 300000)`);
+    });
+
+    await test('profit = revenue − (expenses + rent)', async () => {
+      const r = await profitService.getByAccommodation({ month: TEST_MONTH_RECON, accommodation_id: acc1.id });
+      const row = r.data.by_accommodation.find((a) => a.accommodation_id === acc1.id);
+      const expected = row.income - (row.expenses.total + row.rent);
+      if (row.profit !== expected) throw new Error(`profit=${row.profit} ≠ income-(exp+rent)=${expected}`);
+      if (row.profit !== 116000) throw new Error(`profit=${row.profit} (expected 116000)`);
+    });
+
+    await test('profit RECONCILES with the billing engine margin_amount', async () => {
+      const r = await profitService.getByAccommodation({ month: TEST_MONTH_RECON, accommodation_id: acc1.id });
+      const row = r.data.by_accommodation.find((a) => a.accommodation_id === acc1.id);
+      const eng = await query(
+        `SELECT SUM(margin_amount)::numeric AS margin FROM accommodation_billings
+          WHERE billing_month=$1 AND accommodation_id=$2 AND status<>'cancelled'`,
+        [TEST_MONTH_RECON, acc1.id],
+      );
+      const engineMargin = parseFloat(eng.rows[0].margin);
+      if (row.profit !== engineMargin) throw new Error(`dashboard profit=${row.profit} ≠ engine margin=${engineMargin}`);
+    });
+
+    await test('summary total_rent + total_profit reflect rent', async () => {
+      const r = await profitService.getByAccommodation({ month: TEST_MONTH_RECON });
+      if (r.data.summary.total_rent < 300000) throw new Error(`total_rent=${r.data.summary.total_rent}`);
+      if (r.data.summary.total_profit !== r.data.summary.total_income - r.data.summary.total_expenses - r.data.summary.total_rent)
+        throw new Error('summary profit ≠ income - expenses - rent');
+    });
+  });
 
   // ────────────────────────────────────────────────────────────────────────
   // Validation
