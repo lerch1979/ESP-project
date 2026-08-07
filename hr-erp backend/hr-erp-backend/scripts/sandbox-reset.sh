@@ -12,6 +12,11 @@ USER="${DB_USER:-$(whoami)}"
 case "$DB" in *sandbox*) ;; *) echo "✋ SANDBOX_DB='$DB' must contain 'sandbox'"; exit 1;; esac
 
 echo "▶ Resetting sandbox database '$DB' on $HOST:$PORT (user $USER)"
+# DROP DATABASE fails outright if anything is still connected (a leftover `npm run
+# dev:sandbox`, a psql session, a previous run's pool). Evict them first — the target is
+# already proven to be a sandbox by the guard above, so nothing real can be interrupted.
+psql "postgresql://$USER@$HOST:$PORT/postgres" -q -v ON_ERROR_STOP=1 \
+  -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB' AND pid <> pg_backend_pid();" >/dev/null
 psql "postgresql://$USER@$HOST:$PORT/postgres" -v ON_ERROR_STOP=1 \
   -c "DROP DATABASE IF EXISTS $DB;" -c "CREATE DATABASE $DB;"
 

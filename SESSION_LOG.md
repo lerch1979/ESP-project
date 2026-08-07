@@ -6,6 +6,30 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-08-07 — FUNCTEST: automated end-to-end functional suite (sandbox-only)
+
+Built a scenario-driven harness so scenarios stop being tested by hand. **`npm run functest`** resets `hr_erp_sandbox`, seeds a deterministic fixture, runs **105 scenarios**, and writes `docs/FUNCTEST_REPORT.md` (scenario · expected · actual · result, with an exact repro block per failure). Baseline: **90 passed / 0 failed / 15 known-gap**, ~14 s from a cold reset, **byte-identical across consecutive runs**.
+
+**Design** (`docs/FUNCTEST_PLAN.md` = catalog + rationale): scenarios assert VALUES, not status codes. They call the REAL services and read rows back from Postgres — no business logic is re-implemented. Permission scenarios boot the real express app in-process and call it with real signed JWTs against the sandbox (nothing mocked, unlike `residentLeakGuards.test.js` which mocks auth+DB). Six existing jest suites are re-run by the same command and folded into the report; the other ~1428 CI tests are untouched. Deterministic: sentinel month `1903-06`, no RNG/clock, `TZ` pinned, rents chosen so `rent/30/headcount` is exactly 1000 or 4000 Ft.
+
+**SANDBOX ONLY — 4-layer guard**, all four proven: shell refuses a non-sandbox `DB_NAME`; the runner refuses protected names (`hr_erp_db`/prod), non-local hosts, `NODE_ENV=production`, and **refuses to fall back to a default DB when `DB_NAME` is unset**; a live `SELECT current_database()` + `inet_server_addr()` check runs on the pool the services themselves use; the base seed keeps its own guard. Teardown verified to leave zero `FT` rows.
+
+**Coverage.** BILLING 23 (per_person · flat full+prorated · per_bed used-only/used+empty/floor · the worked examples 95→340 000, 80→330 000, 92→334 000, Autoliv 60@90%/40 occ→198 000 · capacity fallback · over-occupancy · VAT taxable/exempt · invoicing on/off · company vs private payroll-handoff with zero payroll rows · two megbízók on one site → two invoices · compensation as a separate line on the right megbízó, out of margin, **disputed excluded** · unattachable claim surfaced · re-run idempotency). CONSOLIDATION 12+3 (independent replay of EVERY suggestion of a full run → 0 gender/shift/workplace/capacity/cross-accommodation violations; approve→apply→history, partial completion, reject, re-apply refused). PERMISSIONS 13+8 (per-role CAN/CANNOT derived from `role_permissions` vs the route's declared permission vs the actual HTTP status — three sources must agree; the 4 resident leaks re-proven 403 with a real login; cross-tenant probes). REPORTS 12+3 (all 6 generators reconciled against independent SQL counts; profit = income − (expenses + rent) ≡ engine margin; committed/lekötetlen/empty-bed columns). DATA 16+1 (transfer pro-rata + same-day handover, expiry buckets + idempotency, hygiene fine 2×7pt → one 20 000 Ft fine + idempotent + no payments/deductions, GDPR erasure + receipt + independent PII sweep + non-repeatable). AUTOMATIONS 8 (stored report output, forced delivery failure → 0/1 recorded + ops alert, loud unknown-type failure, billing draft set, snapshot cron count + idempotency).
+
+**Known-gap bucket** (owner's call): 15 scenarios assert the CORRECT behaviour against documented-open findings, so they are reported loudly but do NOT fail the run — and flip to 🎉 FIXED automatically when closed. Covers DEEP_AUDIT #6,7,8,11,12,13,14,16,17,18 plus the three consolidation constraints that engine v1 does not implement (do-not-move LOCK, 60-day stability window, approve→ticket→confirm lifecycle — migs 133–135 are sandbox-only and not in this repo).
+
+**🚨 Two findings that were NOT in the deep audit** (both added to PROJECT_STATE tech debt, neither fixed):
+1. **`employee_accommodation_history` has no application writer.** `recordDailySnapshot` reads it exclusively; the only writes are mig 112's one-time backfill and the sandbox seed. Room moves, transfers, hires and terminations therefore **never reach occupancy snapshots** → billing bills a frozen roster. Audit row #21 passed only because it seeded history by hand. Pinned by DATA-01.
+2. **DEEP_AUDIT #6 is also a cross-tenant WRITE.** A tenant-1 `data_controller` mutated a tenant-2 employee via `PUT /employees/:id` (verified live). Also confirmed as effective writes: a resident login **created** a `worker_specializations` row (#13) and **modified** a ticket's GTD metadata (#16).
+
+**Also:** `scripts/sandbox-reset.sh` now evicts open connections before `DROP DATABASE` (a leftover `dev:sandbox` used to make the reset fail).
+
+**Not run:** `scripts/check-i18n-coverage.js` — no resident-facing UI or resident-visible enum was touched.
+
+**Next:** owner decides (a) whether to fix the history-writer gap and how, (b) whether to build the 3 missing consolidation constraints, (c) which known-gaps to close first — each flips to FIXED with no test changes.
+
+---
+
 ## SESSION 2026-07-19e — Billing Phase 1b: per-bed formula + compensation pass-through (deployed + live-verified)
 
 Built the confirmed per-bed billing formula into the engine + the compensation→invoice line + lekötetlen on the profit dashboard.

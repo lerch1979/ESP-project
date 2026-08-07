@@ -44,6 +44,33 @@
 
 ---
 
+## Update 2026-08-07 — these findings now have standing regression coverage
+
+`npm run functest` (see `docs/FUNCTEST_PLAN.md`) asserts the CORRECT behaviour for rows
+6, 7, 8, 11, 12, 13, 14, 16, 17 and 18 as ⚠️ KNOWN-GAP scenarios. They are reported on every
+run and flip to 🎉 FIXED automatically once closed — no test changes needed. Rows 1–5, 9,
+19 and 21–28 are covered as ordinary PASS scenarios, so a regression on any of them turns the
+suite red.
+
+Three of the code-analysis findings were **executed live** and turned out to be sharper than
+recorded:
+
+- **#6 is also a cross-tenant WRITE.** `PUT /employees/:id` let a tenant-1 `data_controller`
+  mutate a tenant-2 employee row (FUNCTEST `PERM-13`). The row above describes reads only;
+  `updateEmployee` has the same missing filter.
+- **#13 is an effective write.** A resident login got **201 and a real `worker_specializations`
+  row was created** (`PERM-19`) — not merely an ungated route.
+- **#16 is an effective write.** A resident login got **200 and a real ticket's GTD metadata
+  changed** (`PERM-20`).
+
+One finding NOT in this audit surfaced during the same work: **`employee_accommodation_history`
+has no application writer**, so room moves / transfers / hires never reach `occupancy_snapshots`
+and billing runs on the migration-112 roster. Row #21 passed only because that harness seeded
+history rows by hand — it proved the engine, not the feed. See PROJECT_STATE tech debt and
+FUNCTEST `DATA-01`.
+
+---
+
 ## Notes for prioritization (no fixes applied, per your instruction)
 
 - **Rows 1–4 are exploitable today by an ordinary resident login** (valid JWT, no permission gate, no tenant filter) → this is the sharpest cluster: financial/PII data (compensations, fines, invoices) and cross-tenant wellbeing (analytics) are readable by residents. I hand-verified all four against the route files.
