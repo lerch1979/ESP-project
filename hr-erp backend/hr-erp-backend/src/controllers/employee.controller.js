@@ -8,6 +8,9 @@ const fs = require('fs');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
 const { encrypt, decrypt, decryptPiiFields, decryptPiiRows } = require('../services/encryption.service');
 const statusHistory = require('../services/entityStatusHistory.service');
+// Housing changes MUST reach employee_accommodation_history — it is the only input the
+// daily occupancy snapshot (and therefore the billing engine) reads.
+const accHistory = require('../services/accommodationHistory.service');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -553,6 +556,19 @@ const createEmployee = async (req, res) => {
       room_id || null,
     ]);
 
+    // HIRE → open the occupancy history row, so the new joiner appears in tomorrow's
+    // snapshot (and therefore in billing) instead of being invisible until someone
+    // re-runs a backfill.
+    if (result.rows[0].accommodation_id) {
+      await accHistory.syncAssignmentSafe({
+        employeeId: result.rows[0].id,
+        accommodationId: result.rows[0].accommodation_id,
+        roomId: result.rows[0].room_id,
+        reason: 'hire',
+        changedBy: req.user?.id || null,
+      });
+    }
+
     // Log activity
     logActivity({
       userId: req.user?.id,
@@ -637,6 +653,24 @@ const updateEmployee = async (req, res) => {
       });
     }
 
+    // TENANT SCOPE (DEEP_AUDIT #6, write side — FUNCTEST PERM-13). The controller had no
+    // contractor filter anywhere, so an operator of tenant A could MUTATE tenant B's
+    // employee row by id. Superadmin keeps the cross-tenant view; everyone else may only
+    // write their own contractor's rows. Rows with a NULL contractor_id are deliberately
+    // still writable — they are unowned/global in this single-operator deployment, and
+    // hard-failing them would break legitimate edits (see the "strict contractor_id
+    // hides GLOBAL content" anti-pattern in PROJECT_STATE).
+    if (!req.user?.roles?.includes('superadmin')) {
+      const owner = existing.rows[0].contractor_id;
+      if (owner && owner !== req.user?.contractorId) {
+        logger.warn('Cross-tenant employee write blocked', { employeeId: id, owner, caller: req.user?.contractorId });
+        return res.status(403).json({
+          success: false,
+          message: 'Nincs jogosultsága ehhez a munkavállalóhoz'
+        });
+      }
+    }
+
     // Verify accommodation if provided
     if (body.accommodation_id !== undefined && body.accommodation_id !== null && body.accommodation_id !== '') {
       const accCheck = await query('SELECT id FROM accommodations WHERE id = $1', [body.accommodation_id]);
@@ -719,7 +753,29 @@ const updateEmployee = async (req, res) => {
       RETURNING *
     `;
 
-    const result = await query(updateQuery, params);
+    // The employees row and its occupancy history must move together: a committed room
+    // change with no history row is exactly the bug that froze the billing roster. One
+    // transaction, so they can never disagree.
+    const housingTouched = body.accommodation_id !== undefined || body.room_id !== undefined || body.end_date !== undefined;
+    const result = await transaction(async (client) => {
+      const r = await client.query(updateQuery, params);
+      if (housingTouched) {
+        const row = r.rows[0];
+        // A set end_date means they have left — close the stay rather than move it.
+        if (row.end_date) {
+          await accHistory.closeAssignment(client, {
+            employeeId: id, effectiveDate: accHistory.localDateStr(new Date(row.end_date)),
+            reason: 'termination', changedBy: req.user?.id || null,
+          });
+        } else {
+          await accHistory.syncAssignment(client, {
+            employeeId: id, accommodationId: row.accommodation_id, roomId: row.room_id,
+            reason: 'employee update', changedBy: req.user?.id || null,
+          });
+        }
+      }
+      return r;
+    });
 
     // Log activity with diff
     const trackFields = [
@@ -790,16 +846,24 @@ const deleteEmployee = async (req, res) => {
     const leftStatus = await query("SELECT id FROM employee_status_types WHERE slug = 'left'");
     const leftStatusId = leftStatus.rows.length > 0 ? leftStatus.rows[0].id : null;
 
-    await query(
-      `UPDATE employees
-       SET end_date = CURRENT_DATE,
-           accommodation_id = NULL,
-           room_id = NULL,
-           status_id = COALESCE($2, status_id),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [id, leftStatusId]
-    );
+    // TERMINATION → close the open stay the same day the accommodation is cleared.
+    // check_out_date is "the first day they are no longer here", so today stops counting
+    // for them and the room frees up in tonight's snapshot.
+    await transaction(async (client) => {
+      await client.query(
+        `UPDATE employees
+         SET end_date = CURRENT_DATE,
+             accommodation_id = NULL,
+             room_id = NULL,
+             status_id = COALESCE($2, status_id),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [id, leftStatusId]
+      );
+      await accHistory.closeAssignment(client, {
+        employeeId: id, reason: 'termination', changedBy: req.user?.id || null,
+      });
+    });
 
     const emp = existing.rows[0];
     logActivity({
@@ -1084,6 +1148,17 @@ const bulkImportEmployees = async (req, res) => {
             row.end_date || null,
           ]
         );
+        // Bulk HIRE → open the occupancy history row on the same connection, so an
+        // imported worker is billable from day one instead of invisible to snapshots.
+        if (accommodationId && !row.end_date) {
+          await accHistory.syncAssignment(client, {
+            employeeId: result.rows[0].id,
+            accommodationId,
+            roomId: null,
+            reason: 'bulk import',
+            changedBy: req.user?.id || null,
+          });
+        }
         imported.push(result.rows[0]);
       } catch (err) {
         errors.push({ row: rowNum, message: err.message });
@@ -1941,7 +2016,19 @@ const bulkAssignRooms = async (req, res) => {
 
       if (sets.length === 0) continue;
       params.push(emp.id);
-      await query(`UPDATE employees SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${++p}`, params);
+      // Excel room round-trip is a housing change like any other → history must follow it,
+      // in the same transaction as the row it describes.
+      await transaction(async (client) => {
+        const r = await client.query(
+          `UPDATE employees SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${++p} RETURNING accommodation_id, room_id, end_date`, params);
+        const emp2 = r.rows[0];
+        if (emp2 && !emp2.end_date) {
+          await accHistory.syncAssignment(client, {
+            employeeId: emp.id, accommodationId: emp2.accommodation_id, roomId: emp2.room_id,
+            reason: 'excel room assignment', changedBy: req.user?.id || null,
+          });
+        }
+      });
       updated.push({ row: rowNum, employee: `${row.last_name} ${row.first_name}`, room: row.room || null, shift: row.shift ? normalizeShift(row.shift) : null });
     }
 

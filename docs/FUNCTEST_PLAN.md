@@ -6,7 +6,7 @@ every major subsystem end-to-end, checks ACTUAL output against EXPECTED output, 
 
 ```bash
 cd "hr-erp backend/hr-erp-backend"
-npm run functest                      # reset → seed → run all 105 scenarios → write the report
+npm run functest                      # reset → seed → run all 111 scenarios → write the report
 npm run functest -- --no-reset        # reuse the current sandbox (fast iteration)
 npm run functest -- --only=BILLING    # one area
 npm run functest -- --case=BILL-09    # one scenario
@@ -104,12 +104,12 @@ scripts/functest.sh         the single command
 | ⚠️ KNOWN-GAP | asserts the CORRECT behaviour against a feature that is documented as missing or broken (`docs/DEEP_AUDIT_2026-07.md`, unbuilt consolidation constraints). Reported, does not fail the run |
 | 🎉 FIXED | a KNOWN-GAP case now passes → close the gap in the docs |
 
-The third state exists so a real regression stands out instead of drowning in fifteen
+The third state exists so a real regression stands out instead of drowning in a dozen
 already-known findings — and so each gap flips to FIXED on its own the day it is closed.
 
 ---
 
-## Catalog — 105 scenarios
+## Catalog — 111 scenarios
 
 ### BILLING (23) — every formula path with hand-checkable numbers
 
@@ -163,7 +163,7 @@ CONS-06 does not trust the engine's own validator: it replays every suggestion i
 post-state and re-derives each constraint from raw employee/room rows, so an unsafe move is caught
 even if `groupValid` is the thing that broke.
 
-### PERMISSIONS / DATA ISOLATION (13 + 8 gaps)
+### PERMISSIONS / DATA ISOLATION (16 + 5 gaps)
 
 | ID | Scenario | Expected |
 |---|---|---|
@@ -172,14 +172,14 @@ even if `groupValid` is the thing that broke.
 | PERM-03 | resident vs every gated staff endpoint | 403 on all 16 |
 | PERM-04…12 | **one case per role** (superadmin, admin, data_controller, property_owner, contractor, property_inspector, maintenance_worker, task_owner, accommodated_employee) | HTTP status agrees with `role_permissions` for the permission each route declares — zero mismatches |
 | PERM-21 | unauthenticated caller | 401 everywhere, no anonymous surface |
-| ⚠️ PERM-13 | cross-tenant **WRITE** of a tenant-2 employee | row must not change — **it does** (see Findings) |
+| PERM-13 | cross-tenant **WRITE** of a tenant-2 employee | 403, row unchanged |
 | ⚠️ PERM-14 | cross-tenant employee list | 0 foreign rows — returns 3 (DEEP_AUDIT #6) |
 | ⚠️ PERM-15 | finance reads (expenses / profit / operating-costs) | no foreign data — all three leak (DEEP_AUDIT #7) |
 | ⚠️ PERM-16 | timesheets by task id | no foreign hours — returns them incl. the logger's email (DEEP_AUDIT #8) |
 | ⚠️ PERM-17 | `GET /rooms/:id/inspection-history` | 403 for a resident — returns 200 (#11) |
 | ⚠️ PERM-18 | `GET /analytics/overview` | 403 for a resident — returns 200 (#12) |
-| ⚠️ PERM-19 | worker-specialization write | 403 — resident gets **201 and the row is created** (#13) |
-| ⚠️ PERM-20 | GTD metadata write on a real ticket | 403 — resident gets **200 and the ticket is modified** (#16) |
+| PERM-19 | worker-specialization write (valid body) | 403, no row created |
+| PERM-20 | GTD metadata write on a real ticket | 403, ticket unmodified |
 
 The role matrix is not a hand-copied allow-list. For each endpoint it takes the permission the
 ROUTE declares, asks the DATABASE whether the role holds it, and checks the HTTP response agrees —
@@ -205,27 +205,33 @@ REP-15 is a real functional probe, not a source grep: `Date` is frozen at
 2026-06-15 00:30 Europe/Budapest (= 2026-06-14 22:30Z) and a worker arriving 2026-06-15 is
 present locally but invisible under UTC.
 
-### DATA-CHANGE INTEGRITY (16 + 1 gap)
+### DATA-CHANGE INTEGRITY (23)
 
 | ID | Scenario | Expected |
 |---|---|---|
-| ⚠️ DATA-01 | room move → next occupancy snapshot | must show the new room — **shows the old one** (see Findings) |
-| DATA-02 | mid-month A→B transfer | 15 occupancy days each, never 31 or 29 |
-| DATA-03 | same-day handover | the day belongs to the NEW accommodation only |
-| DATA-04 | transfer pro-rata | each site bills its own 15 days + its own rent share |
-| DATA-05 | visa expiring in 10 days | fires in the 14-day bucket |
-| DATA-06 | contract (5 days) + document (45 days) | buckets 7 and 60 |
-| DATA-07 | expiry 400 days out | not alerted |
-| DATA-08 | expiry monitor re-run | idempotent, zero duplicates |
-| DATA-09 | hygiene toggle OFF | nothing created, even with two failing inspections |
-| DATA-10 | 2 consecutive fails @ 7 pt | exactly ONE fine, 10 000 × 2 lakó = 20 000 |
-| DATA-11 | hygiene re-run | 0 created, `skipped_existing` 1 |
-| DATA-12 | room with a single fail | never fined |
-| DATA-13 | the fine's side effects | zero `compensation_payments`, zero `salary_deductions` |
-| DATA-14 | GDPR erasure | identifying fields nulled, surname pseudonymized, `anonymized_at` set |
-| DATA-15 | erasure receipt | itemized rowcounts + file outcomes + completeness, persisted to `anonymization_log` |
-| DATA-16 | **independent PII sweep** | the seeded marker survives in **zero** text columns (scans every text/varchar column of `employees` + `users`, without trusting the receipt) |
-| DATA-17 | second erasure request | refused (`already_anonymized`) |
+| DATA-01 | room move via `PUT /employees/:id` → next occupancy snapshot | shows the NEW room; exactly one open history row |
+| DATA-02 | consolidation approve | history followed every applied move, reason `consolidation` |
+| DATA-03 | hire via `POST /employees` | an open history row exists immediately |
+| DATA-04 | termination via `DELETE /employees/:id` | stay ends, bed stops counting today (same-day hire+leave leaves no row) |
+| DATA-05 | termination of a long-standing resident | stay is CLOSED, not deleted — past billing keeps its days |
+| DATA-06 | **overlap invariant** | no employee has two rows covering one day (a double-covered day aborts the snapshot for EVERYONE) |
+| DATA-07 | roster ↔ history | every housed employee has a matching open row |
+| DATA-08 | mid-month A→B transfer | 15 occupancy days each, never 31 or 29 |
+| DATA-09 | same-day handover | the day belongs to the NEW accommodation only |
+| DATA-10 | transfer pro-rata | each site bills its own 15 days + its own rent share |
+| DATA-11 | visa expiring in 10 days | fires in the 14-day bucket |
+| DATA-12 | contract (5 days) + document (45 days) | buckets 7 and 60 |
+| DATA-13 | expiry 400 days out | not alerted |
+| DATA-14 | expiry monitor re-run | idempotent, zero duplicates |
+| DATA-15 | hygiene toggle OFF | nothing created, even with two failing inspections |
+| DATA-16 | 2 consecutive fails @ 7 pt | exactly ONE fine, 10 000 × 2 lakó = 20 000 |
+| DATA-17 | hygiene re-run | 0 created, `skipped_existing` 1 |
+| DATA-18 | room with a single fail | never fined |
+| DATA-19 | the fine's side effects | zero `compensation_payments`, zero `salary_deductions` |
+| DATA-20 | GDPR erasure | identifying fields nulled, surname pseudonymized, `anonymized_at` set |
+| DATA-21 | erasure receipt | itemized rowcounts + file outcomes + completeness, persisted to `anonymization_log` |
+| DATA-22 | **independent PII sweep** | the seeded marker survives in **zero** text columns (scans every text/varchar column of `employees` + `users`, without trusting the receipt) |
+| DATA-23 | second erasure request | refused (`already_anonymized`) |
 
 ### AUTOMATIONS (8)
 
@@ -247,25 +253,31 @@ present locally but invisible under UTC.
 
 ---
 
-## Findings this suite surfaced that were NOT in the deep audit
+## Findings this suite surfaced that were NOT in the deep audit — both now FIXED
 
-**1. `employee_accommodation_history` has no application writer (high).**
+**1. `employee_accommodation_history` had no application writer (high, money path).** ✅ fixed 2026-08-07
 `occupancyTracking.recordDailySnapshot` reads that table exclusively, and nothing in `src/`
-ever writes it — the only writes are migration 112's one-time backfill and the sandbox seed
-(`grep -rn accommodation_history src scripts migrations`). So room moves, accommodation
-transfers, hires and terminations never reach occupancy snapshots, and billing bills a frozen
-roster. Deep-audit row #21 passed because it seeded history rows by hand — it proved the engine,
-not the feed. **DATA-01** pins this. *Reported, not fixed — it is on the money path and the fix
-(write history on change vs. derive snapshots from `employees`) is the owner's call.*
+ever wrote it — the only writes were migration 112's one-time backfill and the sandbox seed. So
+room moves, accommodation transfers, hires and terminations never reached occupancy snapshots,
+and billing billed a frozen roster. Deep-audit row #21 passed because it seeded history rows by
+hand — it proved the engine, not the feed.
+*Fix:* `accommodationHistory.service.js` writes history **in the same transaction** as every
+employees UPDATE that changes housing (employee edit, hire, termination, bulk import, Excel room
+round-trip, consolidation approve, room deletion), plus
+`scripts/backfill-accommodation-history.js` for the rows that accumulated while it was frozen.
+Now covered by **DATA-01..07** and `tests/integration/accommodationHistory.test.js`.
 
-**2. DEEP_AUDIT #6 is also a cross-tenant WRITE (severity escalation).**
+**2. DEEP_AUDIT #6 is also a cross-tenant WRITE (severity escalation).** ✅ writes fixed 2026-08-07
 The audit documented `employee.controller.js`'s missing `contractor_id` filter as a read leak.
-`PUT /employees/:id` has the same gap: a tenant-1 `data_controller` successfully mutated a
-tenant-2 employee's row. **PERM-13** pins it.
+`PUT /employees/:id` had the same gap: a tenant-1 `data_controller` successfully mutated a
+tenant-2 employee's row (**PERM-13**). *Fix:* `updateEmployee` refuses a foreign owner before
+building the UPDATE. The READ side (**PERM-14/15/16**) is still open and still reported.
 
-**3. DEEP_AUDIT #13 and #16 confirmed as effective writes, not just missing gates.**
+**3. DEEP_AUDIT #13 and #16 were effective writes, not just missing gates.** ✅ fixed 2026-08-07
 A resident login created a real `worker_specializations` row (201) and modified a real ticket's
-GTD metadata (200) — previously these were code-analysis findings only.
+GTD metadata (200) — previously code-analysis findings only. *Fix:* both now require a
+permission (`employees.edit` / `tickets.edit`) **and** carry a tenant predicate
+(**PERM-19/20**).
 
 ---
 

@@ -6,6 +6,46 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-08-07b — Fixed the two FUNCTEST findings: frozen billing roster + effective cross-tenant/resident writes
+
+Both findings from the FUNCTEST session are closed, sandbox-tested and covered by regressions. **FUNCTEST is now 100 passed / 0 failed / 11 known-gap over 111 scenarios** (was 90/0/15) — DATA-01, PERM-13, PERM-19 and PERM-20 flipped from ⚠️ KNOWN-GAP to ✅ PASS. Full CI jest on a fresh migrated DB: **79 suites / 1444 passed, 0 failed** (1434 + the 10 new).
+
+### 1. 🚨 The billing roster was frozen (money path) — FIXED
+
+`occupancy_snapshots` is fed **exclusively** by `employee_accommodation_history`, and nothing in `src/` ever wrote that table — the only writes were migration 112's one-time backfill and the sandbox seed. Room moves, accommodation transfers, hires and terminations therefore never reached snapshots, so the billing engine billed the mig-112 roster forever. (Deep-audit row #21 passed because it seeded history rows by hand: it proved the engine, not the feed.) Demonstrated on a freshly reset sandbox: **310 housed employees, 0 history rows, `recordDailySnapshot` → 0 rows written**.
+
+**New `src/services/accommodationHistory.service.js`** — `syncAssignment` / `closeAssignment` / `backfillCurrentRoster` / `findOverlaps`. Wired **inside the same transaction** as the employees UPDATE at every housing path: `updateEmployee`, `createEmployee` (hire), `deleteEmployee` (termination), `bulkImportEmployees`, `bulkAssignRooms` (Excel round-trip), `consolidationEngine.applyGroup`, `room.controller.deleteRoom`. `updateEmployee`, `deleteEmployee`, `bulkAssignRooms` and `deleteRoom` were wrapped in transactions so the row and its history can never disagree.
+
+**Semantics follow mig 112:** a change effective on D closes the old stay at D and opens the new one at D → the handover day lands on the NEW accommodation. A stay opened on D and changed again on D is **replaced**, not closed-and-reopened (no zero-length rows). Hire+termination on the same day leaves no row at all — they never occupied a bed.
+
+**The invariant that matters:** no employee may hold two rows covering one day. `recordDailySnapshot` inserts `ON CONFLICT (snapshot_date, employee_id)`, so a double-covered day would abort the snapshot **for everyone** with "cannot affect row a second time". `findOverlaps()` guards it, the backfill verifies it, and FUNCTEST DATA-06 asserts it globally.
+
+**Backfill:** `scripts/backfill-accommodation-history.js` (`--dry-run` supported). Aligns the current roster **without rewriting past rows** — a mismatch is closed today and a correct row opened today, so tomorrow's snapshot is right and no past invoice is restated. Self-verifies (0 out-of-sync, 0 overlaps) and is idempotent. Sandbox proof: 310 rows opened → `recordDailySnapshot` went **0 → 310 rows written**; re-run reported "already correct: 310".
+
+**Regression:** `tests/integration/accommodationHistory.test.js` (10 tests — open/no-op/room change/same-day replace/close/overlap + the history→snapshot chain + backfill dry-run and apply) and FUNCTEST **DATA-01..07** (room move via real `PUT /employees/:id` → snapshot shows the new room; consolidation approve; hire; termination; long-stay termination closes rather than deletes; global overlap check; roster↔history agreement).
+
+### 2. ⚖️ Effective cross-tenant and resident WRITES — FIXED
+
+All three were confirmed live over real HTTP before the fix, and all three are now 403 with no row changed:
+
+- **`PUT /employees/:id` (DEEP_AUDIT #6, write side).** A tenant-1 `data_controller` mutated a tenant-2 employee row. `updateEmployee` now refuses a foreign `contractor_id` before building the UPDATE. **The READ side of #6 is still open** (FUNCTEST PERM-14 keeps it visible), as are #7 and #8.
+- **worker-specializations writes (#13).** A resident POST with a valid body returned **201 and created a real row**. POST/PATCH/DELETE now require `employees.edit` **and** verify the target user's contractor.
+- **GTD metadata writes (#16).** A resident PATCH on a real ticket returned **200 and the ticket changed**. `/gtd/tickets/:id/gtd` now requires `tickets.edit` and `/gtd/projects/:id/gtd` requires `projects.edit`, both with a contractor predicate in the UPDATE.
+
+Superadmin bypasses all three; rows with a `NULL` contractor_id stay writable (single-operator deployment — hard-failing them would break legitimate edits; see the "strict contractor_id hides GLOBAL content" anti-pattern in PROJECT_STATE).
+
+### Also
+
+- FUNCTEST scenarios now exercise the REAL application paths rather than raw SQL (DATA-01 goes through `PUT /employees/:id`), and DATA-02 is order-independent so `--only=DATA` works standalone.
+- The fixture runs the real backfill, so the roster↔history invariant is asserted across the whole sandbox, not just fixture rows.
+- Earlier caveat resolved: the 4 jest suites that failed locally were stale local DBs (`hr_erp_test` at mig 126). On a fresh DB migrated to 141 the whole suite is green.
+
+**Not run:** `scripts/check-i18n-coverage.js` — no resident-facing UI or resident-visible enum was touched.
+
+**NOT YET DEPLOYED — awaiting owner go-ahead.** Deploy checklist: push → CI → `pull && up -d backend` → then **run `node scripts/backfill-accommodation-history.js --dry-run` on prod first**, review the counts (expect ~288 rows to open), then apply and confirm it self-verifies. Until the backfill runs on prod, prod snapshots keep using the mig-112 roster.
+
+---
+
 ## SESSION 2026-08-07 — FUNCTEST: automated end-to-end functional suite (sandbox-only)
 
 Built a scenario-driven harness so scenarios stop being tested by hand. **`npm run functest`** resets `hr_erp_sandbox`, seeds a deterministic fixture, runs **105 scenarios**, and writes `docs/FUNCTEST_REPORT.md` (scenario · expected · actual · result, with an exact repro block per failure). Baseline: **90 passed / 0 failed / 15 known-gap**, ~14 s from a cold reset, **byte-identical across consecutive runs**.

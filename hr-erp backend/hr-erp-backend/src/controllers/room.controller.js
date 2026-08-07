@@ -1,5 +1,6 @@
-const { query } = require('../database/connection');
+const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const accHistory = require('../services/accommodationHistory.service');
 
 /**
  * Szobák listázása egy szálláshelyhez (lakókkal)
@@ -231,14 +232,26 @@ const deleteRoom = async (req, res) => {
       });
     }
 
-    // Unassign employees from this room
-    await query('UPDATE employees SET room_id = NULL WHERE room_id = $1', [roomId]);
-
-    // Soft delete
-    await query(
-      'UPDATE accommodation_rooms SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [roomId]
-    );
+    // Deleting a room un-rooms its occupants — a housing change, so occupancy history
+    // has to follow (they stay in the accommodation, just no longer in this room).
+    await transaction(async (client) => {
+      const unassigned = await client.query(
+        'UPDATE employees SET room_id = NULL WHERE room_id = $1 RETURNING id, accommodation_id, end_date',
+        [roomId]
+      );
+      for (const emp of unassigned.rows) {
+        if (emp.end_date) continue;
+        await accHistory.syncAssignment(client, {
+          employeeId: emp.id, accommodationId: emp.accommodation_id, roomId: null,
+          reason: 'room deleted', changedBy: req.user?.id || null,
+        });
+      }
+      // Soft delete
+      await client.query(
+        'UPDATE accommodation_rooms SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [roomId]
+      );
+    });
 
     logger.info('Szoba deaktiválva', { roomId, accommodationId: id });
 

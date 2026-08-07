@@ -56,6 +56,24 @@ async function list(req, res) {
   }
 }
 
+// TENANT SCOPE (DEEP_AUDIT #13 — FUNCTEST PERM-19). These writes were ungated AND
+// unscoped: any authenticated caller could attach a specialization to any user of any
+// contractor. The route now demands employees.edit; this keeps a legitimate operator of
+// tenant A from writing tenant B's people. Superadmin keeps the cross-tenant view, and a
+// user with a NULL contractor_id stays writable (unowned/global in this single-operator
+// deployment — see the "strict contractor_id hides GLOBAL content" note in PROJECT_STATE).
+async function assertSameTenant(req, targetUserId) {
+  if (req.user?.roles?.includes('superadmin')) return null;
+  const r = await query('SELECT contractor_id FROM users WHERE id = $1', [targetUserId]);
+  if (r.rows.length === 0) return { status: 404, message: 'Nem található' };
+  const owner = r.rows[0].contractor_id;
+  if (owner && owner !== req.user?.contractorId) {
+    logger.warn('[workerSpec] cross-tenant write blocked', { targetUserId, owner, caller: req.user?.contractorId });
+    return { status: 403, message: 'Nincs jogosultsága ehhez a felhasználóhoz' };
+  }
+  return null;
+}
+
 // POST /api/v1/worker-specializations
 //   body: { user_id, specialization, is_primary?, certification_expiry?, notes? }
 async function create(req, res) {
@@ -67,6 +85,8 @@ async function create(req, res) {
     if (!SPEC_SLUGS.has(specialization)) {
       return res.status(400).json({ success: false, message: 'Ismeretlen specialization' });
     }
+    const denied = await assertSameTenant(req, user_id);
+    if (denied) return res.status(denied.status).json({ success: false, message: denied.message });
     const r = await query(
       `INSERT INTO worker_specializations
          (user_id, specialization, is_active, is_primary, certification_expiry, notes)
@@ -91,6 +111,10 @@ async function create(req, res) {
 async function update(req, res) {
   try {
     const { id } = req.params;
+    const owner = await query('SELECT user_id FROM worker_specializations WHERE id = $1', [id]);
+    if (owner.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
+    const deniedU = await assertSameTenant(req, owner.rows[0].user_id);
+    if (deniedU) return res.status(deniedU.status).json({ success: false, message: deniedU.message });
     const { is_active, is_primary, certification_expiry, notes, specialization } = req.body || {};
     const sets = [];
     const params = [];
@@ -126,6 +150,10 @@ async function update(req, res) {
 async function remove(req, res) {
   try {
     const { id } = req.params;
+    const owner = await query('SELECT user_id FROM worker_specializations WHERE id = $1', [id]);
+    if (owner.rows.length === 0) return res.status(404).json({ success: false, message: 'Nem található' });
+    const deniedD = await assertSameTenant(req, owner.rows[0].user_id);
+    if (deniedD) return res.status(deniedD.status).json({ success: false, message: deniedD.message });
     const r = await query(`DELETE FROM worker_specializations WHERE id = $1`, [id]);
     if (r.rowCount === 0) return res.status(404).json({ success: false, message: 'Nem található' });
     res.json({ success: true });

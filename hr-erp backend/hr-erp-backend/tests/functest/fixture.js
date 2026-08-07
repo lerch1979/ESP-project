@@ -40,6 +40,10 @@ const D1 = `${MONTH}-01`;
 const PW = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'; // bcrypt("sandbox123")
 
 const day = (n) => `${MONTH}-${String(n).padStart(2, '0')}`;
+const localDateStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const one = async (sql, p) => (await query(sql, p)).rows[0];
 const all = async (sql, p) => (await query(sql, p)).rows;
 
@@ -510,6 +514,15 @@ async function build() {
   await query(
     `INSERT INTO timesheets (task_id, user_id, hours, work_date) VALUES ($1,$2,7.5,$3::date)`,
     [ids.task_t2, ids.user.t2_operator, D1]);
+
+  /* ── align occupancy history with the roster ───────────────────────── */
+  // The base seed writes employees but no history, and the fixture builds several sites
+  // by raw INSERT. Running the real backfill here does two jobs: it puts the sandbox in
+  // the state a fixed production would be in, and it makes DATA-22's roster-vs-history
+  // invariant meaningful across the WHOLE database rather than just the fixture.
+  // It opens rows dated TODAY, so the far-past billing month is untouched.
+  ids.backfill = await require('../../src/services/accommodationHistory.service')
+    .backfillCurrentRoster({ effectiveDate: localDateStr() });
 
   return ids;
 }

@@ -1,8 +1,8 @@
 # FUNCTEST REPORT — automated end-to-end functional suite
 
-**90 passed / 0 failed / 15 known-gap**  ·  105 scenarios  ·  12322ms
+**100 passed / 0 failed / 11 known-gap**  ·  111 scenarios  ·  8298ms
 
-- Generated: 2026-08-07T17:46:40.340Z
+- Generated: 2026-08-07T20:02:09.579Z
 - Database: `hr_erp_sandbox` (sandbox-only — the guard refuses anything else)
 - Command: `npm run functest`
 - Fixture month: `1903-06` · fixture tag: `FT`
@@ -64,7 +64,7 @@
 | **CONS-14** 60-DAY STABILITY — a resident moved recently must not be moved again inside the window | {"stability_window_days":60,"engine_reads_move_history":true} | {"stability_window_days":null,"engine_reads_move_history":false} | ⚠️ KNOWN-GAP |
 | **CONS-15** approve → TICKET → confirm → room change (staged lifecycle) | {"approve_creates_ticket":true,"room_change_awaits_confirmation":true} | {"approve_creates_ticket":false,"room_change_awaits_confirmation":false} | ⚠️ KNOWN-GAP |
 
-## PERMISSIONS — 13 passed / 0 failed / 8 known-gap
+## PERMISSIONS — 16 passed / 0 failed / 5 known-gap
 
 | Scenario | Expected | Actual | Result |
 |---|---|---|---|
@@ -80,14 +80,14 @@
 | **PERM-10** role "maintenance_worker" — HTTP access matches the permission model exactly | {"mismatches":[]} | {"mismatches":[]} | ✅ PASS |
 | **PERM-11** role "task_owner" — HTTP access matches the permission model exactly | {"mismatches":[]} | {"mismatches":[]} | ✅ PASS |
 | **PERM-12** role "accommodated_employee" — HTTP access matches the permission model exactly | {"mismatches":[]} | {"mismatches":[]} | ✅ PASS |
-| **PERM-13** cross-tenant WRITE — tenant-1 operator cannot mutate a tenant-2 employee | {"row_changed":false} | {"row_changed":true,"_status":200} | ⚠️ KNOWN-GAP |
+| **PERM-13** cross-tenant WRITE — tenant-1 operator cannot mutate a tenant-2 employee | {"row_changed":false,"status":403} | {"row_changed":false,"status":403} | ✅ PASS |
 | **PERM-14** cross-tenant READ — tenant-1 operator listing employees sees no tenant-2 rows | {"foreign_ids_returned":0} | {"foreign_ids_returned":3,"_status":200} | ⚠️ KNOWN-GAP |
 | **PERM-15** cross-tenant READ — finance endpoints scope to the caller's contractor | {"endpoints_returning_foreign_data":[]} | {"endpoints_returning_foreign_data":["/expenses → 200","/profit/by-accommodation?month=1903-07 → 200","/operating-costs/by-accommodation?month=1903-07 → 200"]} | ⚠️ KNOWN-GAP |
 | **PERM-16** timesheets — one tenant cannot read another tenant's logged hours by task id | {"rows_returned":0,"foreign_email_exposed":false} | {"rows_returned":1,"foreign_email_exposed":true,"_status":200} | ⚠️ KNOWN-GAP |
 | **PERM-17** GET /rooms/:id/inspection-history requires a permission | {"resident_status":403} | {"resident_status":200} | ⚠️ KNOWN-GAP |
 | **PERM-18** GET /analytics/overview requires a permission | {"resident_status":403} | {"resident_status":200} | ⚠️ KNOWN-GAP |
-| **PERM-19** worker-specialization WRITES require a permission — a resident cannot create reference data | {"status":403,"row_created":false} | {"status":201,"row_created":true} | ⚠️ KNOWN-GAP |
-| **PERM-20** GTD metadata writes are gated — a resident cannot rewrite a ticket's GTD fields | {"status":403,"ticket_modified":false} | {"status":200,"ticket_modified":true} | ⚠️ KNOWN-GAP |
+| **PERM-19** worker-specialization WRITES require a permission — a resident cannot create reference data | {"status":403,"row_created":false} | {"status":403,"row_created":false} | ✅ PASS |
+| **PERM-20** GTD metadata writes are gated — a resident cannot rewrite a ticket's GTD fields | {"status":403,"ticket_modified":false} | {"status":403,"ticket_modified":false} | ✅ PASS |
 | **PERM-21** an unauthenticated caller gets 401 everywhere (no anonymous surface) | {"non_401":[]} | {"non_401":[]} | ✅ PASS |
 
 ## REPORTS — 12 passed / 0 failed / 3 known-gap
@@ -110,27 +110,33 @@
 | **REP-14** cost_centers report honours its configured filters | {"filter_changed_output":true} | {"filter_changed_output":false,"_unfiltered_rows":16,"_filtered_rows":16} | ⚠️ KNOWN-GAP |
 | **REP-15** occupancy report "as of" uses the LOCAL date, not UTC | {"tz_probe_occupied":1} | {"tz_probe_occupied":0} | ⚠️ KNOWN-GAP |
 
-## DATA — 16 passed / 0 failed / 1 known-gap
+## DATA — 23 passed / 0 failed
 
 | Scenario | Expected | Actual | Result |
 |---|---|---|---|
-| **DATA-01** room move → the next occupancy snapshot shows the NEW room | {"snapshot_room_is_new":true} | {"snapshot_room_is_new":false,"_snapshot_room":"still the OLD room"} | ⚠️ KNOWN-GAP |
-| **DATA-02** mid-month transfer A→B — 15 occupancy days each, never 31 or 29 | {"days_at_A":15,"days_at_B":15,"total":30} | {"days_at_A":15,"days_at_B":15,"total":30} | ✅ PASS |
-| **DATA-03** same-day transfer — the handover day belongs to the NEW accommodation only | {"on_handover_day":"TransferTo","rows_that_day":1} | {"on_handover_day":"TransferTo","rows_that_day":1} | ✅ PASS |
-| **DATA-04** transfer pro-rata — each site bills its own 15 days at 2000/fő/éj and its own rent share | {"net_A":30000,"net_B":30000,"cost_A":150000,"cost_B":150000} | {"net_A":30000,"net_B":30000,"cost_A":150000,"cost_B":150000} | ✅ PASS |
-| **DATA-05** expiry monitor — a visa expiring in 10 days fires in the 14-day bucket | {"alerts":1,"threshold_days":14} | {"alerts":1,"threshold_days":14} | ✅ PASS |
-| **DATA-06** expiry monitor — contract (5 days → bucket 7) and document (45 days → bucket 60) also fire | {"contract_bucket":7,"document_bucket":60} | {"contract_bucket":7,"document_bucket":60} | ✅ PASS |
-| **DATA-07** expiry monitor — an expiry 400 days out is NOT alerted (outside every window) | {"alerts":0} | {"alerts":0} | ✅ PASS |
-| **DATA-08** expiry monitor is idempotent — a second run creates no duplicate alerts | {"rows_unchanged":true,"second_run_fired":0} | {"rows_unchanged":true,"second_run_fired":0} | ✅ PASS |
-| **DATA-09** hygiene fine — toggle OFF creates nothing, even with two failing inspections | {"skipped":true,"reason":"disabled","fines":0} | {"skipped":true,"reason":"disabled","fines":0} | ✅ PASS |
-| **DATA-10** hygiene fine — 2 consecutive fails (7 pt) → exactly ONE fine, 10 000 Ft × 2 lakó | {"created":1,"fines_on_room":1,"amount_gross":20000,"residents":2,"per_resident":10000} | {"created":1,"fines_on_room":1,"amount_gross":20000,"residents":2,"per_resident":10000} | ✅ PASS |
-| **DATA-11** hygiene fine is idempotent — a second run creates 0 and reports skipped_existing | {"created":0,"skipped_existing":1,"fines_on_room":1} | {"created":0,"skipped_existing":1,"fines_on_room":1} | ✅ PASS |
-| **DATA-12** hygiene fine — a room with only ONE failing inspection is never fined | {"fines":0} | {"fines":0} | ✅ PASS |
-| **DATA-13** hygiene fine writes NO payment and NO salary deduction (deduction executor stays mothballed) | {"payments":0,"deductions":0} | {"payments":0,"deductions":0} | ✅ PASS |
-| **DATA-14** GDPR erasure — identifying fields nulled, surname pseudonymized, anonymized_at set | {"first_name":null,"mothers_name":null,"passport_number":null,"social_security_number":null,"bank_account":null,"personal_email":null,"surname_pseudonymized":true,"anonymized_at_set":true} | {"first_name":null,"mothers_name":null,"passport_number":null,"social_security_number":null,"bank_account":null,"personal_email":null,"surname_pseudonymized":true,"anonymized_at_set":true} | ✅ PASS |
-| **DATA-15** GDPR erasure emits an itemized receipt (rowcounts + file outcomes + completeness) | {"ok":true,"complete":true,"has_rowcounts":true,"files_failed":0,"receipt_persisted":true} | {"ok":true,"complete":true,"has_rowcounts":true,"files_failed":0,"receipt_persisted":true} | ✅ PASS |
-| **DATA-16** GDPR — INDEPENDENT sweep: the PII marker survives in zero text columns | {"columns_still_containing_marker":[]} | {"columns_still_containing_marker":[],"_columns_scanned":35} | ✅ PASS |
-| **DATA-17** GDPR erasure is not repeatable — a second request is refused | {"ok":false,"error":"already_anonymized"} | {"ok":false,"error":"already_anonymized"} | ✅ PASS |
+| **DATA-01** room move via the real API → the next occupancy snapshot shows the NEW room | {"status":200,"snapshot_room_is_new":true,"open_history_rows":1,"history_room_is_new":true} | {"status":200,"snapshot_room_is_new":true,"open_history_rows":1,"history_room_is_new":true} | ✅ PASS |
+| **DATA-02** consolidation approve → history followed every applied room change | {"moves_applied_gt0":true,"rows_not_matching_employee":[],"reasons":["consolidation"]} | {"moves_applied_gt0":true,"rows_not_matching_employee":[],"reasons":["consolidation"]} | ✅ PASS |
+| **DATA-03** hire via the real API → an open history row exists immediately | {"status":201,"open_rows":1,"accommodation_matches":true,"reason":"hire"} | {"status":201,"open_rows":1,"accommodation_matches":true,"reason":"hire"} | ✅ PASS |
+| **DATA-04** termination via the real API → the stay ends, the bed stops counting today | {"status":200,"open_rows":0,"covers_today":0} | {"status":200,"open_rows":0,"covers_today":0} | ✅ PASS |
+| **DATA-05** termination of a LONG-STANDING resident closes the stay instead of deleting it | {"status":200,"open_rows":0,"closed_rows":1,"covers_today":0} | {"status":200,"open_rows":0,"closed_rows":1,"covers_today":0} | ✅ PASS |
+| **DATA-06** no employee ever has two history rows covering the same day | {"overlapping_pairs":[]} | {"overlapping_pairs":[]} | ✅ PASS |
+| **DATA-07** the roster and its history agree — every housed employee has a matching open row | {"employees_out_of_sync":0} | {"employees_out_of_sync":0} | ✅ PASS |
+| **DATA-08** mid-month transfer A→B — 15 occupancy days each, never 31 or 29 | {"days_at_A":15,"days_at_B":15,"total":30} | {"days_at_A":15,"days_at_B":15,"total":30} | ✅ PASS |
+| **DATA-09** same-day transfer — the handover day belongs to the NEW accommodation only | {"on_handover_day":"TransferTo","rows_that_day":1} | {"on_handover_day":"TransferTo","rows_that_day":1} | ✅ PASS |
+| **DATA-10** transfer pro-rata — each site bills its own 15 days at 2000/fő/éj and its own rent share | {"net_A":30000,"net_B":30000,"cost_A":150000,"cost_B":150000} | {"net_A":30000,"net_B":30000,"cost_A":150000,"cost_B":150000} | ✅ PASS |
+| **DATA-11** expiry monitor — a visa expiring in 10 days fires in the 14-day bucket | {"alerts":1,"threshold_days":14} | {"alerts":1,"threshold_days":14} | ✅ PASS |
+| **DATA-12** expiry monitor — contract (5 days → bucket 7) and document (45 days → bucket 60) also fire | {"contract_bucket":7,"document_bucket":60} | {"contract_bucket":7,"document_bucket":60} | ✅ PASS |
+| **DATA-13** expiry monitor — an expiry 400 days out is NOT alerted (outside every window) | {"alerts":0} | {"alerts":0} | ✅ PASS |
+| **DATA-14** expiry monitor is idempotent — a second run creates no duplicate alerts | {"rows_unchanged":true,"second_run_fired":0} | {"rows_unchanged":true,"second_run_fired":0} | ✅ PASS |
+| **DATA-15** hygiene fine — toggle OFF creates nothing, even with two failing inspections | {"skipped":true,"reason":"disabled","fines":0} | {"skipped":true,"reason":"disabled","fines":0} | ✅ PASS |
+| **DATA-16** hygiene fine — 2 consecutive fails (7 pt) → exactly ONE fine, 10 000 Ft × 2 lakó | {"created":1,"fines_on_room":1,"amount_gross":20000,"residents":2,"per_resident":10000} | {"created":1,"fines_on_room":1,"amount_gross":20000,"residents":2,"per_resident":10000} | ✅ PASS |
+| **DATA-17** hygiene fine is idempotent — a second run creates 0 and reports skipped_existing | {"created":0,"skipped_existing":1,"fines_on_room":1} | {"created":0,"skipped_existing":1,"fines_on_room":1} | ✅ PASS |
+| **DATA-18** hygiene fine — a room with only ONE failing inspection is never fined | {"fines":0} | {"fines":0} | ✅ PASS |
+| **DATA-19** hygiene fine writes NO payment and NO salary deduction (deduction executor stays mothballed) | {"payments":0,"deductions":0} | {"payments":0,"deductions":0} | ✅ PASS |
+| **DATA-20** GDPR erasure — identifying fields nulled, surname pseudonymized, anonymized_at set | {"first_name":null,"mothers_name":null,"passport_number":null,"social_security_number":null,"bank_account":null,"personal_email":null,"surname_pseudonymized":true,"anonymized_at_set":true} | {"first_name":null,"mothers_name":null,"passport_number":null,"social_security_number":null,"bank_account":null,"personal_email":null,"surname_pseudonymized":true,"anonymized_at_set":true} | ✅ PASS |
+| **DATA-21** GDPR erasure emits an itemized receipt (rowcounts + file outcomes + completeness) | {"ok":true,"complete":true,"has_rowcounts":true,"files_failed":0,"receipt_persisted":true} | {"ok":true,"complete":true,"has_rowcounts":true,"files_failed":0,"receipt_persisted":true} | ✅ PASS |
+| **DATA-22** GDPR — INDEPENDENT sweep: the PII marker survives in zero text columns | {"columns_still_containing_marker":[]} | {"columns_still_containing_marker":[],"_columns_scanned":35} | ✅ PASS |
+| **DATA-23** GDPR erasure is not repeatable — a second request is refused | {"ok":false,"error":"already_anonymized"} | {"ok":false,"error":"already_anonymized"} | ✅ PASS |
 
 ## AUTOMATIONS — 8 passed / 0 failed
 
@@ -158,7 +164,7 @@
 
 ---
 
-## ⚠️ Known gaps (15) — documented, not regressions
+## ⚠️ Known gaps (11) — documented, not regressions
 
 These assert the CORRECT behaviour. They fail because the feature is missing or
 the bug is still open. Each flips to 🎉 FIXED automatically once closed.
@@ -168,19 +174,15 @@ the bug is still open. Each flips to 🎉 FIXED automatically once closed.
 | **CONS-13** LOCK constraint — a locked resident must never be proposed for a move | NOT BUILT — engine v1 has no do-not-move flag on employees or agent_suggestions (migs 133–135 are sandbox-only, not in … | {"lock_field_exists":true} | {"lock_field_exists":false} |
 | **CONS-14** 60-DAY STABILITY — a resident moved recently must not be moved again inside the window | NOT BUILT — consolidation_config has no stability window and the engine never reads move recency | {"stability_window_days":60,"engine_reads_move_history":true} | {"stability_window_days":null,"engine_reads_move_history":false} |
 | **CONS-15** approve → TICKET → confirm → room change (staged lifecycle) | NOT BUILT — applyGroup writes employees.room_id directly in one transaction; no ticket, no confirmation step | {"approve_creates_ticket":true,"room_change_awaits_confirmation":true} | {"approve_creates_ticket":false,"room_change_awaits_confirmation":false} |
-| **PERM-13** cross-tenant WRITE — tenant-1 operator cannot mutate a tenant-2 employee | DEEP_AUDIT #6, WRITE SIDE — employee.controller.js has no contractor_id filter in updateEmployee either, so PUT /employ… | {"row_changed":false} | {"row_changed":true,"_status":200} |
 | **PERM-14** cross-tenant READ — tenant-1 operator listing employees sees no tenant-2 rows | DEEP_AUDIT #6 — employee.controller.js has no contractor_id filter in list or detail | {"foreign_ids_returned":0} | {"foreign_ids_returned":3,"_status":200} |
 | **PERM-15** cross-tenant READ — finance endpoints scope to the caller's contractor | DEEP_AUDIT #7 — expenses / operating-costs / profit reads have no owner filter (accommodation_id is OPTIONAL, so omitti… | {"endpoints_returning_foreign_data":[]} | {"endpoints_returning_foreign_data":["/expenses → 200","/profit/by-accommodation?month=19… |
 | **PERM-16** timesheets — one tenant cannot read another tenant's logged hours by task id | DEEP_AUDIT #8 — timesheet.controller.js getByTask is WHERE ts.task_id = $1 with no tenant check, and returns each logge… | {"rows_returned":0,"foreign_email_exposed":false} | {"rows_returned":1,"foreign_email_exposed":true,"_status":200} |
 | **PERM-17** GET /rooms/:id/inspection-history requires a permission | DEEP_AUDIT #11 — rooms.routes.js:10 has no checkPermission and filters only by room_id | {"resident_status":403} | {"resident_status":200} |
 | **PERM-18** GET /analytics/overview requires a permission | DEEP_AUDIT #12 — analytics.routes.js:13 serves whole-company BI to any authenticated user | {"resident_status":403} | {"resident_status":200} |
-| **PERM-19** worker-specialization WRITES require a permission — a resident cannot create reference data | DEEP_AUDIT #13 — workerSpecialization.routes.js:12-14 POST/PATCH/DELETE are authenticateToken-only | {"status":403,"row_created":false} | {"status":201,"row_created":true} |
-| **PERM-20** GTD metadata writes are gated — a resident cannot rewrite a ticket's GTD fields | DEEP_AUDIT #16 — gtd.routes.js:231 PATCH /gtd/tickets/:id/gtd updates WHERE id=$1 with no permission gate and no tenant… | {"status":403,"ticket_modified":false} | {"status":200,"ticket_modified":true} |
 | **REP-13** employees report — Email/Telefon come from the EMPLOYEE record, not the login | DEEP_AUDIT #14 — report-scheduler.service.js:32-33 selects u.email/u.phone; company_email/personal_email are never read | {"email":"report.subject@functest.local","phone":"+36 30 000 1234"} | {"email":"","phone":""} |
 | **REP-14** cost_centers report honours its configured filters | DEEP_AUDIT #17 — generateCostSummaryData() takes no filters argument but is called generator(filters) | {"filter_changed_output":true} | {"filter_changed_output":false,"_unfiltered_rows":16,"_filtered_rows":16} |
 | **REP-15** occupancy report "as of" uses the LOCAL date, not UTC | DEEP_AUDIT #18 — report-scheduler.service.js:187 uses new Date().toISOString().slice(0,10) | {"tz_probe_occupied":1} | {"tz_probe_occupied":0} |
-| **DATA-01** room move → the next occupancy snapshot shows the NEW room | NOT WIRED — occupancy_snapshots is fed exclusively by employee_accommodation_history, and NOTHING in src/ ever writes t… | {"snapshot_room_is_new":true} | {"snapshot_room_is_new":false,"_snapshot_room":"still the OLD room"} |
 
 ---
 
-_Generated by `tests/functest/` — 90 passed / 0 failed / 15 known-gap. Regenerate with `npm run functest`._
+_Generated by `tests/functest/` — 100 passed / 0 failed / 11 known-gap. Regenerate with `npm run functest`._

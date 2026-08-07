@@ -23,6 +23,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const statusHistory = require('./entityStatusHistory.service');
+const accHistory = require('./accommodationHistory.service');
 
 const AGENT = 'room_consolidation';
 const KNOWN_SHIFTS = ['delelott', 'delutan', 'ejszaka', 'valtott'];
@@ -305,9 +306,22 @@ async function applyGroup(runId, accId = null, reviewedBy = null) {
     applied = await transaction(async (client) => {
       for (const s of pending) {
         const p = s.payload;
-        await client.query(
-          `UPDATE employees SET room_id = $1, room_number = $2, updated_at = NOW() WHERE id = $3 AND end_date IS NULL`,
+        const moved = await client.query(
+          `UPDATE employees SET room_id = $1, room_number = $2, updated_at = NOW()
+            WHERE id = $3 AND end_date IS NULL RETURNING accommodation_id, room_id`,
           [p.to_room_id, p.to_room_number || null, s.entity_id]);
+        // A consolidation move changes which ROOM the person occupies, and the daily
+        // snapshot's per-room occupant count + pro-rata rent share are keyed on it — so
+        // the move has to reach employee_accommodation_history in this same transaction.
+        if (moved.rows[0]) {
+          await accHistory.syncAssignment(client, {
+            employeeId: s.entity_id,
+            accommodationId: moved.rows[0].accommodation_id,
+            roomId: moved.rows[0].room_id,
+            reason: 'consolidation',
+            changedBy: reviewedBy,
+          });
+        }
         await client.query(
           `UPDATE agent_suggestions SET status='applied', reviewed_by=$2, reviewed_at=NOW(), applied_at=NOW() WHERE id=$1`,
           [s.id, reviewedBy]);

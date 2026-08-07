@@ -2,25 +2,25 @@
  * DATA-CHANGE INTEGRITY — seed an action, then assert the DOWNSTREAM effect.
  *
  * The question each case asks is "did the change propagate", not "did the write
- * return 200". DATA-01 is the sharpest: it performs a room move the way every
- * application path performs one (UPDATE employees.room_id) and then checks whether
- * the occupancy snapshot — the sole input to billing — reflects it.
+ * return 200". DATA-01..05 walk the housing lifecycle through the REAL application
+ * paths — room move, consolidation approve, hire, termination — and check that each one
+ * reaches employee_accommodation_history and therefore the occupancy snapshot, which is
+ * the sole input to billing. DATA-21/22 assert the two invariants that keep the chain
+ * alive: no employee covers a day twice, and the roster always matches its history.
  */
-const KNOWN_MOVE_GAP =
-  'NOT WIRED — occupancy_snapshots is fed exclusively by employee_accommodation_history, ' +
-  'and NOTHING in src/ ever writes that table (only migration 112\'s one-time backfill and the ' +
-  'sandbox seed). Room moves, accommodation transfers, hires and terminations therefore never ' +
-  'reach snapshots → billing bills a frozen roster.';
+const http = require('../lib/http');
 
 module.exports = {
   area: 'DATA',
-  title: 'room move → snapshots · transfer pro-rata · expiry · hygiene fine · GDPR erasure',
+  title: 'housing change → snapshots · transfer pro-rata · expiry · hygiene fine · GDPR erasure',
 
   async setup(ctx) {
     return {
       expiry: require('../../../src/services/expiryMonitor.service'),
       hygiene: require('../../../src/services/hygieneFine.service'),
       gdpr: require('../../../src/services/gdprAnonymization.service'),
+      accHistory: require('../../../src/services/accommodationHistory.service'),
+      superToken: http.tokenFor(ctx.ids.user.superadmin),
       state: {},
     };
   },
@@ -28,27 +28,174 @@ module.exports = {
   cases: [
     {
       id: 'DATA-01',
-      name: 'room move → the next occupancy snapshot shows the NEW room',
-      gap: KNOWN_MOVE_GAP,
-      expected: { snapshot_room_is_new: true },
-      hint: 'to close: write employee_accommodation_history on room/accommodation change (consolidation apply, Excel room assignment, employee edit, hire/termination) — or derive snapshots from employees directly',
+      name: 'room move via the real API → the next occupancy snapshot shows the NEW room',
+      expected: { status: 200, snapshot_room_is_new: true, open_history_rows: 1, history_room_is_new: true },
+      hint: 'accommodationHistory.syncAssignment runs in the same transaction as the employees UPDATE (employee.controller.js → updateEmployee)',
       sql: [
-        "-- the feed table has no application writer:",
-        "SELECT MIN(created_at), MAX(created_at), COUNT(*) FROM employee_accommodation_history;",
+        "-- the feed the snapshot reads:",
+        "SELECT accommodation_id, room_id, check_in_date, check_out_date, reason",
+        "  FROM employee_accommodation_history WHERE employee_id = '<the moved employee>' ORDER BY check_in_date;",
       ],
       run: async (ctx, st) => {
-        const [r1, r2] = ctx.ids.room.roomMove;
-        await ctx.query(`UPDATE employees SET room_id=$2 WHERE id=$1`, [ctx.ids.emp.roomMove, r2]);
+        const [, r2] = ctx.ids.room.roomMove;
+        // Move them the way the admin UI does — PUT /employees/:id, not a raw UPDATE.
+        const res = await http.put(`/employees/${ctx.ids.emp.roomMove}`, {
+          token: st.superToken, body: { room_id: r2 },
+        });
+        // The move is effective today; the fixture month is in the past, so re-open the
+        // stay from day 30 to observe the same-transaction history write on a billed day.
+        await ctx.query(
+          `UPDATE employee_accommodation_history SET check_in_date = $2::date
+            WHERE employee_id = $1 AND check_out_date IS NULL`, [ctx.ids.emp.roomMove, ctx.day(30)]);
+        await ctx.query(
+          `UPDATE employee_accommodation_history SET check_out_date = $2::date
+            WHERE employee_id = $1 AND check_out_date IS NOT NULL`, [ctx.ids.emp.roomMove, ctx.day(30)]);
         await ctx.occ.recordDailySnapshot(ctx.day(30));
         const snap = (await ctx.query(
           `SELECT room_id FROM occupancy_snapshots WHERE employee_id=$1 AND snapshot_date=$2::date`,
           [ctx.ids.emp.roomMove, ctx.day(30)])).rows[0];
+        const open = (await ctx.query(
+          `SELECT room_id FROM employee_accommodation_history WHERE employee_id=$1 AND check_out_date IS NULL`,
+          [ctx.ids.emp.roomMove])).rows;
         st.state.roomMoveTo = r2;
-        return { snapshot_room_is_new: snap?.room_id === r2, _snapshot_room: snap?.room_id === r1 ? 'still the OLD room' : snap?.room_id };
+        return {
+          status: res.status,
+          snapshot_room_is_new: snap?.room_id === r2,
+          open_history_rows: open.length,
+          history_room_is_new: open[0]?.room_id === r2,
+        };
       },
     },
     {
       id: 'DATA-02',
+      name: 'consolidation approve → history followed every applied room change',
+      expected: { moves_applied_gt0: true, rows_not_matching_employee: [], reasons: ['consolidation'] },
+      hint: 'consolidationEngine.applyGroup writes accommodationHistory inside its own transaction (the CONSOLIDATION area already approved this site)',
+      sql: [
+        "SELECT s.entity_id, h.room_id, h.reason FROM agent_suggestions s",
+        "  JOIN employee_accommodation_history h ON h.employee_id = s.entity_id AND h.check_out_date IS NULL",
+        " WHERE s.agent_name='room_consolidation' AND s.status='applied';",
+      ],
+      run: async (ctx) => {
+        // In a full run CONS-08 has already approved the solvable site, and re-generating
+        // would find it solved. When this area runs alone (--only=DATA) nothing has been
+        // applied yet, so approve a site here — the scenario must not depend on run order.
+        const already = (await ctx.query(
+          `SELECT COUNT(*)::int c FROM agent_suggestions WHERE agent_name='room_consolidation' AND status='applied'`)).rows[0].c;
+        if (already === 0) {
+          const engine = require('../../../src/services/consolidationEngine.service');
+          const run = await engine.generateRun(null);
+          const site = (await engine.getSuggestions(run.run_id))[0]?.payload?.accommodation_id;
+          if (site) await engine.applyGroup(run.run_id, site, null);
+        }
+        const applied = (await ctx.query(
+          `SELECT s.entity_id, e.room_id AS emp_room, h.room_id AS hist_room, h.reason
+             FROM agent_suggestions s
+             JOIN employees e ON e.id = s.entity_id
+             LEFT JOIN employee_accommodation_history h
+               ON h.employee_id = s.entity_id AND h.check_out_date IS NULL
+            WHERE s.agent_name='room_consolidation' AND s.status='applied'`)).rows;
+        return {
+          moves_applied_gt0: applied.length > 0,
+          rows_not_matching_employee: applied
+            .filter((r) => r.hist_room !== r.emp_room)
+            .map((r) => `${r.entity_id}: history ${r.hist_room} vs employees ${r.emp_room}`),
+          reasons: [...new Set(applied.map((r) => r.reason))],
+        };
+      },
+    },
+    {
+      id: 'DATA-03',
+      name: 'hire via the real API → an open history row exists immediately',
+      expected: { status: 201, open_rows: 1, accommodation_matches: true, reason: 'hire' },
+      run: async (ctx, st) => {
+        const res = await http.post('/employees', {
+          token: st.superToken,
+          body: { first_name: 'FTHire', last_name: ctx.tag, accommodation_id: ctx.ids.acc.t1, contractor_id: ctx.ids.client.T1 },
+        });
+        const id = res.body?.data?.employee?.id;
+        st.state.hiredId = id;
+        if (!id) return { status: res.status, open_rows: 0, error: res.body?.message };
+        const rows = (await ctx.query(
+          `SELECT accommodation_id, reason FROM employee_accommodation_history
+            WHERE employee_id=$1 AND check_out_date IS NULL`, [id])).rows;
+        return {
+          status: res.status, open_rows: rows.length,
+          accommodation_matches: rows[0]?.accommodation_id === ctx.ids.acc.t1,
+          reason: rows[0]?.reason,
+        };
+      },
+    },
+    {
+      id: 'DATA-04',
+      name: 'termination via the real API → the stay ends, the bed stops counting today',
+      expected: { status: 200, open_rows: 0, covers_today: 0 },
+      hint: 'check_out_date is the first day they are NOT there, so tonight\'s snapshot already frees the bed. A same-day hire+termination leaves no row at all — they never occupied one.',
+      run: async (ctx, st) => {
+        if (!st.state.hiredId) return { error: 'the hire scenario (DATA-03) did not create an employee' };
+        const res = await http.del(`/employees/${st.state.hiredId}`, { token: st.superToken });
+        const rows = (await ctx.query(
+          `SELECT COUNT(*) FILTER (WHERE check_out_date IS NULL)::int AS open_rows,
+                  COUNT(*) FILTER (WHERE check_in_date <= CURRENT_DATE
+                                     AND (check_out_date IS NULL OR check_out_date > CURRENT_DATE))::int AS covers_today
+             FROM employee_accommodation_history WHERE employee_id=$1`, [st.state.hiredId])).rows[0];
+        return { status: res.status, open_rows: rows.open_rows, covers_today: rows.covers_today };
+      },
+    },
+    {
+      id: 'DATA-05',
+      name: 'termination of a LONG-STANDING resident closes the stay instead of deleting it',
+      expected: { status: 200, open_rows: 0, closed_rows: 1, covers_today: 0 },
+      hint: 'the same-day case in DATA-04 removes the row; a stay that already ran must be CLOSED so past billing keeps its days',
+      run: async (ctx, st) => {
+        // Someone who checked in a week ago — the ordinary termination shape.
+        const res0 = await http.post('/employees', {
+          token: st.superToken,
+          body: { first_name: 'FTLeaver', last_name: ctx.tag, accommodation_id: ctx.ids.acc.t1, contractor_id: ctx.ids.client.T1 },
+        });
+        const id = res0.body?.data?.employee?.id;
+        if (!id) return { error: `hire failed: ${res0.body?.message}` };
+        await ctx.query(
+          `UPDATE employee_accommodation_history SET check_in_date = CURRENT_DATE - 7
+            WHERE employee_id = $1 AND check_out_date IS NULL`, [id]);
+        const res = await http.del(`/employees/${id}`, { token: st.superToken });
+        const rows = (await ctx.query(
+          `SELECT COUNT(*) FILTER (WHERE check_out_date IS NULL)::int AS open_rows,
+                  COUNT(*) FILTER (WHERE check_out_date IS NOT NULL)::int AS closed_rows,
+                  COUNT(*) FILTER (WHERE check_in_date <= CURRENT_DATE
+                                     AND (check_out_date IS NULL OR check_out_date > CURRENT_DATE))::int AS covers_today
+             FROM employee_accommodation_history WHERE employee_id=$1`, [id])).rows[0];
+        return { status: res.status, open_rows: rows.open_rows, closed_rows: rows.closed_rows, covers_today: rows.covers_today };
+      },
+    },
+    {
+      id: 'DATA-06',
+      name: 'no employee ever has two history rows covering the same day',
+      expected: { overlapping_pairs: [] },
+      hint: 'recordDailySnapshot inserts ON CONFLICT (snapshot_date, employee_id) — a double-covered day would abort the snapshot for EVERYONE',
+      run: async (ctx, st) => {
+        const rows = await st.accHistory.findOverlaps();
+        return { overlapping_pairs: rows.map((r) => `${r.employee_id}: [${r.a_in}→${r.a_out || '∞'}] vs [${r.b_in}→${r.b_out || '∞'}]`) };
+      },
+    },
+    {
+      id: 'DATA-07',
+      name: 'the roster and its history agree — every housed employee has a matching open row',
+      expected: { employees_out_of_sync: 0 },
+      hint: 'this is the invariant the frozen-roster bug violated; the backfill script asserts the same thing',
+      run: async (ctx) => ({
+        employees_out_of_sync: (await ctx.query(
+          `SELECT COUNT(*)::int c FROM employees e
+            WHERE e.end_date IS NULL AND e.accommodation_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM employee_accommodation_history h
+                 WHERE h.employee_id = e.id AND h.check_out_date IS NULL
+                   AND h.accommodation_id = e.accommodation_id
+                   AND h.room_id IS NOT DISTINCT FROM e.room_id)`)).rows[0].c,
+      }),
+    },
+    {
+      id: 'DATA-08',
       name: 'mid-month transfer A→B — 15 occupancy days each, never 31 or 29',
       expected: { days_at_A: 15, days_at_B: 15, total: 30 },
       run: async (ctx) => {
@@ -61,7 +208,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-03',
+      id: 'DATA-09',
       name: 'same-day transfer — the handover day belongs to the NEW accommodation only',
       expected: { on_handover_day: 'TransferTo', rows_that_day: 1 },
       hint: 'check_out_date is the first day they are no longer there (migration 112 decision #5)',
@@ -73,7 +220,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-04',
+      id: 'DATA-10',
       name: 'transfer pro-rata — each site bills its own 15 days at 2000/fő/éj and its own rent share',
       expected: { net_A: 30000, net_B: 30000, cost_A: 150000, cost_B: 150000 },
       run: async (ctx) => {
@@ -88,7 +235,7 @@ module.exports = {
 
     /* ── expiry monitor ── */
     {
-      id: 'DATA-05',
+      id: 'DATA-11',
       name: 'expiry monitor — a visa expiring in 10 days fires in the 14-day bucket',
       expected: { alerts: 1, threshold_days: 14 },
       hint: 'baseline rule thresholds [60,30,14,7]; the bucket is the smallest T with daysUntil ≤ T',
@@ -100,7 +247,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-06',
+      id: 'DATA-12',
       name: 'expiry monitor — contract (5 days → bucket 7) and document (45 days → bucket 60) also fire',
       expected: { contract_bucket: 7, document_bucket: 60 },
       run: async (ctx) => {
@@ -112,7 +259,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-07',
+      id: 'DATA-13',
       name: 'expiry monitor — an expiry 400 days out is NOT alerted (outside every window)',
       expected: { alerts: 0 },
       run: async (ctx) => ({
@@ -121,7 +268,7 @@ module.exports = {
       }),
     },
     {
-      id: 'DATA-08',
+      id: 'DATA-14',
       name: 'expiry monitor is idempotent — a second run creates no duplicate alerts',
       expected: { rows_unchanged: true, second_run_fired: 0 },
       run: async (ctx, st) => {
@@ -134,7 +281,7 @@ module.exports = {
 
     /* ── hygiene house-rule fine ── */
     {
-      id: 'DATA-09',
+      id: 'DATA-15',
       name: 'hygiene fine — toggle OFF creates nothing, even with two failing inspections',
       expected: { skipped: true, reason: 'disabled', fines: 0 },
       run: async (ctx, st) => {
@@ -146,7 +293,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-10',
+      id: 'DATA-16',
       name: 'hygiene fine — 2 consecutive fails (7 pt) → exactly ONE fine, 10 000 Ft × 2 lakó',
       expected: { created: 1, fines_on_room: 1, amount_gross: 20000, residents: 2, per_resident: 10000 },
       hint: 'hygieneFine.service.js: latest N completed inspections all with hygiene_score ≤ fail_hygiene_max',
@@ -168,7 +315,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-11',
+      id: 'DATA-17',
       name: 'hygiene fine is idempotent — a second run creates 0 and reports skipped_existing',
       expected: { created: 0, skipped_existing: 1, fines_on_room: 1 },
       run: async (ctx, st) => {
@@ -179,7 +326,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-12',
+      id: 'DATA-18',
       name: 'hygiene fine — a room with only ONE failing inspection is never fined',
       expected: { fines: 0 },
       run: async (ctx) => ({
@@ -188,7 +335,7 @@ module.exports = {
       }),
     },
     {
-      id: 'DATA-13',
+      id: 'DATA-19',
       name: 'hygiene fine writes NO payment and NO salary deduction (deduction executor stays mothballed)',
       expected: { payments: 0, deductions: 0 },
       hint: 'the fine is a debt record + resident notification only — see PROJECT_STATE decisions log 2026-07-05',
@@ -206,7 +353,7 @@ module.exports = {
 
     /* ── GDPR erasure ── */
     {
-      id: 'DATA-14',
+      id: 'DATA-20',
       name: 'GDPR erasure — identifying fields nulled, surname pseudonymized, anonymized_at set',
       expected: { first_name: null, mothers_name: null, passport_number: null, social_security_number: null,
                   bank_account: null, personal_email: null, surname_pseudonymized: true, anonymized_at_set: true },
@@ -225,7 +372,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-15',
+      id: 'DATA-21',
       name: 'GDPR erasure emits an itemized receipt (rowcounts + file outcomes + completeness)',
       expected: { ok: true, complete: true, has_rowcounts: true, files_failed: 0, receipt_persisted: true },
       run: async (ctx, st) => {
@@ -242,7 +389,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-16',
+      id: 'DATA-22',
       name: 'GDPR — INDEPENDENT sweep: the PII marker survives in zero text columns',
       expected: { columns_still_containing_marker: [] },
       hint: 'scans every text/varchar column of employees + users for the seeded marker, without trusting the receipt',
@@ -262,7 +409,7 @@ module.exports = {
       },
     },
     {
-      id: 'DATA-17',
+      id: 'DATA-23',
       name: 'GDPR erasure is not repeatable — a second request is refused',
       expected: { ok: false, error: 'already_anonymized' },
       run: async (ctx, st) => {

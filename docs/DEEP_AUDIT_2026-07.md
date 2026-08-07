@@ -18,17 +18,17 @@
 | 3 | **Permissions — invoice-drafts reads open to residents** | ✅ FIXED | FUNCTION | **critical** | Was: `invoiceDraft.routes.js:38-40` reads ungated (+ upload/update/re-ocr writes). **Fixed 2026-07-19**: `checkPermission('settings.edit')` on all (reads + the ungated writes) + `contractor_id` scoping. **Live-verified: resident → 403.** |
 | 4 | **Permissions — analytics pulse cross-tenant override** | ✅ FIXED | FUNCTION | **critical** | Was: `/pulse/*` ungated + trusted client `?contractorId`. **Fixed 2026-07-19**: `checkPermission('wellbeing.admin.view')` + server-side `tenantId(req)` (client `?contractorId` honoured only for superadmin). **Live-verified: resident → 403 even with `?contractorId=`.** |
 | 5 | **Profit dashboard omits the rent cost** | ✅ FIXED | FUNCTION | **high** | Was: `profit.service.js:108` `profit = income − expenses` (no rent) → overstated profit (AUDIT-B: +80k/100% shown for a −240k loss). **Fixed 2026-07-19** (`0e0717f2`): rent = `SUM(cost_amount) − expenses`; profit = income − (expenses + rent) = income − cost_amount ≡ billing engine `margin_amount`. `rent`/`total_rent` added to API + a "Bérleti díj" column in Billing Tab 4. Test: `profit.script.js` +4 reconciliation cases. **Live-verified: API returns `total_rent`; total_profit reconciles with engine margin.** |
-| 6 | **Permissions — employees list+detail unscoped** | BUG | FUNCTION | **high** | `employee.controller.js:227,379`: no `contractor_id` filter anywhere in the controller. A tenant-scoped `employees.view` account (per-contractor `user_roles`) reads all tenants' employee PII (tax id, passport, SSN, bank). code-analysis. *Caveat: may be intended single-operator model — confirm whether client-scoped staff logins exist.* |
+| 6 | **Permissions — employees list+detail unscoped** | ⚠️ WRITE FIXED, reads open | FUNCTION | **high** | **2026-08-07:** the WRITE side is closed — `updateEmployee` refuses a foreign `contractor_id` (FUNCTEST PERM-13, live-verified). Reads still unscoped: `employee.controller.js:227,379`: no `contractor_id` filter anywhere in the controller. A tenant-scoped `employees.view` account (per-contractor `user_roles`) reads all tenants' employee PII (tax id, passport, SSN, bank). code-analysis. *Caveat: may be intended single-operator model — confirm whether client-scoped staff logins exist.* |
 | 7 | **Permissions — finance reads unscoped (invoices/expenses/salary/operating-costs/occupancy reports)** | BUG | FUNCTION | **high** | No read query filters the owning contractor: `invoice.controller` (~89,136), `expense.service` (~40,119 + file download ~336 streams any expense's attachment by id), `salary.controller` (~319,675), `operatingCosts`/`profit` (`accommodation_id` optional → omit = all), `report.routes.js:45,51,57` occupancy reports leak resident names across tenants. code-analysis. Same single-operator caveat as #6. |
 | 8 | **Permissions — tasks + timesheets action-gated but not tenant-scoped** | BUG | FUNCTION | **high** | `task.controller.js:135,316,407…` keyed by id, no tenant check (PUT can even reassign `contractor_id` via body); sharpest: `timesheet.controller.js:99,219` `GET /timesheets/task/:taskId` gives a `timesheets.view_own` holder **everyone's** hours+email for any task/project in any tenant. code-analysis. |
 | 9 | **Consolidation — WORKPLACE constraint not enforced** | ✅ FIXED | FUNCTION | **high** | Was: engine never read `workplace` → merged Mercedes+Audi etc. **Fixed 2026-07-19** (`0e0717f2`): cohort key is now (gender × shift × workplace); `groupValid` rejects mixed workplace; an employee missing shift OR workplace is flagged + never placed (`flagged_incomplete`). Constraint-proof test asserts **zero workplace violations on every suggestion of a full run** (+ cross-workplace-blocked, empty-workplace-flagged). **Live-verified: engine executed, log shows the new "missing shift or workplace" flagging.** |
 | 10 | **Billing revenue = client_night_rates (unconfigured on prod)** | ⚙️ TOOLING SHIPPED | DATA | **high** | Was: revenue only from `client_night_rates` (1 unusable prod row) → both calculated runs revenue 0.00. **2026-07-19 (`7f8eeab6`):** shipped the full per-client billing package Phase 1 (deployed + live) — enter per-client rates with **basis (per_person/flat, prorated), VAT (27%/áfamentes), invoicing on/off, legal type (company/private=payroll-handoff)** on the "Számlázási díjak" page, with a **coverage view** that flags every silent-$0 gap. Live coverage already shows the real gap: **10 accommodations have workers with no `billing_client_id`**. Now a **data-entry task** (set billing_client per worker + client profiles + rates), not a code/config gap. Phase 2 = six-line utilities matrix. |
 | 11 | **Permissions — rooms inspection-history no gate/scope** | BUG | FUNCTION | **medium** | `rooms.routes.js:10` `GET /rooms/:id/inspection-history` — no `checkPermission`, `WHERE room_id=$1` only. Any authenticated user (resident) reads any accommodation's inspection history by room UUID. code-analysis. |
 | 12 | **Permissions — analytics/overview global BI, no gate** | BUG | FUNCTION | **medium** | `analytics.routes.js:13` `GET /analytics/overview` → whole-company occupancy/SLA/workforce metrics to any authenticated user incl. residents. code-analysis. |
-| 13 | **Permissions — worker-specialization writes no gate** | BUG | FUNCTION | **medium** | `workerSpecialization.routes.js:12-14` POST/PATCH/DELETE are `authenticateToken`-only → a resident can create/modify/delete this reference data. code-analysis. |
+| 13 | **Permissions — worker-specialization writes no gate** | ✅ FIXED | FUNCTION | **medium** | **Fixed 2026-08-07:** POST/PATCH/DELETE now require `employees.edit` **and** verify the target user's contractor (superadmin bypass). Live-verified: a resident POST with a valid body went 201→403 and no row is created (FUNCTEST PERM-19). Was: `workerSpecialization.routes.js:12-14` POST/PATCH/DELETE are `authenticateToken`-only → a resident can create/modify/delete this reference data. code-analysis. |
 | 14 | **Report (employees) — Email/Telefon from wrong source** | BUG | FUNCTION | **medium** | `report-scheduler.service.js:32-33,54-55` pulls `u.email`/`u.phone` (login-gated `users`, 2/288) instead of `employees.company_email`/`personal_email`. Stays blank even after HR fills company contact. The correct `COALESCE(e.company_email,u.email)` pattern exists elsewhere. code-analysis + column existence **verified**. |
 | 15 | **Report (employees) — Munkakör / Vízum lejárat blank** | DATA-GAP | DATA | medium | `position` 0/288, `visa_expiry` 2/288 on prod → those labelled columns come out empty. Code correct. (`:56,62`) |
-| 16 | **Permissions — GTD metadata writes on shared rows, no gate/scope** | BUG | FUNCTION | low | `gtd.routes.js:231,331` `PATCH /gtd/tickets/:id/gtd` + `/projects/:id/gtd` → `UPDATE … WHERE id=$1`, no tenant check. Cross-tenant metadata write. code-analysis. |
+| 16 | **Permissions — GTD metadata writes on shared rows, no gate/scope** | ✅ FIXED | FUNCTION | low | **Fixed 2026-08-07:** `/gtd/tickets/:id/gtd` requires `tickets.edit`, `/gtd/projects/:id/gtd` requires `projects.edit`, both with a contractor predicate in the UPDATE. Live-verified: a resident PATCH on a real ticket went 200→403 and the row is untouched (FUNCTEST PERM-20). Was: `gtd.routes.js:231,331` `PATCH /gtd/tickets/:id/gtd` + `/projects/:id/gtd` → `UPDATE … WHERE id=$1`, no tenant check. Cross-tenant metadata write. code-analysis. |
 | 17 | **Report (cost_centers) — filters silently ignored** | BUG | FUNCTION | low | `generateCostSummaryData()` takes no `filters` arg but is called `generator(filters)` (`:232` vs `:333`). Any configured filter is dropped. code-analysis. |
 | 18 | **Report (occupancy) — "as of" date uses toISOString() (UTC)** | BUG | FUNCTION | cosmetic/low | `:187` `new Date().toISOString().slice(0,10)` → UTC boundary; between 00:00–02:00 CEST it's yesterday. Reports run 08:00 so near-nil impact, but it's the one real UTC-shift instance. code-analysis. |
 | 19 | **Billing — rent-cost rounding drift** | BUG | FUNCTION | cosmetic | Per-day `round2` accumulation drifts totals by ≤ pennies: a fully-occupied 300,000 room billed **299,999.84** (16 fillér short). **verified**. Cost-side only (client is billed revenue), so immaterial. |
@@ -52,22 +52,27 @@ run and flip to 🎉 FIXED automatically once closed — no test changes needed.
 19 and 21–28 are covered as ordinary PASS scenarios, so a regression on any of them turns the
 suite red.
 
-Three of the code-analysis findings were **executed live** and turned out to be sharper than
-recorded:
+Three of the code-analysis findings were **executed live**, turned out to be sharper than
+recorded, and have now been **FIXED** (2026-08-07):
 
 - **#6 is also a cross-tenant WRITE.** `PUT /employees/:id` let a tenant-1 `data_controller`
   mutate a tenant-2 employee row (FUNCTEST `PERM-13`). The row above describes reads only;
-  `updateEmployee` has the same missing filter.
+  `updateEmployee` had the same missing filter. ✅ **Write side fixed** — `updateEmployee` now
+  refuses a foreign owner. The READ side of #6 is still open (`PERM-14`).
 - **#13 is an effective write.** A resident login got **201 and a real `worker_specializations`
-  row was created** (`PERM-19`) — not merely an ungated route.
+  row was created** (`PERM-19`) — not merely an ungated route. ✅ **Fixed** — POST/PATCH/DELETE
+  now require `employees.edit` and check the target user's tenant.
 - **#16 is an effective write.** A resident login got **200 and a real ticket's GTD metadata
-  changed** (`PERM-20`).
+  changed** (`PERM-20`). ✅ **Fixed** — `PATCH /gtd/tickets/:id/gtd` requires `tickets.edit`
+  (projects: `projects.edit`), both tenant-scoped in the UPDATE.
 
-One finding NOT in this audit surfaced during the same work: **`employee_accommodation_history`
-has no application writer**, so room moves / transfers / hires never reach `occupancy_snapshots`
-and billing runs on the migration-112 roster. Row #21 passed only because that harness seeded
-history rows by hand — it proved the engine, not the feed. See PROJECT_STATE tech debt and
-FUNCTEST `DATA-01`.
+One finding NOT in this audit surfaced during the same work and has also been fixed:
+**`employee_accommodation_history` had no application writer**, so room moves / transfers /
+hires never reached `occupancy_snapshots` and billing ran on the migration-112 roster. Row #21
+passed only because that harness seeded history rows by hand — it proved the engine, not the
+feed. ✅ **Fixed** — `accommodationHistory.service.js` now writes history in the same
+transaction as every housing change, with `scripts/backfill-accommodation-history.js` for the
+frozen backlog. See PROJECT_STATE and FUNCTEST `DATA-01..07`.
 
 ---
 

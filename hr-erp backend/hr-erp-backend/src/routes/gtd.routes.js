@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permission');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 
@@ -228,9 +229,17 @@ router.delete('/tasks/:id', async (req, res) => {
 // ─── TICKET GTD FIELDS ─────────────────────────────────────────────
 
 // PATCH /tickets/:id/gtd - update GTD metadata on a ticket
-router.patch('/tickets/:id/gtd', async (req, res) => {
+// GATED + TENANT-SCOPED (DEEP_AUDIT #16 — FUNCTEST PERM-20). This was
+// authenticateToken-only with `WHERE id = $1`, so a resident login could rewrite ANY
+// tenant's ticket metadata — verified live (200, and the ticket actually changed).
+// It edits a ticket, so it rides on tickets.edit; the contractor predicate keeps one
+// tenant out of another's rows (superadmin bypasses, NULL-owned rows stay writable).
+router.patch('/tickets/:id/gtd', checkPermission('tickets.edit'), async (req, res) => {
   try {
     const { gtd_context, gtd_energy_level, gtd_time_estimate, gtd_waiting_for, gtd_is_actionable } = req.body;
+    const scoped = req.user?.roles?.includes('superadmin')
+      ? { sql: '', params: [] }
+      : { sql: ' AND (contractor_id IS NULL OR contractor_id = $7)', params: [req.user?.contractorId || null] };
 
     const result = await query(
       `UPDATE tickets SET
@@ -239,8 +248,8 @@ router.patch('/tickets/:id/gtd', async (req, res) => {
         gtd_time_estimate = COALESCE($4, gtd_time_estimate),
         gtd_waiting_for = $5,
         gtd_is_actionable = COALESCE($6, gtd_is_actionable)
-       WHERE id = $1 RETURNING id, gtd_context, gtd_energy_level, gtd_time_estimate, gtd_waiting_for, gtd_is_actionable`,
-      [req.params.id, gtd_context, gtd_energy_level, gtd_time_estimate, gtd_waiting_for, gtd_is_actionable]
+       WHERE id = $1${scoped.sql} RETURNING id, gtd_context, gtd_energy_level, gtd_time_estimate, gtd_waiting_for, gtd_is_actionable`,
+      [req.params.id, gtd_context, gtd_energy_level, gtd_time_estimate, gtd_waiting_for, gtd_is_actionable, ...scoped.params]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Ticket not found' });
@@ -328,17 +337,21 @@ router.get('/projects', async (req, res) => {
 });
 
 // PATCH /projects/:id/gtd - update GTD metadata on a project
-router.patch('/projects/:id/gtd', async (req, res) => {
+// Same hole, same fix (DEEP_AUDIT #16 lists both project + ticket GTD writes).
+router.patch('/projects/:id/gtd', checkPermission('projects.edit'), async (req, res) => {
   try {
     const { gtd_outcome, gtd_status, gtd_last_reviewed_at } = req.body;
+    const scoped = req.user?.roles?.includes('superadmin')
+      ? { sql: '', params: [] }
+      : { sql: ' AND (contractor_id IS NULL OR contractor_id = $5)', params: [req.user?.contractorId || null] };
     const result = await query(
       `UPDATE projects SET
         gtd_outcome = COALESCE($2, gtd_outcome),
         gtd_status = COALESCE($3, gtd_status),
         gtd_last_reviewed_at = COALESCE($4, gtd_last_reviewed_at),
         updated_at = NOW()
-       WHERE id = $1 RETURNING id, name, gtd_outcome, gtd_status, gtd_last_reviewed_at`,
-      [req.params.id, gtd_outcome, gtd_status, gtd_last_reviewed_at]
+       WHERE id = $1${scoped.sql} RETURNING id, name, gtd_outcome, gtd_status, gtd_last_reviewed_at`,
+      [req.params.id, gtd_outcome, gtd_status, gtd_last_reviewed_at, ...scoped.params]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Project not found' });

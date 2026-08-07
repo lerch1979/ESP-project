@@ -129,16 +129,15 @@ module.exports = {
     {
       id: 'PERM-13',
       name: 'cross-tenant WRITE — tenant-1 operator cannot mutate a tenant-2 employee',
-      gap: 'DEEP_AUDIT #6, WRITE SIDE — employee.controller.js has no contractor_id filter in updateEmployee either, so PUT /employees/:id succeeds across tenants. The audit documented #6 as a read leak; this confirms it is also a cross-tenant MUTATION.',
-      expected: { row_changed: false },
-      hint: 'a blocking 403/404 AND a validation 400 both satisfy "no cross-tenant mutation" — an applied UPDATE does not',
+      expected: { row_changed: false, status: 403 },
+      hint: 'updateEmployee now refuses a foreign contractor_id before building the UPDATE (superadmin bypasses; NULL-owned rows stay writable)',
       run: async (ctx, st) => {
         const probe = 'FUNCTEST-CROSSTENANT-PROBE';
         const before = (await ctx.query(`SELECT notes FROM employees WHERE id=$1`, [ctx.ids.emp.t2])).rows[0].notes;
         const r = await http.put(`/employees/${ctx.ids.emp.t2}`, { token: st.token.data_controller, body: { notes: probe } });
         const after = (await ctx.query(`SELECT notes FROM employees WHERE id=$1`, [ctx.ids.emp.t2])).rows[0].notes;
         if (after === probe) await ctx.query(`UPDATE employees SET notes=$2 WHERE id=$1`, [ctx.ids.emp.t2, before]);
-        return { row_changed: after === probe, _status: r.status };
+        return { row_changed: after === probe, status: r.status };
       },
     },
     {
@@ -215,7 +214,6 @@ module.exports = {
     {
       id: 'PERM-19',
       name: 'worker-specialization WRITES require a permission — a resident cannot create reference data',
-      gap: 'DEEP_AUDIT #13 — workerSpecialization.routes.js:12-14 POST/PATCH/DELETE are authenticateToken-only',
       expected: { status: 403, row_created: false },
       hint: 'sent a fully VALID body, so a non-403 means the write actually landed — not a validation bounce',
       run: async (ctx, st) => {
@@ -234,7 +232,6 @@ module.exports = {
     {
       id: 'PERM-20',
       name: 'GTD metadata writes are gated — a resident cannot rewrite a ticket\'s GTD fields',
-      gap: 'DEEP_AUDIT #16 — gtd.routes.js:231 PATCH /gtd/tickets/:id/gtd updates WHERE id=$1 with no permission gate and no tenant check',
       expected: { status: 403, ticket_modified: false },
       hint: 'targets a REAL ticket, so a 200 means the resident actually mutated another tenant\'s row',
       run: async (ctx, st) => {
