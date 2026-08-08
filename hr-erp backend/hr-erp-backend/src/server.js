@@ -32,6 +32,7 @@ const calendarRoutes = require('./routes/calendar.routes');
 const documentRoutes = require('./routes/document.routes');
 const googleCalendarRoutes = require('./routes/google-calendar.routes');
 const videoRoutes = require('./routes/video.routes');
+const videoCommsRoutes = require('./routes/videoComms.routes');
 const searchRoutes = require('./routes/search.routes');
 const notificationCenterRoutes = require('./routes/notification-center.routes');
 const pushRoutes = require('./routes/push.routes');
@@ -382,6 +383,7 @@ app.use(`${API_PREFIX}/calendar`, calendarRoutes);
 app.use(`${API_PREFIX}/documents`, documentRoutes);
 app.use(`${API_PREFIX}/calendar/google`, googleCalendarRoutes);
 app.use(`${API_PREFIX}/videos`, videoRoutes);
+app.use(`${API_PREFIX}/video-comms`, videoCommsRoutes);
 app.use(`${API_PREFIX}/search`, searchRoutes);
 app.use(`${API_PREFIX}/notification-center`, notificationCenterRoutes);
 app.use(`${API_PREFIX}/push`, pushRoutes);
@@ -551,6 +553,10 @@ async function startServer() {
     // check-ins, materialized view refresh). All schedules + handlers defined
     // in config/cronSchedule.js — this call wires them into node-cron.
     require('./config/cronSchedule').initializeWellbeingCronJobs();
+
+    // Resident video communication (mig 143): the daily sequence driver (move-in drips,
+    // employment-start drips, annual calendar series) + the mandatory-notice re-nag.
+    require('./config/cronSchedule').initializeVideoCommunicationJobs();
 
     // Daily database backup at 02:00 — OPT-IN (default OFF). This in-app job
     // runs a bash pg_dump script and defaults its destination to

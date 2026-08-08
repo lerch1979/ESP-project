@@ -12,8 +12,33 @@ const {
   refreshWellbeingSummary,
 } = require('../services/cron/wellbeingCronJobs');
 const slackBotService = require('../services/slack/slackBot.service');
+const videoSequences = require('../services/videoSequence.service');
+const videoAnnounce = require('../services/videoAnnounce.service');
 
 const TZ = 'Europe/Budapest';
+
+/**
+ * Resident video communication (mig 143) — ONE daily job drives every sequence type:
+ * move-in drips, employment-start drips and annually-recurring calendar series. Runs at
+ * 09:30 local so a push lands in waking hours rather than overnight.
+ *
+ * Both halves are internally idempotent (unique (sequence_id, step_id, user_id) and a
+ * renag_sent_at stamp), so a restart or a manual re-run cannot double-send.
+ */
+function initializeVideoCommunicationJobs() {
+  cron.schedule('30 9 * * *', wrap('videoSequences', async () => {
+    const r = await videoSequences.runDaily({});
+    logger.info(`[cron:videoSequences] ${JSON.stringify(r)}`);
+  }), { timezone: TZ });
+
+  // Mandatory-notice reminder: one nudge, once, if still unwatched after N days.
+  cron.schedule('0 17 * * *', wrap('videoMandatoryRenag', async () => {
+    const r = await videoAnnounce.runRenags({});
+    logger.info(`[cron:videoMandatoryRenag] ${JSON.stringify(r)}`);
+  }), { timezone: TZ });
+
+  logger.info('🎬 Video communication crons scheduled (sequences 09:30, mandatory re-nag 17:00)');
+}
 
 function initializeWellbeingCronJobs() {
   // 1. Daily pulse reminder — 9:00 AM Mon-Fri
@@ -64,4 +89,4 @@ function wrap(name, fn) {
   };
 }
 
-module.exports = { initializeWellbeingCronJobs };
+module.exports = { initializeWellbeingCronJobs, initializeVideoCommunicationJobs };

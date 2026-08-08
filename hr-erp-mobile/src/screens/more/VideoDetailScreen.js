@@ -4,7 +4,9 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
-import { videosAPI } from '../../services/api';
+import { videoApiFor } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
 import { VIDEO_CAT_KEY } from '../../components/VideoCard';
 import { formatDate } from '../../utils/locale';
 
@@ -41,6 +43,10 @@ function getEmbedUrl(url) {
 export default function VideoDetailScreen({ route }) {
   const { t, i18n } = useTranslation();
   const { videoId } = route.params;
+  // Self-scoped for residents (Path B) — /videos/my/:id also resolves playback_url to
+  // the caller's own language, falling back to the video's base language.
+  const { user } = useAuth();
+  const api = videoApiFor(isResident(user));
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,10 +59,10 @@ export default function VideoDetailScreen({ route }) {
     setLoading(true);
     setError(null);
     try {
-      const result = await videosAPI.getById(videoId);
+      const result = await api.getById(videoId);
       setVideo(result.data);
       // Record view
-      videosAPI.recordView(videoId).catch(() => {});
+      api.recordView(videoId).catch(() => {});
     } catch (err) {
       setError(t('video.loadFailedOne'));
     } finally {
@@ -66,7 +72,7 @@ export default function VideoDetailScreen({ route }) {
 
   const handleMarkCompleted = async () => {
     try {
-      await videosAPI.recordView(videoId, { completed: true });
+      await api.recordView(videoId, { completed: true });
       // Show brief feedback by reloading
       loadVideo();
     } catch (err) {

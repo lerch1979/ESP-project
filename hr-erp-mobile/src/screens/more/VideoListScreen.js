@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
-import { videosAPI } from '../../services/api';
+import { videoApiFor } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { isResident } from '../../utils/roles';
 import SearchBar from '../../components/SearchBar';
 import FilterChips from '../../components/FilterChips';
 import VideoCard from '../../components/VideoCard';
@@ -21,6 +23,10 @@ const CATEGORY_OPTIONS = [
 
 export default function VideoListScreen({ navigation }) {
   const { t } = useTranslation();
+  // Residents are served by the self-scoped /videos/my library (Path B): the staff
+  // /videos endpoints are videos.view-gated and would 403 for them.
+  const { user } = useAuth();
+  const api = videoApiFor(isResident(user));
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -43,7 +49,7 @@ export default function VideoListScreen({ navigation }) {
       if (search) params.search = search;
       if (category) params.category = category;
 
-      const result = await videosAPI.getAll(params);
+      const result = await api.getAll(params);
       const newVideos = result.data.videos;
 
       if (isLoadMore) {
@@ -60,7 +66,7 @@ export default function VideoListScreen({ navigation }) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [search, category]);
+  }, [search, category, api]);
 
   useEffect(() => {
     loadVideos(1);

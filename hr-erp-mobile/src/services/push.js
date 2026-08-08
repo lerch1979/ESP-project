@@ -84,6 +84,10 @@ export async function unregisterPushToken() {
 // type isn't routable. Used by the tap handler in App.js.
 export function routeForNotification(data) {
   if (!data || !data.type) return null;
+  // Video announcement (mig 143) — tapping the push opens that video straight away.
+  if (data.type === 'video_announcement' && data.video_id) {
+    return { tab: 'More', nested: { screen: 'VideoDetail', params: { videoId: data.video_id } } };
+  }
   if (data.type === 'ticket_message' && data.ticket_id) {
     return { tab: 'Tickets', nested: { screen: 'TicketDetail', params: { id: data.ticket_id } } };
   }

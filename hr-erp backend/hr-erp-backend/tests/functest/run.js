@@ -48,6 +48,7 @@ const MODULES = [
   './scenarios/permissions',
   './scenarios/reports',
   './scenarios/dataIntegrity',
+  './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',
 ];

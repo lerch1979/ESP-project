@@ -69,6 +69,9 @@ const authenticateToken = async (req, res, next) => {
       contractorSlug: user.contractor_slug,
       roles: user.roles,
       roleNames: user.roleNames,
+      // Resident-facing content (videos, notifications, chatbot, FAQ) is served in the
+      // caller's own language; carrying it on req.user saves a lookup per request.
+      preferredLanguage: user.preferred_language || 'hu',
       permissions: permissions
     };
 

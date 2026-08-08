@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Tabs, Tab } from '@mui/material';
+import VideoCommsPanel from '../components/VideoCommsPanel';
 import {
   Box,
   Typography,
@@ -67,6 +69,7 @@ function Videos() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [commsTab, setCommsTab] = useState(0);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -155,6 +158,17 @@ function Videos() {
         )}
       </Box>
 
+      {/* Videótár (a meglévő könyvtár) vs. Kommunikáció (küldés, sorozatok, nézettség).
+          A küldő oldal külön fülön él, hogy a videótár CRUD-ja érintetlen maradjon. */}
+      <Tabs value={commsTab} onChange={(e, v) => setCommsTab(v)}
+        sx={{ mb: 2, '& .Mui-selected': { color: '#8B6B33' }, '& .MuiTabs-indicator': { bgcolor: '#8B6B33' } }}>
+        <Tab label="Videótár" />
+        <Tab label="Kommunikáció (küldés & sorozatok)" />
+      </Tabs>
+
+      {commsTab === 1 && <VideoCommsPanel />}
+
+      {commsTab === 0 && (<Box>
       {/* Search */}
       <TextField
         placeholder="Keresés videók között..."
@@ -390,6 +404,8 @@ function Videos() {
       )}
 
       {/* Create modal */}
+      </Box>)}
+
       <CreateVideoModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}

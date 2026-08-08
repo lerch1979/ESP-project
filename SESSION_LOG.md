@@ -6,6 +6,30 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-08-08b — Resident video communication built (mig 143, SANDBOX ONLY, not deployed)
+
+Residents get information as VIDEO in their own language, by push, targeted to whoever it concerns, plus a permanent searchable library. Three send modes funnel through ONE path so translation, push, delivery logging and watch evidence behave identically however a video was triggered.
+
+**Inventory first — and a lot already existed.** `videos` / `video_versions` (per-language `playback_url` + `provider_asset_id`, Synthesia-shaped) / `video_subtitles` / `video_views` (progress, completed, `language_watched`) and a `getCompliance` endpoint were all built and unused (0 rows on prod). Push was fully wired end-to-end: `expo-server-sdk`, `user_push_tokens`, mobile token registration, cold-start tap handling and `routeForNotification` deep-linking by `data.type`. **The mobile app already had `VideoListScreen`/`VideoDetailScreen` and a language picker that already persisted to `users.preferred_language`** — `MoreMenuScreen` even carried a comment explaining videos were hidden because the staff endpoints would 403 for residents. So the real gaps were narrow: resident-safe endpoints, free-text push translation, and a sequence engine.
+
+**mig 143 — 6 tables.** `video_sequences` (anchor: move_in / employment_start / calendar) · `video_sequence_steps` (arbitrary day-index OR month-day) · `video_announcements` · `video_announcement_recipients` (language + push result; also the resident's visibility list) · `video_sequence_sends` (**UNIQUE (sequence_id, step_id, user_id)**, the expiry_alert_log idempotency pattern) · `video_delivery_config` (per-day cap, re-nag window).
+
+**Answers to the four questions, as built.** (1) **Late join** — a resident already housed when a sequence goes live gets **day 1 only**, then continues on their own day-index; no backlog, everything else stays in the library. (2) **Language** — the picker already existed on login + profile and already wrote `users.preferred_language`; added `preferredLanguage` to `req.user` so resident content resolves without a lookup. (3) **Mandatory** — watch evidence in `video_views` plus **one** re-nag push after a configurable 3 days, stamped so it can never repeat. (4) **Anchor** — `arrival_date` (287/288) for housing; `start_date` supported as a second anchor for when it is populated.
+
+**Also built:** `videoAudience.service` (one resolver for all modes; **an empty audience reaches NOBODY** — blanket must be chosen explicitly, and the nationality/language filters warn that their source columns are empty rather than silently returning nothing); `videoAnnounce.service` (translate once per language, not per recipient; in-app + push; delivery logged; margin between "sent" and "watched" preserved as the compliance evidence); `videoSequence.service` (one daily job for all three anchor types, per-person cap across ALL sequences with the remainder deferring to tomorrow); a `video_announcement` push type carrying caller-supplied translated copy; resident Path-B routes; admin Videók → **Kommunikáció** tab (send / sequences / history + compliance / config); mobile switched to the self-scoped API with a `video_announcement` deep-link case.
+
+**Verification.** `tests/integration/videoCommunication.test.js` **23/23** (audience, translation per language, late-join day-1-only, cap, calendar month-day, re-nag once-and-only-while-unwatched, sent-vs-watched). FUNCTEST **VIDEO area 12/12** over the real HTTP surface → suite now **121 passed / 0 failed / 11 known-gap** across 132 scenarios, byte-identical across runs. Full jest on a fresh migrated DB: **82 suites / 1483 passed**, three consecutive clean runs. `scripts/check-i18n-coverage.js` **exits 0**. Admin builds clean; all four touched mobile files parse.
+
+**Two of my own test bugs, found and fixed rather than worked around:** a fixture violated the pre-existing `videos_scope_target_check` (a contractor-scoped video must carry a contractor_id), and VID-09 inherited `video_delivery_config` left tuned by the jest suite — the config is now pinned in setup and the assertion sharpened to the real invariant (a step never fires twice) rather than the brittle "nothing new at all".
+
+**⚠️ LAUNCH PREREQUISITE, logged in PROJECT_STATE tech debt:** Android push delivery needs **FCM credentials in the Expo project** — unverified. Without them Expo ACCEPTS the send and never delivers, silently. Prod has 2 push tokens and none tested on a real Android handset. `push_ok = true` currently means "handed to Expo", not "delivered". Must be tested on a real device before residents are told to rely on it; iOS needs the equivalent APNs check.
+
+**Doc correction:** PROJECT_STATE claimed cron lives in `src/cron/` — that directory does not exist. Reality is 8 inline jobs in `server.js` plus `config/cronSchedule.js` (named `wrap()`, explicit Europe/Budapest); the video jobs went in the latter. Noted in tech debt.
+
+**NOT DEPLOYED — sandbox only, awaiting approval.** Deploy would be: push → CI → `pull && up -d backend admin` → mig 143 via psql (additive: 6 new tables, no changes to existing ones).
+
+---
+
 ## SESSION 2026-08-08 — Backfill applied to prod + COST side built (rent basis + utilities matrix)
 
 ### Part 1 — the history backfill went live (approved after the dry run)

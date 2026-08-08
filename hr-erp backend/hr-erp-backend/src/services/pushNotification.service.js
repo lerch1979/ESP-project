@@ -23,6 +23,16 @@ const expo = new Expo();
 const LANGS = ['hu', 'en', 'uk', 'tl', 'de'];
 
 const TEMPLATES = {
+  // video_announcement — the ONE type whose copy is not a fixed template.
+  // A video's title and description are free text written by staff, so there is nothing
+  // to hardcode. The caller (videoAnnounce.service) has already run the text through
+  // translation.service for THIS recipient's language, so every language simply reads the
+  // supplied vars. Keeping it in the map (rather than leaning on fallbackTitle) makes the
+  // type explicit and keeps localize() the single place push copy is decided.
+  video_announcement: Object.fromEntries(
+    LANGS.map((l) => [l, (v) => ({ title: v.title || '', body: v.body || '' })]),
+  ),
+
   ticket_message: {
     hu: (v) => ({ title: `Új üzenet — ${v.ticketNumber || 'hibajegy'}`, body: v.sender ? `${v.sender}: ${v.preview || ''}` : (v.preview || 'Új üzenet érkezett') }),
     en: (v) => ({ title: `New message — ${v.ticketNumber || 'ticket'}`, body: v.sender ? `${v.sender}: ${v.preview || ''}` : (v.preview || 'You have a new message') }),

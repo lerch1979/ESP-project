@@ -10,9 +10,11 @@ import { useTranslation } from 'react-i18next';
 // is staff-only and hidden.
 // Added 2026-06-21 (feature-audit priority #1): the chatbot + FAQ are built in all
 // layers and resident-accessible (public /faq/*, auth-only /conversations/*), so
-// they are surfaced. NOT surfaced yet: documents/videos (permission-gated →
-// would 403 for residents), wellbeing/CarePath (GDPR Art 9 health data — needs
-// compliance review), projects/tasks/invoices (relevance/scope review).
+// they are surfaced. VIDEOS became resident-safe in mig 143: the library is served by
+// the self-scoped /videos/my endpoints (Path B), so the screens no longer 403.
+// NOT surfaced yet: documents (permission-gated → would 403 for residents),
+// wellbeing/CarePath (GDPR Art 9 health data — needs compliance review),
+// projects/tasks/invoices (relevance/scope review).
 const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile', 'chatbot', 'chatbotHistory', 'faq', 'videos'];
 
 const menuSections = [

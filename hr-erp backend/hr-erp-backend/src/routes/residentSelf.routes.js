@@ -7,6 +7,7 @@ const residentSelf = require('../controllers/residentSelf.controller');
 const ticketMessages = require('../controllers/ticketMessages.controller');
 const ticketAttachments = require('../controllers/ticketAttachments.controller');
 const calendarController = require('../controllers/calendar.controller');
+const videoResident = require('../controllers/videoResident.controller');
 const { authenticateToken } = require('../middleware/auth');
 
 // Resident profile-photo upload — same on-disk pipeline as the admin uploader
@@ -62,6 +63,14 @@ router.delete('/employees/my/photo', authenticateToken, residentSelf.deleteMyPho
 
 // Resident calendar — auth-only, self-scoped, READ-ONLY (one-way). Returns ONLY
 // the caller's own upcoming events (repairs, check-in/out, visa/contract expiry).
+// ── VIDEO LIBRARY (mig 143) ─────────────────────────────────────────────
+// Path B: residents NEVER get videos.view. Auth-only, everything scoped from
+// req.user.id — globally-scoped videos plus anything they were personally sent,
+// so a situational topic (doctor, bank) is findable later, not only when pushed.
+router.get('/videos/my', authenticateToken, videoResident.getMyVideos);
+router.get('/videos/my/:id', authenticateToken, videoResident.getMyVideoById);
+router.post('/videos/my/:id/view', authenticateToken, videoResident.recordMyView);
+
 router.get('/calendar/my', authenticateToken, calendarController.getMyCalendarEvents);
 // Per-event .ics export — self-scoped (a resident can only export their OWN
 // events); one-way, no SMTP/OAuth. Feeds the mobile "add to my calendar" sheet.

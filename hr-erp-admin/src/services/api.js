@@ -844,6 +844,29 @@ export const exportAPI = {
 };
 
 // Videos API
+// Resident video COMMUNICATION (mig 143) — targeted sends, sequences, compliance.
+// Separate from videosAPI (which is CRUD over the library itself).
+export const videoCommsAPI = {
+  audienceOptions: async () => (await api.get('/video-comms/audience/options')).data,
+  previewAudience: async (audience) => (await api.post('/video-comms/audience/preview', { audience })).data,
+  send: async (payload) => (await api.post('/video-comms/send', payload)).data,
+
+  listSequences: async () => (await api.get('/video-comms/sequences')).data,
+  getSequence: async (id) => (await api.get(`/video-comms/sequences/${id}`)).data,
+  createSequence: async (data) => (await api.post('/video-comms/sequences', data)).data,
+  updateSequence: async (id, data) => (await api.put(`/video-comms/sequences/${id}`, data)).data,
+  deleteSequence: async (id) => (await api.delete(`/video-comms/sequences/${id}`)).data,
+  addStep: async (id, step) => (await api.post(`/video-comms/sequences/${id}/steps`, step)).data,
+  deleteStep: async (id, stepId) => (await api.delete(`/video-comms/sequences/${id}/steps/${stepId}`)).data,
+  runSequences: async (body = {}) => (await api.post('/video-comms/sequences/run', body)).data,
+
+  listAnnouncements: async () => (await api.get('/video-comms/announcements')).data,
+  compliance: async (id) => (await api.get(`/video-comms/announcements/${id}/compliance`)).data,
+
+  getConfig: async () => (await api.get('/video-comms/config')).data,
+  updateConfig: async (data) => (await api.put('/video-comms/config', data)).data,
+};
+
 export const videosAPI = {
   getAll: async (params = {}) => {
     const response = await api.get('/videos', { params });

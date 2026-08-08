@@ -440,6 +440,28 @@ export const videosAPI = {
   },
 };
 
+// Resident video library — SELF-SCOPED (Path B, mig 143). Residents never hold
+// videos.view, so the staff endpoints above 403 for them. These return the globally
+// scoped library plus anything they were personally sent, with playback_url already
+// resolved to their own language.
+export const residentVideosAPI = {
+  getAll: async (params = {}) => {
+    const response = await api.get('/videos/my', { params });
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/videos/my/${id}`);
+    return response.data;
+  },
+  recordView: async (id, data = {}) => {
+    const response = await api.post(`/videos/my/${id}/view`, data);
+    return response.data;
+  },
+};
+
+/** Pick the right video API for who is logged in — residents are self-scoped. */
+export const videoApiFor = (isResidentUser) => (isResidentUser ? residentVideosAPI : videosAPI);
+
 // Projects API
 export const projectAPI = {
   getAll: async (params = {}) => {
