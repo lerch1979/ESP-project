@@ -46,6 +46,19 @@ router.get('/:id', checkPermission('accommodations.view'), accommodationControll
 router.get('/:id/contractors', checkPermission('accommodations.view'), accommodationController.getAccommodationContractors);
 
 /**
+ * GET /api/v1/accommodations/:id/utilities
+ * A hat rezsi sor mátrixa (mig 142) — mindig mind a hat, a be nem állítottak alapértékkel.
+ */
+router.get('/:id/utilities', checkPermission('accommodations.view'), accommodationController.getUtilityMatrix);
+
+/**
+ * PUT /api/v1/accommodations/:id/utilities
+ * Rezsi-mátrix mentése soronként (ki fizeti · kinek a nevén · továbbszámlázás · arány).
+ * Pénzügyi konfiguráció → ugyanaz a jog, mint a szálláshely szerkesztése.
+ */
+router.put('/:id/utilities', checkPermission('accommodations.edit'), accommodationController.updateUtilityMatrix);
+
+/**
  * POST /api/v1/accommodations
  * Új szálláshely létrehozása
  */

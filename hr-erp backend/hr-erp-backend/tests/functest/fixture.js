@@ -96,6 +96,7 @@ async function teardown() {
     `DELETE FROM room_inspections WHERE inspection_id IN (SELECT id FROM inspections WHERE inspection_number LIKE '${TAG}-%')`,
     `DELETE FROM inspections WHERE inspection_number LIKE '${TAG}-%'`,
     `DELETE FROM accommodation_expenses WHERE accommodation_id IN (SELECT id FROM accommodations WHERE name LIKE '${TAG} %')`,
+    `DELETE FROM accommodation_utility_lines WHERE accommodation_id IN (SELECT id FROM accommodations WHERE name LIKE '${TAG} %')`,
     `DELETE FROM timesheets WHERE task_id IN (SELECT id FROM tasks WHERE title LIKE '${TAG} %')`,
     `DELETE FROM tasks WHERE title LIKE '${TAG} %'`,
     `DELETE FROM expiry_alert_log WHERE entity_id IN (SELECT id::text FROM employees WHERE last_name = '${TAG}')`,
@@ -347,6 +348,50 @@ async function build() {
   ids.comp.waived = await mkComp('C003', 'waived', 15000, uComp1, `${TAG} Worker One`);       // → EXCLUDED
   ids.comp.escalated = await mkComp('C004', 'escalated', 7000, uComp2, `${TAG} Worker Two`);  // → billed to A
   ids.comp.orphan = await mkComp('C005', 'issued', 20000, uOrphan, `${TAG} Worker Orphan`);   // → unattached
+
+  /* ── COST side (mig 142): the three rent bases ─────────────────────── */
+  // These are the only fixture sites whose occupants hold a ROOM, because the whole point
+  // is that rooms must NOT multiply the rent. Occupants get a shift + workplace so the
+  // consolidation engine treats them as ordinary data rather than flagging them.
+  const costSite = async (key, name, cfg, groups) => {
+    const accId = await mkAccommodation(name, { contractorId: ids.client.LANDLORD, capacity: 100 });
+    await query(
+      `UPDATE accommodations SET rent_basis=$2, rent_amount=$3, rent_per_bed_night=$4 WHERE id=$1`,
+      [accId, cfg.basis, cfg.rent ?? null, cfg.perBed ?? null]);
+    ids.acc[key] = accId;
+    ids.room[key] = await mkRooms(accId, groups.map(() => cfg.bedsPerRoom));
+    ids.emp[key] = [];
+    for (const [i, n] of groups.entries()) {
+      const emps = await mkEmployees(accId, n, {
+        client: ids.client.A, roomId: ids.room[key][i],
+        gender: 'male', shift: 'delelott', workplace: 'FT Cost', prefix: `${key}${i}`,
+      });
+      await mkHistory(emps, accId, { roomId: ids.room[key][i] });
+      ids.emp[key].push(...emps);
+    }
+    await mkRate(ids.client.A, accId, { rate_per_night: 1000 });
+    return accId;
+  };
+
+  // FLAT — 600 000 Ft/hó, 12 fő in 4 rooms. Cost must be 600 000, NOT 600 000 × 4.
+  await costSite('costFlat', 'CostFlat', { basis: 'flat', rent: 600000, bedsPerRoom: 3 }, [3, 3, 3, 3]);
+  // PER-BED — 10 occupied beds × 800 Ft × 30 nights = 240 000.
+  await costSite('costPerBed', 'CostPerBed', { basis: 'per_bed_night', perBed: 800, bedsPerRoom: 5 }, [5, 5]);
+  // VEGYES — flat 300 000 + the utility lines we pay (áram passed through at 100%).
+  await costSite('costMixed', 'CostMixed', { basis: 'mixed', rent: 300000, bedsPerRoom: 3 }, [3, 3]);
+  const utilRow = (line, who, pass, pct) => query(
+    `INSERT INTO accommodation_utility_lines (accommodation_id,line,who_pays,contract_holder,passthrough,passthrough_pct)
+     VALUES ($1,$2,$3,'szallasado',$4,$5)`, [ids.acc.costMixed, line, who, pass, pct]);
+  await utilRow('aram', 'mi', true, 100);          // we pay + re-bill in full → margin-neutral
+  await utilRow('viz_csatorna', 'mi', false, 100); // we pay, absorbed
+  await utilRow('gaz', 'szallasado', false, 100);  // not ours
+  const utilExp = (line, amount) => query(
+    `INSERT INTO accommodation_expenses (accommodation_id,billing_month,category,amount,currency,utility_line,notes)
+     VALUES ($1,$2,'rezsi',$3,'HUF',$4,$5)`, [ids.acc.costMixed, MONTH, amount, line, TAG]);
+  await utilExp('aram', 50000);
+  await utilExp('viz_csatorna', 20000);
+  // A site deliberately left unconfigured, so the coverage view has something to flag.
+  await costSite('costUnset', 'CostUnset', { basis: null, bedsPerRoom: 2 }, [2]);
 
   /* ── DATA INTEGRITY: mid-month A→B transfer (same-day handover) ───── */
   // Worker leaves A and enters B on 1903-06-16. check_out is "the first day they are

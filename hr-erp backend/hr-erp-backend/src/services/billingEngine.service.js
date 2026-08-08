@@ -25,9 +25,20 @@
  * (split pro-rata by employee-days across the accommodation's client groups). VAT is
  * applied at the rate's vat_rate. 'included'/'we_pay' add nothing to the client bill.
  *
+ * COST (what WE pay the szállásadó) is configured PER ACCOMMODATION — never per partner,
+ * because one owner may hold several properties on different contracts (mig 142):
+ *   • flat          — TISZTÁN BÉRLETI DÍJ: one monthly rent for the whole property,
+ *                     spread over that SITE's occupants (never multiplied by room count)
+ *   • per_bed_night — ÉJSZAKÁNKÉNTI: occupied beds × rate × nights
+ *   • mixed         — VEGYES: flat rent PLUS the utility lines we are responsible for
+ * The six-line utilities matrix (víz és csatorna · internet · áram · gáz · közös költség ·
+ * hulladékszállítás) says per line who pays, in whose name the contract runs, whether we
+ * re-bill the megbízó and at what share. A line we pay is COST; a line we pass through
+ * becomes a REVENUE line at amount × share (margin-neutral at 100%).
+ *
  * VAT: gross = net × (1 + vat_rate). `total_amount` stays NET (the margin basis so
  * the profit dashboard reconciles); `vat_amount` + `gross_amount` are stored for the
- * invoice. COST = rent allocation + operating expenses (unchanged). margin = net − cost.
+ * invoice. margin = net − cost.
  *
  * Idempotency: re-running a month cancels the prior non-finalized run first;
  * finalized runs are protected (cancel via the controller to re-bill).
@@ -81,9 +92,109 @@ function makeRateResolver(rates) {
   };
 }
 
+/** The six utility lines of the per-accommodation cost matrix (mig 142). */
+const UTILITY_LINES = ['viz_csatorna', 'internet', 'aram', 'gaz', 'kozos_koltseg', 'hulladekszallitas'];
+
 /**
- * COST-side breakdown for one (accommodation, client) group: rent allocation per
- * room/employee + total employee-days. Revenue is computed separately (basis-aware).
+ * SITE-LEVEL rent allocation — what WE pay the szállásadó (mig 142).
+ *
+ * Returns, per day, the whole site's rent and each client group's share of it. The share
+ * is by HEADCOUNT that day, so a site's rent is distributed across everyone sleeping
+ * there and the day's allocations always sum back to exactly one day's rent.
+ *
+ * ⚠️ This deliberately replaces migration 112's per-ROOM allocation. That grouped by
+ * (accommodation, room) and divided by room_occupant_count, so a site's rent was counted
+ * once PER OCCUPIED ROOM — a 31-room site billed 31× its rent. Rooms remain on the
+ * snapshot for occupancy analytics; they no longer touch cost.
+ *
+ * @param basis  'flat' | 'per_bed_night' | 'mixed' | null (null → legacy flat)
+ * @param siteOccupantsByDay  Map<dateStr, Set<employeeId>> for the WHOLE accommodation
+ * @param groupOccupantsByDay Map<dateStr, Set<employeeId>> for this client group
+ */
+function computeRentCost(basis, { rentAmount, perBedRate }, siteOccupantsByDay, groupOccupantsByDay, daysInMonth) {
+  const effective = basis || 'flat';           // no basis set yet → behave as flat (legacy monthly_rent)
+  let siteTotal = 0;
+  let groupTotal = 0;
+  let bedNights = 0;
+
+  for (const [dateStr, siteSet] of siteOccupantsByDay) {
+    const siteCount = siteSet.size;
+    if (siteCount === 0) continue;
+    const groupCount = groupOccupantsByDay.get(dateStr)?.size || 0;
+
+    let dayCost;
+    if (effective === 'per_bed_night') {
+      // ÉJSZAKÁNKÉNTI: we pay for each occupied bed that night.
+      dayCost = siteCount * (Number(perBedRate) || 0);
+      bedNights += siteCount;
+    } else {
+      // FLAT / VEGYES: one monthly rent for the property, spread over the month's days.
+      // Utility lines are added separately by the caller (that is what makes it VEGYES).
+      dayCost = (Number(rentAmount) || 0) / daysInMonth;
+    }
+    siteTotal += dayCost;
+    groupTotal += groupCount > 0 ? dayCost * (groupCount / siteCount) : 0;
+  }
+  return {
+    basis: effective,
+    site_rent: round2(siteTotal),
+    group_rent: round2(groupTotal),
+    bed_nights: bedNights,
+    rate_used: effective === 'per_bed_night' ? Number(perBedRate) || 0 : null,
+    monthly_rent: effective === 'per_bed_night' ? null : Number(rentAmount) || 0,
+  };
+}
+
+/**
+ * Split a month's utility expenses for one accommodation into
+ *   • ours   — lines the matrix says WE pay → they are our COST
+ *   • passed — lines flagged passthrough → recorded amount × share becomes REVENUE
+ *              billed to the megbízó (at 100% share the pair is margin-neutral)
+ *
+ * An expense with no utility_line tag is an ordinary operating expense: it stays in cost
+ * and is never passed through (we cannot know which line it settles).
+ *
+ * @param expenses [{ utility_line, amount }]
+ * @param matrix   Map<line, {who_pays, passthrough, passthrough_pct}>
+ */
+function splitUtilities(expenses, matrix) {
+  let oursTotal = 0;
+  let untaggedTotal = 0;
+  let passthroughTotal = 0;
+  const lines = [];
+  const mismatches = [];
+
+  for (const e of expenses) {
+    const amount = Number(e.amount) || 0;
+    if (!e.utility_line) { untaggedTotal = round2(untaggedTotal + amount); continue; }
+    const cfg = matrix.get(e.utility_line);
+    if (!cfg) {
+      // Tagged as a utility we never configured — count the money, flag the gap.
+      untaggedTotal = round2(untaggedTotal + amount);
+      mismatches.push({ line: e.utility_line, amount, reason: 'no_matrix_row' });
+      continue;
+    }
+    // The money left our account whatever the matrix claims; a contradiction is surfaced,
+    // never silently dropped.
+    if (cfg.who_pays !== 'mi') mismatches.push({ line: e.utility_line, amount, reason: 'expense_recorded_but_szallasado_pays' });
+    oursTotal = round2(oursTotal + amount);
+
+    if (cfg.passthrough) {
+      const pct = Number(cfg.passthrough_pct);
+      const share = round2(amount * ((Number.isFinite(pct) ? pct : 100) / 100));
+      passthroughTotal = round2(passthroughTotal + share);
+      lines.push({ line: e.utility_line, expense_amount: amount, passthrough_pct: Number(cfg.passthrough_pct), amount: share });
+    }
+  }
+  return { ours: oursTotal, untagged: untaggedTotal, passthrough_total: passthroughTotal, passthrough_lines: lines, mismatches };
+}
+
+/**
+ * COST-side breakdown for one (accommodation, client) group: the per-room/employee day
+ * detail kept for the invoice annex + total employee-days. The RENT figure it returns is
+ * the legacy per-room number and is NO LONGER used for billing — `computeRentCost` owns
+ * cost now (mig 142). It stays because the room/day/employee breakdown is what the
+ * invoice annex and the occupancy analytics show.
  * Rows must be sorted by (room_id, employee_id, snapshot_date).
  */
 function buildCostDetails(rows) {
@@ -341,6 +452,34 @@ async function calculateMonthlyBilling(month, opts = {}) {
     const expenseByAcc = new Map();
     for (const r of expRows.rows) expenseByAcc.set(r.accommodation_id, Number(r.total));
 
+    // ── COST model (mig 142): per-accommodation rent basis + the utilities matrix ──
+    const rentRows = await client.query(
+      `SELECT id, rent_basis, COALESCE(rent_amount, monthly_rent) AS rent_amount, rent_per_bed_night
+         FROM accommodations`);
+    const rentByAcc = new Map();
+    for (const r of rentRows.rows) {
+      rentByAcc.set(r.id, { basis: r.rent_basis, rentAmount: r.rent_amount, perBedRate: r.rent_per_bed_night });
+    }
+    const matrixRows = await client.query(
+      `SELECT accommodation_id, line, who_pays, passthrough, passthrough_pct FROM accommodation_utility_lines`);
+    const matrixByAcc = new Map();
+    for (const r of matrixRows.rows) {
+      if (!matrixByAcc.has(r.accommodation_id)) matrixByAcc.set(r.accommodation_id, new Map());
+      matrixByAcc.get(r.accommodation_id).set(r.line, r);
+    }
+    // Individual utility expenses (not the pre-aggregated total) so each can be matched
+    // to its matrix line and, where configured, re-billed to the megbízó.
+    const utilExpRows = await client.query(
+      `SELECT accommodation_id, utility_line, COALESCE(SUM(amount), 0) AS amount
+         FROM accommodation_expenses
+        WHERE billing_month = $1 AND deleted_at IS NULL
+        GROUP BY accommodation_id, utility_line`, [month]);
+    const utilExpByAcc = new Map();
+    for (const r of utilExpRows.rows) {
+      if (!utilExpByAcc.has(r.accommodation_id)) utilExpByAcc.set(r.accommodation_id, []);
+      utilExpByAcc.get(r.accommodation_id).push({ utility_line: r.utility_line, amount: Number(r.amount) });
+    }
+
     const rezsiRows = await client.query(
       `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
         WHERE billing_month = $1 AND deleted_at IS NULL AND category = 'rezsi' GROUP BY accommodation_id`, [month]);
@@ -364,15 +503,26 @@ async function calculateMonthlyBilling(month, opts = {}) {
       groups.get(key).rows.push(r);
     }
 
-    // ─── 4. Pass 1: cost details + accumulate accommodation employee-days ───
+    // ─── 4. Pass 1: cost details + per-day occupancy per site and per group ───
+    // The site-level day map is what makes rent allocation site-wide instead of per-room.
     const computedAt = new Date().toISOString();
     const computed = [];
     const accTotalDays = new Map();
+    const siteOccByAcc = new Map();   // accId -> Map<dateStr, Set<employeeId>>
+    for (const r of snapRows.rows) {
+      const prof = profByClient.get(r.billing_client_id);
+      if (prof && prof.invoicing_enabled === false) continue;  // same exclusion as the groups
+      if (!siteOccByAcc.has(r.accommodation_id)) siteOccByAcc.set(r.accommodation_id, new Map());
+      const byDay = siteOccByAcc.get(r.accommodation_id);
+      const d = localDateStr(r.snapshot_date);
+      if (!byDay.has(d)) byDay.set(d, new Set());
+      byDay.get(d).add(r.employee_id);
+    }
     let noClientGroups = 0, noRateGroups = 0;
     const partnerIds = new Set();
     for (const grp of groups.values()) {
       const cost = buildCostDetails(grp.rows);
-      computed.push({ grp, cost });
+      computed.push({ grp, cost, groupOcc: occupancyByDay(grp.rows) });
       accTotalDays.set(grp.accommodation_id, (accTotalDays.get(grp.accommodation_id) || 0) + cost.totalEmployeeDays);
       if (grp.billing_client_id) partnerIds.add(grp.billing_client_id); else noClientGroups++;
     }
@@ -388,8 +538,9 @@ async function calculateMonthlyBilling(month, opts = {}) {
     );
     const runId = runIns.rows[0].id;
 
-    let grandRevenue = 0, grandGross = 0, grandCompensation = 0;
-    for (const { grp, cost } of computed) {
+    let grandRevenue = 0, grandGross = 0, grandCompensation = 0, grandUtilityPassthrough = 0;
+    const costMismatches = [];
+    for (const { grp, cost, groupOcc } of computed) {
       const accEmpDays = accTotalDays.get(grp.accommodation_id) || 0;
       const rev = computeGroupRevenue(grp.rows, resolveRow, grp.accommodation_id, grp.billing_client_id, dim, {
         rezsiTotal: rezsiByAcc.get(grp.accommodation_id) || 0,
@@ -409,12 +560,37 @@ async function calculateMonthlyBilling(month, opts = {}) {
       const compensationLines = comp ? comp.lines : [];
       if (comp) { grandCompensation = round2(grandCompensation + comp.total); compByGroup.delete(compKey); }
 
+      // ── COST (mig 142): site-level rent by basis + this group's share of expenses ──
+      // Rooms no longer participate: the rent is the PROPERTY's, split across everyone
+      // sleeping there, so a site's monthly rent lands exactly once however many rooms
+      // are occupied.
+      const rentCfg = rentByAcc.get(grp.accommodation_id) || {};
+      const rentSplit = computeRentCost(
+        rentCfg.basis, { rentAmount: rentCfg.rentAmount, perBedRate: rentCfg.perBedRate },
+        siteOccByAcc.get(grp.accommodation_id) || new Map(), groupOcc, dim);
+
       const accExpense = expenseByAcc.get(grp.accommodation_id) || 0;
       const expenseCost = accEmpDays > 0 ? round2(accExpense * (cost.totalEmployeeDays / accEmpDays)) : 0;
-      const totalCost = round2(cost.rentCost + expenseCost);
-      const margin = round2(rev.net - totalCost);
-      grandRevenue = round2(grandRevenue + rev.net);
-      grandGross = round2(grandGross + rev.gross);
+      const totalCost = round2(rentSplit.group_rent + expenseCost);
+
+      // Utility pass-through: a line we pay AND re-bill becomes a REVENUE line at
+      // amount × share. The expense stays in cost, so at 100% share the pair nets to
+      // zero margin; below 100% the uncovered part is a genuine cost to us.
+      const util = splitUtilities(utilExpByAcc.get(grp.accommodation_id) || [], matrixByAcc.get(grp.accommodation_id) || new Map());
+      const groupShareOfSite = accEmpDays > 0 ? cost.totalEmployeeDays / accEmpDays : 0;
+      const utilityPassthroughNet = round2(util.passthrough_total * groupShareOfSite);
+      const utilityPassthroughVat = round2(utilityPassthroughNet * (rev.vat_exempt ? 0 : rev.vat_rate));
+      if (util.mismatches.length) {
+        costMismatches.push({ accommodation_id: grp.accommodation_id, issues: util.mismatches });
+      }
+
+      const netWithUtilities = round2(rev.net + utilityPassthroughNet);
+      const vatWithUtilities = round2(rev.vat + utilityPassthroughVat);
+      const grossWithUtilities = round2(netWithUtilities + vatWithUtilities);
+      const margin = round2(netWithUtilities - totalCost);
+      grandRevenue = round2(grandRevenue + netWithUtilities);
+      grandGross = round2(grandGross + grossWithUtilities);
+      grandUtilityPassthrough = round2(grandUtilityPassthrough + utilityPassthroughNet);
 
       // Private individual → payroll handoff: record the gross owed + a clear marker;
       // NEVER compute net-to-person or tax-to-NAV (the accountant's job).
@@ -429,14 +605,24 @@ async function calculateMonthlyBilling(month, opts = {}) {
         payroll_handoff: payrollHandoff,
         payroll_handoff_note: payrollHandoff ? 'Bérszámfejtendő magánszemély — bruttó összeg; nettó + NAV a könyvelő feladata' : null,
         vat_exempt: rev.vat_exempt,
-        revenue_net: rev.net,
+        revenue_net: netWithUtilities,
         base_net: rev.base_net,
-        utility_net: rev.utility_net,
+        utility_net: round2(rev.utility_net + utilityPassthroughNet),
         vat_rate: rev.vat_rate,
-        vat_amount: rev.vat,
-        gross_amount: rev.gross,
+        vat_amount: vatWithUtilities,
+        gross_amount: grossWithUtilities,
         per_bed: rev.per_bed,   // per_bed_night breakdown (capacity/floor/full/empty bed-nights) or null
-        rent_cost: cost.rentCost,
+        // COST side (mig 142) — site-level rent by basis, never multiplied by room count
+        rent_basis: rentSplit.basis,
+        rent_cost: rentSplit.group_rent,
+        rent_site_total: rentSplit.site_rent,
+        rent_bed_nights: rentSplit.bed_nights,
+        rent_rate_used: rentSplit.rate_used,
+        rent_cost_from_snapshot: cost.rentCost,    // flat-basis cross-check from the snapshot shares
+        utility_lines_we_pay: util.ours,
+        utility_passthrough_net: utilityPassthroughNet,
+        utility_passthrough_lines: util.passthrough_lines,
+        utility_config_mismatches: util.mismatches,
         expense_cost: expenseCost,
         cost: totalCost,
         margin,
@@ -454,7 +640,8 @@ async function calculateMonthlyBilling(month, opts = {}) {
            payroll_handoff, compensation_amount, calculation_details, status
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'draft')`,
         [runId, month, grp.accommodation_id, grp.billing_client_id,
-         rev.net, rev.vat, rev.gross, totalCost, margin, cost.totalEmployeeDays, payrollHandoff, compensationAmount, details]
+         netWithUtilities, vatWithUtilities, grossWithUtilities, totalCost, margin,
+         cost.totalEmployeeDays, payrollHandoff, compensationAmount, details]
       );
     }
 
@@ -472,8 +659,10 @@ async function calculateMonthlyBilling(month, opts = {}) {
 
     const summary = {
       run_id: runId, month, run_type: runType, status: 'calculated',
-      total_amount: grandRevenue,   // total NET revenue billed (housing only)
-      total_gross: grandGross,      // NET + VAT (housing only)
+      total_amount: grandRevenue,   // total NET revenue billed (housing + utility pass-through)
+      total_gross: grandGross,      // NET + VAT
+      total_utility_passthrough: grandUtilityPassthrough,  // re-billed utility lines (margin-neutral at 100% share)
+      cost_config_mismatches: costMismatches,              // expense recorded on a line the matrix says we don't pay
       total_compensation: grandCompensation,  // pass-through billed to megbízók (separate lines)
       billing_count: groups.size,
       partner_count: partnerIds.size,
@@ -489,4 +678,5 @@ async function calculateMonthlyBilling(month, opts = {}) {
   });
 }
 
-module.exports = { calculateMonthlyBilling, buildCostDetails, computeGroupRevenue, makeRateResolver };
+module.exports = { calculateMonthlyBilling, buildCostDetails, computeGroupRevenue, makeRateResolver,
+                   computeRentCost, splitUtilities, UTILITY_LINES };

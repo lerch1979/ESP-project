@@ -339,6 +339,17 @@ export const accommodationsAPI = {
     return response.data;
   },
 
+  // COST side (mig 142) — the six-line utilities matrix, per accommodation.
+  getUtilities: async (id) => {
+    const response = await api.get(`/accommodations/${id}/utilities`);
+    return response.data;
+  },
+
+  updateUtilities: async (id, matrix) => {
+    const response = await api.put(`/accommodations/${id}/utilities`, { matrix });
+    return response.data;
+  },
+
   delete: async (id) => {
     const response = await api.delete(`/accommodations/${id}`);
     return response.data;

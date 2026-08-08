@@ -6,7 +6,7 @@ every major subsystem end-to-end, checks ACTUAL output against EXPECTED output, 
 
 ```bash
 cd "hr-erp backend/hr-erp-backend"
-npm run functest                      # reset → seed → run all 111 scenarios → write the report
+npm run functest                      # reset → seed → run all 120 scenarios → write the report
 npm run functest -- --no-reset        # reuse the current sandbox (fast iteration)
 npm run functest -- --only=BILLING    # one area
 npm run functest -- --case=BILL-09    # one scenario
@@ -109,7 +109,7 @@ already-known findings — and so each gap flips to FIXED on its own the day it 
 
 ---
 
-## Catalog — 111 scenarios
+## Catalog — 120 scenarios
 
 ### BILLING (23) — every formula path with hand-checkable numbers
 
@@ -138,6 +138,20 @@ already-known findings — and so each gap flips to FIXED on its own the day it 
 | BILL-21 | compensation with no resolvable megbízó | surfaced in the summary, never dropped |
 | BILL-22 | run summary | partner_count 5 · no-client groups 2 · skipped 1 |
 | BILL-23 | re-run the month | prior run cancelled, identical totals, exactly one active run |
+
+### COST (9) — what WE pay the szállásadó, per accommodation
+
+| ID | Scenario | Expected |
+|---|---|---|
+| **COST-01** | **FLAT — rent 600 000, 12 fő across 4 rooms** | **allocates 600 000, NOT 600 000 × 4** (the mig-112 per-room multiplication) |
+| COST-02 | FLAT — rooms still on snapshots | 12 rows, 12 with a room, 4 distinct rooms (analytics keep working) |
+| COST-03 | PER-BED | 10 foglalt ágy × 800 Ft × 30 éj = 240 000 |
+| COST-04 | VEGYES | flat 300 000 + the utility lines we pay (70 000) = 370 000 |
+| COST-05 | VEGYES pass-through | only áram re-billed (50 000 @ 100%), margin-neutral |
+| COST-06 | expense on a line the matrix says the szállásadó pays | flagged in the row AND in the run summary, never silently absorbed |
+| COST-07 | profit dashboard under all three bases | profit ≡ engine margin, identity holds |
+| COST-08 | utilities matrix over real HTTP | always six lines, round-trips, resident → 403 |
+| COST-09 | coverage view | flags no rent basis / missing amount / incomplete matrix |
 
 ### CONSOLIDATION (12 + 3 gaps)
 

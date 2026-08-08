@@ -23,6 +23,11 @@ COPY --from=builder /app/package*.json ./
 # Copy source
 COPY src ./src
 
+# Ops/maintenance scripts (backfills, one-off migrations, health tooling). Without these
+# in the image every operation has to be docker cp'd onto a running container by hand —
+# which is exactly how the 2026-08-08 accommodation-history backfill had to be run.
+COPY scripts ./scripts
+
 # Create required directories
 RUN mkdir -p logs uploads
 

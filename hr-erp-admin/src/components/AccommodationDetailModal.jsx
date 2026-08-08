@@ -28,6 +28,9 @@ import {
   IconButton,
   LinearProgress,
   Stack,
+  Switch,
+  FormControlLabel,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -64,6 +67,23 @@ const ROOM_TYPE_LABELS = {
   shared: 'Közös',
 };
 
+// ── COST side (mig 142) ────────────────────────────────────────────────
+// Konstrukció szállásonként — SOHA nem partnerenként: ugyanaz a szállásadó
+// bérbe adhat egy ingatlant fix havi díjért és egy másikat éjszakánként.
+const RENT_BASIS_LABELS = {
+  flat: 'Tisztán bérleti díj (fix havi, egész ingatlan)',
+  per_bed_night: 'Éjszakánkénti (foglalt ágy × díj)',
+  mixed: 'Vegyes (fix bérleti díj + rezsi tételek)',
+};
+const UTILITY_LABELS = {
+  viz_csatorna: 'Víz és csatorna',
+  internet: 'Internet',
+  aram: 'Áram',
+  gaz: 'Gáz',
+  kozos_koltseg: 'Közös költség',
+  hulladekszallitas: 'Hulladékszállítás',
+};
+
 const initialRoomForm = {
   room_number: '',
   floor: '',
@@ -89,7 +109,16 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
     status: 'available',
     monthly_rent: '',
     notes: '',
+    // COST side (mig 142) — the rent contract belongs to the PROPERTY, not the partner.
+    rent_basis: '',
+    rent_amount: '',
+    rent_per_bed_night: '',
   });
+
+  // Utilities matrix (six lines, always all six — unconfigured come back with defaults)
+  const [utilities, setUtilities] = useState([]);
+  const [utilLoading, setUtilLoading] = useState(false);
+  const [utilSaving, setUtilSaving] = useState(false);
 
   // View mode tab state
   const [viewTab, setViewTab] = useState(0);
@@ -115,7 +144,47 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
     if (viewTab === 1 && accommodationId) {
       loadRooms();
     }
+    if (viewTab === 2 && accommodationId) {
+      loadUtilities();
+    }
   }, [viewTab, accommodationId]);
+
+  const loadUtilities = async () => {
+    setUtilLoading(true);
+    try {
+      const r = await accommodationsAPI.getUtilities(accommodationId);
+      if (r.success) setUtilities(r.data.matrix);
+    } catch {
+      toast.error('Rezsi-mátrix betöltési hiba');
+    } finally {
+      setUtilLoading(false);
+    }
+  };
+
+  const handleUtilChange = (line, field, value) => {
+    setUtilities((prev) => prev.map((u) => (u.line === line ? { ...u, [field]: value, configured: true } : u)));
+  };
+
+  const handleSaveUtilities = async () => {
+    setUtilSaving(true);
+    try {
+      const r = await accommodationsAPI.updateUtilities(accommodationId, utilities.map((u) => ({
+        line: u.line,
+        who_pays: u.who_pays,
+        contract_holder: u.contract_holder,
+        passthrough: !!u.passthrough,
+        passthrough_pct: u.passthrough_pct === '' ? 100 : Number(u.passthrough_pct),
+      })));
+      if (r.success) {
+        setUtilities(r.data.matrix);
+        toast.success('Rezsi-mátrix mentve');
+      }
+    } catch {
+      toast.error('Rezsi-mátrix mentési hiba');
+    } finally {
+      setUtilSaving(false);
+    }
+  };
 
   const loadAccommodation = async () => {
     setLoading(true);
@@ -132,6 +201,9 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
           current_contractor_id: acc.current_contractor_id || '',
           status: acc.status || 'available',
           monthly_rent: acc.monthly_rent || '',
+          rent_basis: acc.rent_basis || '',
+          rent_amount: acc.rent_amount ?? '',
+          rent_per_bed_night: acc.rent_per_bed_night ?? '',
           notes: acc.notes || '',
         });
       }
@@ -200,6 +272,9 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
       capacity: parseInt(formData.capacity) || 1,
       monthly_rent: formData.monthly_rent ? parseFloat(formData.monthly_rent) : null,
       current_contractor_id: formData.current_contractor_id || null,
+      rent_basis: formData.rent_basis || null,
+      rent_amount: formData.rent_amount === '' ? null : parseFloat(formData.rent_amount),
+      rent_per_bed_night: formData.rent_per_bed_night === '' ? null : parseFloat(formData.rent_per_bed_night),
     };
 
     setSaving(true);
@@ -424,12 +499,70 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               <Grid item xs={6}>
                 <TextField
                   fullWidth
-                  label="Havi bérleti díj (Ft)"
+                  label="Havi bérleti díj (Ft) — régi mező"
                   type="number"
                   value={formData.monthly_rent}
                   onChange={(e) => handleChange('monthly_rent', e.target.value)}
+                  helperText="Ha a bérleti konstrukció ki van töltve, az számít."
                 />
               </Grid>
+
+              {/* ── KÖLTSÉG OLDAL: mit fizetünk MI a szállásadónak (mig 142) ──
+                  Szállásonként állítható, mert ugyanannak a tulajdonosnak több
+                  ingatlana lehet eltérő szerződéssel. */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }}>
+                  <Typography variant="caption" sx={{ color: '#8B6B33', fontWeight: 600 }}>
+                    KÖLTSÉG — bérleti konstrukció (amit a szállásadónak fizetünk)
+                  </Typography>
+                </Divider>
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Bérleti konstrukció</InputLabel>
+                  <Select
+                    value={formData.rent_basis}
+                    onChange={(e) => handleChange('rent_basis', e.target.value)}
+                    label="Bérleti konstrukció"
+                  >
+                    <MenuItem value=""><em>Nincs beállítva</em></MenuItem>
+                    {Object.entries(RENT_BASIS_LABELS).map(([v, label]) => (
+                      <MenuItem key={v} value={v}>{label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              {(formData.rent_basis === 'flat' || formData.rent_basis === 'mixed' || !formData.rent_basis) && (
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Fix havi bérleti díj (Ft)"
+                    type="number"
+                    value={formData.rent_amount}
+                    onChange={(e) => handleChange('rent_amount', e.target.value)}
+                    helperText="Az EGÉSZ ingatlanra. A nap lakói között oszlik el — szobaszám nem szorozza."
+                  />
+                </Grid>
+              )}
+              {formData.rent_basis === 'per_bed_night' && (
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Díj / foglalt ágy / éj (Ft)"
+                    type="number"
+                    value={formData.rent_per_bed_night}
+                    onChange={(e) => handleChange('rent_per_bed_night', e.target.value)}
+                    helperText="Költség = foglalt ágyak × díj × éjszakák."
+                  />
+                </Grid>
+              )}
+              {formData.rent_basis === 'mixed' && (
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ py: 0 }}>
+                    Vegyes: a fix bérleti díj mellé a „Rezsi” fülön beállított, <b>általunk fizetett</b> tételek is költségként jelennek meg.
+                  </Alert>
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <Stack direction="row" spacing={1} alignItems="stretch">
                   <FormControl fullWidth>
@@ -481,6 +614,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
               >
                 <Tab label="Részletek" />
                 <Tab label="Szobák" />
+                <Tab label="Költség & rezsi" />
               </Tabs>
 
               {viewTab === 0 && (
@@ -489,7 +623,18 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                   <DetailRow label="Cím" value={accommodation.address || '-'} />
                   <DetailRow label="Típus" value={TYPE_LABELS[accommodation.type] || accommodation.type} />
                   <DetailRow label="Kapacitás" value={`${accommodation.capacity} fő`} />
-                  <DetailRow label="Havi bérleti díj" value={formatRent(accommodation.monthly_rent)} />
+                  <DetailRow label="Havi bérleti díj (régi mező)" value={formatRent(accommodation.monthly_rent)} />
+                  <DetailRow
+                    label="Bérleti konstrukció"
+                    value={accommodation.rent_basis
+                      ? RENT_BASIS_LABELS[accommodation.rent_basis]
+                      : 'Nincs beállítva (a régi havi díjjal számol)'}
+                  />
+                  {accommodation.rent_basis === 'per_bed_night' ? (
+                    <DetailRow label="Díj / ágy / éj" value={formatRent(accommodation.rent_per_bed_night)} />
+                  ) : (
+                    <DetailRow label="Fix havi bérleti díj" value={formatRent(accommodation.rent_amount ?? accommodation.monthly_rent)} />
+                  )}
                   <DetailRow label="Ingatlan tulajdonos" value={accommodation.current_contractor_name || '-'} />
                   {accommodation.current_contractor_email && (
                     <DetailRow label="Tulajdonos email" value={accommodation.current_contractor_email} />
@@ -714,6 +859,116 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                         </TableBody>
                       </Table>
                     </TableContainer>
+                  )}
+                </Box>
+              )}
+
+              {/* ── KÖLTSÉG & REZSI (mig 142) ──────────────────────────────
+                  Hat rezsi sor, soronként négy FÜGGETLEN kérdés: ki fizeti,
+                  kinek a nevén fut a szerződés, továbbszámlázzuk-e a
+                  megbízónak, és milyen arányban. Amit MI fizetünk → költség;
+                  amit továbbszámlázunk → bevétel sor (100%-on nulla margin). */}
+              {viewTab === 2 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Bérleti konstrukció
+                  </Typography>
+                  <Alert severity={accommodation.rent_basis ? 'success' : 'warning'} sx={{ mb: 2 }}>
+                    {accommodation.rent_basis
+                      ? RENT_BASIS_LABELS[accommodation.rent_basis]
+                      : 'Nincs beállítva — a motor a régi havi bérleti díjjal számol. Állítsd be a „Szerkesztés” gombbal.'}
+                    {accommodation.rent_basis === 'per_bed_night'
+                      ? ` · ${formatRent(accommodation.rent_per_bed_night)} / ágy / éj`
+                      : ` · ${formatRent(accommodation.rent_amount ?? accommodation.monthly_rent)} / hó`}
+                  </Alert>
+
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Rezsi-mátrix
+                  </Typography>
+                  {utilLoading ? (
+                    <LinearProgress />
+                  ) : (
+                    <>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Tétel</TableCell>
+                              <TableCell>Ki fizeti</TableCell>
+                              <TableCell>Szerződés kinek a nevén</TableCell>
+                              <TableCell align="center">Továbbszámlázva</TableCell>
+                              <TableCell align="right">Arány (%)</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {utilities.map((u) => (
+                              <TableRow key={u.line} sx={{ bgcolor: u.configured ? 'inherit' : 'rgba(255,193,7,0.08)' }}>
+                                <TableCell>
+                                  {UTILITY_LABELS[u.line] || u.line}
+                                  {!u.configured && (
+                                    <Chip label="nincs beállítva" size="small" sx={{ ml: 1 }} color="warning" variant="outlined" />
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    size="small"
+                                    value={u.who_pays}
+                                    onChange={(e) => handleUtilChange(u.line, 'who_pays', e.target.value)}
+                                    sx={{ minWidth: 120 }}
+                                  >
+                                    <MenuItem value="mi">Mi</MenuItem>
+                                    <MenuItem value="szallasado">Szállásadó</MenuItem>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    size="small"
+                                    value={u.contract_holder}
+                                    onChange={(e) => handleUtilChange(u.line, 'contract_holder', e.target.value)}
+                                    sx={{ minWidth: 120 }}
+                                  >
+                                    <MenuItem value="mi">Mi</MenuItem>
+                                    <MenuItem value="szallasado">Szállásadó</MenuItem>
+                                  </Select>
+                                </TableCell>
+                                <TableCell align="center">
+                                  <Switch
+                                    checked={!!u.passthrough}
+                                    onChange={(e) => handleUtilChange(u.line, 'passthrough', e.target.checked)}
+                                  />
+                                </TableCell>
+                                <TableCell align="right">
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={u.passthrough_pct}
+                                    disabled={!u.passthrough}
+                                    onChange={(e) => handleUtilChange(u.line, 'passthrough_pct', e.target.value)}
+                                    inputProps={{ min: 0, max: 100, style: { textAlign: 'right' } }}
+                                    sx={{ width: 90 }}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                        Amit <b>mi</b> fizetünk, az költségként jelenik meg a profit nézetben. Amit
+                        <b> továbbszámlázunk</b>, az a rögzített összeg × arány mértékében bevétel sor a
+                        megbízó felé — 100%-on margin-semleges.
+                      </Typography>
+                      <Box sx={{ mt: 2, textAlign: 'right' }}>
+                        <Button
+                          variant="contained"
+                          onClick={handleSaveUtilities}
+                          disabled={utilSaving}
+                          sx={{ bgcolor: '#8B6B33', '&:hover': { bgcolor: '#6F5529' } }}
+                        >
+                          {utilSaving ? 'Mentés…' : 'Rezsi-mátrix mentése'}
+                        </Button>
+                      </Box>
+                    </>
                   )}
                 </Box>
               )}

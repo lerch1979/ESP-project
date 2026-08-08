@@ -1,8 +1,8 @@
 # FUNCTEST REPORT — automated end-to-end functional suite
 
-**100 passed / 0 failed / 11 known-gap**  ·  111 scenarios  ·  8298ms
+**109 passed / 0 failed / 11 known-gap**  ·  120 scenarios  ·  8274ms
 
-- Generated: 2026-08-07T20:02:09.579Z
+- Generated: 2026-08-08T16:46:26.769Z
 - Database: `hr_erp_sandbox` (sandbox-only — the guard refuses anything else)
 - Command: `npm run functest`
 - Fixture month: `1903-06` · fixture tag: `FT`
@@ -43,6 +43,20 @@
 | **BILL-21** compensation with no resolvable megbízó → surfaced in the run summary, never dropped | {"unattached":1,"reason":"no_megbizo","amount":20000} | {"unattached":1,"reason":"no_megbizo","amount":20000} | ✅ PASS |
 | **BILL-22** run summary — partner count, unbilled groups, intentional skips | {"partner_count":5,"groups_no_billing_client":2,"skipped_clients":1,"status":"calculated","run_type":"incoming"} | {"partner_count":5,"groups_no_billing_client":2,"skipped_clients":1,"status":"calculated","run_type":"incoming"} | ✅ PASS |
 | **BILL-23** re-running the month is idempotent — prior run cancelled, identical totals | {"prior_cancelled":"cancelled","totals_identical":true,"active_runs":1} | {"prior_cancelled":"cancelled","totals_identical":true,"active_runs":1} | ✅ PASS |
+
+## COST — 9 passed / 0 failed
+
+| Scenario | Expected | Actual | Result |
+|---|---|---|---|
+| **COST-01** FLAT — rent 600 000, 12 fő across 4 rooms → allocates 600 000, NOT 600 000 × 4 | {"cost":600000,"basis":"flat","site_rent":600000,"not_multiplied":true} | {"cost":600000,"basis":"flat","site_rent":600000,"not_multiplied":true} | ✅ PASS |
+| **COST-02** FLAT — rooms are still on the snapshots (occupancy analytics keep working) | {"snapshot_rows":12,"rows_with_a_room":12,"distinct_rooms":4} | {"snapshot_rows":12,"rows_with_a_room":12,"distinct_rooms":4} | ✅ PASS |
+| **COST-03** PER-BED — 10 foglalt ágy × 800 Ft × 30 éj = 240 000 | {"cost":240000,"basis":"per_bed_night","bed_nights":300,"rate":800} | {"cost":240000,"basis":"per_bed_night","bed_nights":300,"rate":800} | ✅ PASS |
+| **COST-04** VEGYES — flat 300 000 + the utility lines we pay (70 000) = 370 000 | {"basis":"mixed","rent_cost":300000,"expense_cost":70000,"cost":370000} | {"basis":"mixed","rent_cost":300000,"expense_cost":70000,"cost":370000} | ✅ PASS |
+| **COST-05** VEGYES — only the passthrough line is re-billed (áram 50 000 @ 100%), and it is margin-neutral | {"passthrough_net":50000,"lines":["aram"],"margin_neutral":true} | {"passthrough_net":50000,"lines":["aram"],"margin_neutral":true} | ✅ PASS |
+| **COST-06** a utility the matrix says the szállásadó pays is FLAGGED, never silently absorbed | {"flagged":true,"reason":"expense_recorded_but_szallasado_pays","run_surfaces_it":true} | {"flagged":true,"reason":"expense_recorded_but_szallasado_pays","run_surfaces_it":true} | ✅ PASS |
+| **COST-07** profit dashboard reconciles under all three bases (profit ≡ engine margin) | {"mismatches":[]} | {"mismatches":[]} | ✅ PASS |
+| **COST-08** utilities matrix over real HTTP — always six lines, round-trips, permission-gated | {"lines_returned":6,"resident_status":403,"saved_who_pays":"mi","saved_pct":60} | {"lines_returned":6,"resident_status":403,"saved_who_pays":"mi","saved_pct":60} | ✅ PASS |
+| **COST-09** coverage view flags no-basis / missing amount / incomplete utilities matrix | {"flags_unset_site":true,"has_incomplete_matrix_flag":true,"types":true} | {"flags_unset_site":true,"has_incomplete_matrix_flag":true,"types":true,"_types":["no_rent_basis","incomplete_utilities_matrix","missing_rent_amount"]} | ✅ PASS |
 
 ## CONSOLIDATION — 12 passed / 0 failed / 3 known-gap
 
@@ -94,18 +108,18 @@
 
 | Scenario | Expected | Actual | Result |
 |---|---|---|---|
-| **REP-01** report "employees" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Munkavállalók","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Munkavállalók","has_columns":true,"blank_rows":0,"_rows":805,"_source":805,"_columns":13} | ✅ PASS |
-| **REP-02** report "accommodations" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Szálláshelyek","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Szálláshelyek","has_columns":true,"blank_rows":0,"_rows":46,"_source":46,"_columns":7} | ✅ PASS |
+| **REP-01** report "employees" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Munkavállalók","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Munkavállalók","has_columns":true,"blank_rows":0,"_rows":835,"_source":835,"_columns":13} | ✅ PASS |
+| **REP-02** report "accommodations" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Szálláshelyek","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Szálláshelyek","has_columns":true,"blank_rows":0,"_rows":50,"_source":50,"_columns":7} | ✅ PASS |
 | **REP-03** report "tickets" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Hibajegyek","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Hibajegyek","has_columns":true,"blank_rows":0,"_rows":12,"_source":12,"_columns":10} | ✅ PASS |
 | **REP-04** report "contractors" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Alvállalkozók","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Alvállalkozók","has_columns":true,"blank_rows":0,"_rows":10,"_source":10,"_columns":7} | ✅ PASS |
-| **REP-05** report "occupancy" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Kihasználtság","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Kihasználtság","has_columns":true,"blank_rows":0,"_rows":46,"_source":46,"_columns":7} | ✅ PASS |
+| **REP-05** report "occupancy" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Kihasználtság","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Kihasználtság","has_columns":true,"blank_rows":0,"_rows":50,"_source":50,"_columns":7} | ✅ PASS |
 | **REP-06** report "cost_centers" — row count reconciles with the source table, sheet + columns present | {"rows_match_source":true,"sheet":"Havi költségek","has_columns":true,"blank_rows":0} | {"rows_match_source":true,"sheet":"Havi költségek","has_columns":true,"blank_rows":0,"_rows":16,"_source":16,"_columns":4} | ✅ PASS |
-| **REP-07** profit dashboard identity — profit = income − (expenses + rent) on every seeded site | {"rows_violating_identity":[]} | {"rows_violating_identity":[],"_sites":17} | ✅ PASS |
+| **REP-07** profit dashboard identity — profit = income − (expenses + rent) on every seeded site | {"rows_violating_identity":[]} | {"rows_violating_identity":[],"_sites":21} | ✅ PASS |
 | **REP-08** profit ≡ billing engine margin — per accommodation and in total | {"mismatched_sites":[],"summary_matches":true} | {"mismatched_sites":[],"summary_matches":true} | ✅ PASS |
 | **REP-09** mixed-client site — dashboard totals reconcile with both invoices | {"income":630000,"expenses":100000,"rent":600000,"profit":-70000} | {"income":630000,"expenses":100000,"rent":600000,"profit":-70000} | ✅ PASS |
 | **REP-10** capacity columns — committed / lekötetlen / empty bed-nights on the Autoliv block | {"physical_beds":100,"committed_beds":60,"uncommitted_beds":40,"empty_bed_nights":180,"occupied_bed_nights":1200} | {"physical_beds":100,"committed_beds":60,"uncommitted_beds":40,"empty_bed_nights":180,"occupied_bed_nights":1200,"full_bed_nights":1620} | ✅ PASS |
 | **REP-11** compensation appears on the dashboard as a pass-through, never inside profit | {"compensation_amount":57000,"profit_excludes_compensation":true} | {"compensation_amount":57000,"profit_excludes_compensation":true} | ✅ PASS |
-| **REP-12** operating-costs totals reconcile with accommodation_expenses rows | {"matches_source":true} | {"matches_source":true,"_reported":100000,"_source":100000} | ✅ PASS |
+| **REP-12** operating-costs totals reconcile with accommodation_expenses rows | {"matches_source":true} | {"matches_source":true,"_reported":210000,"_source":210000} | ✅ PASS |
 | **REP-13** employees report — Email/Telefon come from the EMPLOYEE record, not the login | {"email":"report.subject@functest.local","phone":"+36 30 000 1234"} | {"email":"","phone":""} | ⚠️ KNOWN-GAP |
 | **REP-14** cost_centers report honours its configured filters | {"filter_changed_output":true} | {"filter_changed_output":false,"_unfiltered_rows":16,"_filtered_rows":16} | ⚠️ KNOWN-GAP |
 | **REP-15** occupancy report "as of" uses the LOCAL date, not UTC | {"tz_probe_occupied":1} | {"tz_probe_occupied":0} | ⚠️ KNOWN-GAP |
@@ -147,8 +161,8 @@
 | **AUTO-03** every configured report type executes and stores an output | {"failed_types":[],"stored":6} | {"failed_types":[],"stored":6} | ✅ PASS |
 | **AUTO-04** an unknown report type fails LOUDLY (status=failed + error_message), never silently | {"status":"failed","error":"~Unknown report type~"} | {"status":"failed","error":"Unknown report type: ft_nonexistent_type"} | ✅ PASS |
 | **AUTO-05** alertOps fires on a forced failure (ops alert emitted, job does not crash) | {"ops_alert_emitted":true,"mentions_report_name":true,"threw":false} | {"ops_alert_emitted":true,"mentions_report_name":true,"threw":false,"_alerts":["[ops-alert] Ütemezett riport HIBA: \"FT Kényszerített hiba\" — Unknown report type: ft_forced_failure"]} | ✅ PASS |
-| **AUTO-06** billing draft run — the expected invoice set, all rows in draft status on one run | {"billings":19,"all_draft":true,"run_status":"calculated","rows_match_summary":true} | {"billings":19,"all_draft":true,"run_status":"calculated","rows_match_summary":true} | ✅ PASS |
-| **AUTO-07** daily occupancy snapshot cron — the expected number of employee-days for the month | {"rows":14175} | {"rows":14175} | ✅ PASS |
+| **AUTO-06** billing draft run — the expected invoice set, all rows in draft status on one run | {"billings":23,"all_draft":true,"run_status":"calculated","rows_match_summary":true} | {"billings":23,"all_draft":true,"run_status":"calculated","rows_match_summary":true} | ✅ PASS |
+| **AUTO-07** daily occupancy snapshot cron — the expected number of employee-days for the month | {"rows":15075} | {"rows":15075} | ✅ PASS |
 | **AUTO-08** snapshot cron is idempotent — re-running the whole month duplicates nothing | {"rows_unchanged":true,"duplicate_keys":0} | {"rows_unchanged":true,"duplicate_keys":0} | ✅ PASS |
 
 ## COMPOSED — 6 passed / 0 failed
@@ -185,4 +199,4 @@ the bug is still open. Each flips to 🎉 FIXED automatically once closed.
 
 ---
 
-_Generated by `tests/functest/` — 100 passed / 0 failed / 11 known-gap. Regenerate with `npm run functest`._
+_Generated by `tests/functest/` — 109 passed / 0 failed / 11 known-gap. Regenerate with `npm run functest`._

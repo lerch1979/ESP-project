@@ -150,6 +150,7 @@ const upsertProfile = async (req, res) => {
 };
 
 // ── coverage: which client×accommodation combos would bill $0 / mis-bill ──
+const UTILITY_LINE_COUNT = 6;   // víz és csatorna · internet · áram · gáz · közös költség · hulladékszállítás
 const RATE_MONTH_RE = /^\d{4}-\d{2}$/;
 const rateCoverage = async (req, res) => {
   try {
@@ -191,7 +192,41 @@ const rateCoverage = async (req, res) => {
         }
       }
     }
-    res.json({ success: true, data: { month, issues, skipped } });
+    // ── COST-side coverage (mig 142) — a site that houses people but has no rent
+    //    contract configured bills a 0 cost, which silently overstates every margin.
+    const costIssues = [];
+    const occupiedAccIds = [...new Set(groups.map((g) => g.accommodation_id))];
+    if (occupiedAccIds.length) {
+      const accs = (await query(
+        `SELECT id, name, rent_basis, COALESCE(rent_amount, monthly_rent) AS rent_amount, rent_per_bed_night
+           FROM accommodations WHERE id = ANY($1::uuid[])`, [occupiedAccIds])).rows;
+      const matrixCount = new Map();
+      for (const r of (await query(
+        `SELECT accommodation_id, COUNT(*)::int c FROM accommodation_utility_lines
+          WHERE accommodation_id = ANY($1::uuid[]) GROUP BY accommodation_id`, [occupiedAccIds])).rows) {
+        matrixCount.set(r.accommodation_id, r.c);
+      }
+      for (const a of accs) {
+        if (!a.rent_basis) {
+          costIssues.push({ type: 'no_rent_basis', accommodation_name: a.name,
+            detail: a.rent_amount ? 'a régi havi bérleti díjjal számol (flat)' : 'nincs bérleti díj sem → 0 költség' });
+        }
+        const basis = a.rent_basis || 'flat';
+        if ((basis === 'flat' || basis === 'mixed') && !(Number(a.rent_amount) > 0)) {
+          costIssues.push({ type: 'missing_rent_amount', accommodation_name: a.name, detail: 'fix havi bérleti díj hiányzik' });
+        }
+        if (basis === 'per_bed_night' && !(Number(a.rent_per_bed_night) > 0)) {
+          costIssues.push({ type: 'missing_bed_rate', accommodation_name: a.name, detail: 'ágy/éj díj hiányzik' });
+        }
+        const configured = matrixCount.get(a.id) || 0;
+        if (configured < UTILITY_LINE_COUNT) {
+          costIssues.push({ type: 'incomplete_utilities_matrix', accommodation_name: a.name,
+            detail: `${configured}/${UTILITY_LINE_COUNT} rezsi sor beállítva` });
+        }
+      }
+    }
+
+    res.json({ success: true, data: { month, issues, skipped, cost_issues: costIssues } });
   } catch (e) { logger.error('[billing.rateCoverage]', e.message); res.status(500).json({ success: false, message: 'Hiba' }); }
 };
 

@@ -148,8 +148,8 @@ module.exports = {
     {
       id: 'AUTO-06',
       name: 'billing draft run — the expected invoice set, all rows in draft status on one run',
-      expected: { billings: 19, all_draft: true, run_status: 'calculated', rows_match_summary: true },
-      hint: '19 (accommodation × megbízó) groups; the invoicing-off client contributes none',
+      expected: { billings: 23, all_draft: true, run_status: 'calculated', rows_match_summary: true },
+      hint: '23 (accommodation × megbízó) groups — 19 revenue-side sites + the 4 COST-side sites; the invoicing-off client contributes none',
       run: async (ctx) => {
         const rows = (await ctx.query(
           `SELECT ab.status, ab.billing_run_id FROM accommodation_billings ab
@@ -166,8 +166,8 @@ module.exports = {
     {
       id: 'AUTO-07',
       name: 'daily occupancy snapshot cron — the expected number of employee-days for the month',
-      expected: { rows: 14175 },
-      hint: 'sum of every fixture site\'s (headcount × covered days); see tests/functest/fixture.js',
+      expected: { rows: 15075 },
+      hint: 'sum of every fixture site\'s (headcount × covered days): 14 175 revenue-side + 900 from the four COST sites (12+10+6+2 fő × 30). Deliberately exact so fixture drift is loud.',
       run: async (ctx) => ({
         rows: (await ctx.query(
           `SELECT COUNT(*)::int c FROM occupancy_snapshots WHERE TO_CHAR(snapshot_date,'YYYY-MM')=$1`, [ctx.month])).rows[0].c,

@@ -132,10 +132,14 @@ async function syncAssignmentSafe(args) {
  * the stale row today and open a correct one today. Past rows are NOT rewritten — history
  * that already drove past billing stays exactly as it was.
  *
- * @param {{dryRun?: boolean, effectiveDate?: string}} opts
+ * @param {{dryRun?: boolean, effectiveDate?: string, employeeIds?: string[]}} opts
+ *   employeeIds — restrict to these employees. Omit for the real one-off migration;
+ *   tests pass it so a suite cannot mutate rows another parallel suite is asserting on.
  */
-async function backfillCurrentRoster({ dryRun = false, effectiveDate } = {}) {
+async function backfillCurrentRoster({ dryRun = false, effectiveDate, employeeIds = null } = {}) {
   const date = effectiveDate || localDateStr();
+  const scope = employeeIds ? ' AND e.id = ANY($1::uuid[])' : '';
+  const params = employeeIds ? [employeeIds] : [];
 
   // Active (not terminated) employees, with their single open history row if any.
   const rows = (await rootQuery(
@@ -148,7 +152,7 @@ async function backfillCurrentRoster({ dryRun = false, effectiveDate } = {}) {
          SELECT id, accommodation_id, room_id FROM employee_accommodation_history
           WHERE employee_id = e.id AND check_out_date IS NULL
           ORDER BY check_in_date DESC LIMIT 1) h ON TRUE
-      WHERE e.end_date IS NULL`)).rows;
+      WHERE e.end_date IS NULL${scope}`, params)).rows;
 
   const plan = { housed_ok: 0, housed_fixed: 0, housed_opened: 0, unhoused_closed: 0, duplicates_collapsed: 0 };
   const actions = [];
@@ -183,7 +187,7 @@ async function backfillCurrentRoster({ dryRun = false, effectiveDate } = {}) {
        FROM employees e
       WHERE e.end_date IS NOT NULL
         AND EXISTS (SELECT 1 FROM employee_accommodation_history h
-                     WHERE h.employee_id = e.id AND h.check_out_date IS NULL)`)).rows;
+                     WHERE h.employee_id = e.id AND h.check_out_date IS NULL)${scope}`, params)).rows;
   plan.leavers_closed = leavers.length;
   if (!dryRun) {
     for (const l of leavers) {

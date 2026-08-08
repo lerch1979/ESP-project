@@ -421,6 +421,22 @@ const updateAccommodation = async (req, res) => {
       paramIndex++;
     }
 
+    // COST side (mig 142) — the rent contract belongs to the PROPERTY, never to the
+    // partner: one szállásadó may hold several properties on different terms.
+    const { rent_basis, rent_amount, rent_per_bed_night } = req.body;
+    if (rent_basis !== undefined) {
+      if (rent_basis !== null && !RENT_BASES.includes(rent_basis)) {
+        return res.status(400).json({ success: false, message: `Érvénytelen bérleti konstrukció. Lehetséges: ${RENT_BASES.join(', ')}` });
+      }
+      fields.push(`rent_basis = $${paramIndex}`); params.push(rent_basis || null); paramIndex++;
+    }
+    if (rent_amount !== undefined) {
+      fields.push(`rent_amount = $${paramIndex}`); params.push(rent_amount === '' ? null : rent_amount); paramIndex++;
+    }
+    if (rent_per_bed_night !== undefined) {
+      fields.push(`rent_per_bed_night = $${paramIndex}`); params.push(rent_per_bed_night === '' ? null : rent_per_bed_night); paramIndex++;
+    }
+
     if (notes !== undefined) {
       fields.push(`notes = $${paramIndex}`);
       params.push(notes || null);
@@ -746,6 +762,105 @@ const bulkImportAccommodations = async (req, res) => {
   }
 };
 
+
+// ── COST model (mig 142) ────────────────────────────────────────────────
+// Rent basis + the six-line utilities matrix live on the ACCOMMODATION, because the
+// contract is a property of the property: the same szállásadó may rent us one site on a
+// flat monthly rent and another per occupied bed-night.
+const RENT_BASES = ['flat', 'per_bed_night', 'mixed'];
+const UTILITY_LINES = ['viz_csatorna', 'internet', 'aram', 'gaz', 'kozos_koltseg', 'hulladekszallitas'];
+const UTILITY_LABELS = {
+  viz_csatorna: 'Víz és csatorna',
+  internet: 'Internet',
+  aram: 'Áram',
+  gaz: 'Gáz',
+  kozos_koltseg: 'Közös költség',
+  hulladekszallitas: 'Hulladékszállítás',
+};
+
+/**
+ * GET /api/v1/accommodations/:id/utilities
+ * Always returns all six lines — unconfigured ones come back with defaults and
+ * `configured: false`, so the admin renders a complete matrix and the coverage view can
+ * tell "not set" apart from "deliberately the szállásadó's".
+ */
+const getUtilityMatrix = async (req, res) => {
+  try {
+    const rows = (await query(
+      `SELECT line, who_pays, contract_holder, passthrough, passthrough_pct, notes
+         FROM accommodation_utility_lines WHERE accommodation_id = $1`, [req.params.id])).rows;
+    const byLine = new Map(rows.map((r) => [r.line, r]));
+    const matrix = UTILITY_LINES.map((line) => {
+      const r = byLine.get(line);
+      return {
+        line,
+        label: UTILITY_LABELS[line],
+        who_pays: r ? r.who_pays : 'szallasado',
+        contract_holder: r ? r.contract_holder : 'szallasado',
+        passthrough: r ? r.passthrough : false,
+        passthrough_pct: r ? Number(r.passthrough_pct) : 100,
+        notes: r ? r.notes : null,
+        configured: !!r,
+      };
+    });
+    res.json({ success: true, data: { matrix, configured_count: rows.length, total_lines: UTILITY_LINES.length } });
+  } catch (error) {
+    logger.error('Rezsi-mátrix lekérési hiba:', error);
+    res.status(500).json({ success: false, message: 'Rezsi-mátrix lekérési hiba' });
+  }
+};
+
+/**
+ * PUT /api/v1/accommodations/:id/utilities
+ * body: { matrix: [{ line, who_pays, contract_holder, passthrough, passthrough_pct, notes }] }
+ * Upsert per line — a partial payload edits only the lines it names.
+ */
+const updateUtilityMatrix = async (req, res) => {
+  try {
+    const incoming = Array.isArray(req.body?.matrix) ? req.body.matrix : null;
+    if (!incoming) return res.status(400).json({ success: false, message: 'A "matrix" tömb kötelező' });
+
+    for (const row of incoming) {
+      if (!UTILITY_LINES.includes(row.line)) {
+        return res.status(400).json({ success: false, message: `Ismeretlen rezsi sor: ${row.line}` });
+      }
+      if (row.who_pays && !['mi', 'szallasado'].includes(row.who_pays)) {
+        return res.status(400).json({ success: false, message: 'A "ki fizeti" értéke csak: mi | szallasado' });
+      }
+      if (row.contract_holder && !['mi', 'szallasado'].includes(row.contract_holder)) {
+        return res.status(400).json({ success: false, message: 'A "szerződés kinek a nevén" értéke csak: mi | szallasado' });
+      }
+      const pct = row.passthrough_pct;
+      if (pct !== undefined && pct !== null && (Number.isNaN(Number(pct)) || Number(pct) < 0 || Number(pct) > 100)) {
+        return res.status(400).json({ success: false, message: 'A továbbszámlázási arány 0 és 100 között lehet' });
+      }
+    }
+
+    await transaction(async (client) => {
+      for (const row of incoming) {
+        await client.query(
+          `INSERT INTO accommodation_utility_lines
+             (accommodation_id, line, who_pays, contract_holder, passthrough, passthrough_pct, notes, updated_by, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+           ON CONFLICT (accommodation_id, line) DO UPDATE SET
+             who_pays = EXCLUDED.who_pays,
+             contract_holder = EXCLUDED.contract_holder,
+             passthrough = EXCLUDED.passthrough,
+             passthrough_pct = EXCLUDED.passthrough_pct,
+             notes = EXCLUDED.notes,
+             updated_by = EXCLUDED.updated_by,
+             updated_at = NOW()`,
+          [req.params.id, row.line, row.who_pays || 'szallasado', row.contract_holder || 'szallasado',
+           row.passthrough === true, row.passthrough_pct ?? 100, row.notes || null, req.user?.id || null]);
+      }
+    });
+    return getUtilityMatrix(req, res);
+  } catch (error) {
+    logger.error('Rezsi-mátrix mentési hiba:', error);
+    res.status(500).json({ success: false, message: 'Rezsi-mátrix mentési hiba' });
+  }
+};
+
 module.exports = {
   getAccommodations,
   getAccommodationById,
@@ -754,4 +869,9 @@ module.exports = {
   deleteAccommodation,
   getAccommodationContractors,
   bulkImportAccommodations,
+  getUtilityMatrix,
+  updateUtilityMatrix,
+  RENT_BASES,
+  UTILITY_LINES,
+  UTILITY_LABELS,
 };

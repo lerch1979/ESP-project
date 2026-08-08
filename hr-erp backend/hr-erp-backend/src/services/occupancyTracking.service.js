@@ -17,13 +17,18 @@
  * Convention: check_out_date is "the first day they're no longer here".
  * Half-day stay counts as full day; same-day in-AND-out does NOT count.
  *
- * Pro-rata math (decision 2):
- *   per_occupant_daily_share = monthly_rent / days_in_month / room_occupant_count
- * NULL room_id and NULL monthly_rent are tolerated:
- *   • NULL room_id  → all occupants of the accommodation with NULL room
- *                     are grouped together (IS NOT DISTINCT FROM null = match).
- *   • NULL rent     → per_occupant_daily_share stays NULL; billing engine
- *                     will skip these rows with a warning.
+ * Pro-rata math (decision 2, CORRECTED by migration 142):
+ *   per_occupant_daily_share = monthly_rent / days_in_month / SITE_occupant_count
+ *
+ * ⚠️ This used to divide by room_occupant_count, which meant the share summed to the
+ * site's monthly rent ONCE PER OCCUPIED ROOM — a 31-room site allocated 31× its rent.
+ * The rent is the PROPERTY's, so it is spread over everyone sleeping at the property.
+ * room_id / room_beds / room_occupant_count are still recorded (occupancy analytics and
+ * the invoice annex need them); they simply no longer divide the money.
+ *
+ * NULL rent → per_occupant_daily_share stays NULL; the billing engine treats it as 0.
+ * Authoritative cost lives in billingEngine.computeRentCost (it also handles the
+ * per-bed-night and mixed bases); this column is the flat-basis cross-check.
  */
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
@@ -68,7 +73,11 @@ async function recordDailySnapshot(snapshotDate) {
         h.employee_id,
         h.accommodation_id,
         h.room_id,
-        a.monthly_rent,
+        -- Effective flat rent (mig 142): the configured rent_amount wins, the legacy
+        -- monthly_rent is the fallback. A per-bed-night site has no monthly figure, so
+        -- the column is NULL there — billingEngine.computeRentCost owns that basis.
+        CASE WHEN a.rent_basis = 'per_bed_night' THEN NULL
+             ELSE COALESCE(a.rent_amount, a.monthly_rent) END AS monthly_rent,
         a.current_contractor_id AS contractor_id,
         r.beds AS room_beds
       FROM employee_accommodation_history h
@@ -84,6 +93,13 @@ async function recordDailySnapshot(snapshotDate) {
         COUNT(*) AS room_occupant_count
       FROM active_assignments
       GROUP BY accommodation_id, room_id
+    ),
+    -- SITE headcount — the divisor for the rent share (mig 142). Rooms describe WHERE
+    -- someone sleeps; they must never multiply what the property costs.
+    site_counts AS (
+      SELECT accommodation_id, COUNT(*) AS site_occupant_count
+      FROM active_assignments
+      GROUP BY accommodation_id
     )
     INSERT INTO occupancy_snapshots (
       snapshot_date, employee_id, accommodation_id, room_id, contractor_id,
@@ -100,14 +116,15 @@ async function recordDailySnapshot(snapshotDate) {
       a.room_beds,
       oc.room_occupant_count,
       CASE
-        WHEN a.monthly_rent IS NOT NULL AND oc.room_occupant_count > 0
-          THEN ROUND(a.monthly_rent::numeric / $2::numeric / oc.room_occupant_count::numeric, 4)
+        WHEN a.monthly_rent IS NOT NULL AND sc.site_occupant_count > 0
+          THEN ROUND(a.monthly_rent::numeric / $2::numeric / sc.site_occupant_count::numeric, 4)
         ELSE NULL
       END AS per_occupant_daily_share
     FROM active_assignments a
     JOIN occupant_counts oc
       ON oc.accommodation_id = a.accommodation_id
      AND oc.room_id IS NOT DISTINCT FROM a.room_id
+    JOIN site_counts sc ON sc.accommodation_id = a.accommodation_id
     ON CONFLICT (snapshot_date, employee_id) DO UPDATE SET
       accommodation_id           = EXCLUDED.accommodation_id,
       room_id                    = EXCLUDED.room_id,

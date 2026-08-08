@@ -6,6 +6,38 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-08-08 — Backfill applied to prod + COST side built (rent basis + utilities matrix)
+
+### Part 1 — the history backfill went live (approved after the dry run)
+
+**Verified backup first:** `./backup.sh` → `db-20260808-0449.dump`, restored into a throwaway `hr_erp_verify` (`pg_restore` rc=0) and compared to live: employees 288, users 7, accommodations 16, history 284, snapshots 15 620, billings 71 — **identical**. Scratch DB dropped afterwards.
+
+**Dry run (reported and approved):** 284 stale rows, 3 missing, **0 overlaps**. Key characterisation: all 284 differed **only by `room_id`** — the accommodation matched in every case. History had *never* carried a room (`history rows with a room_id = 0`) while 287 employees got one from the 2026-07-13 room-linker. So accommodation-level occupancy had been right all along; only room-level data was missing.
+
+**Applied:** 284 corrected + 3 opened → 287 open rows, 0 out of sync, 0 overlaps, self-verify green.
+
+**Live-verified:** `recordDailySnapshot` wrote **287 rows** (was 284) and **287 now carry a room** (was 0). A real room change over the public API (`PUT /employees/:id` via Caddy) wrote `reason='employee update'` history; reverting restored both the room and the history. Employee left exactly as found.
+
+### Part 2 — COST side (mig 142)
+
+**⚠️ Found and fixed while building it:** migration 112 allocated rent as `monthly_rent / days / room_occupant_count` **grouped by (accommodation, room)** — so a site's rent was charged **once per occupied room**. Sopronhorpács has 31 occupied rooms, Röjtökmuzsaj 25, Beled 16. It was invisible only because no housed accommodation had a rent set *and* history carried no room; **the backfill in Part 1 is what would have made it reachable**. Now allocation is SITE-level: rooms stay on snapshots for occupancy analytics and never touch cost. `occupancyTracking` divides by site headcount too, so the stored share stops lying.
+
+**Configured PER ACCOMMODATION, never per partner** (one owner may hold several properties on different contracts). Three bases: `flat` (fix havi díj az egész ingatlanra) · `per_bed_night` (foglalt ágy × díj × éj) · `mixed` (flat + the utility lines we pay). A NULL basis behaves as flat over the legacy `monthly_rent`, so nothing silently drops to zero.
+
+**Six-line utilities matrix** (víz és csatorna · internet · áram · gáz · közös költség · hulladékszállítás), per line and independent: who pays (mi/szállásadó) · in whose name the contract runs · passed through to the megbízó · at what share. Where WE pay → cost + profit dashboard. Where passed through → revenue at `recorded amount × share` (VAT per the client's rate) → **margin-neutral at 100%**. An expense recorded on a line the matrix says the szállásadó pays is **flagged**, never silently absorbed. Expenses are tagged with `accommodation_expenses.utility_line`.
+
+**Admin:** Szálláshely részletek → rent-basis selector + amount fields in the edit form, and a new **„Költség & rezsi"** tab with the full matrix (unconfigured lines highlighted). **Coverage:** `/billing/rate-coverage` now returns `cost_issues` — no rent basis / missing amount / incomplete matrix.
+
+**Tests:** `tests/integration/costModel.test.js` **10/10** (FLAT 600 000 across 4 rooms → 600 000 not 2 400 000; PER-BED 10×800×30 = 240 000; VEGYES flat+utilities; pass-through margin-neutral; mismatch flagged; legacy no-basis → flat; profit reconciles under all three). FUNCTEST **COST-01..09** added → **109 passed / 0 failed / 11 known-gap over 120 scenarios**. Full jest on a fresh migrated DB: **80 suites / 1454 passed**.
+
+**Also:** `Dockerfile` now `COPY scripts ./scripts` — the Part-1 backfill had to be `docker cp`'d onto the running container because ops scripts were never in the image.
+
+**Pre-existing flake confirmed, not introduced:** `inspectionWorkflow.e2e` „POST /inspections creates a draft" fails intermittently under jest's parallel workers (~1 in 6 full runs). Verified by stashing every change and running the baseline on a clean DB — it flakes there too (already noted in the 2026-07-19d entry). Worth its own fix; unrelated to this work.
+
+**NOT YET DEPLOYED — awaiting go-ahead.** Deploy = push → CI → `pull && up -d backend admin`, then apply **mig 142 via psql** on prod (additive: 3 nullable columns + 1 table + 1 nullable column; `rent_amount` back-filled from `monthly_rent`). No behaviour changes for prod until a basis is set, because prod's housed accommodations have no rent configured — but the ×room multiplication is fixed *before* anyone enters one, which is the point.
+
+---
+
 ## SESSION 2026-08-07b — Fixed the two FUNCTEST findings: frozen billing roster + effective cross-tenant/resident writes
 
 Both findings from the FUNCTEST session are closed, sandbox-tested and covered by regressions. **FUNCTEST is now 100 passed / 0 failed / 11 known-gap over 111 scenarios** (was 90/0/15) — DATA-01, PERM-13, PERM-19 and PERM-20 flipped from ⚠️ KNOWN-GAP to ✅ PASS. Full CI jest on a fresh migrated DB: **79 suites / 1444 passed, 0 failed** (1434 + the 10 new).

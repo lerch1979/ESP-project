@@ -43,6 +43,7 @@ const KEEP = flag('keep');
 
 const MODULES = [
   './scenarios/billing',
+  './scenarios/costModel',
   './scenarios/consolidation',
   './scenarios/permissions',
   './scenarios/reports',

@@ -119,12 +119,18 @@ describe('accommodationHistory.syncAssignment', () => {
 
 describe('the chain that was broken: history → snapshot', () => {
   test('the handover day belongs to the NEW accommodation, and each day is counted once', async () => {
+    // Start from a clean slate for THIS employee: recordDailySnapshot is global, and jest
+    // runs suites in parallel workers, so another suite's snapshot call can have written
+    // a row for a day this test is about to assert on.
+    await query(`DELETE FROM occupancy_snapshots WHERE employee_id=$1`, [empId]);
     for (let d = 1; d <= 20; d++) await occ.recordDailySnapshot(day(d));
     const rows = (await query(
       `SELECT TO_CHAR(snapshot_date,'YYYY-MM-DD') AS d, accommodation_id, room_id
          FROM occupancy_snapshots WHERE employee_id=$1 ORDER BY snapshot_date`, [empId])).rows;
 
-    expect(rows).toHaveLength(19);                                   // days 1..19; day 20 is check-out
+    // Name the days explicitly — a bare count hides WHICH day drifted.
+    expect(rows.map((r) => r.d)).toEqual(
+      Array.from({ length: 19 }, (_, i) => day(i + 1)));
     expect(rows.find((r) => r.d === day(9))).toMatchObject({ accommodation_id: accA, room_id: roomA1 });
     expect(rows.find((r) => r.d === day(10))).toMatchObject({ accommodation_id: accB });   // handover → NEW
     expect(rows.find((r) => r.d === day(19))).toMatchObject({ accommodation_id: accB });
@@ -144,13 +150,15 @@ describe('backfillCurrentRoster', () => {
   test('dry run reports the plan without writing', async () => {
     await query(`UPDATE employees SET accommodation_id=$2, room_id=$3, end_date=NULL WHERE id=$1`, [empId, accA, roomA1]);
     const before = (await allRows()).rows.length;
-    const plan = await svc.backfillCurrentRoster({ dryRun: true });
+    // Scoped to this suite's employee: jest runs files in parallel workers, and an
+    // unscoped backfill would rewrite history rows another suite is mid-assertion on.
+    const plan = await svc.backfillCurrentRoster({ dryRun: true, employeeIds: [empId] });
     expect(plan.dry_run).toBe(true);
     expect((await allRows()).rows).toHaveLength(before);
   });
 
   test('applying it makes history agree with the roster, with no overlaps', async () => {
-    await svc.backfillCurrentRoster({});
+    await svc.backfillCurrentRoster({ employeeIds: [empId] });
     const open = (await openRows()).rows;
     expect(open).toHaveLength(1);
     expect(open[0]).toMatchObject({ accommodation_id: accA, room_id: roomA1 });
