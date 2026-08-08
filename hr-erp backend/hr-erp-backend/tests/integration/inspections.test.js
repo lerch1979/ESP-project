@@ -14,10 +14,18 @@ let checklistItemId;
 let checklistMaxPoints;
 
 beforeAll(async () => {
-  // Login as admin (seeded in 061_comprehensive_seed_data)
-  const login = await request(app)
+  // Login as admin (seeded in 061_comprehensive_seed_data).
+  // Retried once: jest runs suites in parallel workers and a dozen files log in as this
+  // same user within a second of each other, so a single attempt occasionally comes back
+  // without a token and used to blank it for the whole file.
+  const doLogin = () => request(app)
     .post('/api/v1/auth/login')
     .send({ email: 'admin@hr-erp.com', password: 'password123' });
+  let login = await doLogin();
+  if (!login.body?.data?.token) {
+    await new Promise((r) => setTimeout(r, 250));
+    login = await doLogin();
+  }
   authToken = login.body?.data?.token || null;
 
   // Get a real accommodation id (seeded in earlier migrations)
@@ -64,7 +72,7 @@ describe('Inspection Workflow (happy path)', () => {
   let inspectionId;
 
   it('POST /inspections creates a draft', async () => {
-    if (!accommodationId) return; // skip if DB has no accommodations
+    if (!authToken || !accommodationId) return; // skip if DB unseeded (same guard as every sibling test)
 
     const res = await request(app)
       .post('/api/v1/inspections')
