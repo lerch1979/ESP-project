@@ -71,9 +71,11 @@ beforeAll(async () => {
        SELECT 'E'||g,$1,$2,$3,$4,$5 FROM generate_series(1,$6) g RETURNING id`,
       [TAG, status, acc, roomId, ids.client, count]);
     const empIds = r.rows.map((x) => x.id);
+    // Bounded stay (see note in billingMonthToDate): an open-ended check_out would make
+    // these residents appear in every later month and collide with parallel suites.
     await query(
-      `INSERT INTO employee_accommodation_history (employee_id,accommodation_id,room_id,check_in_date)
-       SELECT id,$2,$3,$4::date FROM UNNEST($1::uuid[]) id`, [empIds, acc, roomId, D1]);
+      `INSERT INTO employee_accommodation_history (employee_id,accommodation_id,room_id,check_in_date,check_out_date)
+       SELECT id,$2,$3,$4::date,$5::date FROM UNNEST($1::uuid[]) id`, [empIds, acc, roomId, D1, '1905-05-01']);
     return empIds;
   };
   const rate = (acc) => query(

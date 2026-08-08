@@ -252,13 +252,20 @@ function occupancyByDay(rows) {
  * occupancy floor. capacity = contracted_beds when set, else the accommodation's physical
  * beds. Returns net/vat plus a `per_bed` breakdown for the invoice + profit dashboard.
  */
-function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds) {
+function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds, billableDays) {
   const occ = occupancyByDay(rows);
   const [Y, M] = month.split('-').map(Number);
+  // MONTH-TO-DATE: never bill the contracted block for days the occupancy job has not
+  // covered yet. Revenue used to run day 1..daysInMonth regardless, so a draft taken on
+  // the 8th of a 31-day month invoiced 23 days that had not happened — while COST only
+  // ever covered days with snapshots. Revenue and cost must span the SAME period.
+  // NOTE: a covered day with genuinely ZERO occupants still bills (that is exactly what
+  // an occupancy guarantee is for) — the cut-off is "no data", not "nobody home".
+  const lastDay = Math.max(0, Math.min(daysInMonth, Number.isFinite(billableDays) ? billableDays : daysInMonth));
   let baseNet = 0, baseVat = 0, vatRate = 0, vatExempt = false;
   let fullBN = 0, reducedBN = 0, occBN = 0, daysBilled = 0;
   let capacity = null, contracted = null, floorPct = null, rateUsed = null, rateEmpty = null;
-  for (let day = 1; day <= daysInMonth; day++) {
+  for (let day = 1; day <= lastDay; day++) {
     const dStr = `${Y}-${String(M).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const row = resolveRow(clientId, accId, dStr);
     if (!row || row.billing_basis !== 'per_bed_night') continue;
@@ -283,6 +290,8 @@ function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, ac
     capacity, contracted_beds: contracted, physical_beds: Number(accBeds) || 0,
     floor_pct: floorPct, rate_used: rateUsed, rate_empty: rateEmpty,
     days_billed: daysBilled,
+    days_in_month: daysInMonth,
+    month_to_date: lastDay < daysInMonth,   // true when the month is still running
     full_bed_nights: fullBN, reduced_bed_nights: reducedBN, occupied_bed_nights: occBN,
     avg_full_beds: daysBilled ? round2(fullBN / daysBilled) : 0,
     avg_occupied_beds: daysBilled ? round2(occBN / daysBilled) : 0,
@@ -298,7 +307,8 @@ function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, ac
  * the month (the first applicable row's basis wins).
  */
 function computeGroupRevenue(rows, resolveRow, accId, clientId, daysInMonth, opts = {}) {
-  const { rezsiTotal = 0, utilitiesBilling = 'we_pay', groupEmpDays = 0, accEmpDays = 0, month = null, accBeds = 0 } = opts;
+  const { rezsiTotal = 0, utilitiesBilling = 'we_pay', groupEmpDays = 0, accEmpDays = 0, month = null, accBeds = 0,
+          billableDays = daysInMonth } = opts;
   const dayRow = new Map();
   let peekBasis = null;
   for (const r of rows) {
@@ -309,7 +319,7 @@ function computeGroupRevenue(rows, resolveRow, accId, clientId, daysInMonth, opt
   let baseNet = 0, baseVat = 0, vatRate = 0, basis = null, vatExempt = false, perBed = null;
 
   if (peekBasis === 'per_bed_night' && month) {
-    const pb = computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds);
+    const pb = computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds, billableDays);
     basis = 'per_bed_night';
     baseNet = pb.baseNet; baseVat = pb.baseVat; vatRate = pb.vatRate; vatExempt = pb.vatExempt; perBed = pb.perBed;
   } else {
@@ -405,6 +415,23 @@ async function calculateMonthlyBilling(month, opts = {}) {
          FROM client_night_rates`
     );
     const resolveRow = makeRateResolver(rateRows.rows);
+
+    // How far did the daily occupancy job actually get this month? Taken globally (not
+    // per accommodation, since a site can legitimately be empty for a stretch), this is
+    // the last day for which ANY snapshot exists. Everything after it simply has not
+    // happened yet, so no basis may bill it — see computePerBed.
+    //
+    // LIMITATION, stated plainly: there is no record of when the snapshot job RAN, only
+    // of what it produced. So a month in which nobody at all is housed anywhere is
+    // indistinguishable from a month the job never covered — both yield 0 billable days.
+    // That is harmless today (an estate with zero occupants bills nothing either way),
+    // but if per-bed guarantees ever need to bill against a completely empty estate, this
+    // needs a real `occupancy_snapshot_runs` ledger rather than MAX(snapshot_date).
+    const lastSnap = await client.query(
+      `SELECT COALESCE(MAX(EXTRACT(DAY FROM snapshot_date))::int, 0) AS d
+         FROM occupancy_snapshots WHERE TO_CHAR(snapshot_date, 'YYYY-MM') = $1`, [month]);
+    const billableDays = Math.min(dim, lastSnap.rows[0].d || 0);
+    const monthToDate = billableDays < dim;
 
     // Physical bed capacity per accommodation (Σ accommodation_rooms.beds) — the per_bed
     // fallback capacity when a rate has no contracted_beds, and the profit "lekötetlen" base.
@@ -549,6 +576,7 @@ async function calculateMonthlyBilling(month, opts = {}) {
         accEmpDays,
         month,
         accBeds: accBedsByAcc.get(grp.accommodation_id) || 0,
+        billableDays,
       });
       if (grp.billing_client_id && rev.net === 0) noRateGroups++;
 
@@ -613,6 +641,9 @@ async function calculateMonthlyBilling(month, opts = {}) {
         gross_amount: grossWithUtilities,
         per_bed: rev.per_bed,   // per_bed_night breakdown (capacity/floor/full/empty bed-nights) or null
         // COST side (mig 142) — site-level rent by basis, never multiplied by room count
+        billable_days: billableDays,
+        days_in_month: dim,
+        month_to_date: monthToDate,     // draft covers only part of the month
         rent_basis: rentSplit.basis,
         rent_cost: rentSplit.group_rent,
         rent_site_total: rentSplit.site_rent,
@@ -665,6 +696,10 @@ async function calculateMonthlyBilling(month, opts = {}) {
       cost_config_mismatches: costMismatches,              // expense recorded on a line the matrix says we don't pay
       total_compensation: grandCompensation,  // pass-through billed to megbízók (separate lines)
       billing_count: groups.size,
+      billable_days: billableDays,      // days the occupancy job has covered this month
+      days_in_month: dim,
+      month_to_date: monthToDate,       // TRUE → partial draft; revenue AND cost cover the same days
+      billing_count_note: monthToDate ? `Hó közbeni piszkozat: ${billableDays}/${dim} nap` : null,
       partner_count: partnerIds.size,
       groups_no_billing_client: noClientGroups,
       groups_no_rate: noRateGroups,

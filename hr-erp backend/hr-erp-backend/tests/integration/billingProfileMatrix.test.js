@@ -42,7 +42,10 @@ beforeAll(async () => {
   const mkEmp = async (acc, client) => (await query(
     `INSERT INTO employees (first_name,last_name,status_id,accommodation_id,billing_client_id) VALUES ('E',$1,$2,$3,$4) RETURNING id`,
     [TAG, status, acc, client])).rows[0].id;
-  const hist = (e, acc, ci, co) => query(`INSERT INTO employee_accommodation_history (employee_id,accommodation_id,room_id,check_in_date,check_out_date) VALUES ($1,$2,NULL,$3,$4)`, [e, acc, ci, co]);
+  // check_out defaults to the 1st of the NEXT month rather than NULL: an open-ended stay
+  // covers every later date, so parallel billing suites sweep these accommodations into
+  // their runs and hit the accommodation FK when this suite cleans up.
+  const hist = (e, acc, ci, co) => query(`INSERT INTO employee_accommodation_history (employee_id,accommodation_id,room_id,check_in_date,check_out_date) VALUES ($1,$2,NULL,$3,$4)`, [e, acc, ci, co || '1902-07-01']);
   const rate = (client, acc, basis, amount, exempt) => query(
     `INSERT INTO client_night_rates (contractor_id,accommodation_id,billing_basis,rate_per_night,flat_amount,vat_rate,vat_exempt,valid_from,notes)
      VALUES ($1,$2,$3,$4,$5,0.27,$6,'1900-01-01',$7)`,
