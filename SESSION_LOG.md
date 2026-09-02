@@ -6,6 +6,106 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-02 — Partner/CRM inventory → Phase 0 security foundation → Phase 1 contracts+contacts (all deployed)
+
+Three rounds in one session: an inventory that turned into a production incident-in-waiting, the security work that had to land before any external user can exist, and the first build of the partner module.
+
+### The find that mattered most
+
+While settling the "migration runner blocked at 093" tech-debt item, 093 turned out to contain
+`DELETE FROM employees WHERE contractor_id IS NULL`. That was correct in 2026-04 when a NULL
+contractor meant "row from generate_test_employees.js". **It is now false: dev 286/287 and prod
+286/288 real employees have a NULL contractor.** The migration would have deleted essentially the
+entire workforce plus salaries, notes and documents.
+
+The trap was specifically that the *obvious* fix was the dangerous one. The runner appeared
+"blocked" by a stale `users = 1` assertion — but that assertion fires at the END of the
+transaction, so **it was the only thing rolling the deletes back**. Repairing it to unblock the
+runner, which is what the task looked like, would have caused the loss.
+
+Disposition: `OBSOLETE_MIGRATIONS` in `src/database/migrate.js` records the id and never executes
+the SQL; the file carries a DO-NOT-RUN header. **Proven, not asserted:** restored a prod backup
+into a scratch DB (288 employees / 286 NULL-contractor / original 89-row ledger), ran the real
+runner with all migration files present → `⊘ [093] OBSOLETE, recorded without running`, employees
+288 → 288. The counterfactual on that same copy: 093's own WHERE clause matched **286 employees +
+4 documents** (rolled back).
+
+A first attempt at that proof was worthless and got thrown away — the runner said "nothing to do"
+only because **the image contained no `migrations/` directory at all**. That was the second root
+cause: it is why prod's ledger had drifted **45 rows** behind the real schema and why every
+migration since 093 went in by hand. Fixed with `COPY migrations ./migrations` (safe only once the
+093 guard existed).
+
+### Phase 0 — security foundation (deployed, `e17c336c` + `5f40db00`)
+
+The DEEP_AUDIT permission findings are inert only because every staff account is superadmin; they
+go live the moment one limited user exists, which is the prerequisite for external sales agents.
+
+- **Gate A** (reachable with only a login): `/analytics/overview` gated (`dashboard.view` — our
+  market intelligence), `/rooms/:id/inspection-history` gated + scoped, 12 unguarded
+  CarePath/WellMind frontend routes + BrunoTest guarded, role-aware `HomeRedirect` replacing the
+  hardcoded `/dashboard` landing.
+- **Gate B**: #6 employees reads, #7 finance reads (invoices, salary, expenses **incl. the
+  attachment download**, profit, operating costs **incl. the export**, occupancy reports), #8 tasks
+  + timesheets incl. the `contractor_id` body-reassignment hole, plus `/admin/documents/expiring`
+  (role-checked but never tenant-scoped).
+- `utils/tenantScope.js` is now the ONE scope helper — its predicate builder always returns a
+  complete boolean, so a filter-less WHERE cannot be emitted. Out-of-scope single rows answer 404,
+  never 403.
+- `middleware/moduleScope.js` — fail-closed allow-list at the `authenticateToken` choke point.
+  An allow-list because a deny-list across 77 route files rots; route file #78 is denied by
+  default. In place BEFORE the role that needs it exists.
+
+**Two of my own earlier claims were wrong and got corrected:** gamification and ai-assistant are
+NOT leaks — already scoped by `req.user.id` / server-side `contractorId`. Removed from the gate.
+
+FUNCTEST known-gap 11 → 6 with **PERM-14/15/16/17/18 flipping to FIXED on their own**. Full jest
+identical to a stashed baseline (3 pre-existing `role "postgres" does not exist` env failures).
+
+### Phase 1 — partner contacts + contract lifecycle (deployed, `990ead15`, mig 144)
+
+`partner_contracts` covers megbízó/szállásadó/alvállalkozó via one `contract_role`. **An
+accommodation lease is a szállásadó contract carrying `accommodation_id`, never columns on
+`accommodations`** — one landlord may rent us several properties on different terms.
+`notice_deadline` is GENERATED, because that is the date the business acts on and a stored copy
+would drift. `partner_contacts` allows many contacts with exactly one primary, enforced by a
+**partial unique index** rather than by the controller remembering.
+
+Expiry monitor generalised: `notice` is its OWN field, so one contract runs two independent alert
+cycles off the same row — verified live on prod (`notice`@14d + `partner_contract`@30d from one
+contract; re-run fired 0). Alerts name the contract and deep-link to `/partners/contracts`.
+
+`documents` gained the party link (closes the gap PROJECT_STATE tracked). Partner master data
+(adószám / cégjegyzékszám / bankszámla) went onto `contractors`; `owner_billing_info` — 0 rows,
+0 refs, keyed on `user_id` — is marked superseded, not dropped (owner's call).
+
+**mig 144 was applied via the runner, not psql** — the first migration in this project to use the
+mechanism end-to-end. Ledger 134 → 135.
+
+FUNCTEST 121 → **133 passed / 0 failed** (12 new PARTNERS scenarios); `partnerPhase1.script.js`
+26/26; i18n guard exit 0.
+
+### Prod facts corrected along the way
+
+- **The prod database is `hr_erp`, not `hr_erp_db`** (that is the dev DB). `psql -d hr_erp_db` on
+  the prod host fails outright. The deploy header said the wrong name.
+- Prod ledger reconciled 89 → 134 by recording 44 already-applied migrations **without executing
+  them**, justified by a zero-diff schema comparison against a freshly end-to-end migrated dev DB
+  (2195 = 2195 columns).
+
+### Open / next
+
+- **Phase 2 (partner_activities + follow-ups reusing `tasks`) is the agreed next round** — until it
+  lands, the Aktivitás tab is a labelled placeholder, deliberately not a fake empty list.
+- Phase 3 (leads/opportunities/quotes) then Phase 4 (external agent enablement, gated on Phase 0).
+- External agents see **NO financial data at all** (owner decision 2026-09-02) — no prices, quote
+  amounts, contract values or margins. Widening later is an allow-list change by design.
+- Sidebar/tab rendering was verified at the BUNDLE level (strings + routes present, APIs 200), not
+  visually — no browser in the session. Worth a click-through.
+- jest integration tests still write `Integration Test Ticket` rows to the dev DB without cleanup.
+
+---
+
 ## SESSION 2026-08-08b — Resident video communication built (mig 143, SANDBOX ONLY, not deployed)
 
 Residents get information as VIDEO in their own language, by push, targeted to whoever it concerns, plus a permanent searchable library. Three send modes funnel through ONE path so translation, push, delivery logging and watch evidence behave identically however a video was triggered.
