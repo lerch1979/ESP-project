@@ -102,7 +102,10 @@ export default function PartnerContracts() {
   const actionableSoon = useMemo(
     // Rolling exits are excluded: nothing is at risk of being missed, so counting them
     // here would inflate an alarm that is meant to mean "act or lose the option".
+    // Only where money is actually gated by a date. A contract whose cost we can stop
+    // immediately is not an "act or lose it" item however its notice period reads.
     () => rows.filter((r) => {
+      if (r.financial_exit_kind === 'immediate') return false;
       if (r.next_action_kind === 'rolling') return false;
       const d = daysUntil(r.next_action_date);
       return d !== null && d <= 90;
@@ -174,7 +177,7 @@ export default function PartnerContracts() {
                 <TableCell>Megnevezés</TableCell>
                 <TableCell>Felmondási határidő</TableCell>
                 <TableCell>Lejárat</TableCell>
-                <TableCell>Következő teendő</TableCell>
+                <TableCell>Kilépés</TableCell>
                 <TableCell>Állapot</TableCell>
               </TableRow>
             </TableHead>
@@ -227,16 +230,7 @@ export default function PartnerContracts() {
                         </>
                       ) : fmtDate(r.end_date)}
                     </TableCell>
-                    <TableCell>
-                      <Chip size="small" color={u.color} label={u.label}
-                            variant={u.color === 'default' ? 'outlined' : 'filled'} />
-                      {r.next_action_kind === 'notice' && (
-                        <Typography variant="caption" display="block" color="text.secondary">felmondás</Typography>
-                      )}
-                      {r.next_action_kind === 'rolling' && (
-                        <Typography variant="caption" display="block" color="text.secondary">bármikor</Typography>
-                      )}
-                    </TableCell>
+                    <TableCell><ExitCell row={r} urgency={u} /></TableCell>
                     <TableCell>{STATUS_LABEL[r.status] || r.status}</TableCell>
                   </TableRow>
                 );
@@ -244,6 +238,65 @@ export default function PartnerContracts() {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+    </Box>
+  );
+}
+
+/**
+ * The two exits, side by side.
+ *
+ * "When can we get out of this site?" has two answers and merging them misprices the
+ * decision. Under a per-actual-use contract with no minimum (Barcza / Sarród I.) the
+ * COST stops as soon as we move people out — the notice period gates nothing
+ * financially. The LEGAL exit still matters: handover condition, house rules and
+ * liability run until the contract ends, and the notice period is symmetric, so the
+ * landlord can terminate on the same terms. That is our risk, not theirs.
+ *
+ * Where the money keeps running until the relationship ends (flat rent, or a per-use
+ * deal with a floor) the two coincide, and only one line is shown — a second line
+ * repeating the same date would be noise.
+ */
+function ExitCell({ row, urgency: u }) {
+  const immediate = row.financial_exit_kind === 'immediate';
+  const finDays = daysUntil(row.financial_exit_date);
+  const legalDays = daysUntil(row.legal_exit_date);
+  const sameDate = row.financial_exit_date && row.legal_exit_date
+    && String(row.financial_exit_date).slice(0, 10) === String(row.legal_exit_date).slice(0, 10);
+
+  if (!row.legal_exit_date && !row.financial_exit_date) {
+    return <Chip size="small" color={u.color} label={u.label}
+                 variant={u.color === 'default' ? 'outlined' : 'filled'} />;
+  }
+
+  return (
+    <Box>
+      <Tooltip title={immediate
+        ? 'Tényleges használat szerinti díj, minimum nélkül — a költség kiköltöztetéssel azonnal nullázható, felmondás nélkül.'
+        : 'A díj a felmondási idő végéig fut (fix díj vagy garantált minimum), ezért a felmondás dátuma egyben a költség-stop dátuma.'}>
+        <Chip
+          size="small"
+          color={immediate ? 'success' : u.color}
+          variant={immediate ? 'filled' : (u.color === 'default' ? 'outlined' : 'filled')}
+          label={immediate
+            // Where the cost is gated by notice, the DATE is the number that matters —
+            // it is the day the money actually stops, not just a countdown.
+            ? 'Pénzügyi kilépés: azonnal'
+            : `Pénzügyi kilépés: ${fmtDate(row.financial_exit_date)}${finDays !== null ? ` (${finDays} nap)` : ''}`}
+        />
+      </Tooltip>
+      {immediate && (
+        <Typography variant="caption" display="block" color="text.secondary">
+          kiköltöztetéssel
+        </Typography>
+      )}
+      {!sameDate && (
+        <Tooltip title="A szerződéses jogviszony vége. A felmondás KÖLCSÖNÖS — a szállásadó is felmondhat ránk ugyanezzel a határidővel.">
+          <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
+            Jogi felmondás: {legalDays !== null ? `${legalDays} nap` : '—'}
+            {row.legal_exit_date ? ` → ${fmtDate(row.legal_exit_date)}` : ''}
+          </Typography>
+        </Tooltip>
       )}
     </Box>
   );

@@ -131,8 +131,13 @@ const asReq = (body = {}, query = {}) => ({ ...su, body, query, params: {} });
     check('EXP-03 notice fires while the expiry (100d out) is still beyond its widest threshold',
       fields.includes('notice') && !fields.includes('partner_contract'));
 
+    // Scope to THIS contract. Taking "the newest few expiry alerts" made the assertion
+    // depend on whatever else had run against the sandbox first — a functest reset or a
+    // sibling suite could leave a newer notice alert for a different contract.
     const notif = await pool.query(
-      `SELECT title, message, link FROM notifications WHERE type='expiry_alert' ORDER BY created_at DESC LIMIT 5`);
+      `SELECT title, message, link FROM notifications
+        WHERE type='expiry_alert' AND data->>'entity_id' = $1
+        ORDER BY created_at DESC`, [watched.id]);
     const noticeNotif = notif.rows.find((n) => /Felmondási határidő/.test(n.title));
     check('EXP-04 the alert names the CONTRACT, not "Munkavállaló"',
       !!noticeNotif && /Figyelt bérlet/.test(noticeNotif.title));

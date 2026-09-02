@@ -166,6 +166,9 @@ function validateContract(body) {
   if (body.notice_days != null && Number(body.notice_days) < 0) {
     throw new PartnerError('A felmondási idő nem lehet negatív');
   }
+  if (body.financial_exit && !['immediate', 'notice'].includes(body.financial_exit)) {
+    throw new PartnerError('financial_exit: immediate | notice');
+  }
 }
 
 const CONTRACT_SELECT = `
@@ -183,6 +186,55 @@ const CONTRACT_SELECT = `
          CASE WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL
               THEN CURRENT_DATE + pc.notice_days
          END AS earliest_exit_date,
+
+         -- ── LEGAL vs FINANCIAL exit (mig 147) ────────────────────────────────
+         -- When the RELATIONSHIP ends. Open-ended: serve notice today, out in
+         -- notice_days. Fixed-term: at end_date (notice_deadline is when we must
+         -- DECIDE, not when we are out).
+         COALESCE(
+           CASE WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL
+                THEN CURRENT_DATE + pc.notice_days END,
+           pc.end_date
+         ) AS legal_exit_date,
+
+         -- When the COST stops. An explicit override wins; otherwise derive from the
+         -- cost terms in force TODAY on the linked property. Per-actual-use with no
+         -- minimum means we can reach zero cost by moving people out, without
+         -- terminating — so the notice period does not gate our exposure. Anything
+         -- else (flat rent, or a per-use deal with a floor) keeps costing until the
+         -- relationship actually ends.
+         COALESCE(
+           pc.financial_exit,
+           CASE
+             WHEN pc.accommodation_id IS NULL THEN 'notice'   -- no property = no cost basis to reason about
+             WHEN cur.rent_basis = 'per_bed_night'
+              AND cur.min_bed_nights IS NULL
+              AND cur.min_monthly_amount IS NULL THEN 'immediate'
+             ELSE 'notice'
+           END
+         ) AS financial_exit_kind,
+
+         CASE
+           WHEN COALESCE(
+                  pc.financial_exit,
+                  CASE
+                    WHEN pc.accommodation_id IS NULL THEN 'notice'
+                    WHEN cur.rent_basis = 'per_bed_night'
+                     AND cur.min_bed_nights IS NULL
+                     AND cur.min_monthly_amount IS NULL THEN 'immediate'
+                    ELSE 'notice'
+                  END) = 'immediate'
+           THEN CURRENT_DATE
+           ELSE COALESCE(
+                  CASE WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL
+                       THEN CURRENT_DATE + pc.notice_days END,
+                  pc.end_date)
+         END AS financial_exit_date,
+
+         -- Surfaced so the UI can explain WHY, rather than asserting a conclusion.
+         cur.rent_basis        AS cost_basis,
+         cur.min_bed_nights    AS cost_min_bed_nights,
+         cur.min_monthly_amount AS cost_min_monthly_amount,
          LEAST(
            COALESCE(pc.notice_deadline, DATE '9999-12-31'),
            COALESCE(pc.end_date,        DATE '9999-12-31'),
@@ -200,7 +252,19 @@ const CONTRACT_SELECT = `
          END AS next_action_kind
     FROM partner_contracts pc
     LEFT JOIN contractors    c ON c.id = pc.contractor_id
-    LEFT JOIN accommodations a ON a.id = pc.accommodation_id`;
+    LEFT JOIN accommodations a ON a.id = pc.accommodation_id
+    -- The cost terms in force TODAY for the linked property. Today's row (not the
+    -- month being billed) is right here: the question is "if I acted now, when would
+    -- the cost stop", which depends on the agreement currently in force.
+    LEFT JOIN LATERAL (
+      SELECT arr.rent_basis, arr.min_bed_nights, arr.min_monthly_amount
+        FROM accommodation_rent_rates arr
+       WHERE arr.accommodation_id = pc.accommodation_id
+         AND arr.valid_from <= CURRENT_DATE
+         AND (arr.valid_to IS NULL OR arr.valid_to >= CURRENT_DATE)
+       ORDER BY arr.valid_from DESC
+       LIMIT 1
+    ) cur ON TRUE`;
 
 /**
  * Contract board / list. Default ordering is by soonest actionable date — the question
@@ -269,6 +333,7 @@ async function saveContract(req, id, body) {
     body.renewal_type || 'none', body.renewal_term_months ?? null,
     body.parent_contract_id || null, body.signed_at || null, body.document_id || null,
     body.currency || 'HUF', body.indexation_note ?? null, body.notes ?? null,
+    body.financial_exit ?? null,
   ];
 
   if (id) {
@@ -277,8 +342,9 @@ async function saveContract(req, id, body) {
          contractor_id=$1, accommodation_id=$2, contract_role=$3, contract_no=$4, title=$5,
          status=$6, start_date=$7, end_date=$8, is_open_ended=$9, notice_days=$10,
          renewal_type=$11, renewal_term_months=$12, parent_contract_id=$13, signed_at=$14,
-         document_id=$15, currency=$16, indexation_note=$17, notes=$18, updated_at=now()
-       WHERE id=$19 RETURNING *`,
+         document_id=$15, currency=$16, indexation_note=$17, notes=$18,
+         financial_exit=$19, updated_at=now()
+       WHERE id=$20 RETURNING *`,
       [...vals, id],
     );
     if (r.rows.length === 0) throw new PartnerError('Szerződés nem található', 404);
@@ -289,8 +355,9 @@ async function saveContract(req, id, body) {
     `INSERT INTO partner_contracts
        (contractor_id, accommodation_id, contract_role, contract_no, title, status,
         start_date, end_date, is_open_ended, notice_days, renewal_type, renewal_term_months,
-        parent_contract_id, signed_at, document_id, currency, indexation_note, notes, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        parent_contract_id, signed_at, document_id, currency, indexation_note, notes,
+        financial_exit, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
      RETURNING *`,
     [...vals, req.user?.id || null],
   );

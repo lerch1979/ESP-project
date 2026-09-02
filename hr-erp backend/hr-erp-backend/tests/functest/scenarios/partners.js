@@ -268,5 +268,42 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'PART-17',
+      name: 'PÉNZÜGYI vs JOGI kilépés — használatarányos, minimum nélkül: a költség azonnal állítható',
+      expected: { peruse_kind: 'immediate', peruse_dates_differ: true, flat_kind: 'notice', flat_dates_coincide: true },
+      hint: 'mig 147: derived from the accommodation rate basis + minimum; override via partner_contracts.financial_exit',
+      run: async (ctx, s) => {
+        const ymdOf = (d) => (d ? ymd(d) : null);
+        // per-use, no minimum (the Barcza shape)
+        await ctx.query(
+          `INSERT INTO accommodation_rent_rates (accommodation_id, rent_basis, rent_per_bed_night, valid_from)
+           SELECT $1,'per_bed_night',2200,DATE '1900-01-01'
+            WHERE NOT EXISTS (SELECT 1 FROM accommodation_rent_rates WHERE accommodation_id=$1)`, [s.accA]);
+        // flat rent
+        await ctx.query(
+          `INSERT INTO accommodation_rent_rates (accommodation_id, rent_basis, rent_amount, valid_from)
+           SELECT $1,'flat',1020000,DATE '1900-01-01'
+            WHERE NOT EXISTS (SELECT 1 FROM accommodation_rent_rates WHERE accommodation_id=$1)`, [s.accB]);
+
+        await http.post('/partners/contracts', { token: s.t, body: {
+          contractor_id: s.landlord, accommodation_id: s.accA, contract_role: 'szallasado',
+          title: 'FT Használatarányos', status: 'active', is_open_ended: true, notice_days: 60 } });
+        await http.post('/partners/contracts', { token: s.t, body: {
+          contractor_id: s.landlord, accommodation_id: s.accB, contract_role: 'szallasado',
+          title: 'FT Fix díjas', status: 'active', is_open_ended: true, notice_days: 60 } });
+
+        const all = await http.get('/partners/contracts', { token: s.t, query: {} });
+        const rows = all.body.data?.contracts || [];
+        const pu = rows.find((c) => c.title === 'FT Használatarányos');
+        const fl = rows.find((c) => c.title === 'FT Fix díjas');
+        return {
+          peruse_kind: pu.financial_exit_kind,
+          peruse_dates_differ: ymdOf(pu.financial_exit_date) !== ymdOf(pu.legal_exit_date),
+          flat_kind: fl.financial_exit_kind,
+          flat_dates_coincide: ymdOf(fl.financial_exit_date) === ymdOf(fl.legal_exit_date),
+        };
+      },
+    },
   ],
 };

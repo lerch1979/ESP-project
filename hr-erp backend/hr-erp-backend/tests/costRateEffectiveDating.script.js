@@ -92,11 +92,33 @@ const ymd = (d) => {
     // The backfill covers accommodations that existed when mig 146 ran. This ACC was
     // created afterwards, so it has NO rate row — which is exactly the fallback case
     // that must keep billing at the legacy columns rather than at zero.
+    // Assert the backfill LOGIC, not ambient state: the sandbox is reset by `npm run
+    // functest`, after which every accommodation is seeded AFTER the migration and so
+    // legitimately has no backfilled row. Run the migration's own INSERT against a
+    // known accommodation instead, which is deterministic in either order.
+    await pool.query(
+      `INSERT INTO accommodation_rent_rates
+         (accommodation_id, rent_basis, rent_amount, rent_per_bed_night, valid_from, notes)
+       SELECT a.id,
+              COALESCE(a.rent_basis,'flat'),
+              CASE WHEN COALESCE(a.rent_basis,'flat') <> 'per_bed_night'
+                   THEN COALESCE(a.rent_amount, a.monthly_rent) END,
+              CASE WHEN a.rent_basis = 'per_bed_night' THEN a.rent_per_bed_night END,
+              DATE '1900-01-01', 'CE backfill check'
+         FROM accommodations a
+        WHERE a.id = $1
+          AND NOT EXISTS (SELECT 1 FROM accommodation_rent_rates r WHERE r.accommodation_id = a.id)`,
+      [ACC]);
     const backfilled = await pool.query(
-      `SELECT count(*)::int n FROM accommodation_rent_rates
-        WHERE valid_from = DATE '1900-01-01' AND valid_to IS NULL`);
-    check('CE-01 mig 146 backfilled pre-existing cost config as open-ended rows',
-      backfilled.rows[0].n > 0, `got ${backfilled.rows[0].n}`);
+      `SELECT rent_basis, rent_per_bed_night, valid_from, valid_to
+         FROM accommodation_rent_rates WHERE accommodation_id=$1`, [ACC]);
+    const bf = backfilled.rows[0] || {};
+    check('CE-01 the mig 146 backfill maps existing cost config to an OPEN period from 1900-01-01',
+      backfilled.rows.length === 1 && bf.rent_basis === 'per_bed_night'
+      && Number(bf.rent_per_bed_night) === 2000
+      && ymd(bf.valid_from) === '1900-01-01' && bf.valid_to === null,
+      JSON.stringify(bf));
+    await pool.query('DELETE FROM accommodation_rent_rates WHERE accommodation_id=$1', [ACC]);
     const mine = await pool.query('SELECT count(*)::int n FROM accommodation_rent_rates WHERE accommodation_id=$1', [ACC]);
     check('CE-01b a NEW accommodation has no rate row (legacy columns are the fallback)',
       mine.rows[0].n === 0);

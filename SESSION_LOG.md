@@ -6,6 +6,104 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-02b — Real contract data on prod → effective-dated cost rates (mig 146) → two-exit contracts (mig 147)
+
+Entering one real landlord agreement (Barcza / Sarród I.) surfaced an architectural hole
+and two of my own bugs. The data entry was the small part.
+
+### The hole: the cost side had no effective dating
+
+Asked to set Sarród I. from 2000 to 2200 Ft/fő/éj effective 2026-09-01 "so August isn't
+retroactively restated", I found that **the cost side could not express that at all**.
+mig 142 stored the rent we pay as undated columns on `accommodations`, and the engine
+read them with **no date filter**. August 2026 was already computed — 558 bed-nights ×
+2000 = **1 116 000**, run status `calculated`, and the engine's re-bill path
+cancels-and-replaces any non-finalized run. Setting 2200 would have restated a closed
+month by **+111 600 Ft** on the next re-bill. There is also no finalize action in the
+app to lock August, so that escape hatch did not exist either.
+
+So I stopped and reported rather than half-satisfying the instruction. Owner chose the
+proper fix.
+
+**mig 146** mirrors `client_night_rates`: `accommodation_rent_rates` with
+`valid_from`/`valid_to`, resolved **per day** — the same way `makeRateResolver` already
+resolved client rates, and `computeRentCost` already iterated days so it slotted in.
+Two hardenings the naive version needed:
+
+- **Overlaps are refused by the database** (`EXCLUDE USING gist`). Two rates covering one
+  day is ambiguous about what we owe, not a typo to settle with "latest wins".
+- **The legacy columns are never consulted once dated rows exist.** My first version fell
+  back to them for an uncovered day — and they are undated, so that re-introduced the
+  exact bug. A test caught a 124 000 August becoming 136 400. A gap now resolves to the
+  nearest EARLIER period, which is stable.
+
+Backfill is valid from `1900-01-01`, so no historical month could move.
+
+**Live on prod:** 2000 closed at 2026-08-31, 2200 open from 2026-09-01. August re-billed
+to **1 116 000 unchanged** (verified against the FRESH row — `created_at` 17:02 — not the
+stale one), September computed **18 × 2200 = 39 600**.
+
+### The two-exit distinction (mig 147)
+
+For an open-ended, per-actual-use contract with **no minimum**, the notice period does not
+gate our cost — we take it to zero by moving people out, without terminating. The board
+now separates:
+
+- **FINANCIAL exit** — when the cost stops. Per-use + no minimum → *azonnal
+  (kiköltöztetéssel)*.
+- **LEGAL exit** — when the relationship ends (today + notice_days). Still shown, because
+  handover condition, house rules and liability survive, and **notice is symmetric — the
+  landlord can terminate on us with the same period**. That is our risk.
+
+Flat rent, or per-use WITH a floor → the two coincide, and only one line is shown.
+
+This required adding a minimum concept to the cost side at all: only the REVENUE side had
+one (`occupancy_floor_pct`/`contracted_beds`, mig 141). ⚠️ **The new minimum columns are
+classification only — the engine does NOT floor the cost at them.** Logged as tech debt;
+enforcing it changes money and deserves its own round.
+
+### Three bugs of my own, worth recording
+
+1. **A false PASS on the headline assertion.** A re-bill cancels the old run but does NOT
+   delete its `accommodation_billings` rows, so my test was reading the *original* August
+   row and the re-bill looked like a no-op. The most important claim in the exercise was
+   proving nothing. Found chasing an unrelated failure; fixed to join `billing_runs` and
+   exclude cancelled — which is what then exposed the legacy-fallback hole above. Logged
+   the stale-row behaviour as tech debt.
+2. **`updateContractor` silently dropped every mig-144 master-data field.** The Áttekintés
+   tab displayed adószám / cégjegyzékszám / bankszámla that nothing could save — they were
+   write-only-by-psql. Found because the tax number came back null after a 200 OK.
+3. **`within_days` duplicated the `LEAST()` expression** and only the SELECT copy had been
+   updated for rolling notice, so open-ended contracts could never appear in any horizon.
+
+Also fixed two test-isolation failures I introduced: one assertion read "the newest few
+expiry alerts" and picked up a sibling suite's; another asserted a property of mig 146
+that only holds when accommodations pre-date it, which stops being true after a functest
+reset. All four partner suites now pass twice in a row and again after a full reset.
+
+### State
+
+Deployed: migs 144, 145, 146 (all via the runner, no psql). **mig 147 is built and
+sandbox-tested but NOT deployed.**
+
+Prod data now holds: Barcza Gyula (name corrected from "Barcza Gyuláné Bea néni", adószám
+77134635-1-28), Barcza Gyuláné as primary contact, the open-ended szállásadó contract with
+60-day notice, six utility lines all "szállásadó fizeti", and the dated 2000→2200 rate
+change. Board shows the contract as rolling with earliest exit 2026-11-01.
+
+FUNCTEST 139 passed / 0 failed. Standalone suites: partnerPhase1 26/26, partnerPhase2
+20/20, costRateEffectiveDating 15/15, contractExitSemantics 14/14.
+
+### Open
+
+- **No month-close** — `finalized` is read as a guard but nothing sets it, so no month is
+  genuinely locked. Owner wants a proper close later.
+- Cost-side minimums recorded but not enforced in billing.
+- Phase 3 (leads / opportunities / quotes) then Phase 4 (external agents, gated on Phase 0)
+  remain the plan. Migration numbering has shifted: Phase 3 is now 148+.
+
+---
+
 ## SESSION 2026-09-02 — Partner/CRM inventory → Phase 0 security foundation → Phase 1 contracts+contacts (all deployed)
 
 Three rounds in one session: an inventory that turned into a production incident-in-waiting, the security work that had to land before any external user can exist, and the first build of the partner module.
