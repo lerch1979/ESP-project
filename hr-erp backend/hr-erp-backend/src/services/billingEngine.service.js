@@ -111,37 +111,71 @@ const UTILITY_LINES = ['viz_csatorna', 'internet', 'aram', 'gaz', 'kozos_koltseg
  * @param siteOccupantsByDay  Map<dateStr, Set<employeeId>> for the WHOLE accommodation
  * @param groupOccupantsByDay Map<dateStr, Set<employeeId>> for this client group
  */
-function computeRentCost(basis, { rentAmount, perBedRate }, siteOccupantsByDay, groupOccupantsByDay, daysInMonth) {
-  const effective = basis || 'flat';           // no basis set yet → behave as flat (legacy monthly_rent)
+/**
+ * Cost of the rent we pay, resolved PER DAY.
+ *
+ * `rentFor(dateStr)` returns the cost config in force on that date — mig 146 made cost
+ * rates effective-dated, exactly like client_night_rates on the revenue side. Resolving
+ * per day (rather than once per month) is what guarantees that editing a rate can never
+ * restate an already-billed month, and it handles a mid-month change correctly instead
+ * of silently picking one end of it.
+ *
+ * When one rate covered the whole month the output is byte-identical to the pre-146
+ * shape: `rate_used` is that single number. When several applied, `rate_used` is null
+ * and `rates_used` carries the breakdown, so a mid-month change is visible rather than
+ * averaged away.
+ */
+function computeRentCost(rentFor, siteOccupantsByDay, groupOccupantsByDay, daysInMonth) {
   let siteTotal = 0;
   let groupTotal = 0;
   let bedNights = 0;
+  const perBedRates = new Map();   // rate -> bed nights charged at it
+  const flatAmounts = new Set();
+  let lastBasis = null;
 
   for (const [dateStr, siteSet] of siteOccupantsByDay) {
     const siteCount = siteSet.size;
     if (siteCount === 0) continue;
     const groupCount = groupOccupantsByDay.get(dateStr)?.size || 0;
 
+    const cfg = rentFor(dateStr) || {};
+    const effective = cfg.basis || 'flat';   // no basis set → flat over legacy monthly_rent
+    lastBasis = effective;
+
     let dayCost;
     if (effective === 'per_bed_night') {
-      // ÉJSZAKÁNKÉNTI: we pay for each occupied bed that night.
-      dayCost = siteCount * (Number(perBedRate) || 0);
+      // ÉJSZAKÁNKÉNTI: we pay for each occupied bed that night, at THAT night's rate.
+      const rate = Number(cfg.perBedRate) || 0;
+      dayCost = siteCount * rate;
       bedNights += siteCount;
+      perBedRates.set(rate, (perBedRates.get(rate) || 0) + siteCount);
     } else {
       // FLAT / VEGYES: one monthly rent for the property, spread over the month's days.
       // Utility lines are added separately by the caller (that is what makes it VEGYES).
-      dayCost = (Number(rentAmount) || 0) / daysInMonth;
+      const amount = Number(cfg.rentAmount) || 0;
+      dayCost = amount / daysInMonth;
+      flatAmounts.add(amount);
     }
     siteTotal += dayCost;
     groupTotal += groupCount > 0 ? dayCost * (groupCount / siteCount) : 0;
   }
+
+  const isPerBed = lastBasis === 'per_bed_night';
+  const singleRate = perBedRates.size === 1 ? [...perBedRates.keys()][0] : null;
+  const singleFlat = flatAmounts.size === 1 ? [...flatAmounts][0] : null;
+
   return {
-    basis: effective,
+    basis: lastBasis || 'flat',
     site_rent: round2(siteTotal),
     group_rent: round2(groupTotal),
     bed_nights: bedNights,
-    rate_used: effective === 'per_bed_night' ? Number(perBedRate) || 0 : null,
-    monthly_rent: effective === 'per_bed_night' ? null : Number(rentAmount) || 0,
+    rate_used: isPerBed ? (singleRate !== null ? singleRate : null) : null,
+    monthly_rent: isPerBed ? null : (singleFlat !== null ? singleFlat : null),
+    // Only present when the rate actually changed inside the month.
+    ...(perBedRates.size > 1
+      ? { rates_used: [...perBedRates.entries()].map(([rate, nights]) => ({ rate, bed_nights: nights })) }
+      : {}),
+    ...(flatAmounts.size > 1 ? { monthly_rents_used: [...flatAmounts] } : {}),
   };
 }
 
@@ -487,6 +521,54 @@ async function calculateMonthlyBilling(month, opts = {}) {
     for (const r of rentRows.rows) {
       rentByAcc.set(r.id, { basis: r.rent_basis, rentAmount: r.rent_amount, perBedRate: r.rent_per_bed_night });
     }
+
+    // mig 146: effective-dated cost rates. These WIN over the legacy accommodations
+    // columns for any day they cover; the columns remain the fallback so an
+    // accommodation with no rate row still bills exactly as before rather than at zero.
+    const arrRows = await client.query(
+      `SELECT accommodation_id, rent_basis, rent_amount, rent_per_bed_night,
+              TO_CHAR(valid_from, 'YYYY-MM-DD') AS valid_from,
+              TO_CHAR(valid_to,   'YYYY-MM-DD') AS valid_to
+         FROM accommodation_rent_rates`);
+    const arrByAcc = new Map();
+    for (const r of arrRows.rows) {
+      if (!arrByAcc.has(r.accommodation_id)) arrByAcc.set(r.accommodation_id, []);
+      arrByAcc.get(r.accommodation_id).push(r);
+    }
+    // Sort each accommodation's periods once, oldest first.
+    for (const list of arrByAcc.values()) list.sort((a, b) => (a.valid_from < b.valid_from ? -1 : 1));
+
+    /**
+     * Cost config in force for (accommodation, date).
+     *
+     * Once an accommodation has ANY dated rows we never fall back to the legacy
+     * accommodations.rent_* columns — that is the whole point of mig 146. Those columns
+     * are undated, so falling back to them for an uncovered day would re-introduce
+     * exactly the bug this migration fixes: editing the current rate would restate a
+     * closed month. (Verified: doing so restated a 124 000 August to 136 400.)
+     *
+     * For a day not covered by any period we therefore use the nearest EARLIER period,
+     * or the earliest one if the day predates all of them. That is stable over time —
+     * it cannot change when someone edits today's rate — whereas the legacy column is
+     * not. In practice the mig 146 backfill starts at 1900-01-01, so there are no gaps.
+     *
+     * The legacy columns remain the fallback only for an accommodation with NO dated
+     * rows at all, so nothing silently drops to zero.
+     */
+    const rentResolverFor = (accId) => (dateStr) => {
+      const rows = arrByAcc.get(accId);
+      if (!rows || rows.length === 0) return rentByAcc.get(accId) || {};
+
+      let candidate = null;
+      for (const r of rows) {
+        if (dateStr < r.valid_from) break;                 // sorted: nothing later can match
+        if (r.valid_to && dateStr > r.valid_to) { candidate = r; continue; } // ended: remember it
+        candidate = r;
+        if (!r.valid_to || dateStr <= r.valid_to) break;   // covering row wins outright
+      }
+      const use = candidate || rows[0];                    // before all periods → earliest
+      return { basis: use.rent_basis, rentAmount: use.rent_amount, perBedRate: use.rent_per_bed_night };
+    };
     const matrixRows = await client.query(
       `SELECT accommodation_id, line, who_pays, passthrough, passthrough_pct FROM accommodation_utility_lines`);
     const matrixByAcc = new Map();
@@ -592,9 +674,8 @@ async function calculateMonthlyBilling(month, opts = {}) {
       // Rooms no longer participate: the rent is the PROPERTY's, split across everyone
       // sleeping there, so a site's monthly rent lands exactly once however many rooms
       // are occupied.
-      const rentCfg = rentByAcc.get(grp.accommodation_id) || {};
       const rentSplit = computeRentCost(
-        rentCfg.basis, { rentAmount: rentCfg.rentAmount, perBedRate: rentCfg.perBedRate },
+        rentResolverFor(grp.accommodation_id),
         siteOccByAcc.get(grp.accommodation_id) || new Map(), groupOcc, dim);
 
       const accExpense = expenseByAcc.get(grp.accommodation_id) || 0;

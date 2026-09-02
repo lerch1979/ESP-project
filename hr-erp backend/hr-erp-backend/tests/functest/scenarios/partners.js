@@ -178,6 +178,60 @@ module.exports = {
       },
     },
     {
+      id: 'PART-13',
+      name: 'aktivitás rögzíthető (jegyzet / hívás / találkozó) és a kapcsolattartóhoz köthető',
+      expected: { status: 201, kind: 'call', has_contact: true },
+      hint: 'POST /partners/activities (mig 145)',
+      run: async (ctx, s) => {
+        const list = await http.get('/partners/contacts', { token: s.t, query: { contractor_id: s.landlord } });
+        const contactId = (list.body.data || [])[0]?.id;
+        const r = await http.post('/partners/activities', { token: s.t, body: {
+          contractor_id: s.landlord, kind: 'call', subject: 'FT Egyeztetés', body: 'Telefonon egyeztettünk.', contact_id: contactId,
+        } });
+        return { status: r.status, kind: r.body.data?.kind, has_contact: !!r.body.data?.contact_id };
+      },
+    },
+    {
+      id: 'PART-14',
+      name: 'az utánkövetés VALÓDI feladatot hoz létre a Teendők között (nincs külön emlékeztető-motor)',
+      expected: { task_exists: true, related_contractor_matches: true, status: 'todo', tagged: true },
+      hint: 'partner_activities.follow_up_task_id -> tasks; tasks.related_contractor_id (mig 145)',
+      run: async (ctx, s) => {
+        const due = new Date(Date.now() + 3 * 864e5).toISOString();
+        const r = await http.post('/partners/activities', { token: s.t, body: {
+          contractor_id: s.landlord, kind: 'meeting', subject: 'FT Bejárás',
+          follow_up_at: due, follow_up_priority: 'high',
+        } });
+        const taskId = r.body.data?.follow_up_task_id;
+        const t = await ctx.query('SELECT status, related_contractor_id, tags FROM tasks WHERE id = $1', [taskId]);
+        const row = t.rows[0] || {};
+        return {
+          task_exists: !!row.status,
+          related_contractor_matches: row.related_contractor_id === s.landlord,
+          status: row.status,
+          tagged: Array.isArray(row.tags) && row.tags.includes('partner-utankovetes'),
+        };
+      },
+    },
+    {
+      id: 'PART-15',
+      name: 'a feladat lezárása látszik az aktivitás-idővonalon, és kiesik a nyitott utánkövetésekből',
+      expected: { open_before: true, status_after: 'done', open_after: false },
+      hint: 'listActivities joins tasks for live status; /partners/follow-ups filters status <> done',
+      run: async (ctx, s) => {
+        const before = await http.get('/partners/follow-ups', { token: s.t, query: {} });
+        const openBefore = (before.body.data || []).some((x) => x.contractor_name);
+        const t = await ctx.query(
+          `SELECT id FROM tasks WHERE related_contractor_id = $1 AND tags @> ARRAY['partner-utankovetes'] LIMIT 1`, [s.landlord]);
+        await ctx.query(`UPDATE tasks SET status='done' WHERE id=$1`, [t.rows[0].id]);
+        const acts = await http.get('/partners/activities', { token: s.t, query: { contractor_id: s.landlord } });
+        const withFu = (acts.body.data || []).find((a) => a.follow_up_task_id === t.rows[0].id);
+        const after = await http.get('/partners/follow-ups', { token: s.t, query: {} });
+        const openAfter = (after.body.data || []).some((x) => x.follow_up_task_id === t.rows[0].id);
+        return { open_before: openBefore, status_after: withFu?.follow_up_status, open_after: openAfter };
+      },
+    },
+    {
       id: 'PART-12',
       name: 'a partner törzsadat (adószám, cégjegyzékszám, bankszámla) rögzíthető',
       expected: { has_columns: true },
@@ -188,6 +242,30 @@ module.exports = {
         const r = await ctx.query(`SELECT tax_number, company_reg_number, bank_account FROM contractors WHERE id=$1`, [s.landlord]);
         const row = r.rows[0];
         return { has_columns: !!(row.tax_number && row.company_reg_number && row.bank_account) };
+      },
+    },
+    {
+      id: 'PART-16',
+      name: 'ROLLING NOTICE — a határozatlan idejű szerződés is cselekvésre késztet (legkorábbi kilépés)',
+      expected: { kind: 'rolling', exit_in_days: 60, in_90d_horizon: true, in_30d_horizon: false },
+      hint: 'earliest_exit_date = CURRENT_DATE + notice_days; next_action_kind = rolling',
+      run: async (ctx, s) => {
+        await http.post('/partners/contracts', { token: s.t, body: {
+          contractor_id: s.landlord, contract_role: 'szallasado',
+          title: 'FT Határozatlan', status: 'active', is_open_ended: true, notice_days: 60,
+        } });
+        const all = await http.get('/partners/contracts', { token: s.t, query: {} });
+        const row = (all.body.data?.contracts || []).find((c) => c.title === 'FT Határozatlan');
+        const days = Math.round((new Date(ymd(row.earliest_exit_date)) - new Date(ymd(new Date()))) / 864e5);
+        const h90 = await http.get('/partners/contracts', { token: s.t, query: { within_days: '90' } });
+        const h30 = await http.get('/partners/contracts', { token: s.t, query: { within_days: '30' } });
+        const inH = (r) => (r.body.data?.contracts || []).some((c) => c.title === 'FT Határozatlan');
+        return {
+          kind: row.next_action_kind,
+          exit_in_days: days,
+          in_90d_horizon: inH(h90),
+          in_30d_horizon: inH(h30),
+        };
       },
     },
   ],

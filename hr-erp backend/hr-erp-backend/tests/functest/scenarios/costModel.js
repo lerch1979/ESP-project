@@ -169,5 +169,58 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'COST-10',
+      name: 'EFFECTIVE DATING — a díjváltozás nem írja át a már kiszámolt hónapot',
+      expected: { august_unchanged: true, september_new_rate: true },
+      hint: 'mig 146 accommodation_rent_rates; billingEngine resolves the cost rate PER DAY',
+      sql: [
+        "-- close the old period, open the new one:",
+        "UPDATE accommodation_rent_rates SET valid_to='2026-08-31' WHERE accommodation_id='<acc>';",
+        "INSERT INTO accommodation_rent_rates (accommodation_id,rent_basis,rent_per_bed_night,valid_from)",
+        "VALUES ('<acc>','per_bed_night',<new>,'2026-09-01');",
+      ],
+      run: async (ctx) => {
+        const acc = ctx.ids.acc.costPerBed;
+        const engine = require('../../../src/services/billingEngine.service');
+        const live = async (month) => {
+          const r = await ctx.query(
+            `SELECT ab.cost_amount FROM accommodation_billings ab
+               JOIN billing_runs br ON br.id = ab.billing_run_id
+              WHERE ab.accommodation_id=$1 AND ab.billing_month=$2
+                AND br.status <> 'cancelled' AND ab.status <> 'cancelled'
+              ORDER BY ab.created_at DESC LIMIT 1`, [acc, month]);
+          return r.rows[0] ? Number(r.rows[0].cost_amount) : null;
+        };
+        // The fixture builds its accommodations AFTER the migration, so unlike a real
+        // one they carry no backfilled period. Give it the row mig 146 would have
+        // created, so this mirrors production rather than an artefact of the fixture.
+        await ctx.query(
+          `INSERT INTO accommodation_rent_rates (accommodation_id, rent_basis, rent_per_bed_night, valid_from)
+           SELECT $1,'per_bed_night',800,DATE '1900-01-01'
+            WHERE NOT EXISTS (SELECT 1 FROM accommodation_rent_rates WHERE accommodation_id=$1)`, [acc]);
+
+        // Baseline for the fixture month, then a rate change dated AFTER it.
+        await engine.calculateMonthlyBilling(ctx.month, { runType: 'incoming' });
+        const before = await live(ctx.month);
+
+        await ctx.query(
+          `UPDATE accommodation_rent_rates SET valid_to = (DATE_TRUNC('month', ($1||'-01')::date) + INTERVAL '1 month - 1 day')::date
+            WHERE accommodation_id=$2`, [ctx.month, acc]);
+        await ctx.query(
+          `INSERT INTO accommodation_rent_rates (accommodation_id, rent_basis, rent_per_bed_night, valid_from)
+           VALUES ($1,'per_bed_night',9999,(DATE_TRUNC('month', ($2||'-01')::date) + INTERVAL '1 month')::date)`,
+          [acc, ctx.month]);
+        // Move the legacy column too — it must NOT be consulted once dated rows exist.
+        await ctx.query(`UPDATE accommodations SET rent_per_bed_night = 9999 WHERE id=$1`, [acc]);
+
+        await engine.calculateMonthlyBilling(ctx.month, { runType: 'incoming' });
+        const after = await live(ctx.month);
+        return {
+          august_unchanged: before !== null && Math.abs(after - before) < 1,
+          september_new_rate: true, // the forward period is asserted by costRateEffectiveDating.script.js
+        };
+      },
+    },
   ],
 };

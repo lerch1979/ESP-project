@@ -31,7 +31,15 @@ const createContract = handle(async (req, res) => { res.status(201); return svc.
 const updateContract = handle((req) => svc.saveContract(req, req.params.id, req.body), 'updateContract');
 const deleteContract = handle((req) => svc.deleteContract(req, req.params.id), 'deleteContract');
 
+// activities + follow-ups
+const listActivities   = handle((req) => svc.listActivities(req, req.query), 'listActivities');
+const createActivity   = handle(async (req, res) => { res.status(201); return svc.createActivity(req, req.body); }, 'createActivity');
+const updateActivity   = handle((req) => svc.updateActivity(req, req.params.id, req.body), 'updateActivity');
+const deleteActivity   = handle((req) => svc.deleteActivity(req, req.params.id), 'deleteActivity');
+const listOpenFollowUps = handle((req) => svc.listOpenFollowUps(req, req.query), 'listOpenFollowUps');
+
 module.exports = {
   listContacts, createContact, updateContact, deleteContact,
   listContracts, getContract, createContract, updateContract, deleteContract,
+  listActivities, createActivity, updateActivity, deleteActivity, listOpenFollowUps,
 };

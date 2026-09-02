@@ -41,8 +41,18 @@ const daysUntil = (d) => {
   return Math.round((a - b) / 86400000);
 };
 
-/** Urgency of the soonest actionable date, mirroring the expiry monitor's buckets. */
-function urgency(days) {
+/**
+ * Urgency of the soonest actionable date, mirroring the expiry monitor's buckets.
+ *
+ * A ROLLING exit is deliberately never red. A notice deadline can be missed — after it
+ * the contract renews and the exit is gone for a term. A rolling notice cannot be
+ * missed: it is standing permission to leave in N days. Colouring it as a deadline
+ * would train people to ignore the real ones.
+ */
+function urgency(days, kind) {
+  if (kind === 'rolling') {
+    return { color: 'info', label: days === null ? 'felmondható' : `felmondható — ${days} nap` };
+  }
   if (days === null) return { color: 'default', label: '—' };
   if (days < 0) return { color: 'error', label: `${Math.abs(days)} napja lejárt` };
   if (days <= 30) return { color: 'error', label: `${days} nap` };
@@ -90,7 +100,10 @@ export default function PartnerContracts() {
   // How many contracts need a decision inside the next quarter — the headline the page
   // is really for.
   const actionableSoon = useMemo(
+    // Rolling exits are excluded: nothing is at risk of being missed, so counting them
+    // here would inflate an alarm that is meant to mean "act or lose the option".
     () => rows.filter((r) => {
+      if (r.next_action_kind === 'rolling') return false;
       const d = daysUntil(r.next_action_date);
       return d !== null && d <= 90;
     }).length,
@@ -177,7 +190,7 @@ export default function PartnerContracts() {
               )}
               {rows.map((r) => {
                 const d = daysUntil(r.next_action_date);
-                const u = urgency(d);
+                const u = urgency(d, r.next_action_kind);
                 return (
                   <TableRow
                     key={r.id}
@@ -198,18 +211,30 @@ export default function PartnerContracts() {
                     <TableCell>
                       {r.notice_deadline
                         ? <strong>{fmtDate(r.notice_deadline)}</strong>
-                        : <Typography variant="caption" color="text.secondary">nincs megadva</Typography>}
+                        : r.next_action_kind === 'rolling'
+                          ? <Typography variant="body2">{r.notice_days} nap <Typography component="span" variant="caption" color="text.secondary">(folyamatos)</Typography></Typography>
+                          : <Typography variant="caption" color="text.secondary">nincs megadva</Typography>}
                     </TableCell>
                     <TableCell>
-                      {r.is_open_ended
-                        ? <Chip size="small" label="Határozatlan" variant="outlined" />
-                        : fmtDate(r.end_date)}
+                      {r.is_open_ended ? (
+                        <>
+                          <Chip size="small" label="Határozatlan" variant="outlined" />
+                          {r.earliest_exit_date && (
+                            <Typography variant="caption" display="block" color="text.secondary">
+                              legkorábbi kilépés: {fmtDate(r.earliest_exit_date)}
+                            </Typography>
+                          )}
+                        </>
+                      ) : fmtDate(r.end_date)}
                     </TableCell>
                     <TableCell>
                       <Chip size="small" color={u.color} label={u.label}
                             variant={u.color === 'default' ? 'outlined' : 'filled'} />
                       {r.next_action_kind === 'notice' && (
                         <Typography variant="caption" display="block" color="text.secondary">felmondás</Typography>
+                      )}
+                      {r.next_action_kind === 'rolling' && (
+                        <Typography variant="caption" display="block" color="text.secondary">bármikor</Typography>
                       )}
                     </TableCell>
                     <TableCell>{STATUS_LABEL[r.status] || r.status}</TableCell>

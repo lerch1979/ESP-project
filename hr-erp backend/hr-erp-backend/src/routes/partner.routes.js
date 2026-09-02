@@ -37,4 +37,15 @@ router.post('/contracts',       canEdit, ctrl.createContract);
 router.put('/contracts/:id',    canEdit, ctrl.updateContract);
 router.delete('/contracts/:id', canEdit, ctrl.deleteContract);
 
+// ── activities ── /partners/activities?contractor_id=… | ?accommodation_id=…
+// A follow_up_at on create writes a REAL task (tasks.related_contractor_id) in the same
+// transaction and links it — there is no separate reminder engine.
+router.get('/activities',        canView, ctrl.listActivities);
+router.post('/activities',       canEdit, ctrl.createActivity);
+router.put('/activities/:id',    canEdit, ctrl.updateActivity);
+router.delete('/activities/:id', canEdit, ctrl.deleteActivity);
+
+// Cross-partner "who owes a callback" view, driven off the linked tasks' status.
+router.get('/follow-ups',        canView, ctrl.listOpenFollowUps);
+
 module.exports = router;

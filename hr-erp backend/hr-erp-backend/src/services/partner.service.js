@@ -175,13 +175,27 @@ const CONTRACT_SELECT = `
          CASE WHEN pc.accommodation_id IS NOT NULL THEN true ELSE false END AS is_lease,
          -- The soonest thing a human must act on: give notice before it renews,
          -- otherwise the expiry itself.
+         -- ROLLING NOTICE (2026-09-02). An open-ended contract has no end_date, so it
+         -- has no notice_deadline either — but it is still exitable: serve notice today
+         -- and we are out in notice_days. That earliest-exit date is exactly what the
+         -- board exists to show ("which sites could I leave, and by when"), so it is
+         -- computed here rather than leaving such contracts undated and invisible.
+         CASE WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL
+              THEN CURRENT_DATE + pc.notice_days
+         END AS earliest_exit_date,
          LEAST(
            COALESCE(pc.notice_deadline, DATE '9999-12-31'),
-           COALESCE(pc.end_date,        DATE '9999-12-31')
+           COALESCE(pc.end_date,        DATE '9999-12-31'),
+           -- A rolling exit sorts by when we could actually be out.
+           COALESCE(CASE WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL
+                         THEN CURRENT_DATE + pc.notice_days END, DATE '9999-12-31')
          ) AS next_action_date,
          CASE
            WHEN pc.notice_deadline IS NOT NULL AND pc.notice_deadline >= CURRENT_DATE THEN 'notice'
            WHEN pc.end_date        IS NOT NULL AND pc.end_date        >= CURRENT_DATE THEN 'expiry'
+           -- 'rolling' is deliberately its own kind: unlike 'notice' it never expires
+           -- and can never be missed, so the UI must not colour it as a deadline.
+           WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL                       THEN 'rolling'
            WHEN pc.notice_deadline IS NOT NULL OR pc.end_date IS NOT NULL             THEN 'overdue'
          END AS next_action_kind
     FROM partner_contracts pc
@@ -214,8 +228,13 @@ async function listContracts(req, filters = {}) {
   // "actionable within N days" — the board's default lens.
   if (filters.within_days) {
     params.push(parseInt(filters.within_days, 10));
+    // Must stay identical to next_action_date in CONTRACT_SELECT — including the
+    // rolling-exit arm. It previously duplicated only two of the three terms, so an
+    // open-ended contract could never appear in any horizon.
     where.push(`LEAST(COALESCE(pc.notice_deadline, DATE '9999-12-31'),
-                      COALESCE(pc.end_date,        DATE '9999-12-31'))
+                      COALESCE(pc.end_date,        DATE '9999-12-31'),
+                      COALESCE(CASE WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL
+                                    THEN CURRENT_DATE + pc.notice_days END, DATE '9999-12-31'))
                 <= CURRENT_DATE + ($${i++} || ' days')::interval`);
   }
 
@@ -284,9 +303,189 @@ async function deleteContract(req, id) {
   return { deleted: true };
 }
 
+
+// ── activities + follow-ups ─────────────────────────────────────────────────
+
+const VALID_KINDS = ['note', 'call', 'meeting', 'email', 'offer_sent'];
+
+const KIND_LABEL_HU = {
+  note: 'Jegyzet', call: 'Hívás', meeting: 'Találkozó',
+  email: 'E-mail', offer_sent: 'Ajánlat kiküldve',
+};
+
+async function listActivities(req, filters = {}) {
+  const party = resolveParty(filters);
+  await assertPartyInScope(req, { [party.key]: party.id });
+  const r = await query(
+    `SELECT pa.*,
+            pc.name AS contact_name,
+            t.status   AS follow_up_status,
+            t.due_date AS follow_up_due_date,
+            t.title    AS follow_up_title
+       FROM partner_activities pa
+       LEFT JOIN partner_contacts pc ON pc.id = pa.contact_id
+       LEFT JOIN tasks t             ON t.id  = pa.follow_up_task_id
+      WHERE pa.${party.key} = $1
+      ORDER BY pa.occurred_at DESC, pa.created_at DESC
+      LIMIT $2`,
+    [party.id, Math.min(parseInt(filters.limit, 10) || 200, 500)],
+  );
+  return r.rows;
+}
+
+/**
+ * Create an activity, and — when a follow-up date is given — a REAL task to carry it.
+ *
+ * Both rows are written in ONE transaction. A half-written follow-up (an activity
+ * promising a callback with no task behind it, or an orphan task) is exactly the
+ * silent-failure shape this codebase keeps getting bitten by, and the DB CHECK
+ * `partner_activities_followup_chk` would reject it anyway.
+ */
+async function createActivity(req, body) {
+  const party = resolveParty(body);
+  await assertPartyInScope(req, { [party.key]: party.id });
+
+  const kind = body.kind || 'note';
+  if (!VALID_KINDS.includes(kind)) throw new PartnerError(`kind: ${VALID_KINDS.join(' | ')}`);
+  if (!body.subject && !body.body) throw new PartnerError('Tárgy vagy leírás megadása kötelező');
+
+  if (body.contact_id) {
+    const c = await query(`SELECT ${party.key} AS owner FROM partner_contacts WHERE id = $1`, [body.contact_id]);
+    if (c.rows.length === 0 || c.rows[0].owner !== party.id) {
+      throw new PartnerError('A kapcsolattartó nem ehhez a félhez tartozik');
+    }
+  }
+
+  const ownerContractor = await ownerContractorOf({ [party.key]: party.id });
+
+  return transaction(async (client) => {
+    let followUpTaskId = null;
+
+    if (body.follow_up_at) {
+      const partyName = await partyLabel(client, party);
+      const title = body.follow_up_title
+        || `Utánkövetés — ${partyName}${body.subject ? `: ${body.subject}` : ''}`;
+
+      // Reuse the ordinary standalone-task shape so the follow-up shows up in the
+      // Kanban/GTD views staff already use, with the partner it is about attached.
+      const t = await client.query(
+        `INSERT INTO tasks
+           (title, description, status, priority, assigned_to, due_date, deadline,
+            contractor_id, created_by, related_contractor_id, tags)
+         VALUES ($1,$2,'todo',$3,$4,$5::timestamptz::date,$5,$6,$7,$8,$9)
+         RETURNING id`,
+        [
+          title,
+          body.body || null,
+          body.follow_up_priority || 'medium',
+          body.follow_up_assigned_to || req.user?.id || null,
+          body.follow_up_at,
+          req.user?.contractorId || ownerContractor || null,
+          req.user?.id || null,
+          party.key === 'contractor_id' ? party.id : ownerContractor,
+          ['partner-utankovetes'],
+        ],
+      );
+      followUpTaskId = t.rows[0].id;
+    }
+
+    const a = await client.query(
+      `INSERT INTO partner_activities
+         (${party.key}, contact_id, kind, occurred_at, subject, body,
+          follow_up_at, follow_up_task_id, created_by)
+       VALUES ($1,$2,$3,COALESCE($4, now()),$5,$6,$7,$8,$9)
+       RETURNING *`,
+      [
+        party.id, body.contact_id || null, kind, body.occurred_at || null,
+        body.subject || null, body.body || null,
+        body.follow_up_at || null, followUpTaskId, req.user?.id || null,
+      ],
+    );
+    return a.rows[0];
+  });
+}
+
+/** Human label for a party, used in the generated follow-up task title. */
+async function partyLabel(client, party) {
+  if (party.key === 'contractor_id') {
+    const r = await client.query('SELECT name FROM contractors WHERE id = $1', [party.id]);
+    return r.rows[0]?.name || 'Partner';
+  }
+  if (party.key === 'accommodation_id') {
+    const r = await client.query('SELECT name FROM accommodations WHERE id = $1', [party.id]);
+    return r.rows[0]?.name || 'Szálláshely';
+  }
+  return 'Érdeklődő';
+}
+
+async function updateActivity(req, id, body) {
+  const cur = await query('SELECT * FROM partner_activities WHERE id = $1', [id]);
+  if (cur.rows.length === 0) throw new PartnerError('Aktivitás nem található', 404);
+  await assertPartyInScope(req, cur.rows[0]);
+
+  if (body.kind && !VALID_KINDS.includes(body.kind)) {
+    throw new PartnerError(`kind: ${VALID_KINDS.join(' | ')}`);
+  }
+  const r = await query(
+    `UPDATE partner_activities
+        SET kind = COALESCE($1, kind),
+            occurred_at = COALESCE($2, occurred_at),
+            subject = $3, body = $4, contact_id = $5, updated_at = now()
+      WHERE id = $6 RETURNING *`,
+    [body.kind || null, body.occurred_at || null, body.subject ?? null,
+     body.body ?? null, body.contact_id || null, id],
+  );
+  return r.rows[0];
+}
+
+async function deleteActivity(req, id) {
+  const cur = await query('SELECT * FROM partner_activities WHERE id = $1', [id]);
+  if (cur.rows.length === 0) throw new PartnerError('Aktivitás nem található', 404);
+  await assertPartyInScope(req, cur.rows[0]);
+  // The follow-up task is deliberately NOT deleted: it may already be assigned and in
+  // someone's queue. The FK is ON DELETE SET NULL, so the task survives the activity.
+  await query('DELETE FROM partner_activities WHERE id = $1', [id]);
+  return { deleted: true };
+}
+
+/** Open follow-ups across all partners — the "who owes a callback" view. */
+async function listOpenFollowUps(req, filters = {}) {
+  const s = scopeOf(req);
+  const params = [];
+  let i = 1;
+  const where = ["pa.follow_up_task_id IS NOT NULL", "t.status <> 'done'"];
+
+  if (!s.all) {
+    if (!s.contractorId) return [];
+    params.push(s.contractorId);
+    where.push(`(pa.contractor_id = $${i} OR a.current_contractor_id = $${i})`);
+    i += 1;
+  }
+  if (filters.within_days) {
+    params.push(parseInt(filters.within_days, 10));
+    where.push(`pa.follow_up_at <= now() + ($${i++} || ' days')::interval`);
+  }
+
+  const r = await query(
+    `SELECT pa.id, pa.subject, pa.kind, pa.follow_up_at, pa.follow_up_task_id,
+            t.title AS task_title, t.status AS task_status, t.assigned_to,
+            c.name AS contractor_name, a.name AS accommodation_name
+       FROM partner_activities pa
+       JOIN tasks t              ON t.id = pa.follow_up_task_id
+       LEFT JOIN contractors c   ON c.id = pa.contractor_id
+       LEFT JOIN accommodations a ON a.id = pa.accommodation_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY pa.follow_up_at ASC`,
+    params,
+  );
+  return r.rows;
+}
+
 module.exports = {
   PartnerError,
   resolveParty,
   listContacts, saveContact, deleteContact,
   listContracts, getContract, saveContract, deleteContract,
+  listActivities, createActivity, updateActivity, deleteActivity, listOpenFollowUps,
+  KIND_LABEL_HU,
 };
