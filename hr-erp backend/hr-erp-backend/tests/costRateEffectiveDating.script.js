@@ -188,6 +188,42 @@ const ymd = (d) => {
     } catch (e) { overlapRejected = e.code === '23P01'; }
     check('CE-08 overlapping validity periods are refused by the DB (exclusion constraint)', overlapRejected);
 
+    // ── the SETTLEMENT SHEET must show the rate in force for ITS month ─────
+    // The sheet reads calculation_details.rent_rate_used from the stored billing row
+    // rather than resolving a rate itself, so it reports what was actually billed. This
+    // pins that: one accommodation, two months, two different rates on the rendered
+    // sheet. (Prod equivalent: Sarród I. August 558×2000, September 18×2200.)
+    {
+      const settle = require('../src/services/settlementSheet.service');
+      // restore the clean two-period shape after the mid-month case above
+      await pool.query(`DELETE FROM accommodation_rent_rates WHERE accommodation_id=$1`, [ACC]);
+      await pool.query(
+        `INSERT INTO accommodation_rent_rates (accommodation_id,rent_basis,rent_per_bed_night,valid_from,valid_to)
+         VALUES ($1,'per_bed_night',2000,DATE '1900-01-01',DATE '2026-08-31')`, [ACC]);
+      await pool.query(
+        `INSERT INTO accommodation_rent_rates (accommodation_id,rent_basis,rent_per_bed_night,valid_from)
+         VALUES ($1,'per_bed_night',2200,DATE '2026-09-01')`, [ACC]);
+      await engine.calculateMonthlyBilling('2026-08', { runType: 'incoming' });
+      await engine.calculateMonthlyBilling('2026-09', { runType: 'incoming' });
+
+      const aug = await settle.landlordSheet({ month: '2026-08', landlordId: LL });
+      const sep = await settle.landlordSheet({ month: '2026-09', landlordId: LL });
+      const rateOf = (sheet) => Number((sheet.accommodations.find((a) => a.accommodation_id === ACC) || {}).rent_rate_used);
+      const costOf = (sheet) => Number((sheet.accommodations.find((a) => a.accommodation_id === ACC) || {}).cost_total);
+      const nightsOf = (sheet) => Number((sheet.accommodations.find((a) => a.accommodation_id === ACC) || {}).bed_nights);
+
+      check('SH-RATE-01 the AUGUST sheet shows the rate in force in August (2000)',
+        rateOf(aug) === 2000, `got ${rateOf(aug)}`);
+      check('SH-RATE-02 the SEPTEMBER sheet shows the rate in force in September (2200)',
+        rateOf(sep) === 2200, `got ${rateOf(sep)}`);
+      check('SH-RATE-03 August total = nights × 2000',
+        Math.abs(costOf(aug) - nightsOf(aug) * 2000) < 1, `${costOf(aug)} vs ${nightsOf(aug)}×2000`);
+      check('SH-RATE-04 September total = nights × 2200',
+        Math.abs(costOf(sep) - nightsOf(sep) * 2200) < 1, `${costOf(sep)} vs ${nightsOf(sep)}×2200`);
+      check('SH-RATE-05 the two months genuinely differ on the same property',
+        rateOf(aug) !== rateOf(sep));
+    }
+
     // ── ROLLING NOTICE ────────────────────────────────────────────────────
     const rolling = await partner.saveContract(su, null, {
       contractor_id: LL, accommodation_id: ACC, contract_role: 'szallasado',
