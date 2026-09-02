@@ -284,7 +284,12 @@ const createContractor = async (req, res) => {
 const updateContractor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, address, is_active, type } = req.body;
+    const {
+      name, email, phone, address, is_active, type,
+      // Partner master data (mig 144). Without these here the Áttekintés tab could
+      // DISPLAY an adószám it had no way to save — the field was write-only-by-psql.
+      tax_number, company_reg_number, bank_account, billing_email, billing_address,
+    } = req.body;
 
     // Check contractor exists
     const existing = await query('SELECT * FROM contractors WHERE id = $1', [id]);
@@ -346,6 +351,17 @@ const updateContractor = async (req, res) => {
       fields.push(`is_active = $${paramIndex}`);
       params.push(is_active);
       paramIndex++;
+    }
+
+    // mig 144 master data — plain nullable text, no coercion beyond trimming.
+    for (const [col, val] of Object.entries({
+      tax_number, company_reg_number, bank_account, billing_email, billing_address,
+    })) {
+      if (val !== undefined) {
+        fields.push(`${col} = $${paramIndex}`);
+        params.push(val === null || val === '' ? null : String(val).trim());
+        paramIndex++;
+      }
     }
 
     if (type !== undefined) {
