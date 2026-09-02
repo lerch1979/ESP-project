@@ -147,7 +147,44 @@ async function gatherItems(maxT) {
        JOIN employees e ON e.id = d.employee_id
       WHERE d.deleted_at IS NULL
         AND d.expiry_date IS NOT NULL
-        AND d.expiry_date BETWEEN (CURRENT_DATE + ($1)::interval) AND (CURRENT_DATE + ($2)::interval)`,
+        AND d.expiry_date BETWEEN (CURRENT_DATE + ($1)::interval) AND (CURRENT_DATE + ($2)::interval)
+
+     -- ── partner contracts (mig 144) ──────────────────────────────────────────
+     -- TWO branches, deliberately. A contract's EXPIRY and its NOTICE DEADLINE are
+     -- different events needing different lead times, and because the field column is
+     -- part of the dedup key each runs its own alert cycle off the same row with no extra
+     -- machinery. The notice branch is the one that answers "can we still get out of
+     -- this?" — once that date passes, an auto-renewing contract is locked for another
+     -- term, so it is the more urgent of the two even though it falls earlier.
+     UNION ALL
+     SELECT 'partner_contract', pc.id::text, 'partner_contract',
+            pc.end_date, NULL::uuid,
+            NULL, NULL, NULL,
+            COALESCE(pc.contractor_id, a.current_contractor_id),
+            pc.contract_role,
+            COALESCE(NULLIF(btrim(pc.title), ''), pc.contract_no,
+                     COALESCE(c.name, '') || COALESCE(' — ' || a.name, ''))
+       FROM partner_contracts pc
+       LEFT JOIN contractors    c ON c.id = pc.contractor_id
+       LEFT JOIN accommodations a ON a.id = pc.accommodation_id
+      WHERE pc.status IN ('draft','active')
+        AND pc.end_date IS NOT NULL
+        AND pc.end_date BETWEEN (CURRENT_DATE + ($1)::interval) AND (CURRENT_DATE + ($2)::interval)
+
+     UNION ALL
+     SELECT 'partner_contract', pc.id::text, 'notice',
+            pc.notice_deadline, NULL::uuid,
+            NULL, NULL, NULL,
+            COALESCE(pc.contractor_id, a.current_contractor_id),
+            pc.contract_role,
+            COALESCE(NULLIF(btrim(pc.title), ''), pc.contract_no,
+                     COALESCE(c.name, '') || COALESCE(' — ' || a.name, ''))
+       FROM partner_contracts pc
+       LEFT JOIN contractors    c ON c.id = pc.contractor_id
+       LEFT JOIN accommodations a ON a.id = pc.accommodation_id
+      WHERE pc.status IN ('draft','active')
+        AND pc.notice_deadline IS NOT NULL
+        AND pc.notice_deadline BETWEEN (CURRENT_DATE + ($1)::interval) AND (CURRENT_DATE + ($2)::interval)`,
     [lo, hi]
   );
   return r.rows;
@@ -175,16 +212,47 @@ function severityOf(bucket) {
   return 'info';
 }
 
+const ROLE_LABEL_HU = { megbizo: 'megbízó', szallasado: 'szállásadó', alvallalkozo: 'alvállalkozó' };
+
 function fieldLabelHu(field, documentType) {
   if (field === 'visa') return 'Vízum';
   if (field === 'contract') return 'Szerződés';
+  if (field === 'partner_contract') return `Partnerszerződés${documentType ? ` (${ROLE_LABEL_HU[documentType] || documentType})` : ''}`;
+  if (field === 'notice') return 'Felmondási határidő';
   return documentType ? `Dokumentum (${documentType})` : 'Dokumentum';
 }
 
+/**
+ * What the alert is ABOUT. Employee rows carry a person's name; partner-contract rows
+ * carry the contract title (or number, or "partner — property"), which gatherItems puts
+ * in document_name for both. Without this the partner branches would all say
+ * "Munkavállaló".
+ */
+function subjectLabel(item) {
+  if (item.entity_type === 'partner_contract') return item.document_name || 'Szerződés';
+  return `${item.last_name || ''} ${item.first_name || ''}`.trim() || 'Munkavállaló';
+}
+
 function buildMessage(item, bucket, dUntil) {
-  const name = `${item.last_name || ''} ${item.first_name || ''}`.trim() || 'Munkavállaló';
+  const name = subjectLabel(item);
   const what = fieldLabelHu(item.field, item.document_type);
   const date = new Date(item.expiry_date).toISOString().slice(0, 10);
+
+  // A notice deadline does not "expire" — it RUNS OUT, and the consequence (the
+  // contract renews for another term) is the thing worth saying.
+  if (item.field === 'notice') {
+    if (bucket === OVERDUE_BUCKET) {
+      return {
+        title: `Felmondási határidő LEJÁRT — ${name}`,
+        message: `${name}: a felmondási határidő ${date}-n lejárt (${Math.abs(dUntil)} napja). A szerződés a következő időszakra megújul.`,
+      };
+    }
+    return {
+      title: `Felmondási határidő ${dUntil} nap múlva — ${name}`,
+      message: `${name}: ${date}-ig lehet felmondani (${dUntil} nap). Utána a szerződés megújul.`,
+    };
+  }
+
   if (bucket === OVERDUE_BUCKET) {
     return { title: `${what} LEJÁRT — ${name}`, message: `${name}: ${what} lejárt (${date}, ${Math.abs(dUntil)} napja).` };
   }
@@ -225,7 +293,10 @@ async function runDaily({ force = false } = {}) {
         if (ins.rows.length === 0) continue; // already alerted for this bucket
 
         const { title, message } = buildMessage(item, bucket, dUntil);
-        const link = `/employees/${item.employee_id}`;
+        // Per-entity deep link — the admin alert used to always point at an employee page.
+        const link = item.entity_type === 'partner_contract'
+          ? `/partners/contracts?highlight=${item.entity_id}`
+          : `/employees/${item.employee_id}`;
         const data = {
           entity_type: item.entity_type,
           entity_id: item.entity_id,

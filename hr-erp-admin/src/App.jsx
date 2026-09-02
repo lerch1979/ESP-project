@@ -8,6 +8,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
 import HomeRedirect from './components/HomeRedirect';
+import PartnerContracts from './pages/PartnerContracts';
+import PartnerDetail from './pages/PartnerDetail';
 import InstallPrompt from './components/InstallPrompt';
 
 // Critical path — load immediately
@@ -163,6 +165,10 @@ function App() {
                   fields); redirect so nobody lands on it. */}
               <Route path="users" element={<Navigate to="/admin/users" replace />} />
               <Route path="contractors" element={<PermissionGuard permission="employees.view"><Contractors /></PermissionGuard>} />
+              {/* Partner module (Phase 1). Contracts board is listed BEFORE :id so the
+                  literal path wins over the param route. */}
+              <Route path="partners/contracts" element={<PermissionGuard permission="settings.view"><PartnerContracts /></PermissionGuard>} />
+              <Route path="partners/:id" element={<PermissionGuard permission="employees.view"><PartnerDetail /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="accommodations/consolidation" element={<PermissionGuard permission="employees.edit"><ConsolidationEngine /></PermissionGuard>} />
               <Route path="employees" element={<PermissionGuard permission="employees.view"><Employees /></PermissionGuard>} />

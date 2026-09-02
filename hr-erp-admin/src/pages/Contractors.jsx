@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -47,6 +48,7 @@ const CONTRACTOR_PRESET_VALUES = {
 const ROLE_LABELS = { megbizo: 'Megbízó', szallasado: 'Szállásadó', alvallalkozo: 'Alvállalkozó' };
 
 function Contractors() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [contractors, setContractors] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -110,9 +112,12 @@ function Contractors() {
     setPage(0);
   };
 
+  // Phase 1: a partner now has a real detail PAGE (contacts, contracts, documents,
+  // finance) rather than a single modal, so the row opens that. The existing
+  // ContractorDetailModal is kept for quick edits from the row action menu — it is the
+  // edit form, not a second detail surface.
   const handleRowClick = (contractorId) => {
-    setSelectedContractorId(contractorId);
-    setDetailModalOpen(true);
+    navigate(`/partners/${contractorId}`);
   };
 
   const handleExport = async () => {

@@ -134,11 +134,19 @@ const buildMenuSections = (t) => [
     section: 'Emberek & Szállás',
     items: [
       { text: t('nav.residents'), icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
-      { text: 'Partnerek', icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
       { text: t('nav.accommodations'), icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
       { text: 'Szoba-konszolidáció', icon: <MeetingRoomIcon />, path: '/accommodations/consolidation', permission: 'employees.edit' },
       { text: 'Lejárati figyelő', icon: <HourglassBottomIcon />, path: '/expiry-monitor', permission: 'employees.view' },
       { text: 'GDPR / Anonimizálás', icon: <LockIcon />, path: '/anonymization', permission: 'users.view' },
+    ],
+  },
+  {
+    section: 'Partnerek',
+    items: [
+      { text: 'Partnerek', icon: <BusinessIcon />, path: '/contractors', permission: 'employees.view' },
+      // The board that answers "which sites can we still exit this quarter" — sorted by
+      // soonest actionable date, notice deadline ahead of expiry.
+      { text: 'Szerződések', icon: <DescriptionIcon />, path: '/partners/contracts', permission: 'settings.view' },
     ],
   },
   {
