@@ -30,6 +30,7 @@ import {
   MeetingRoom as MeetingRoomIcon,
   Lock as LockIcon,
   Business as BusinessIcon,
+  TrendingUp as TrendingUpIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   AccountCircle,
@@ -149,6 +150,9 @@ const buildMenuSections = (t) => [
       { text: 'Szerződések', icon: <DescriptionIcon />, path: '/partners/contracts', permission: 'settings.view' },
       // The monthly document that goes out with the invoice — landlord and client.
       { text: 'Elszámoló lapok', icon: <ReceiptIcon />, path: '/settlements', permission: 'settings.edit' },
+      // Sales pipeline (Phase 3). External agents are NOT enabled — Phase 4, gated on
+      // the Phase 0 security work.
+      { text: 'Üzletfejlesztés', icon: <TrendingUpIcon />, path: '/sales', permission: 'settings.edit' },
     ],
   },
   {

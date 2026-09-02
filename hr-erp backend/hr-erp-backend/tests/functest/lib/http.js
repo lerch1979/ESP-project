@@ -47,6 +47,21 @@ async function call(method, p, { token, body, query } = {}) {
   return { status: res.status, body: res.body, text: res.text };
 }
 
+/**
+ * Un-prefixed request, for routes mounted OUTSIDE ${API_PREFIX} — the public,
+ * token-authorised surfaces (/public/quote, /public/settlement, /public/accountant).
+ * `call()` hardcodes /api/v1, which silently 404s those and made them look broken.
+ */
+async function raw(method, p, { token, body, query } = {}) {
+  let req = request(app())[method](p);
+  if (token) req = req.set('Authorization', `Bearer ${token}`);
+  if (query) req = req.query(query);
+  if (body !== undefined) req = req.send(body);
+  const res = await req;
+  return { status: res.status, body: res.body, text: res.text };
+}
+const rawGet = (p, o) => raw('get', p, o);
+
 const get = (p, o) => call('get', p, o);
 const post = (p, o) => call('post', p, o);
 const put = (p, o) => call('put', p, o);
@@ -78,4 +93,6 @@ function leaks(body, foreignIds) {
   return [...set].filter((id) => hay.includes(id));
 }
 
-module.exports = { app, tokenFor, call, get, post, put, del, patch, rowsOf, leaks };
+module.exports = { app, tokenFor, call, get, post, put, del, patch, rowsOf, leaks,
+  raw, rawGet,
+};

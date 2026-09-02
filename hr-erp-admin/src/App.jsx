@@ -11,6 +11,7 @@ import HomeRedirect from './components/HomeRedirect';
 import PartnerContracts from './pages/PartnerContracts';
 import PartnerDetail from './pages/PartnerDetail';
 import Settlements from './pages/Settlements';
+import Sales from './pages/Sales';
 import InstallPrompt from './components/InstallPrompt';
 
 // Critical path — load immediately
@@ -170,6 +171,7 @@ function App() {
                   literal path wins over the param route. */}
               <Route path="partners/contracts" element={<PermissionGuard permission="settings.view"><PartnerContracts /></PermissionGuard>} />
               <Route path="settlements" element={<PermissionGuard permission="settings.edit"><Settlements /></PermissionGuard>} />
+              <Route path="sales" element={<PermissionGuard permission="settings.edit"><Sales /></PermissionGuard>} />
               <Route path="partners/:id" element={<PermissionGuard permission="employees.view"><PartnerDetail /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="accommodations/consolidation" element={<PermissionGuard permission="employees.edit"><ConsolidationEngine /></PermissionGuard>} />

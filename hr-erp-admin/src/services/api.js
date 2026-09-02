@@ -293,6 +293,29 @@ export const billingAPI = {
   reopenRun: async (id, reason) => (await api.post(`/billing/runs/${id}/reopen`, { reason })).data,
 };
 
+// Sales pipeline (Phase 3) — leads → opportunities → quotes.
+export const salesAPI = {
+  listLeads: async (params) => (await api.get('/sales/leads', { params })).data,
+  createLead: async (b) => (await api.post('/sales/leads', b)).data,
+  updateLead: async (id, b) => (await api.put(`/sales/leads/${id}`, b)).data,
+  convertLead: async (id, b) => (await api.post(`/sales/leads/${id}/convert`, b)).data,
+
+  board: async () => (await api.get('/sales/board')).data,
+  listOpportunities: async (params) => (await api.get('/sales/opportunities', { params })).data,
+  createOpportunity: async (b) => (await api.post('/sales/opportunities', b)).data,
+  updateOpportunity: async (id, b) => (await api.put(`/sales/opportunities/${id}`, b)).data,
+
+  listQuotes: async (params) => (await api.get('/sales/quotes', { params })).data,
+  getQuote: async (id) => (await api.get(`/sales/quotes/${id}`)).data,
+  createQuote: async (b) => (await api.post('/sales/quotes', b)).data,
+  updateQuote: async (id, b) => (await api.put(`/sales/quotes/${id}`, b)).data,
+  sendQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/send`, b)).data,
+  acceptQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/accept`, b)).data,
+  rejectQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/reject`, b)).data,
+  shareQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/share`, b)).data,
+  revokeShare: async (id) => (await api.delete(`/sales/quotes/${id}/share`)).data,
+};
+
 // Monthly settlement sheets (szállástábla) — landlord + client, xlsx/pdf, share links.
 export const settlementAPI = {
   partners: async (month) => (await api.get('/settlements/partners', { params: { month } })).data,
