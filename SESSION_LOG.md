@@ -6,6 +6,52 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-02d — The settlement PDF becomes a summary (closes the open item from 2026-09-02c)
+
+The previous entry flagged the client PDF as 33 pages at real scale and left the call to
+the owner. Decision taken: **option (b)** — the PDF is a summary, the xlsx keeps the
+evidence.
+
+**The split.** Two formats, two jobs. The **xlsx** is what a partner audits: the full
+day-by-day grid, the roster, the `Üres` rows, the egyéb tételek. The **pdf** is what they
+read: per-site money (bed-nights, rate, net/VAT/gross), the grand total, and an
+`Elszámolás alapja` block (site count, headcount, occupied / empty / total bed-nights,
+period). No person-level rows at all.
+
+**And it says where the detail went.** A boxed note names the Excel sheet
+("Napi jelenlét") holding the person-level breakdown. That is the part worth keeping if
+anything here is ever rewritten: a summary that does not tell the reader where the
+line-by-line proof lives reads like the proof is missing, and earns a phone call per
+invoice. Same principle applied to the szállásadó sheet.
+
+**A second bug, found because the first fix under-delivered.** Removing the roster only
+got the document to **4 pages**, not the 2–3 asked for — and pages 2–4 held one line
+each. Cause was layout, not content: drawing the boxed note near the bottom margin made
+every subsequent `text()` spill onto its own page. Both the summary block and the box now
+claim their vertical space before drawing. That is what took it to 3.
+
+**Volume re-run** (16 sites · 304 people · 9 203 bed-nights):
+
+```
+számlázási futás              67 ms
+lap felépítése        103 ms / 104 ms
+xlsx render            28 ms / 361 KB · 17 ms / 435 KB
+pdf  render            33 ms /  16 KB · 19 ms /  16 KB    (volt 38 KB / 33 oldal)
+teljes (2 lap × 2 formátum)  304 ms
+PDF oldalszám: szállásadó 3 · megbízó 3
+```
+
+Live Sarród case renders 2 pages. VOL-10..14 pin it: page count ≤ 3 at real scale, no
+resident name in the PDF, the Excel pointer present, and the summary figures still
+present — so reintroducing the roster fails a test rather than reaching a partner.
+
+**Minor, not a product bug:** a prod verification JWT expired mid-check and the download
+returned a 43-byte `{"success":false,"message":"Token lejárt"}` that `pdf-parse` then
+choked on. Worth knowing if the admin UI ever shows a failed download where a
+session-expired message would be clearer.
+
+---
+
 ## SESSION 2026-09-02c — Havi elszámoló lapok (szállástábla) + two production bugs found by deploying
 
 The feature was the smaller half. Deploying it surfaced a latent production defect that
