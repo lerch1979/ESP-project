@@ -39,6 +39,16 @@ COPY scripts ./scripts
 # contractor_id IS NULL would remove every real employee — see the decisions log).
 COPY migrations ./migrations
 
+# DejaVu fonts for PDF generation. Without them:
+#   • inspectionPDF (the damage-report jegyzőkönyv) calls registerFont with no
+#     existence guard and THROWS ENOENT — the PDF fails outright, not degrades. It
+#     went unnoticed only because prod has 0 inspections, so one was never generated
+#     there. It would have broken on the first real damage report.
+#   • the settlement sheets and the dashboard PDF fall back to core Helvetica, which
+#     is WinAnsi and has no ő (U+0151) or ű (U+0171) — "Fizetendő" renders as "Fiz".
+# Same class of gap as the scripts/ and migrations/ COPY lines above.
+COPY assets ./assets
+
 # Create required directories
 RUN mkdir -p logs uploads
 
