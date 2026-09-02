@@ -1,8 +1,8 @@
 # FUNCTEST REPORT — automated end-to-end functional suite
 
-**121 passed / 0 failed / 11 known-gap**  ·  132 scenarios  ·  10857ms
+**121 passed / 0 failed / 6 known-gap / 5 fixed**  ·  132 scenarios  ·  9655ms
 
-- Generated: 2026-08-08T20:55:19.996Z
+- Generated: 2026-09-02T12:01:22.288Z
 - Database: `hr_erp_sandbox` (sandbox-only — the guard refuses anything else)
 - Command: `npm run functest`
 - Fixture month: `1903-06` · fixture tag: `FT`
@@ -78,7 +78,7 @@
 | **CONS-14** 60-DAY STABILITY — a resident moved recently must not be moved again inside the window | {"stability_window_days":60,"engine_reads_move_history":true} | {"stability_window_days":null,"engine_reads_move_history":false} | ⚠️ KNOWN-GAP |
 | **CONS-15** approve → TICKET → confirm → room change (staged lifecycle) | {"approve_creates_ticket":true,"room_change_awaits_confirmation":true} | {"approve_creates_ticket":false,"room_change_awaits_confirmation":false} | ⚠️ KNOWN-GAP |
 
-## PERMISSIONS — 16 passed / 0 failed / 5 known-gap
+## PERMISSIONS — 16 passed / 0 failed / 5 fixed
 
 | Scenario | Expected | Actual | Result |
 |---|---|---|---|
@@ -95,11 +95,11 @@
 | **PERM-11** role "task_owner" — HTTP access matches the permission model exactly | {"mismatches":[]} | {"mismatches":[]} | ✅ PASS |
 | **PERM-12** role "accommodated_employee" — HTTP access matches the permission model exactly | {"mismatches":[]} | {"mismatches":[]} | ✅ PASS |
 | **PERM-13** cross-tenant WRITE — tenant-1 operator cannot mutate a tenant-2 employee | {"row_changed":false,"status":403} | {"row_changed":false,"status":403} | ✅ PASS |
-| **PERM-14** cross-tenant READ — tenant-1 operator listing employees sees no tenant-2 rows | {"foreign_ids_returned":0} | {"foreign_ids_returned":3,"_status":200} | ⚠️ KNOWN-GAP |
-| **PERM-15** cross-tenant READ — finance endpoints scope to the caller's contractor | {"endpoints_returning_foreign_data":[]} | {"endpoints_returning_foreign_data":["/expenses → 200","/profit/by-accommodation?month=1903-07 → 200","/operating-costs/by-accommodation?month=1903-07 → 200"]} | ⚠️ KNOWN-GAP |
-| **PERM-16** timesheets — one tenant cannot read another tenant's logged hours by task id | {"rows_returned":0,"foreign_email_exposed":false} | {"rows_returned":1,"foreign_email_exposed":true,"_status":200} | ⚠️ KNOWN-GAP |
-| **PERM-17** GET /rooms/:id/inspection-history requires a permission | {"resident_status":403} | {"resident_status":200} | ⚠️ KNOWN-GAP |
-| **PERM-18** GET /analytics/overview requires a permission | {"resident_status":403} | {"resident_status":200} | ⚠️ KNOWN-GAP |
+| **PERM-14** cross-tenant READ — tenant-1 operator listing employees sees no tenant-2 rows | {"foreign_ids_returned":0} | {"foreign_ids_returned":0,"_status":200} | 🎉 FIXED |
+| **PERM-15** cross-tenant READ — finance endpoints scope to the caller's contractor | {"endpoints_returning_foreign_data":[]} | {"endpoints_returning_foreign_data":[]} | 🎉 FIXED |
+| **PERM-16** timesheets — one tenant cannot read another tenant's logged hours by task id | {"rows_returned":0,"foreign_email_exposed":false} | {"rows_returned":0,"foreign_email_exposed":false,"_status":404} | 🎉 FIXED |
+| **PERM-17** GET /rooms/:id/inspection-history requires a permission | {"resident_status":403} | {"resident_status":403} | 🎉 FIXED |
+| **PERM-18** GET /analytics/overview requires a permission | {"resident_status":403} | {"resident_status":403} | 🎉 FIXED |
 | **PERM-19** worker-specialization WRITES require a permission — a resident cannot create reference data | {"status":403,"row_created":false} | {"status":403,"row_created":false} | ✅ PASS |
 | **PERM-20** GTD metadata writes are gated — a resident cannot rewrite a ticket's GTD fields | {"status":403,"ticket_modified":false} | {"status":403,"ticket_modified":false} | ✅ PASS |
 | **PERM-21** an unauthenticated caller gets 401 everywhere (no anonymous surface) | {"non_401":[]} | {"non_401":[]} | ✅ PASS |
@@ -195,7 +195,7 @@
 
 ---
 
-## ⚠️ Known gaps (11) — documented, not regressions
+## ⚠️ Known gaps (6) — documented, not regressions
 
 These assert the CORRECT behaviour. They fail because the feature is missing or
 the bug is still open. Each flips to 🎉 FIXED automatically once closed.
@@ -205,15 +205,20 @@ the bug is still open. Each flips to 🎉 FIXED automatically once closed.
 | **CONS-13** LOCK constraint — a locked resident must never be proposed for a move | NOT BUILT — engine v1 has no do-not-move flag on employees or agent_suggestions (migs 133–135 are sandbox-only, not in … | {"lock_field_exists":true} | {"lock_field_exists":false} |
 | **CONS-14** 60-DAY STABILITY — a resident moved recently must not be moved again inside the window | NOT BUILT — consolidation_config has no stability window and the engine never reads move recency | {"stability_window_days":60,"engine_reads_move_history":true} | {"stability_window_days":null,"engine_reads_move_history":false} |
 | **CONS-15** approve → TICKET → confirm → room change (staged lifecycle) | NOT BUILT — applyGroup writes employees.room_id directly in one transaction; no ticket, no confirmation step | {"approve_creates_ticket":true,"room_change_awaits_confirmation":true} | {"approve_creates_ticket":false,"room_change_awaits_confirmation":false} |
-| **PERM-14** cross-tenant READ — tenant-1 operator listing employees sees no tenant-2 rows | DEEP_AUDIT #6 — employee.controller.js has no contractor_id filter in list or detail | {"foreign_ids_returned":0} | {"foreign_ids_returned":3,"_status":200} |
-| **PERM-15** cross-tenant READ — finance endpoints scope to the caller's contractor | DEEP_AUDIT #7 — expenses / operating-costs / profit reads have no owner filter (accommodation_id is OPTIONAL, so omitti… | {"endpoints_returning_foreign_data":[]} | {"endpoints_returning_foreign_data":["/expenses → 200","/profit/by-accommodation?month=19… |
-| **PERM-16** timesheets — one tenant cannot read another tenant's logged hours by task id | DEEP_AUDIT #8 — timesheet.controller.js getByTask is WHERE ts.task_id = $1 with no tenant check, and returns each logge… | {"rows_returned":0,"foreign_email_exposed":false} | {"rows_returned":1,"foreign_email_exposed":true,"_status":200} |
-| **PERM-17** GET /rooms/:id/inspection-history requires a permission | DEEP_AUDIT #11 — rooms.routes.js:10 has no checkPermission and filters only by room_id | {"resident_status":403} | {"resident_status":200} |
-| **PERM-18** GET /analytics/overview requires a permission | DEEP_AUDIT #12 — analytics.routes.js:13 serves whole-company BI to any authenticated user | {"resident_status":403} | {"resident_status":200} |
 | **REP-13** employees report — Email/Telefon come from the EMPLOYEE record, not the login | DEEP_AUDIT #14 — report-scheduler.service.js:32-33 selects u.email/u.phone; company_email/personal_email are never read | {"email":"report.subject@functest.local","phone":"+36 30 000 1234"} | {"email":"","phone":""} |
 | **REP-14** cost_centers report honours its configured filters | DEEP_AUDIT #17 — generateCostSummaryData() takes no filters argument but is called generator(filters) | {"filter_changed_output":true} | {"filter_changed_output":false,"_unfiltered_rows":16,"_filtered_rows":16} |
 | **REP-15** occupancy report "as of" uses the LOCAL date, not UTC | DEEP_AUDIT #18 — report-scheduler.service.js:187 uses new Date().toISOString().slice(0,10) | {"tz_probe_occupied":1} | {"tz_probe_occupied":0} |
 
 ---
 
-_Generated by `tests/functest/` — 121 passed / 0 failed / 11 known-gap. Regenerate with `npm run functest`._
+## 🎉 Gaps that now pass (5) — update the docs
+
+- **PERM-14** cross-tenant READ — tenant-1 operator listing employees sees no tenant-2 rows — was: DEEP_AUDIT #6 — employee.controller.js has no contractor_id filter in list or detail
+- **PERM-15** cross-tenant READ — finance endpoints scope to the caller's contractor — was: DEEP_AUDIT #7 — expenses / operating-costs / profit reads have no owner filter (accommodation_id is OPTIONAL, so omitting it returns every tenant)
+- **PERM-16** timesheets — one tenant cannot read another tenant's logged hours by task id — was: DEEP_AUDIT #8 — timesheet.controller.js getByTask is WHERE ts.task_id = $1 with no tenant check, and returns each logger's email
+- **PERM-17** GET /rooms/:id/inspection-history requires a permission — was: DEEP_AUDIT #11 — rooms.routes.js:10 has no checkPermission and filters only by room_id
+- **PERM-18** GET /analytics/overview requires a permission — was: DEEP_AUDIT #12 — analytics.routes.js:13 serves whole-company BI to any authenticated user
+
+---
+
+_Generated by `tests/functest/` — 121 passed / 0 failed / 6 known-gap / 5 fixed. Regenerate with `npm run functest`._

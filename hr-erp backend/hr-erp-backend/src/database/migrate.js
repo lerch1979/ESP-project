@@ -103,6 +103,36 @@ function getMigrations() {
   return [...LEGACY_MIGRATIONS, ...discoverNumberedMigrations()];
 }
 
+// ─── Obsolete migrations — recorded, never executed ───────────────────
+//
+// A one-off migration whose *data* effect has already happened everywhere
+// and which is now DESTRUCTIVE if replayed against current data. The runner
+// records the id in schema_migrations (so the ledger stays complete and the
+// runner moves past it) but never runs the SQL.
+//
+// This is not a way to skip work you don't feel like doing. A migration only
+// belongs here when re-running it would DAMAGE a live database. Each entry
+// must say why, and the migration file itself must carry the same warning.
+//
+//   093 — cleanup_demo_data. Its category-A sweep is
+//         `DELETE FROM employees WHERE contractor_id IS NULL`, written when a
+//         NULL contractor meant "row from generate_test_employees.js". That is
+//         no longer true: on dev 286 of 287 REAL employees have a NULL
+//         contractor, and prod is the same shape. Replaying it would delete
+//         essentially the entire workforce plus their salaries, notes and
+//         documents. The cleanup itself was performed once, on prod, in
+//         2026-04 and is long done.
+//
+//         Until now the only thing preventing that loss was an accident: the
+//         migration's closing `users = 1` assertion is stale (real staff
+//         accounts exist now), so the transaction always ROLLED BACK. The
+//         runner has been "blocked at 093" — which was in fact the data being
+//         saved by a failing sanity check. Do not repair that assertion to
+//         unblock the runner; the deletes behind it are the problem.
+const OBSOLETE_MIGRATIONS = new Map([
+  ['093', 'one-off 2026-04 prod demo-data cleanup; replay would delete all NULL-contractor employees'],
+]);
+
 // Seed data (run after all migrations with `npm run db:migrate seed`)
 const SEEDS = [
   { id: 'S001', name: 'seed_notification_templates', file: 'migrations/seed_notification_templates.sql' },
@@ -167,6 +197,19 @@ async function runMigrations(includeSeed) {
         continue;
       }
 
+      // Obsolete: record it so the ledger is complete and the runner moves on,
+      // but never execute the SQL. See OBSOLETE_MIGRATIONS above.
+      if (OBSOLETE_MIGRATIONS.has(m.id)) {
+        await client.query(
+          'INSERT INTO schema_migrations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
+          [m.id, `${m.name} [OBSOLETE — not executed]`]
+        );
+        console.log(`  ⊘ [${m.id}] ${m.name} — OBSOLETE, recorded without running`);
+        console.log(`      reason: ${OBSOLETE_MIGRATIONS.get(m.id)}`);
+        count++;
+        continue;
+      }
+
       const filePath = path.join(ROOT, m.file);
       if (!fs.existsSync(filePath)) {
         console.error(`  ✗ [${m.id}] File not found: ${m.file}`);
@@ -217,8 +260,10 @@ async function showStatus() {
 
     const migrations = getMigrations();
     for (const m of [...migrations, ...SEEDS]) {
-      const status = applied.has(m.id) ? '✓' : '○';
-      console.log(`  ${status} [${m.id}] ${m.name}`);
+      const obsolete = OBSOLETE_MIGRATIONS.has(m.id);
+      const status = obsolete ? '⊘' : (applied.has(m.id) ? '✓' : '○');
+      const suffix = obsolete ? '  — OBSOLETE, never executed' : '';
+      console.log(`  ${status} [${m.id}] ${m.name}${suffix}`);
     }
     console.log('  ' + '─'.repeat(60));
     console.log(`  Applied: ${applied.size} / ${migrations.length + SEEDS.length}\n`);

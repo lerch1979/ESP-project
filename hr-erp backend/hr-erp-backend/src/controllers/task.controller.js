@@ -1,6 +1,7 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
+const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const autoAssignService = require('../services/autoAssign.service');
 const inApp = require('../services/inAppNotification.service');
 const path = require('path');
@@ -19,6 +20,15 @@ const getAll = async (req, res) => {
     let whereConditions = ['t.project_id = $1'];
     let params = [projectId];
     let paramIndex = 2;
+
+    // DEEP_AUDIT finding 8 — this list was keyed only by project id, so any
+    // tasks.view holder could read another tenant's tasks by project id.
+    {
+      const s = contractorPredicate(scopeOf(req), 't.contractor_id', paramIndex);
+      whereConditions.push(s.sql);
+      params.push(...s.params);
+      paramIndex = s.nextIndex;
+    }
 
     if (status && status !== 'all') {
       whereConditions.push(`t.status = $${paramIndex}`);
@@ -137,6 +147,15 @@ const getById = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Feladat nem található'
+      });
+    }
+
+    // DEEP_AUDIT finding 8 — detail was keyed by id alone. Out of scope answers
+    // the same 404 as a missing task.
+    if (!ownsRow(scopeOf(req), result.rows[0].contractor_id)) {
       return res.status(404).json({
         success: false,
         message: 'Feladat nem található'
@@ -312,6 +331,24 @@ const update = async (req, res) => {
       start_date, due_date, estimated_hours, actual_hours, progress, tags,
       parent_task_id, contractor_id
     } = req.body;
+
+    // DEEP_AUDIT finding 8 (write side). Two separate holes here:
+    //   1. the row was fetched and updated by id with no tenant check;
+    //   2. `contractor_id` came straight from the body, so a caller could MOVE a
+    //      task into (or out of) another tenant.
+    // Refuse both before the UPDATE is built — the same shape as the 2026-08-07
+    // updateEmployee fix.
+    const scope = scopeOf(req);
+    const currentOwner = await query('SELECT contractor_id FROM tasks WHERE id = $1', [id]);
+    if (currentOwner.rows.length === 0 || !ownsRow(scope, currentOwner.rows[0].contractor_id)) {
+      return res.status(404).json({ success: false, message: 'Feladat nem található' });
+    }
+    if (contractor_id !== undefined && contractor_id !== null && !ownsRow(scope, contractor_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Feladat nem helyezhető át másik megbízóhoz',
+      });
+    }
 
     const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
     if (current.rows.length === 0) {

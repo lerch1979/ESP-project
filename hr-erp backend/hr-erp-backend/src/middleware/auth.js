@@ -3,6 +3,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('./permission');
 const { authenticatedLimiter } = require('./rateLimiter');
+const { checkModuleScope } = require('./moduleScope');
 
 /**
  * JWT token ellenőrzés middleware
@@ -74,6 +75,15 @@ const authenticateToken = async (req, res, next) => {
       preferredLanguage: user.preferred_language || 'hu',
       permissions: permissions
     };
+
+    // Module confinement (fail-closed allow-list). Runs here, after req.user carries
+    // roles and before ANY route handler, so a role that is confined to one module can
+    // never reach a route that simply forgot to gate itself. See middleware/moduleScope.js.
+    const moduleDenial = checkModuleScope(req);
+    if (moduleDenial) {
+      logger.warn(`[MODULE-SCOPE] denied ${req.user.email} -> ${req.originalUrl}`);
+      return res.status(moduleDenial.status).json(moduleDenial.body);
+    }
 
     // Per-USER rate budget (generous; keyed by user id) — applied here, AFTER
     // req.user is set, so authenticated traffic is bounded per-account rather than

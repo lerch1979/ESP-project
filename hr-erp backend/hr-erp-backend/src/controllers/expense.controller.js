@@ -6,6 +6,7 @@ const storage = require('../services/storage.service');
 const { validateCreate, validateUpdate } = require('../models/expense.model');
 const { logger } = require('../utils/logger');
 const { logActivity } = require('../utils/activityLogger');
+const { scopeOf } = require('../utils/tenantScope');
 
 // File-upload middleware. Memory-storage so we can validate MIME + size
 // before the bytes ever hit disk, then hand the buffer to the storage
@@ -27,7 +28,7 @@ const uploadMw = multer({
  */
 const getAll = async (req, res) => {
   try {
-    const result = await expenseService.getAll(req.query);
+    const result = await expenseService.getAll(req.query, scopeOf(req));
     res.json({ success: true, data: result });
   } catch (error) {
     logger.error('Költségek lekérdezési hiba:', error);
@@ -40,7 +41,7 @@ const getAll = async (req, res) => {
  */
 const getById = async (req, res) => {
   try {
-    const expense = await expenseService.getById(req.params.id);
+    const expense = await expenseService.getById(req.params.id, scopeOf(req));
     if (!expense) {
       return res.status(404).json({ success: false, message: 'Költség nem található' });
     }
@@ -279,7 +280,7 @@ const uploadFile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Nincs feltöltött fájl (field: "file")' });
     }
 
-    const expense = await expenseService.getById(req.params.id);
+    const expense = await expenseService.getById(req.params.id, scopeOf(req));
     if (!expense) {
       return res.status(404).json({ success: false, message: 'Költség nem található' });
     }
@@ -335,7 +336,7 @@ const uploadFile = async (req, res) => {
  */
 const downloadFile = async (req, res) => {
   try {
-    const expense = await expenseService.getById(req.params.id);
+    const expense = await expenseService.getById(req.params.id, scopeOf(req));
     if (!expense) {
       return res.status(404).json({ success: false, message: 'Költség nem található' });
     }
@@ -382,7 +383,7 @@ const downloadFile = async (req, res) => {
  */
 const deleteFile = async (req, res) => {
   try {
-    const expense = await expenseService.getById(req.params.id);
+    const expense = await expenseService.getById(req.params.id, scopeOf(req));
     if (!expense) {
       return res.status(404).json({ success: false, message: 'Költség nem található' });
     }

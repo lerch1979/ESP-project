@@ -1,5 +1,6 @@
 const profitService = require('../services/profit.service');
 const { logger } = require('../utils/logger');
+const { scopeOf } = require('../utils/tenantScope');
 
 /**
  * GET /api/v1/profit/by-accommodation?month=YYYY-MM
@@ -16,6 +17,7 @@ const byAccommodation = async (req, res) => {
       month: req.query.month,
       accommodation_id: req.query.accommodation_id,
       include_categories,
+      scope: scopeOf(req),
     });
 
     if (result.error) {

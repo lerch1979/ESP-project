@@ -1,6 +1,7 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { logActivity } = require('../utils/activityLogger');
+const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 
 /**
  * POST /api/v1/timesheets
@@ -95,6 +96,16 @@ const logHours = async (req, res) => {
 const getByTask = async (req, res) => {
   try {
     const { taskId } = req.params;
+
+    // DEEP_AUDIT finding 8 (sharpest instance). This returned every user's hours
+    // AND email for ANY task id in ANY tenant to a mere `timesheets.view_own`
+    // holder. Establish that the caller may see the task at all before returning
+    // anything about it; out of scope answers 404 so the task's existence in
+    // another tenant is not confirmed.
+    const taskRes = await query('SELECT contractor_id FROM tasks WHERE id = $1', [taskId]);
+    if (taskRes.rows.length === 0 || !ownsRow(scopeOf(req), taskRes.rows[0].contractor_id)) {
+      return res.status(404).json({ success: false, message: 'Feladat nem található' });
+    }
 
     const result = await query(
       `SELECT ts.*, u.first_name, u.last_name, u.email
@@ -219,6 +230,15 @@ const getByProject = async (req, res) => {
     let whereConditions = ['t.project_id = $1'];
     let params = [projectId];
     let paramIndex = 2;
+
+    // DEEP_AUDIT finding 8 — same leak by project. The tasks join carries the
+    // owning contractor, so scope there rather than pre-checking the project.
+    {
+      const s = contractorPredicate(scopeOf(req), 't.contractor_id', paramIndex);
+      whereConditions.push(s.sql);
+      params.push(...s.params);
+      paramIndex = s.nextIndex;
+    }
 
     if (start_date) {
       whereConditions.push(`ts.work_date >= $${paramIndex}`);

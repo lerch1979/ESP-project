@@ -37,7 +37,24 @@ class ExpenseService {
    * (performance_date range — accountant package use case), source,
    * status, payment_status, cost_center_id, vendor (ilike on vendor_name).
    */
-  async getAll(filters = {}) {
+  // DEEP_AUDIT finding 7. Expenses have no contractor_id of their own — the owner is
+  // the accommodation's current_contractor_id. Expressed as a subquery rather than a
+  // join predicate because the COUNT query below does not join `accommodations`.
+  // A scoped caller does not see expenses with no accommodation: the owner is then
+  // undeterminable. Same rule as compensation.service.
+  static scopeClause(scope, paramIndex) {
+    if (!scope || scope.all) return { sql: 'TRUE', params: [], nextIndex: paramIndex };
+    if (!scope.contractorId) {
+      return { sql: 'FALSE', params: [], nextIndex: paramIndex };
+    }
+    return {
+      sql: `e.accommodation_id IN (SELECT id FROM accommodations WHERE current_contractor_id = $${paramIndex})`,
+      params: [scope.contractorId],
+      nextIndex: paramIndex + 1,
+    };
+  }
+
+  async getAll(filters = {}, scope = { all: true }) {
     const {
       accommodation_id, billing_month, category,
       month_from, month_to,
@@ -56,6 +73,14 @@ class ExpenseService {
       whereConditions.push(sql.replace('$$', `$${paramIndex++}`));
       params.push(val);
     };
+
+    // Tenant scope first, so it can never be forgotten behind an optional filter.
+    {
+      const s = ExpenseService.scopeClause(scope, paramIndex);
+      whereConditions.push(s.sql);
+      params.push(...s.params);
+      paramIndex = s.nextIndex;
+    }
 
     if (accommodation_id) push('e.accommodation_id = $$', accommodation_id);
     if (billing_month)    push('e.billing_month = $$', billing_month);
@@ -116,7 +141,7 @@ class ExpenseService {
     };
   }
 
-  async getById(id) {
+  async getById(id, scope = { all: true }) {
     const result = await query(
       `SELECT e.*,
         a.name  AS accommodation_name,
@@ -135,7 +160,19 @@ class ExpenseService {
        WHERE e.id = $1 AND e.deleted_at IS NULL`,
       [id],
     );
-    return result.rows[0] || null;
+    const row = result.rows[0] || null;
+    if (!row) return null;
+    // DEEP_AUDIT finding 7 — out of scope is indistinguishable from "not found",
+    // which also covers the attachment download that resolves the row through here.
+    if (!scope.all) {
+      const owner = await query(
+        'SELECT current_contractor_id FROM accommodations WHERE id = $1',
+        [row.accommodation_id],
+      );
+      const ownerId = owner.rows[0]?.current_contractor_id ?? null;
+      if (!scope.contractorId || ownerId !== scope.contractorId) return null;
+    }
+    return row;
   }
 
   async create(data, userId) {

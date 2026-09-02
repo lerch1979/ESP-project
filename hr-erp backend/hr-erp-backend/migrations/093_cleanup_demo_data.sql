@@ -1,4 +1,27 @@
 -- ============================================================
+-- ⛔ OBSOLETE — DO NOT RUN. HISTORICAL RECORD ONLY.
+--
+-- Performed once against prod in 2026-04. Re-running this file against any
+-- database that holds current data DESTROYS THE WORKFORCE:
+--
+--   line ~95:  DELETE FROM employees WHERE contractor_id IS NULL;
+--
+-- That sweep was correct when a NULL contractor_id meant "bulk row from
+-- generate_test_employees.js". It is now false — a NULL contractor is the
+-- NORMAL state for real employees (dev: 286 of 287; prod is the same shape),
+-- so the statement would delete essentially every employee along with their
+-- salaries, notes and documents.
+--
+-- The runner records this id via OBSOLETE_MIGRATIONS in src/database/migrate.js
+-- and never executes it. Do NOT "fix" the stale `users = 1` assertion at the
+-- bottom to unblock the runner — that assertion failing is the only reason the
+-- transaction has been rolling back instead of causing the loss above.
+--
+-- If you ever genuinely need this logic again, write a NEW migration that
+-- identifies demo rows positively (by id or by an explicit flag), never by the
+-- absence of a contractor.
+-- ============================================================
+--
 -- 093_cleanup_demo_data.sql
 -- Remove pre-production demo / seed / bulk-test data.
 --

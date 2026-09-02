@@ -29,7 +29,9 @@ function PermissionGuard({ permission, anyPermission, children }) {
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             Nincs jogosultságod ehhez az oldalhoz.
           </Typography>
-          <Button variant="contained" onClick={() => navigate('/dashboard')}>
+          {/* '/' resolves through HomeRedirect to a page this user can actually open.
+              Hardcoding /dashboard sent a limited account straight back to another denial. */}
+          <Button variant="contained" onClick={() => navigate('/')}>
             Vissza a kezdőlapra
           </Button>
         </Paper>

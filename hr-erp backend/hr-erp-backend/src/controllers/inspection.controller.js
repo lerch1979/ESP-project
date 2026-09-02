@@ -17,6 +17,7 @@ const { logger } = require('../utils/logger');
 const pdfService = require('../services/inspectionPDF.service');
 const notify = require('../services/inAppNotification.service');
 const notificationSvc = require('../services/inspectionNotification.service');
+const { scopeOf, ownsRow } = require('../utils/tenantScope');
 
 const VALID_TYPES = ['weekly', 'monthly', 'quarterly', 'yearly', 'checkin', 'checkout', 'incident', 'complaint'];
 const VALID_STATUSES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'reviewed'];
@@ -655,7 +656,8 @@ const roomHistory = async (req, res) => {
 
     const roomRes = await query(
       `SELECT r.id, r.room_number, r.floor, r.beds, r.room_type,
-              a.id AS accommodation_id, a.name AS accommodation_name
+              a.id AS accommodation_id, a.name AS accommodation_name,
+              a.current_contractor_id
        FROM accommodation_rooms r
        LEFT JOIN accommodations a ON r.accommodation_id = a.id
        WHERE r.id = $1`,
@@ -664,6 +666,14 @@ const roomHistory = async (req, res) => {
     if (roomRes.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Szoba nem található' });
     }
+
+    // DEEP_AUDIT finding 11 — tenant scope. The owning contractor of a room is its
+    // accommodation's current_contractor_id. Out of scope answers 404, not 403, so
+    // the response never confirms that a room with this id exists.
+    if (!ownsRow(scopeOf(req), roomRes.rows[0].current_contractor_id)) {
+      return res.status(404).json({ success: false, message: 'Szoba nem található' });
+    }
+    delete roomRes.rows[0].current_contractor_id;
 
     const [historyRes, trendRes] = await Promise.all([
       query(

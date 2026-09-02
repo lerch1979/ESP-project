@@ -4,6 +4,7 @@ const operatingCostsService = require('../services/operatingCosts.service');
 const { CATEGORY_LABELS } = require('../services/operatingCosts.service');
 const { VALID_CATEGORIES } = require('../models/expense.model');
 const { logger } = require('../utils/logger');
+const { scopeOf } = require('../utils/tenantScope');
 
 function fmtMoney(n) {
   if (n == null) return '—';
@@ -19,6 +20,7 @@ const byAccommodation = async (req, res) => {
     const result = await operatingCostsService.getByAccommodation({
       month: req.query.month,
       accommodation_id: req.query.accommodation_id,
+      scope: scopeOf(req),
     });
     if (result.error) {
       return res.status(result.status).json({ success: false, message: result.error });
@@ -40,6 +42,7 @@ const exportReport = async (req, res) => {
     const result = await operatingCostsService.getByAccommodation({
       month: req.query.month,
       accommodation_id: req.query.accommodation_id,
+      scope: scopeOf(req),
     });
     if (result.error) {
       return res.status(result.status).json({ success: false, message: result.error });

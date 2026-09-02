@@ -1,13 +1,27 @@
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { scopeOf } = require('../utils/tenantScope');
 
 
 // ============================================================
 // GET /reports/occupancy/daily?date=YYYY-MM-DD
 // ============================================================
 
+// DEEP_AUDIT finding 7 — occupancy reports embed resident names, so they must not cross
+// tenants. These queries interpolate their filters rather than using placeholders, and the
+// contractor id is a server-side uuid from the JWT (never client input), so it is validated
+// as a uuid and inlined here rather than reshuffling every query's parameter list.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const scopeSql = (req) => {
+  const s = scopeOf(req);
+  if (s.all) return '';
+  if (!s.contractorId || !UUID_RE.test(s.contractorId)) return 'AND FALSE';
+  return `AND a.current_contractor_id = '${s.contractorId}'::uuid`;
+};
+
 const getDailyOccupancy = async (req, res) => {
   try {
+    const accScope = scopeSql(req);
     const date = req.query.date || new Date().toISOString().slice(0, 10);
 
     const accommodationsResult = await query(`
@@ -41,6 +55,7 @@ const getDailyOccupancy = async (req, res) => {
         AND (e.end_date IS NULL OR e.end_date > $1)
       LEFT JOIN accommodation_rooms ar ON e.room_id = ar.id
       WHERE a.is_active = true
+        ${accScope}
       GROUP BY a.id, a.name, a.address, a.type, a.capacity
       ORDER BY a.name
     `, [date]);
@@ -129,6 +144,7 @@ const getDailyOccupancy = async (req, res) => {
 
 const getMonthlyOccupancy = async (req, res) => {
   try {
+    const accScope = scopeSql(req);
     const now = new Date();
     const year = parseInt(req.query.year) || now.getFullYear();
     const month = parseInt(req.query.month) || (now.getMonth() + 1);
@@ -207,6 +223,7 @@ const getMonthlyOccupancy = async (req, res) => {
           AND e.arrival_date <= d.day
           AND (e.end_date IS NULL OR e.end_date > d.day)
         WHERE a.is_active = true
+        ${accScope}
         GROUP BY a.id, a.name, a.capacity, d.day
       )
       SELECT
@@ -304,6 +321,7 @@ const getMonthlyOccupancy = async (req, res) => {
 
 const getRangeOccupancy = async (req, res) => {
   try {
+    const accScope = scopeSql(req);
     const now = new Date();
     const to = req.query.to || now.toISOString().slice(0, 10);
     const from = req.query.from || new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
@@ -386,6 +404,7 @@ const getRangeOccupancy = async (req, res) => {
           AND e.arrival_date <= d.day
           AND (e.end_date IS NULL OR e.end_date > d.day)
         WHERE a.is_active = true
+        ${accScope}
         GROUP BY a.id, a.name, a.capacity, d.day
       )
       SELECT

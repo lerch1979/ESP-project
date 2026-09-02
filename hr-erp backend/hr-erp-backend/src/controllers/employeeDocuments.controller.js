@@ -33,6 +33,7 @@ const multer = require('multer');
 let sharp; try { sharp = require('sharp'); } catch { sharp = null; }
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { scopeOf, contractorPredicate } = require('../utils/tenantScope');
 
 const DOCS_DIR = path.join(__dirname, '..', '..', 'uploads', 'employee-documents');
 const DOCS_URL_PREFIX = '/uploads/employee-documents';
@@ -394,6 +395,11 @@ const expiring = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Csak admin nézheti' });
     }
     const days = Math.max(1, Math.min(365, parseInt(req.query.days || '30', 10)));
+    // The `_isAdmin` role check above says WHO may call this; it does not say WHOSE
+    // documents come back. Without the contractor filter any admin-role account read
+    // every tenant's expiring documents including document_number. Same class as
+    // DEEP_AUDIT 6/7, found while closing them.
+    const sc = contractorPredicate(scopeOf(req), 'e.contractor_id', 2);
     const r = await query(
       `SELECT ed.id, ed.employee_id, ed.document_type, ed.document_name,
               ed.document_number, ed.expiry_date,
@@ -403,8 +409,9 @@ const expiring = async (req, res) => {
         WHERE ed.deleted_at IS NULL
           AND ed.expiry_date IS NOT NULL
           AND ed.expiry_date <= CURRENT_DATE + ($1::int || ' days')::interval
+          AND ${sc.sql}
         ORDER BY ed.expiry_date ASC`,
-      [days]
+      [days, ...sc.params]
     );
     res.json({ success: true, data: { documents: r.rows, days } });
   } catch (err) {

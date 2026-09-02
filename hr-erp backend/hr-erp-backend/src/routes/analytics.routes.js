@@ -17,10 +17,17 @@ const tenantId = (req) =>
 // Pulse wellbeing data is sensitive → staff-only gate (residents hold no perms → 403).
 const pulseGate = checkPermission('wellbeing.admin.view');
 
+// DEEP_AUDIT finding 12: /overview was `authenticateToken`-only, so ANY logged-in
+// account — a resident, and later any limited external user — could read
+// whole-company BI. `dashboard.view` is the permission the Insights page that
+// consumes this already declares in App.jsx, and no resident role holds it, so
+// this denies the leak without narrowing any current staff access.
+const insightsGate = checkPermission('dashboard.view');
+
 // GET /api/v1/analytics/overview — BI Insights page (read-only, aggregate metrics:
 // occupancy, expiry horizon, ticket age/SLA/throughput, workforce composition,
 // accommodation utilization). One cached call powers the whole page.
-router.get('/overview', async (req, res) => {
+router.get('/overview', insightsGate, async (req, res) => {
   try {
     const data = await analyticsService.getOperationalInsights();
     res.json({ success: true, data });

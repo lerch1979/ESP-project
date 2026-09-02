@@ -31,7 +31,7 @@ function round2(n) {
  * employee-day in occupancy_snapshots) and cost-per-bed-night = cost / nights.
  */
 class OperatingCostsService {
-  async getByAccommodation({ month, accommodation_id }) {
+  async getByAccommodation({ month, accommodation_id, scope = { all: true } }) {
     if (!month) return { error: 'month paraméter kötelező (YYYY-MM)', status: 400 };
     if (!BILLING_MONTH_RE.test(month)) return { error: 'month formátuma: YYYY-MM', status: 400 };
 
@@ -40,6 +40,14 @@ class OperatingCostsService {
     if (accommodation_id) {
       params.push(accommodation_id);
       accSuffix = ' AND accommodation_id = $2';
+    }
+
+    // DEEP_AUDIT finding 7 — `accommodation_id` is optional, so omitting it returned
+    // every tenant's operating costs (and the same via the xlsx/pdf export). Restrict a
+    // scoped caller to their own accommodations; appended last so $1/$2 keep meaning.
+    if (!scope.all) {
+      params.push(scope.contractorId);
+      accSuffix += ` AND accommodation_id IN (SELECT id FROM accommodations WHERE current_contractor_id = $${params.length})`;
     }
 
     // Costs grouped by accommodation × category.

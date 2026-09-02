@@ -6,6 +6,7 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
+const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const { encrypt, decrypt, decryptPiiFields, decryptPiiRows } = require('../services/encryption.service');
 const statusHistory = require('../services/entityStatusHistory.service');
 // Housing changes MUST reach employee_accommodation_history — it is the only input the
@@ -231,6 +232,17 @@ const getEmployees = async (req, res) => {
     let params = [];
     let paramIndex = 1;
 
+    // DEEP_AUDIT finding 6 (read side). This list had no contractor filter at all,
+    // so any employees.view holder read every tenant's employee PII (tax id,
+    // passport, SSN, bank account). The write side was closed 2026-08-07; this is
+    // the matching read scope. Superadmin still sees everything.
+    {
+      const s = contractorPredicate(scopeOf(req), 'e.contractor_id', paramIndex);
+      whereConditions.push(s.sql);
+      params.push(...s.params);
+      paramIndex = s.nextIndex;
+    }
+
     if (status_id && status_id !== 'all') {
       whereConditions.push(`e.status_id = $${paramIndex}`);
       params.push(status_id);
@@ -385,6 +397,16 @@ const getEmployeeById = async (req, res) => {
     const result = await query(employeeQuery, [id]);
 
     if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Munkavallaló nem talalhato'
+      });
+    }
+
+    // DEEP_AUDIT finding 6 (read side) — detail scope. Out of scope answers the
+    // same 404 as "no such employee", so the response never confirms that an
+    // employee with this id exists in another tenant.
+    if (!ownsRow(scopeOf(req), result.rows[0].contractor_id)) {
       return res.status(404).json({
         success: false,
         message: 'Munkavallaló nem talalhato'

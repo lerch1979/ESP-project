@@ -39,7 +39,7 @@ class ProfitService {
    * index on (billing_month, run_type) WHERE status<>'cancelled' so at most
    * one active incoming run exists per month.
    */
-  async getByAccommodation({ month, accommodation_id, include_categories = true }) {
+  async getByAccommodation({ month, accommodation_id, include_categories = true, scope = { all: true } }) {
     if (!month) {
       return { error: 'month paraméter kötelező (YYYY-MM)', status: 400 };
     }
@@ -54,6 +54,18 @@ class ProfitService {
       accSuffix = ' AND accommodation_id = $2';
     }
 
+    // DEEP_AUDIT finding 7. `accommodation_id` is OPTIONAL here — omitting it meant
+    // "every accommodation", i.e. every tenant's revenue, cost and margin. Restrict a
+    // scoped caller to their own accommodations. Appended as the last parameter so the
+    // hardcoded $1/$2 above keep their meaning.
+    let scopeSuffix = '';
+    if (!scope.all) {
+      params.push(scope.contractorId);
+      const i = params.length;
+      scopeSuffix = ` AND accommodation_id IN (SELECT id FROM accommodations WHERE current_contractor_id = $${i})`;
+    }
+    const accScoped = (col) => scopeSuffix.replace(/ accommodation_id /, ` ${col} `);
+
     const incomeRows = await query(
       `
       SELECT ab.accommodation_id, SUM(ab.total_amount) AS income, SUM(COALESCE(ab.cost_amount, 0)) AS billing_cost
@@ -64,6 +76,7 @@ class ProfitService {
         AND br.status <> 'cancelled'
         AND br.run_type = 'incoming'
         ${accommodation_id ? 'AND ab.accommodation_id = $2' : ''}
+        ${accScoped('ab.accommodation_id')}
       GROUP BY ab.accommodation_id
       `,
       params,
@@ -76,6 +89,7 @@ class ProfitService {
       WHERE billing_month = $1
         AND deleted_at IS NULL
         ${accSuffix}
+        ${scopeSuffix}
       GROUP BY accommodation_id, category
       `,
       params,
@@ -99,6 +113,7 @@ class ProfitService {
         AND br.status <> 'cancelled'
         AND br.run_type = 'incoming'
         ${accommodation_id ? 'AND ab.accommodation_id = $2' : ''}
+        ${accScoped('ab.accommodation_id')}
       GROUP BY ab.accommodation_id
       `,
       params,

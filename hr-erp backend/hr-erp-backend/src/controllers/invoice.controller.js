@@ -1,5 +1,6 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
 const { isValidUUID, sanitizeString, validateAmount, sanitizeSearch, parsePagination } = require('../utils/validation');
 
@@ -48,6 +49,16 @@ const getAll = async (req, res) => {
     let whereConditions = ['i.deleted_at IS NULL'];
     let params = [];
     let paramIndex = 1;
+
+    // DEEP_AUDIT finding 7 — no read query filtered the owning contractor, so any
+    // settings.view holder read every tenant's invoices. Scope first, so it cannot
+    // be lost behind an optional filter below.
+    {
+      const s = contractorPredicate(scopeOf(req), 'i.contractor_id', paramIndex);
+      whereConditions.push(s.sql);
+      params.push(...s.params);
+      paramIndex = s.nextIndex;
+    }
 
     if (payment_status && payment_status !== 'all') {
       whereConditions.push(`i.payment_status = $${paramIndex}`);
@@ -146,7 +157,9 @@ const getById = async (req, res) => {
       [id]
     );
 
-    if (result.rows.length === 0) {
+    // DEEP_AUDIT finding 7 — detail was keyed by id alone. Out of scope answers the
+    // same 404 as a missing invoice.
+    if (result.rows.length === 0 || !ownsRow(scopeOf(req), result.rows[0].contractor_id)) {
       return res.status(404).json({
         success: false,
         message: 'Számla nem található'

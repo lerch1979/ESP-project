@@ -7,6 +7,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import PermissionGuard from './components/PermissionGuard';
+import HomeRedirect from './components/HomeRedirect';
 import InstallPrompt from './components/InstallPrompt';
 
 // Critical path — load immediately
@@ -147,7 +148,7 @@ function App() {
             <Route path="/login" element={<Login />} />
 
             <Route path="/" element={<PrivateRoute />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route index element={<HomeRedirect />} />
               <Route path="dashboard" element={<PermissionGuard permission="dashboard.view"><Dashboard /></PermissionGuard>} />
               <Route path="insights" element={<PermissionGuard permission="dashboard.view"><Insights /></PermissionGuard>} />
               <Route path="billing-rates" element={<PermissionGuard permission="settings.edit"><BillingRates /></PermissionGuard>} />
@@ -211,25 +212,25 @@ function App() {
 
               {/* GTD Task Manager */}
               <Route path="gtd" element={<PermissionGuard permission="dashboard.view"><GTDDashboard /></PermissionGuard>} />
-              <Route path="bruno-test" element={<BrunoTest />} />
+              <Route path="bruno-test" element={<PermissionGuard permission="settings.edit"><BrunoTest /></PermissionGuard>} />
 
               {/* CarePath */}
-              <Route path="carepath" element={<CarePathDashboard />} />
-              <Route path="carepath/providers" element={<ProviderDirectory />} />
-              <Route path="carepath/cases" element={<CasesManagement />} />
-              <Route path="carepath/bookings" element={<BookingsOverview />} />
-              <Route path="carepath/categories" element={<ServiceCategories />} />
+              <Route path="carepath" element={<PermissionGuard permission="eap.admin.stats"><CarePathDashboard /></PermissionGuard>} />
+              <Route path="carepath/providers" element={<PermissionGuard permission="eap.admin.stats"><ProviderDirectory /></PermissionGuard>} />
+              <Route path="carepath/cases" element={<PermissionGuard permission="eap.admin.stats"><CasesManagement /></PermissionGuard>} />
+              <Route path="carepath/bookings" element={<PermissionGuard permission="eap.admin.stats"><BookingsOverview /></PermissionGuard>} />
+              <Route path="carepath/categories" element={<PermissionGuard permission="eap.admin.stats"><ServiceCategories /></PermissionGuard>} />
 
               {/* Slack Integration */}
               <Route path="slack" element={<PermissionGuard permission="settings.edit"><SlackIntegration /></PermissionGuard>} />
 
               {/* WellMind */}
-              <Route path="wellmind" element={<WellMindDashboard />} />
-              <Route path="wellmind/risk-employees" element={<RiskEmployees />} />
-              <Route path="wellmind/questions" element={<QuestionManagement />} />
-              <Route path="wellmind/trends" element={<TrendsAnalytics />} />
-              <Route path="wellmind/interventions" element={<InterventionsManagement />} />
-              <Route path="wellmind/team-metrics" element={<TeamMetrics />} />
+              <Route path="wellmind" element={<PermissionGuard permission="blue_colibri.admin.view"><WellMindDashboard /></PermissionGuard>} />
+              <Route path="wellmind/risk-employees" element={<PermissionGuard permission="blue_colibri.admin.view"><RiskEmployees /></PermissionGuard>} />
+              <Route path="wellmind/questions" element={<PermissionGuard permission="blue_colibri.admin.view"><QuestionManagement /></PermissionGuard>} />
+              <Route path="wellmind/trends" element={<PermissionGuard permission="blue_colibri.admin.view"><TrendsAnalytics /></PermissionGuard>} />
+              <Route path="wellmind/interventions" element={<PermissionGuard permission="blue_colibri.admin.view"><InterventionsManagement /></PermissionGuard>} />
+              <Route path="wellmind/team-metrics" element={<PermissionGuard permission="blue_colibri.admin.view"><TeamMetrics /></PermissionGuard>} />
               <Route path="wellmind/sentiment" element={<PermissionGuard permission="settings.edit"><SentimentDashboard /></PermissionGuard>} />
 
               {/* Inspections */}
@@ -259,7 +260,7 @@ function App() {
               <Route path="admin/email-assistant" element={<PermissionGuard permission="settings.edit"><EmailAssistantLogs /></PermissionGuard>} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<HomeRedirect />} />
           </Routes>
         </Suspense>
         <InstallPrompt />

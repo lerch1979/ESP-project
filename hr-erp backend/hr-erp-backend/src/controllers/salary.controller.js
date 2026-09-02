@@ -1,5 +1,6 @@
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
 const { isValidUUID, sanitizeString, validateAmount, parsePagination, parseSortOrder } = require('../utils/validation');
 
@@ -294,6 +295,15 @@ const getEmployeeSalaries = async (req, res) => {
     let params = [];
     let paramIndex = 1;
 
+    // DEEP_AUDIT finding 7 — salary reads had no owner filter. Salaries belong to an
+    // employee, so the employees join carries the owning contractor.
+    {
+      const sc = contractorPredicate(scopeOf(req), 'e.contractor_id', paramIndex);
+      whereConditions.push(sc.sql);
+      params.push(...sc.params);
+      paramIndex = sc.nextIndex;
+    }
+
     if (employee_id) {
       whereConditions.push(`es.employee_id = $${paramIndex}`);
       params.push(employee_id);
@@ -362,6 +372,17 @@ const getEmployeeSalaries = async (req, res) => {
 /**
  * GET /api/v1/salary/employees/:id
  */
+// DEEP_AUDIT finding 7 — salary rows are among the most sensitive in the system, and
+// both per-employee endpoints below were keyed by id alone. One guard, used by both:
+// resolve the owning employee and answer 404 when it is not the caller's.
+const employeeInScope = async (req, employeeId) => {
+  const sc = scopeOf(req);
+  if (sc.all) return true;
+  const r = await query('SELECT contractor_id FROM employees WHERE id = $1', [employeeId]);
+  if (r.rows.length === 0) return false;
+  return ownsRow(sc, r.rows[0].contractor_id);
+};
+
 const getEmployeeSalaryById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -373,7 +394,8 @@ const getEmployeeSalaryById = async (req, res) => {
       `SELECT es.*,
         e.first_name as employee_first_name, e.last_name as employee_last_name,
         ou.name as employee_department, e.position as employee_position,
-        sb.position_name as band_position, sb.min_salary as band_min, sb.max_salary as band_max
+        sb.position_name as band_position, sb.min_salary as band_min, sb.max_salary as band_max,
+        e.contractor_id AS _owner_contractor_id
        FROM employee_salaries es
        LEFT JOIN employees e ON es.employee_id = e.id
        LEFT JOIN organizational_units ou ON e.organizational_unit_id = ou.id
@@ -382,9 +404,11 @@ const getEmployeeSalaryById = async (req, res) => {
       [id]
     );
 
-    if (result.rows.length === 0) {
+    // DEEP_AUDIT finding 7 — out of scope is a 404, same as a missing record.
+    if (result.rows.length === 0 || !ownsRow(scopeOf(req), result.rows[0]._owner_contractor_id)) {
       return res.status(404).json({ success: false, message: 'Bérrekord nem található' });
     }
+    delete result.rows[0]._owner_contractor_id;
 
     res.json({ success: true, data: { employee_salary: result.rows[0] } });
   } catch (error) {
@@ -670,6 +694,9 @@ const getEmployeeSalaryHistory = async (req, res) => {
     const { employeeId } = req.params;
     if (!isValidUUID(employeeId)) {
       return res.status(400).json({ success: false, message: 'Érvénytelen munkavállaló azonosító' });
+    }
+    if (!(await employeeInScope(req, employeeId))) {
+      return res.status(404).json({ success: false, message: 'Munkavállaló nem található' });
     }
 
     const result = await query(
