@@ -117,9 +117,22 @@ const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
     const wb = XLSX.read(cx, { type:'buffer' });
     const gridRows = XLSX.utils.sheet_to_json(wb.Sheets['Napi jelenlét'], { header:1, blankrows:false }).length;
     console.log(`\n  megbízói "Napi jelenlét" sorok: ${gridRows} (fő + Üres + ÖSSZESEN + fejléc)`);
-    const pdfPages = (await require('pdf-parse')(cp)).numpages;
-    console.log(`  megbízói PDF oldalszám: ${pdfPages}`);
+    const pdfp = require('pdf-parse');
+    const cPages = (await pdfp(cp)).numpages;
+    const lPages = (await pdfp(lp)).numpages;
+    const cText = (await pdfp(cp)).text;
+    console.log(`  PDF oldalszám: szállásadó ${lPages} · megbízó ${cPages}`);
     check('VOL-09 the grid sheet holds every person plus totals', gridRows >= emps.length);
+
+    // The PDF is a SUMMARY: it must stay short at real scale and must NOT carry the roster.
+    check('VOL-10 megbízói PDF is a summary (≤ 3 oldal 304 fő mellett is)', cPages <= 3, `${cPages} oldal`);
+    check('VOL-11 szállásadói PDF is a summary (≤ 3 oldal)', lPages <= 3, `${lPages} oldal`);
+    const someName = cli.grid.people[5]?.name;
+    check('VOL-12 the PDF does NOT list individual residents', !!someName && !cText.includes(someName), someName);
+    check('VOL-13 the PDF says where the person-level detail is',
+      /Napi jelenlét/.test(cText) && /Excel/.test(cText));
+    check('VOL-14 the PDF still carries the numbers the total rests on',
+      cText.includes('Elszámolt fő') && cText.includes('Ágyéjszaka összesen'));
   } catch (e) { console.error('SUITE ERROR:', e.message); failures++; }
   finally {
     const q=(s,p)=>pool.query(s,p).catch(()=>{});

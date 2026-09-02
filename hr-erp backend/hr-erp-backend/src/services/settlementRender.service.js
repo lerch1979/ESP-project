@@ -298,23 +298,61 @@ function renderPdf(sheet) {
     }
   }
 
-  // Per-person × per-day grid. A 31-column matrix does not fit portrait A4, so the PDF
-  // carries the per-person night COUNT and the xlsx carries the full grid; the PDF says
-  // so rather than silently dropping detail the reader might expect.
-  doc.addPage();
-  rg.drawSectionTitle(doc, `Napi jelenlét — ${sheet.month}`);
-  doc.fontSize(8).fillColor('#666')
-     .text('A teljes napi bontású mátrix az Excel változat "Napi jelenlét" munkalapján található.',
-       { width: doc.page.width - 100 });
-  doc.moveDown(0.5).fillColor('#000000');
-  rg.drawSimpleTable(doc, ['Név', 'Szoba', 'Ágyéjszaka'],
-    sheet.grid.people.map((x) => [x.name, x.room_number || '—', String(x.bed_nights)]),
-    { colWidths: [275, 100, 115] });
-  doc.moveDown(0.4);
+  // ── The PDF is a SUMMARY document, deliberately ────────────────────────────
+  //
+  // It used to list every resident, which at real scale (304 people) made it 33 pages —
+  // unusable as an invoice attachment. The person-level detail lives in the xlsx, which
+  // already carries the full day-by-day matrix; duplicating it here served nobody.
+  //
+  // What stays: enough for the partner to check the total is the total, and an explicit
+  // pointer to where the line-by-line proof is. A summary that does not say where the
+  // detail went reads like the detail is missing.
+  doc.moveDown(1.2);
   doc.x = 50;
-  doc.fontSize(10).text(
-    `Összes ágyéjszaka: ${sheet.grid.people.reduce((s, x) => s + x.bed_nights, 0)}`,
-    50, doc.y, { width: doc.page.width - 100, align: 'right' });
+
+  // The summary block is ~170pt (table + boxed note). Claim a page for it up front:
+  // drawing a box near the bottom margin makes every subsequent text() spill onto its
+  // own page, which is how a 2-page summary became 4 mostly-empty pages.
+  const SUMMARY_BLOCK_H = 190;
+  if (doc.y > doc.page.height - SUMMARY_BLOCK_H) doc.addPage();
+
+  const people = sheet.grid?.people || [];
+  const occupiedNights = people.reduce((n, x) => n + x.bed_nights, 0);
+  const emptyNights = (sheet.empty_rows || []).reduce((n, e) => n + e.bed_nights, 0);
+  const siteCount = sheet.kind === 'landlord'
+    ? (sheet.accommodations || []).length
+    : (sheet.sites || []).length;
+
+  rg.drawSectionTitle(doc, 'Elszámolás alapja');
+  rg.drawSimpleTable(doc,
+    ['Megnevezés', 'Érték'],
+    [
+      ['Szálláshelyek száma', String(siteCount)],
+      ['Elszámolt fő', String(people.length)],
+      ['Bent töltött ágyéjszaka', String(occupiedNights)],
+      ...(emptyNights ? [['Üresen számlázott ágyéjszaka', String(emptyNights)]] : []),
+      ['Ágyéjszaka összesen', String(occupiedNights + emptyNights)],
+      ['Időszak', `${sheet.month}. hónap`],
+    ],
+    { colWidths: [300, 195] });
+
+  // The pointer to the detail. Boxed so it is not skimmed past.
+  doc.moveDown(1);
+  doc.x = 50;
+  const boxH = 54;
+  if (doc.y > doc.page.height - (boxH + 60)) doc.addPage();   // keep the box whole
+  const boxY = doc.y;
+  doc.rect(50, boxY, doc.page.width - 100, boxH).fillAndStroke('#f5f5f5', '#bdbdbd');
+  doc.fillColor('#000000').fontSize(10)
+     .text('Személyre bontott kimutatás', 60, boxY + 8, { width: doc.page.width - 120 });
+  doc.fontSize(9).fillColor('#444')
+     .text(
+       'A napi bontású jelenléti ív — munkahely, szálláshely, szobaszám, név és '
+       + 'naponkénti jelölés minden érintett személyre — a jelen dokumentummal együtt '
+       + 'küldött Excel melléklet "Napi jelenlét" munkalapján található.',
+       60, boxY + 24, { width: doc.page.width - 120 });
+  doc.fillColor('#000000');
+  doc.y = boxY + boxH + 10;
 
   rg.drawFooter(doc);
   doc.end();
