@@ -28,6 +28,17 @@ COPY src ./src
 # which is exactly how the 2026-08-08 accommodation-history backfill had to be run.
 COPY scripts ./scripts
 
+# Numbered migrations + the legacy .sql set. The migration runner discovers these from
+# disk, so WITHOUT them in the image `npm run db:migrate` inside a deployed container
+# silently finds zero numbered migrations and reports "nothing to do" — which is why
+# prod's ledger had drifted 45 rows behind reality and every migration since 093 was
+# applied by hand via psql. Same class of gap as the scripts/ one above.
+#
+# Safe to ship only because migration 093 is now intercepted by OBSOLETE_MIGRATIONS in
+# src/database/migrate.js and can never execute (its DELETE FROM employees WHERE
+# contractor_id IS NULL would remove every real employee — see the decisions log).
+COPY migrations ./migrations
+
 # Create required directories
 RUN mkdir -p logs uploads
 
