@@ -293,6 +293,19 @@ export const billingAPI = {
   reopenRun: async (id, reason) => (await api.post(`/billing/runs/${id}/reopen`, { reason })).data,
 };
 
+// Monthly settlement sheets (szállástábla) — landlord + client, xlsx/pdf, share links.
+export const settlementAPI = {
+  partners: async (month) => (await api.get('/settlements/partners', { params: { month } })).data,
+  preview: async (kind, partner_id, month) =>
+    (await api.get(`/settlements/${kind}/preview`, { params: { partner_id, month } })).data,
+  // Binary download — must go out as a blob, not JSON.
+  download: async (kind, partner_id, month, format) =>
+    api.get(`/settlements/${kind}/download`, { params: { partner_id, month, format }, responseType: 'blob' }),
+  listLinks: async (month) => (await api.get('/settlements/links', { params: { month } })).data,
+  createLink: async (body) => (await api.post('/settlements/links', body)).data,
+  revokeLink: async (id) => (await api.delete(`/settlements/links/${id}`)).data,
+};
+
 // GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).
 export const anonymizationAPI = {
   getConfig: async () => (await api.get('/anonymization/config')).data,

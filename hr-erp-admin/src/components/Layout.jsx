@@ -147,6 +147,8 @@ const buildMenuSections = (t) => [
       // The board that answers "which sites can we still exit this quarter" — sorted by
       // soonest actionable date, notice deadline ahead of expiry.
       { text: 'Szerződések', icon: <DescriptionIcon />, path: '/partners/contracts', permission: 'settings.view' },
+      // The monthly document that goes out with the invoice — landlord and client.
+      { text: 'Elszámoló lapok', icon: <ReceiptIcon />, path: '/settlements', permission: 'settings.edit' },
     ],
   },
   {

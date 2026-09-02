@@ -5,6 +5,8 @@
  * from analytics data. Used by the automated report distribution system.
  */
 
+const path = require('path');
+const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const XLSX = require('xlsx');
 const { logger } = require('../utils/logger');
@@ -42,6 +44,31 @@ const PCT = (n) => (n != null ? `${Number(n)}%` : '0%');
 // ──────────────────────────────────────────────
 // PDF HELPERS
 // ──────────────────────────────────────────────
+
+/**
+ * PDFKit's core fonts are WinAnsi-encoded, which contains NO ő (U+0151) or ű (U+0171) —
+ * so "Fizetendő" silently renders as "Fiz" plus three control bytes, and every Hungarian
+ * document produced here loses exactly the two letters it cannot do without.
+ *
+ * `inspectionPDF.service` already solved this for the jegyzőkönyv with the DejaVu fonts
+ * in assets/fonts; this applies the same fix to everything built from this module.
+ * Fails soft — a missing font file must not lose the report — but says so, because the
+ * output would be visibly wrong.
+ */
+const FONT_DIR = path.join(__dirname, '..', '..', 'assets', 'fonts');
+function useUnicodeFont(doc) {
+  const regular = path.join(FONT_DIR, 'DejaVuSans.ttf');
+  const bold = path.join(FONT_DIR, 'DejaVuSans-Bold.ttf');
+  if (!fs.existsSync(regular)) {
+    // eslint-disable-next-line no-console
+    console.warn('[reportGenerator] DejaVu font missing — ő/ű will not render correctly');
+    return doc;
+  }
+  doc.registerFont('Regular', regular);
+  if (fs.existsSync(bold)) doc.registerFont('Bold', bold);
+  doc.font('Regular');
+  return doc;
+}
 
 function drawHeader(doc, title, subtitle) {
   // Green header bar
@@ -174,6 +201,7 @@ function drawBarChart(doc, items, options = {}) {
 
 function generateDashboardPDF(data) {
   const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+  useUnicodeFont(doc);   // without this ő/ű are dropped — see useUnicodeFont
   const dateStr = new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' });
 
   // ── PAGE 1: Overview ──
@@ -439,8 +467,20 @@ function pdfToBuffer(doc) {
   });
 }
 
+// The drawing primitives are exported so other documents can be built in the SAME house
+// style instead of growing a second one. Added 2026-09-02 for the settlement sheets;
+// generateDashboardPDF still composes them exactly as before.
 module.exports = {
   generateDashboardPDF,
   generateDashboardExcel,
   pdfToBuffer,
+  drawHeader,
+  drawFooter,
+  drawSectionTitle,
+  drawMetricCard,
+  drawMetricRow,
+  drawSimpleTable,
+  drawBarChart,
+  useUnicodeFont,
+  COLORS,
 };

@@ -10,6 +10,7 @@ import PermissionGuard from './components/PermissionGuard';
 import HomeRedirect from './components/HomeRedirect';
 import PartnerContracts from './pages/PartnerContracts';
 import PartnerDetail from './pages/PartnerDetail';
+import Settlements from './pages/Settlements';
 import InstallPrompt from './components/InstallPrompt';
 
 // Critical path — load immediately
@@ -168,6 +169,7 @@ function App() {
               {/* Partner module (Phase 1). Contracts board is listed BEFORE :id so the
                   literal path wins over the param route. */}
               <Route path="partners/contracts" element={<PermissionGuard permission="settings.view"><PartnerContracts /></PermissionGuard>} />
+              <Route path="settlements" element={<PermissionGuard permission="settings.edit"><Settlements /></PermissionGuard>} />
               <Route path="partners/:id" element={<PermissionGuard permission="employees.view"><PartnerDetail /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="accommodations/consolidation" element={<PermissionGuard permission="employees.edit"><ConsolidationEngine /></PermissionGuard>} />
