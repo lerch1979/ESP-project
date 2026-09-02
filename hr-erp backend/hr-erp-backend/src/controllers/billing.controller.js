@@ -5,7 +5,7 @@
  * All admin-gated (settings.edit). The L1 ceiling is unchanged: this triggers
  * DRAFT runs only; finalize/invoice stays a separate human action.
  */
-const { query } = require('../database/connection');
+const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const billingEngine = require('../services/billingEngine.service');
 
@@ -323,10 +323,110 @@ const getRunBillings = async (req, res) => {
   } catch (e) { logger.error('[billing.getRunBillings]', e.message); res.status(500).json({ success: false, message: 'Hiba' }); }
 };
 
+// ── MONTH CLOSE ─────────────────────────────────────────────────────────────
+//
+// Closing a month makes it immutable: the engine refuses to re-bill a finalized run,
+// so the numbers behind an issued invoice can no longer move under it. Reopening is the
+// dangerous direction and is therefore explicit, reasoned and audited.
+
+/** Months with their live run and lock state — what the UI colours as closed vs draft. */
+const monthStatus = async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT br.id, br.billing_month, br.run_type, br.status,
+              br.total_amount, br.partner_count, br.started_at, br.completed_at,
+              br.finalized_at, br.finalized_by,
+              u.first_name || ' ' || COALESCE(u.last_name,'') AS finalized_by_name,
+              (SELECT count(*) FROM accommodation_billings ab WHERE ab.billing_run_id = br.id) AS billing_rows,
+              (SELECT jsonb_agg(jsonb_build_object(
+                        'action', e.action, 'reason', e.reason,
+                        'acted_at', e.acted_at, 'acted_by', e.acted_by)
+                      ORDER BY e.acted_at DESC)
+                 FROM billing_month_lock_events e
+                WHERE e.billing_month = br.billing_month AND e.run_type = br.run_type) AS lock_history
+         FROM billing_runs br
+         LEFT JOIN users u ON u.id = br.finalized_by
+        WHERE br.status <> 'cancelled'
+        ORDER BY br.billing_month DESC`
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (e) {
+    logger.error('[billing.monthStatus]', e.message);
+    res.status(500).json({ success: false, message: 'Hiba' });
+  }
+};
+
+/** Close a month. Only a live, non-cancelled run can be closed, and only once. */
+const finalizeRun = async (req, res) => {
+  try {
+    const out = await transaction(async (client) => {
+      const r = await client.query(
+        'SELECT id, billing_month, run_type, status FROM billing_runs WHERE id = $1 FOR UPDATE',
+        [req.params.id]);
+      if (r.rows.length === 0) return { status: 404, body: { success: false, message: 'Számlázási futás nem található' } };
+      const run = r.rows[0];
+      if (run.status === 'cancelled') {
+        return { status: 409, body: { success: false, message: 'Érvénytelenített futás nem zárható le.' } };
+      }
+      if (run.status === 'finalized') {
+        return { status: 409, body: { success: false, message: `A(z) ${run.billing_month} hónap már le van zárva.` } };
+      }
+      await client.query(
+        `UPDATE billing_runs SET status='finalized', finalized_at=NOW(), finalized_by=$2 WHERE id=$1`,
+        [run.id, req.user?.id || null]);
+      await client.query(
+        `INSERT INTO billing_month_lock_events (billing_run_id, billing_month, run_type, action, reason, acted_by)
+         VALUES ($1,$2,$3,'finalize',$4,$5)`,
+        [run.id, run.billing_month, run.run_type, (req.body && req.body.reason) || null, req.user?.id || null]);
+      logger.info(`[billing] month ${run.billing_month} FINALIZED by ${req.user?.email}`);
+      return { status: 200, body: { success: true, data: { id: run.id, billing_month: run.billing_month, status: 'finalized' } } };
+    });
+    res.status(out.status).json(out.body);
+  } catch (e) {
+    logger.error('[billing.finalizeRun]', e.message);
+    res.status(500).json({ success: false, message: 'Hónap lezárási hiba' });
+  }
+};
+
+/** Reopen a closed month. Requires a reason — this makes invoiced figures movable again. */
+const reopenRun = async (req, res) => {
+  try {
+    const reason = ((req.body && req.body.reason) || '').trim();
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'A hónap felnyitásához indoklás kötelező.' });
+    }
+    const out = await transaction(async (client) => {
+      const r = await client.query(
+        'SELECT id, billing_month, run_type, status FROM billing_runs WHERE id = $1 FOR UPDATE',
+        [req.params.id]);
+      if (r.rows.length === 0) return { status: 404, body: { success: false, message: 'Számlázási futás nem található' } };
+      const run = r.rows[0];
+      if (run.status !== 'finalized') {
+        return { status: 409, body: { success: false, message: `A(z) ${run.billing_month} hónap nincs lezárva, így nem nyitható fel.` } };
+      }
+      await client.query(
+        `UPDATE billing_runs SET status='calculated', finalized_at=NULL, finalized_by=NULL WHERE id=$1`,
+        [run.id]);
+      await client.query(
+        `INSERT INTO billing_month_lock_events (billing_run_id, billing_month, run_type, action, reason, acted_by)
+         VALUES ($1,$2,$3,'reopen',$4,$5)`,
+        [run.id, run.billing_month, run.run_type, reason, req.user?.id || null]);
+      // Loud on purpose: an invoiced month just became recalculable again.
+      logger.warn(`[billing] month ${run.billing_month} REOPENED by ${req.user?.email} — reason: ${reason}`);
+      return { status: 200, body: { success: true, data: { id: run.id, billing_month: run.billing_month, status: 'calculated' } } };
+    });
+    res.status(out.status).json(out.body);
+  } catch (e) {
+    logger.error('[billing.reopenRun]', e.message);
+    res.status(500).json({ success: false, message: 'Hónap felnyitási hiba' });
+  }
+};
+
 module.exports = {
   listRates, createRate, updateRate, deleteRate,
   listProfiles, upsertProfile,
   rateCoverage, listAccommodationsUtil, setUtilities,
   setEmployeeClient, bulkSetEmployeeClient,
+  monthStatus, finalizeRun, reopenRun,
   runDraft, listRuns, getRunBillings,
 };

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/billing.controller');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireSuperAdmin } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
 // All billing config/runs are admin-gated (settings.edit). DRAFT runs only —
@@ -31,5 +31,17 @@ router.post('/employees/bulk-client', checkPermission('settings.edit'), ctrl.bul
 router.post('/runs', checkPermission('settings.edit'), ctrl.runDraft);
 router.get('/runs', checkPermission('settings.edit'), ctrl.listRuns);
 router.get('/runs/:id/billings', checkPermission('settings.edit'), ctrl.getRunBillings);
+
+// ── month close ──
+// Which months are closed vs still draft (drives the UI's status column).
+router.get('/months', checkPermission('settings.edit'), ctrl.monthStatus);
+// Close a month: the run becomes immutable and the engine refuses to re-bill it.
+router.post('/runs/:id/finalize', checkPermission('settings.edit'), ctrl.finalizeRun);
+// Reopen a closed month. SUPERADMIN ONLY — deliberately stricter than closing.
+// Closing is routine month-end housekeeping; reopening makes the figures behind an
+// ISSUED INVOICE movable again, which is a financial act, not an administrative one.
+// It additionally requires a reason (enforced in the controller AND by a DB CHECK on
+// billing_month_lock_events) and logs at warn level.
+router.post('/runs/:id/reopen', requireSuperAdmin, ctrl.reopenRun);
 
 module.exports = router;

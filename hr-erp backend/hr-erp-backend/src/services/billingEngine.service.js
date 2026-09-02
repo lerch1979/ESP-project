@@ -415,13 +415,27 @@ async function calculateMonthlyBilling(month, opts = {}) {
     if (existing.rows.length > 0) {
       const prev = existing.rows[0];
       if (prev.status === 'finalized') {
-        throw new Error(`billingEngine: run ${prev.id} for ${month}/${runType} is finalized; cancel via controller before re-billing`);
+        // A CLOSED month is immutable. Reopening is a deliberate, reasoned, audited
+        // action (POST /billing/runs/:id/reopen) — never a side effect of re-billing.
+        const err = new Error(
+          `A(z) ${month} hónap le van zárva, ezért nem számolható újra. `
+          + 'Ha mégis módosítani kell, előbb nyisd fel a hónapot (indoklással) a Számlázás oldalon.'
+        );
+        err.code = 'MONTH_FINALIZED';
+        err.status = 409;
+        throw err;
       }
       await client.query(
         `UPDATE billing_runs SET status='cancelled', completed_at=NOW(),
            notes = COALESCE(notes,'') || E'\nReplaced by re-bill at ' || NOW() WHERE id = $1`,
         [prev.id]
       );
+      // Delete the superseded run's billing rows rather than leaving them behind.
+      // They are already invisible to every application read (all of them exclude
+      // cancelled runs), but leaving them made ad-hoc queries and future code read
+      // dead data — it produced a false PASS in a test and a misreported July figure.
+      // The unique index from mig 148 would reject the new rows anyway.
+      await client.query('DELETE FROM accommodation_billings WHERE billing_run_id = $1', [prev.id]);
       replacedRunId = prev.id;
     }
 

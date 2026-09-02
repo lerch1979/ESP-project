@@ -282,5 +282,68 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'BILL-CLOSE-01',
+      name: 'HÓNAPZÁRÁS — lezárt hónap nem számolható újra, és a felnyitás indoklást követel',
+      expected: {
+        finalize_status: 200, rebill_refused: true, hungarian_message: true,
+        reopen_without_reason: 400, reopen_with_reason: 200, audit_rows: 2,
+      },
+      hint: 'mig 148: billing_runs.finalized_at + billing_month_lock_events; engine throws MONTH_FINALIZED',
+      run: async (ctx) => {
+        const http = require('../lib/http');
+        const t = http.tokenFor(ctx.ids.user.superadmin);
+        const engine = require('../../../src/services/billingEngine.service');
+
+        const run = (await ctx.query(
+          `SELECT id FROM billing_runs WHERE billing_month=$1 AND status <> 'cancelled' LIMIT 1`, [ctx.month])).rows[0];
+
+        const fin = await http.post(`/billing/runs/${run.id}/finalize`, { token: t, body: {} });
+
+        let refused = null;
+        try { await engine.calculateMonthlyBilling(ctx.month, { runType: 'incoming' }); }
+        catch (e) { refused = e; }
+
+        const noReason = await http.post(`/billing/runs/${run.id}/reopen`, { token: t, body: {} });
+        const withReason = await http.post(`/billing/runs/${run.id}/reopen`,
+          { token: t, body: { reason: 'FUNCTEST: ellenőrzött felnyitás' } });
+
+        const audit = await ctx.query(
+          `SELECT action FROM billing_month_lock_events WHERE billing_month=$1`, [ctx.month]);
+
+        return {
+          finalize_status: fin.status,
+          rebill_refused: !!refused,
+          hungarian_message: !!refused && /le van zárva/.test(refused.message),
+          reopen_without_reason: noReason.status,
+          reopen_with_reason: withReason.status,
+          audit_rows: audit.rows.length,
+        };
+      },
+    },
+    {
+      id: 'BILL-CLOSE-02',
+      name: 'EGY ÉLŐ SOR — újraszámolás után sincs elárvult accommodation_billings sor',
+      expected: { duplicate_groups: 0, rows_from_cancelled_runs: 0 },
+      hint: 'mig 148 deletes superseded rows on re-bill + unique index uq_accommodation_billings_live',
+      run: async (ctx) => {
+        const engine = require('../../../src/services/billingEngine.service');
+        // Re-bill twice; neither may leave a dead row behind.
+        await engine.calculateMonthlyBilling(ctx.month, { runType: 'incoming' });
+        await engine.calculateMonthlyBilling(ctx.month, { runType: 'incoming' });
+
+        const dup = await ctx.query(
+          `SELECT count(*)::int n FROM (
+             SELECT accommodation_id,
+                    COALESCE(partner_contractor_id,'00000000-0000-0000-0000-000000000000'::uuid) c,
+                    billing_month
+               FROM accommodation_billings GROUP BY 1,2,3 HAVING count(*) > 1) x`);
+        const orphan = await ctx.query(
+          `SELECT count(*)::int n FROM accommodation_billings ab
+             JOIN billing_runs br ON br.id = ab.billing_run_id
+            WHERE br.status = 'cancelled'`);
+        return { duplicate_groups: dup.rows[0].n, rows_from_cancelled_runs: orphan.rows[0].n };
+      },
+    },
   ],
 };

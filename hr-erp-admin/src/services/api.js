@@ -286,6 +286,11 @@ export const billingAPI = {
   runDraft: async (month) => (await api.post('/billing/runs', { month })).data,
   listRuns: async () => (await api.get('/billing/runs')).data,
   getRunBillings: async (id) => (await api.get(`/billing/runs/${id}/billings`)).data,
+  // Month close (mig 148). A finalized month is immutable — the engine refuses to
+  // re-bill it — and reopening requires a reason, which is audited.
+  monthStatus: async () => (await api.get('/billing/months')).data,
+  finalizeRun: async (id, reason) => (await api.post(`/billing/runs/${id}/finalize`, { reason })).data,
+  reopenRun: async (id, reason) => (await api.post(`/billing/runs/${id}/reopen`, { reason })).data,
 };
 
 // GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).

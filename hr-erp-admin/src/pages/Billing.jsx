@@ -23,7 +23,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'react-toastify';
-import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI } from '../services/api';
+import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI, billingAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
 // Constants — match backend CHECK constraint on accommodation_expenses.category
@@ -2349,6 +2349,176 @@ function PlaceholderTab({ title }) {
 // Main page
 // ────────────────────────────────────────────────────────────────────────
 
+
+// ────────────────────────────────────────────────────────────────────────
+// Számlázási futások — month close
+//
+// A closed month is immutable: the billing engine refuses to re-bill a finalized run,
+// so the figures behind an issued invoice cannot move underneath it. Reopening is the
+// dangerous direction — it makes those figures recalculable again — so it demands a
+// reason and is written to an audit log (who / when / why).
+// ────────────────────────────────────────────────────────────────────────
+function BillingRunsTab() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState(null);   // { mode: 'finalize'|'reopen', run }
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await billingAPI.monthStatus();
+      setRows(res?.data || []);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Nem sikerült betölteni a hónapokat');
+    } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      if (dialog.mode === 'finalize') {
+        await billingAPI.finalizeRun(dialog.run.id, reason || null);
+        toast.success(`${dialog.run.billing_month} lezárva`);
+      } else {
+        await billingAPI.reopenRun(dialog.run.id, reason);
+        toast.warn(`${dialog.run.billing_month} felnyitva — újraszámolható`);
+      }
+      setDialog(null); setReason('');
+      load();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Művelet sikertelen');
+    } finally { setBusy(false); }
+  };
+
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        A <strong>lezárt</strong> hónap nem számolható újra — ez védi a már kiszámlázott
+        összegeket attól, hogy az aktuális létszám vagy díjak visszamenőleg átírják őket.
+        A felnyitás indoklása kötelező és naplózott.
+      </Typography>
+
+      <TableContainer component={Paper}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Hónap</TableCell>
+              <TableCell>Állapot</TableCell>
+              <TableCell align="right">Tételek</TableCell>
+              <TableCell align="right">Összeg</TableCell>
+              <TableCell>Lezárta</TableCell>
+              <TableCell align="right">Művelet</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.length === 0 && (
+              <TableRow><TableCell colSpan={6}>
+                <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                  Még nincs számlázási futás.
+                </Typography>
+              </TableCell></TableRow>
+            )}
+            {rows.map((r) => {
+              const closed = r.status === 'finalized';
+              const reopened = (r.lock_history || []).some((h) => h.action === 'reopen');
+              return (
+                <TableRow key={r.id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>{r.billing_month}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      color={closed ? 'success' : 'default'}
+                      variant={closed ? 'filled' : 'outlined'}
+                      label={closed ? 'Lezárva' : 'Piszkozat'}
+                    />
+                    {reopened && !closed && (
+                      <Typography variant="caption" display="block" color="warning.main">
+                        volt már felnyitva
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="right">{r.billing_rows}</TableCell>
+                  <TableCell align="right">{fmtMoney(r.total_amount)}</TableCell>
+                  <TableCell>
+                    {closed
+                      ? <>{r.finalized_by_name || '—'}<Typography variant="caption" display="block" color="text.secondary">{fmtDateTime?.(r.finalized_at) || String(r.finalized_at || '').slice(0, 16).replace('T', ' ')}</Typography></>
+                      : '—'}
+                  </TableCell>
+                  <TableCell align="right">
+                    {closed ? (
+                      <Button size="small" color="warning"
+                              onClick={() => { setDialog({ mode: 'reopen', run: r }); setReason(''); }}>
+                        Felnyitás
+                      </Button>
+                    ) : (
+                      <Button size="small" variant="contained"
+                              onClick={() => { setDialog({ mode: 'finalize', run: r }); setReason(''); }}>
+                        Hónap lezárása
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={!!dialog} onClose={() => setDialog(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {dialog?.mode === 'finalize'
+            ? `${dialog?.run?.billing_month} lezárása`
+            : `${dialog?.run?.billing_month} felnyitása`}
+        </DialogTitle>
+        <DialogContent>
+          {dialog?.mode === 'finalize' ? (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Lezárás után a hónap <strong>nem számolható újra</strong>. Az összegek rögzülnek.
+            </Alert>
+          ) : (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              A felnyitás után a hónap ismét újraszámolható, így a <strong>már kiszámlázott
+              összegek megváltozhatnak</strong>. Az indoklás naplózásra kerül.
+            </Alert>
+          )}
+          <TextField
+            fullWidth multiline rows={3} autoFocus
+            label={dialog?.mode === 'reopen' ? 'Indoklás (kötelező)' : 'Megjegyzés (opcionális)'}
+            value={reason} onChange={(e) => setReason(e.target.value)}
+          />
+          {(dialog?.run?.lock_history || []).length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary">Előzmény:</Typography>
+              {dialog.run.lock_history.map((h, i) => (
+                <Typography key={i} variant="caption" display="block" color="text.secondary">
+                  {h.action === 'finalize' ? 'Lezárás' : 'Felnyitás'} — {String(h.acted_at).slice(0, 16).replace('T', ' ')}
+                  {h.reason ? ` — ${h.reason}` : ''}
+                </Typography>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialog(null)}>Mégse</Button>
+          <Button
+            variant="contained"
+            color={dialog?.mode === 'reopen' ? 'warning' : 'primary'}
+            disabled={busy || (dialog?.mode === 'reopen' && !reason.trim())}
+            onClick={submit}
+          >
+            {dialog?.mode === 'finalize' ? 'Lezárás' : 'Felnyitás'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 export default function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') || TABS[0];
@@ -2381,7 +2551,7 @@ export default function Billing() {
 
       {tabIdx === 0 && <ExpensesTab />}
       {tabIdx === 1 && <DraftsTab />}
-      {tabIdx === 2 && <PlaceholderTab title="Számlázási futások" />}
+      {tabIdx === 2 && <BillingRunsTab />}
       {tabIdx === 3 && <PlaceholderTab title="Számlázások" />}
       {tabIdx === 4 && <AccountantShareTab />}
       {tabIdx === 5 && <ProfitTab />}
