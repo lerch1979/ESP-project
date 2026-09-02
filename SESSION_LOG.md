@@ -6,6 +6,110 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-02c — Havi elszámoló lapok (szállástábla) + two production bugs found by deploying
+
+The feature was the smaller half. Deploying it surfaced a latent production defect that
+would have broken a signed legal document, and an adversarial test surfaced a real
+privacy leak in the sheet itself.
+
+### The documents
+
+Two outward-facing sheets from ONE month's **stored** billing detail, modelled on the
+owner's manual szállástábla (Munkahely · Szálláshely · Szobaszám · Név · 1..N · Összes
+éjszaka):
+
+- **MEGBÍZÓ** — day grid for that client's workers across all their sites, `Üres` rows
+  where the rate has contracted beds, per-site money (occupied/empty/reduced bed-nights,
+  rates, floor, net/VAT/gross, kártérítés, pass-throughs), summary first.
+- **SZÁLLÁSADÓ** — the same grid for **everyone** at their property (it is their house),
+  with **no client attribution and no client-side pricing anywhere**.
+
+Both state **ZÁRT / PISZKOZAT**, both render xlsx (`excel.service`) and pdf
+(`reportGenerator`), both shareable by expiring token (mig 149, accountantShare's model
+but keyed on partner+kind+month so a URL edit cannot reach another partner's document).
+
+### Gap C: verified rather than assumed
+
+Before building, the question "is the megbízó attribution frozen at calculation time?"
+was settled empirically: run a month → change a worker's megbízó A→B → re-read without
+re-billing. `partner_contractor_id` and the embedded `rooms[].employees[]` both still
+said A; a naive live join said B. **The mechanism already held**, so nothing was
+retrofitted — but the rule ("read the stored row, never join `employees.billing_client_id`")
+is now in the service header and pinned by a test.
+
+The rate printed is likewise the stored `calculation_details.rent_rate_used`, not a
+lookup against today's table. Proven on prod: Sarród I. August **558×2000=1 116 000**,
+September **18×2200=39 600**, same code path. SH-RATE-01..05 pin it.
+
+### Production bug 1 — assets/ was never in the Docker image
+
+The settlement PDFs came back **4 KB on prod against 16 KB in sandbox**: no embedded
+font subset. The Dockerfile copied `src`, `scripts` and `migrations` but not `assets`.
+
+The settlement sheets were the least of it. **`inspectionPDF.service` calls
+`registerFont` with no existence guard, so on prod it threw `ENOENT`** — the damage-report
+**jegyzőkönyv**, a signed document handed to clients, would have **failed outright**.
+Confirmed in the running container. Unnoticed only because prod has **0 inspections**, so
+one had never been generated; it would have broken on the first real damage report.
+
+Also: PDFKit's core fonts are WinAnsi, which has neither ő (U+0151) nor ű (U+0171), so
+`"Fizetendő"` rendered as `"Fiz"` plus control bytes — in the settlement sheets **and in
+the existing dashboard PDF**, which never set a font family at all.
+
+Fixed: `COPY assets ./assets` + `useUnicodeFont()` in `reportGenerator`. This is the
+**third** instance of the same class after `scripts/` and `migrations/` — if a runtime
+path reads a directory, that directory must be in the image.
+
+### Production bug 2 — client name leaking through a room label
+
+An adversarial fixture (a room labelled `201-TesztMegbizoZrt`) proved a real leak: a
+free-text room label carries the client's name straight into the szállásadó sheet's
+Szobaszám column, defeating the one thing that document must hide. Client names billed
+at the property are now matched (accent- and separator-insensitive) and redacted, and the
+sheet **reports what it masked** rather than silently rewriting — the real fix is
+renaming the room. 14 leak probes now run over both the rendered xlsx and the pdf.
+
+`scripts/scan-partner-name-leaks.js` (read-only) scans room labels, site names/addresses/
+notes, workplaces and contact titles for partner names. **Dev and prod are both clean** —
+so the masking is a safety net that currently never fires, which is the right state.
+
+### Volume test — it holds up
+
+Real-scale fixture: **16 sites · 304 people · 9 203 bed-nights**.
+
+```
+számlázási futás              91 ms
+lap felépítése        105 ms / 110 ms   (szállásadó / megbízó)
+xlsx render            30 ms / 361 KB · 21 ms / 435 KB
+pdf  render            71 ms /  38 KB · 46 ms /  39 KB
+teljes (2 lap × 2 formátum)  383 ms
+```
+
+Everything reconciles at scale (grid bed-nights = billed occupied bed-nights; empty-bed
+reconstruction = billed reduced). ⚠️ **The client PDF is 33 pages** at this size, because
+it lists all 304 people. Technically fine, editorially heavy for an invoice attachment —
+worth deciding whether the PDF should carry a summary and defer the roster to the xlsx
+(which already holds the full day-matrix).
+
+### Corrections made along the way
+
+- "Ikea vs IKEA" is **not** a partner-name problem — `contractors` has zero duplicates.
+  It is the free-text `employees.workplace` field. Normalisation went there.
+- The normalisation initially picked `"ikea"` then `"IKEA"`, because frequency was counted
+  per employee-**day**: one mid-month leaver was enough to demote the correct spelling.
+  Now counts distinct people, tie-breaking on mixed case → `"Ikea"`.
+- The sandbox sample month is `1926-08`, not `2026-08`. One digit apart and easy to
+  misread as production data — label synthetic months clearly when showing figures.
+
+### Open
+
+- Client PDF page count (33 at real scale) — editorial decision pending.
+- No month is closed yet, so every sheet currently says PISZKOZAT.
+- Closing a month locks the billing run; it still does not create invoices
+  (`accommodation_billings.invoice_id` unused, invoice pipeline dormant).
+
+---
+
 ## SESSION 2026-09-02b — Real contract data on prod → effective-dated cost rates (mig 146) → two-exit contracts (mig 147)
 
 Entering one real landlord agreement (Barcza / Sarród I.) surfaced an architectural hole
