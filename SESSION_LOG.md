@@ -6,6 +6,80 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-03 — Phase 3: the sales pipeline (leads → opportunities → quotes), deployed
+
+Built autonomously overnight to a written brief, then reviewed and deployed. migs 150–151.
+
+### The one design decision everything else follows from
+
+**The pipeline feeds the billing engine; it never shadows it.** `quote_lines` carries the
+same basis vocabulary and the same per-basis fields as `client_night_rates`, and its
+amount CHECK is a copy of `client_night_rates_amount_chk`. Accepting a quote writes, in
+ONE transaction, a `partner_contracts` row and one `client_night_rates` row per priced
+line. After that the RATE is what bills and the quote is only the record of how the price
+was agreed.
+
+A sales module that keeps its own prices becomes a second source of truth and the two
+drift the first time somebody edits one. Mirroring the CHECK means a line that could not
+become a rate is refused at ENTRY, not discovered at acceptance.
+
+Proven rather than asserted: QA-08..10 accept a quote, run the billing engine, and assert
+it bills at the quoted rate with the quoted floor — (18×3500 + 2×2400) × 31. Repeated
+live on prod (lead → opportunity → quote → convert → accept → megbízó contract + per-bed
+rate on Sarród II.), then cleaned up.
+
+### Permissions: introduced before they were needed
+
+Phase 3 was first built gated on `settings.edit`. Owner's call, and the right one: that
+permission conflates "configures billing" with "may read every prospect, expected deal
+value and win probability we hold". mig 151 adds a real `sales.*` namespace and grants it
+to superadmin + admin, so **nobody's access changed on the day it landed**.
+
+The value is the direction of the next change: narrowing access for real salespeople, and
+for Phase 4's external agents, is now a REMOVED GRANT rather than retrofitting a namespace
+into live code. `sales.quotes.accept` is deliberately separate from `sales.edit` —
+accepting writes a contract and a billing rate, which is a money action an external agent
+must never hold. `sales.all.view` (not a role) is what widens visibility past your own rows.
+
+### Other decisions worth keeping
+
+- **Conversion keeps the lead.** A converted lead is marked `converted` and retained, with
+  contacts, documents, activities and OPEN opportunities re-parented to the new contractor
+  (closed ones stay as history). Confirmed by the owner; do not archive or delete.
+- **A quote against a LEAD cannot be accepted.** A rate needs a real contractor, so it
+  refuses loudly rather than inventing one mid-accept.
+- **A sent quote is never edited in place** — versions are per-opportunity and unique.
+- **Drafts cannot be shared.** Sharing invites a reaction to numbers we have not committed to.
+- **The public quote view withholds our commercial position** — no probability, expected
+  value, stage or owner.
+
+### A test-harness gap found and fixed
+
+FUNCTEST's `lib/http` hardcoded `/api/v1`, so EVERY public token route
+(`/public/quote`, `/public/settlement`, `/public/accountant`) 404'd from the suite and
+looked broken. Added `http.raw`/`rawGet`; SALES-05 now exercises the real public path.
+Worth knowing: the settlement public route had been un-coverable for the same reason.
+
+### Logged, not fixed
+
+**Three near-identical share mechanisms** now exist (accountant / settlement / quote),
+each re-implementing the same token+expiry+revocation shape. Owner decision: leave them,
+unify in Phase 4 when the external-agent work touches this area anyway — do not refactor
+the live accountant links mid-flight. A concrete plan is written into the tech-debt row.
+
+### State
+
+Deployed through mig 151. Verified live: the namespace is granted to admin+superadmin,
+all four sales endpoints answer 200, and the full lead→accept chain materialises correctly.
+
+### Next
+
+- Quote PDF offer document, reusing the settlement renderer (house style + the DejaVu
+  font fix). Sandbox first.
+- Phase 4: external agent enablement, still gated on the Phase 0 security work.
+
+---
+
 ## SESSION 2026-09-02d — The settlement PDF becomes a summary (closes the open item from 2026-09-02c)
 
 The previous entry flagged the client PDF as 33 pages at real scale and left the call to
