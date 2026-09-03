@@ -72,11 +72,32 @@ the live accountant links mid-flight. A concrete plan is written into the tech-d
 Deployed through mig 151. Verified live: the namespace is granted to admin+superadmin,
 all four sales endpoints answer 200, and the full lead→accept chain materialises correctly.
 
+### Quote PDF (same day, after the Phase 3 deploy)
+
+`quotePdf.service` reuses `reportGenerator`'s primitives and its DejaVu registration —
+the WinAnsi trap that cost a round on the settlement sheets would be worse here, since
+this document goes to a prospect. Two routes, both gated: the admin download runs
+`getQuote()` first so a PDF cannot become a way around row visibility, and the public
+`/public/quote/:token/pdf` shares the JSON view's expiry+revocation gate. A DRAFT is
+banner-labelled PISZKOZAT. Per-line terms get their own block instead of a truncated
+table cell, because that is the part a client negotiates. Live-verified on prod (admin
+200 · public 200 without auth · 404 after revoke), then cleaned up.
+
+**Second FUNCTEST harness fix this round:** `lib/http` dropped binary bodies, so a
+downloaded PDF/xlsx arrived as an empty string and any scenario checking one concluded
+the endpoint was broken. It now exposes headers, contentType and a raw buffer. (The first
+fix was the hardcoded `/api/v1` that made every public token route un-testable.) Both were
+harness blind spots that would have silently reduced coverage of anything binary or public.
+
+Worth recording: PD-05 and PD-06 failed on first run and **both were wrong assertions, not
+wrong output** — pdf-parse reinserts the PDF's line breaks so "min. kihasználtság" arrives
+split, and hu-HU correctly does not space-group four-digit numbers (3500) while grouping
+seven-digit totals (2 170 000). The tests were corrected to match the real rendering.
+
 ### Next
 
-- Quote PDF offer document, reusing the settlement renderer (house style + the DejaVu
-  font fix). Sandbox first.
 - Phase 4: external agent enablement, still gated on the Phase 0 security work.
+- Unify the three share mechanisms (plan is in the tech-debt row) — same round as Phase 4.
 
 ---
 
