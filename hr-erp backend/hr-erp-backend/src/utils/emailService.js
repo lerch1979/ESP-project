@@ -1,9 +1,9 @@
-const nodemailer = require('nodemailer');
+const { createGuardedTransport } = require('./mailGuard');
 const { logger } = require('./logger');
 
 // Build transporter from SMTP_* env vars (Gmail compatible)
 // Falls back to legacy EMAIL_* vars for backwards compatibility
-const transporter = nodemailer.createTransport({
+const transporter = createGuardedTransport({
   host: process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT) || 587,
   secure: (process.env.SMTP_SECURE === 'true') || (parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT) === 465),
@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER || process.env.EMAIL_USER,
     pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
   },
-});
+}, 'emailService');
 
 const emailFrom = process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER;
 
@@ -37,6 +37,15 @@ async function sendEmail({ to, subject, html, attachments }) {
       html,
       attachments,
     });
+    // mailGuard resolves rather than throws (so a blocked test email does not fail a
+    // whole report RUN), which means a blocked send arrives here looking like a
+    // successful one. Reporting it as success would recreate exactly the silent-success
+    // bug the 2026-07-05 delivery-accounting fix removed: the scheduler would record
+    // delivered_count = 1 for a message that never left the process.
+    if (info && info.blocked) {
+      logger.warn('Email BLOKKOLVA (mailGuard)', { to, subject, reason: info._guard?.reason });
+      return { success: false, blocked: true, error: info.response };
+    }
     logger.info('Email elküldve', { to, subject, messageId: info.messageId });
     return { success: true, messageId: info.messageId };
   } catch (error) {

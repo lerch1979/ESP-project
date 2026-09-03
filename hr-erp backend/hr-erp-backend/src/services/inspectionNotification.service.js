@@ -23,7 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { createGuardedTransport, wasBlocked, blockedError } = require('../utils/mailGuard');
 const handlebars = require('handlebars');
 const sharp = require('sharp');
 const { query, transaction } = require('../database/connection');
@@ -52,7 +52,7 @@ function hasSmtpConfig() {
 let _transporter = null;
 function getTransporter() {
   if (_transporter) return _transporter;
-  _transporter = nodemailer.createTransport({
+  _transporter = createGuardedTransport({
     host:   process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com',
     port:   parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT) || 587,
     secure: (process.env.EMAIL_SECURE || process.env.SMTP_SECURE) === 'true',
@@ -60,7 +60,7 @@ function getTransporter() {
       user: process.env.EMAIL_USER || process.env.SMTP_USER,
       pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS,
     },
-  });
+  }, 'inspectionNotification.service');
   return _transporter;
 }
 
@@ -495,13 +495,16 @@ async function notifyResidents(inspectionId, { userId } = {}) {
     attachments.push(...photoAttach);
 
     try {
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: process.env.EMAIL_USER || process.env.SMTP_USER,
         to: r.email,
         subject: rendered.subject,
         html: rendered.html,
         attachments,
       });
+      // A blocked send resolves; without this the row below would record a delivery
+      // that never left the process.
+      if (wasBlocked(info)) throw new Error(blockedError(info));
       await query(
         `UPDATE inspection_email_notifications
          SET status = 'sent',
@@ -583,13 +586,14 @@ async function resendOne(trackingId, { userId } = {}) {
   }
 
   try {
-    await getTransporter().sendMail({
+    const info = await getTransporter().sendMail({
       from: process.env.EMAIL_USER || process.env.SMTP_USER,
       to: row.email_address,
       subject: rendered.subject,
       html: rendered.html,
       attachments: [...(pdfAttach ? [pdfAttach] : []), ...photoAttach],
     });
+    if (wasBlocked(info)) throw new Error(blockedError(info));
     await query(
       `UPDATE inspection_email_notifications
        SET status='sent', sent_at=NOW(), attempt_count=attempt_count+1,

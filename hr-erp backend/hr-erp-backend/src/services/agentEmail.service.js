@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+const { createGuardedTransport, wasBlocked, blockedError } = require('../utils/mailGuard');
 const { logger } = require('../utils/logger');
 
 let transporter = null;
@@ -6,7 +6,7 @@ let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
 
-  transporter = nodemailer.createTransport({
+  transporter = createGuardedTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
@@ -14,7 +14,7 @@ function getTransporter() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-  });
+  }, 'agentEmail.service');
 
   return transporter;
 }
@@ -324,6 +324,7 @@ async function _sendAgentEmail(subject, html) {
 
   try {
     const info = await getTransporter().sendMail(mailOptions);
+    if (wasBlocked(info)) return { success: false, blocked: true, error: blockedError(info) };
     logger.info(`Agent email sent: "${subject}" to ${mailOptions.to}`, { messageId: info.messageId });
     return { success: true, messageId: info.messageId };
   } catch (error) {

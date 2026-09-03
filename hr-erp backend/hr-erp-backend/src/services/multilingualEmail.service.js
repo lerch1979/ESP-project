@@ -2,7 +2,7 @@
  * Multilingual Email Service
  * Sends emails in user's preferred language using Handlebars templates.
  */
-const nodemailer = require('nodemailer');
+const { createGuardedTransport, wasBlocked, blockedError } = require('../utils/mailGuard');
 const handlebars = require('handlebars');
 const fs = require('fs');
 const path = require('path');
@@ -24,7 +24,7 @@ function loadEmailStrings(lang) {
 }
 
 // Create transporter
-const transporter = nodemailer.createTransport({
+const transporter = createGuardedTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.EMAIL_PORT) || 587,
   secure: false,
@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
-});
+}, 'multilingualEmail.service');
 
 // Get user's language
 async function getUserLanguage(userId) {
@@ -100,6 +100,9 @@ async function sendPlainEmail(to, subject, html) {
       subject,
       html,
     });
+    // This one THROWS on failure, so a blocked send must throw too — otherwise the
+    // caller reads "no exception" as delivered.
+    if (wasBlocked(info)) throw new Error(blockedError(info));
     logger.info(`[Email] Sent to ${to}: ${subject} (${info.messageId})`);
     return info;
   } catch (err) {

@@ -6,6 +6,80 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-03 (3) — INCIDENT: the test fixtures were sending real email
+
+The owner received "FT Havi kihasználtság" with a real xlsx. FT is the FUNCTEST fixture
+tag.
+
+### What happened
+
+FUNCTEST's AUTO-01 calls the REAL `executeReport()`, which calls the REAL `sendEmail()`.
+`emailService` built its nodemailer transport at require-time from `SMTP_USER`/`SMTP_PASS`
+in the developer `.env` — a working Gmail app password — and `sendEmail` had **no
+environment check of any kind**: not NODE_ENV, not the database name, nothing. So every
+full functest run handed a genuine message to smtp.gmail.com from the owner's own account.
+**44 of them over 60 days**, first on 2026-08-07.
+
+**Nothing reached a third party** — and that was luck, not design. The fixture recipient is
+`admin@sandbox.local`, which does not resolve, so Gmail bounced every one back to the
+sender. What the owner saw was the bounce, quoting the subject and carrying the attachment.
+The isolation that saved us was a DNS accident.
+
+Production was never involved: `NODE_ENV=production`, no SMTP credentials at all, and
+across all 26 prod report runs — **44 addressed, 0 delivered**.
+
+### The lesson: the sandbox guard's subject was the DATABASE
+
+`tests/functest/lib/guard.js` is careful and fail-closed — env AND live connection, nothing
+runs unless both say sandbox-on-localhost. But mail is a *second* side effect that leaves
+the machine, and it was never inside that boundary. `src/utils/mailGuard.js` is that
+boundary now.
+
+And it was **six transports, not one**: emailService, email.service, compensation.service,
+multilingualEmail.service, agentEmail.service, inspectionNotification.service had each
+grown their own `nodemailer.createTransport`. A fix in one would have left five open doors.
+`tests/mailGuardCoverage.test.js` fails the build if a seventh appears — verified by
+adding one, which failed both checks by name.
+
+### A defect in the fix, caught by probing rather than assuming
+
+The guard resolves instead of throwing, so a blocked send arrived at the callers looking
+like a successful one. The first version stopped the message but left `sendEmail` returning
+`{ success: true, messageId: undefined }` — the scheduler counts successes, so it would
+have recorded `delivered_count = 1` for a message that never left the process. That is
+exactly the silent success the 2026-07-05 delivery-accounting fix removed. All six senders
+now surface `blocked` in their own error shape; the two `inspection_email_notifications`
+sites throw, because they wrote a "sent" row immediately after the await.
+
+AUTO-01 now records the truth: `(0/1). BLOCKED by mailGuard: test harness active`, with the
+ops alert raised.
+
+### Also fixed: a landmine on prod
+
+Four scheduled reports from the March demo seed were **active** on production with
+`next_run_at` set — the nearest firing 2026-09-04 16:00Z. Recipients included
+`admin@hr-erp.com`; **hr-erp.com resolves to 136.110.28.42 with no MX**, which under RFC
+5321 makes the A record a valid implicit mail target. The day SMTP is configured on prod,
+those four would have sent real occupancy and employee data to a third party's server.
+Disabled (`is_active=false`, `next_run_at=NULL`), before-state dumped to
+`backups/scheduled_reports_before_disable_20260903T065743Z.json`. Prod now has 0 active
+scheduled reports. `processDueReports` filters on `is_active = true AND next_run_at <= NOW()`,
+so both conditions now fail.
+
+### State
+
+FUNCTEST **158 passed / 0 failed** (was 156); the two new suites run as COMP-07/COMP-08.
+Verified against the owner's actual mailbox: last automated send 06:45:46Z, both guarded
+runs after it sent nothing.
+
+### Open for the owner
+
+`admin@hr-erp.com` is still an ACTIVE user account (last login 2026-06-21) and the email on
+the `HR-ERP Platform` contractor row. Password resets and notifications to it would go to a
+domain we do not control. Left alone — it is a live login, not mine to rename.
+
+---
+
 ## SESSION 2026-09-03 (2) — gyors jegyzetelés a sales modulban (mig 152) · SANDBOX, nem deployolt
 
 Small UX round: capture a call in ~20 seconds without navigating away. `partner_activities`

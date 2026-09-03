@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+const { createGuardedTransport, wasBlocked, blockedError } = require('../utils/mailGuard');
 const { logger } = require('../utils/logger');
 const { generateInvoicePDF } = require('./pdfGenerator.service');
 
@@ -7,7 +7,7 @@ let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
 
-  transporter = nodemailer.createTransport({
+  transporter = createGuardedTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
@@ -15,7 +15,7 @@ function getTransporter() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-  });
+  }, 'email.service');
 
   return transporter;
 }
@@ -79,6 +79,7 @@ async function sendInvoiceEmail(invoiceId, { to, cc, subject, body }) {
 
   try {
     const info = await getTransporter().sendMail(mailOptions);
+    if (wasBlocked(info)) return { error: blockedError(info), status: 503, blocked: true };
     logger.info(`Invoice email sent: ${invoice.invoice_number} to ${to}`, { messageId: info.messageId });
     return { data: { messageId: info.messageId, to, invoice_number: invoice.invoice_number } };
   } catch (error) {
@@ -119,6 +120,7 @@ async function sendMail({ to, subject, text, html, cc, inReplyTo, references } =
 
   try {
     const info = await getTransporter().sendMail(mailOptions);
+    if (wasBlocked(info)) return { error: blockedError(info), status: 503, blocked: true };
     logger.info(`sendMail: ${subject} → ${to}`, { messageId: info.messageId });
     return { data: { messageId: info.messageId, to } };
   } catch (error) {

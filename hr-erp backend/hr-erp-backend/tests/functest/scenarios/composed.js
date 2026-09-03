@@ -21,6 +21,8 @@ const SUITES = [
   { file: 'tests/residentLeakGuards.test.js', why: 'DEEP_AUDIT 1-4 route-level guards (mocked layer)' },
   { file: 'tests/deductionExecutionMothball.test.js', why: 'the deduction executor stays mothballed behind its flag' },
   { file: 'tests/damageReportAuthz.test.js', why: 'damage-report authz + tenant scope (resident IDOR)' },
+  { file: 'tests/mailGuard.test.js', why: 'outbound mail is blocked under any test harness — the 2026-09-03 incident' },
+  { file: 'tests/mailGuardCoverage.test.js', why: 'nothing outside mailGuard.js may build a mail transport' },
 ];
 
 module.exports = {

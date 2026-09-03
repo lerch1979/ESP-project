@@ -569,7 +569,7 @@ async function listSalaryDeductions(compensationId) {
  * config; is a no-op when SMTP credentials aren't configured.
  */
 async function sendNoticeEmail(compensationId, { userId } = {}) {
-  const nodemailer = require('nodemailer');
+  const { createGuardedTransport, wasBlocked, blockedError } = require('../utils/mailGuard');
   const pdfSvc = require('./inspectionPDF.service');
 
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -600,12 +600,12 @@ async function sendNoticeEmail(compensationId, { userId } = {}) {
   });
   const pdfBuffer = Buffer.concat(chunks);
 
-  const transporter = nodemailer.createTransport({
+  const transporter = createGuardedTransport({
     host:   process.env.SMTP_HOST || 'smtp.gmail.com',
     port:   parseInt(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
     auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
+  }, 'compensation.service');
 
   const subject = `Kártérítési értesítő – ${c.compensation_number}`;
   const body = [
@@ -633,7 +633,11 @@ async function sendNoticeEmail(compensationId, { userId } = {}) {
           contentType: 'application/pdf',
         }],
       });
-      results.push({ to: recipient.email, ok: true, messageId: info.messageId });
+      if (wasBlocked(info)) {
+        results.push({ to: recipient.email, ok: false, blocked: true, error: blockedError(info) });
+      } else {
+        results.push({ to: recipient.email, ok: true, messageId: info.messageId });
+      }
     } catch (err) {
       logger.error(`[compensation.sendNoticeEmail] ${recipient.email}:`, err.message);
       results.push({ to: recipient.email, ok: false, error: err.message });
