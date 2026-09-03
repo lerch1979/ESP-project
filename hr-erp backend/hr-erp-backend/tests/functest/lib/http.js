@@ -119,9 +119,11 @@ function leaks(body, foreignIds) {
  * tests them has to send one. Without this the import paths were untestable end-to-end,
  * which is how a lossy delete+reimport cycle shipped unnoticed.
  */
-async function upload(p, { token, field = 'file', filename = 'import.xlsx', buffer } = {}) {
+async function upload(p, { token, field = 'file', filename = 'import.xlsx', buffer, ...fields } = {}) {
   let req = request(app()).post(`/api/v1${p}`);
   if (token) req = req.set('Authorization', `Bearer ${token}`);
+  // Extra multipart text fields (e.g. mode) travel alongside the file.
+  for (const [k, v] of Object.entries(fields)) req = req.field(k, String(v));
   return pack(await req.attach(field, buffer, filename));
 }
 

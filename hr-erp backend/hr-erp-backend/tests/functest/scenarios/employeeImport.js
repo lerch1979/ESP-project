@@ -149,5 +149,68 @@ module.exports = {
         return { del: d.status, open_for_leavers: orphan.rows[0].c, room_id_preserved: kept.rows[0].c };
       },
     },
+    {
+      id: 'IMP-06',
+      name: 'a duplikáció-ellenőrzés MEZŐPONTOZÁSSAL megy: 3+ egyező azonosító = ugyanaz a személy',
+      expected: { two_fields_new: 3, three_fields_updated: 3, total: 6 },
+      hint: 'the spec was "warn at 3+ matching fields"; the code matched a fixed trio and skipped entirely without mother\'s name',
+      run: async (ctx, s) => {
+        // Same surnames, DIFFERENT birth dates and first names → only 1 field agrees,
+        // so these are genuinely new people and must import as such.
+        const distinct = sheet([
+          { last_name: 'ImpTeszt', first_name: 'Dezso', birth_date: '1975-01-01', accommodation: s.accName },
+          { last_name: 'ImpTeszt', first_name: 'Elek',  birth_date: '1976-02-02', accommodation: s.accName },
+          { last_name: 'ImpTeszt', first_name: 'Ferenc', birth_date: '1977-03-03', accommodation: s.accName },
+        ]);
+        const a = await http.upload('/employees/bulk', { token: s.t, buffer: distinct });
+
+        // The ORIGINAL three, identified by last+first+birth only — no mother's name.
+        // Three fields agree, so these must UPDATE rather than duplicate.
+        const threeFields = sheet(PEOPLE.map((p) => ({
+          last_name: p.last_name, first_name: p.first_name, birth_date: p.birth_date,
+          accommodation: s.accName,
+        })));
+        const b = await http.upload('/employees/bulk', { token: s.t, buffer: threeFields });
+
+        const n = await query(`SELECT count(*)::int c FROM employees WHERE last_name='ImpTeszt'`);
+        return {
+          two_fields_new: a.body.data?.imported,
+          three_fields_updated: b.body.data?.updated,
+          total: n.rows[0].c,
+        };
+      },
+    },
+    {
+      id: 'IMP-07',
+      name: 'túl kevés azonosító mező → NEM néma import, hanem kiírt figyelmeztetés',
+      expected: { imported: 1, warnings: 1, code: 'duplicate_check_impossible', says_why: true },
+      hint: 'the old check simply skipped when mother\'s name was missing; silence was the bug',
+      run: async (ctx, s) => {
+        const thin = sheet([{ last_name: 'ImpVekony', accommodation: s.accName }]);
+        const r = await http.upload('/employees/bulk', { token: s.t, buffer: thin });
+        const w = (r.body.data?.warnings || [])[0];
+        return {
+          imported: r.body.data?.imported,
+          warnings: r.body.data?.warnings?.length,
+          code: w?.code,
+          says_why: /hiányzó azonosító mezők/i.test(w?.message || ''),
+        };
+      },
+    },
+    {
+      id: 'IMP-08',
+      name: 'szigorú módban a valószínű duplikáció FIGYELMEZTETŐ sor, nem néma átugrás',
+      expected: { imported: 0, errors: 3, names_the_fields: true },
+      hint: 'mode:insert_only must explain WHY a row was refused so the user can resolve it',
+      run: async (ctx, s) => {
+        const r = await http.upload('/employees/bulk', { token: s.t, buffer: s.file, mode: 'insert_only' });
+        const e = (r.body.data?.errors || [])[0];
+        return {
+          imported: r.body.data?.imported,
+          errors: r.body.data?.errors?.length,
+          names_the_fields: /egyező azonosító/.test(e?.message || ''),
+        };
+      },
+    },
   ],
 };

@@ -12,6 +12,7 @@ const statusHistory = require('../services/entityStatusHistory.service');
 // Housing changes MUST reach employee_accommodation_history — it is the only input the
 // daily occupancy snapshot (and therefore the billing engine) reads.
 const accHistory = require('../services/accommodationHistory.service');
+const { findDuplicate, FIELD_LABEL, MATCH_THRESHOLD } = require('../utils/employeeIdentity');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -1043,6 +1044,24 @@ const bulkImportEmployees = async (req, res) => {
     const imported = [];
     const updated = [];
     const errors = [];
+    const warnings = [];
+
+    // ── duplicate-detection candidates ────────────────────────────────────────
+    // Loaded ONCE, and deliberately including soft-deleted people: a delete+reimport is
+    // the same person coming back, and treating them as new is exactly what produced 279
+    // duplicate employees on 2026-09-03. The encrypted identifiers use a random IV, so
+    // ciphertext comparison is meaningless — they are decrypted here rather than per row.
+    const candRes = await query(
+      `SELECT id, employee_number, first_name, last_name, birth_date, mothers_name,
+              passport_number, social_security_number, tax_id, end_date, personal_email
+         FROM employees`);
+    const safeDecrypt = (v) => { try { return v ? decrypt(v) : null; } catch { return v; } };
+    const candidates = candRes.rows.map((c) => ({
+      ...c,
+      passport_number: safeDecrypt(c.passport_number),
+      social_security_number: safeDecrypt(c.social_security_number),
+      tax_id: safeDecrypt(c.tax_id),
+    }));
 
     // UPSERT is the default. The old behaviour — refuse a duplicate, create nothing —
     // made "re-import the same roster" impossible, so the only way to refresh people was
@@ -1091,49 +1110,41 @@ const bulkImportEmployees = async (req, res) => {
       // Get individual client for each row insert
       const client = await pool.connect();
       try {
-        // ── identity match ────────────────────────────────────────────────────
-        // birth_date + last_name + first_name, with mother's name as a TIEBREAKER when
-        // several people share all three. Two things the old check got wrong:
-        //   • it matched on mother's name INSTEAD of birth date (the comment above it
-        //     claimed birth date; the code never used it), and
-        //   • it was gated on `row.mothers_name`, so a file without that column got no
-        //     duplicate detection at all and every row inserted fresh.
-        // It also only looked at end_date IS NULL, so a delete+reimport reported
-        // "0 errors" while silently duplicating the entire roster.
+        // ── identity match: field scoring, threshold 3 ────────────────────────
+        // See utils/employeeIdentity. The check ALWAYS runs — a missing column lowers
+        // confidence, it never disables detection.
+        const verdict = findDuplicate(row, candidates);
         let match = null;
-        if (row.last_name && row.birth_date) {
-          const cand = await client.query(
-            `SELECT id, first_name, last_name, mothers_name, end_date, personal_email
-               FROM employees
-              WHERE birth_date = $1::date
-                AND LOWER(last_name) = LOWER($2)
-                AND LOWER(COALESCE(first_name, '')) = LOWER($3)
-              ORDER BY end_date NULLS FIRST`,
-            [row.birth_date, row.last_name, row.first_name || '']
-          );
-          let rows2 = cand.rows;
-          if (rows2.length > 1 && row.mothers_name) {
-            const narrowed = rows2.filter(
-              (c) => (c.mothers_name || '').toLowerCase() === String(row.mothers_name).toLowerCase());
-            if (narrowed.length > 0) rows2 = narrowed;
-          }
-          if (rows2.length > 1) {
-            errors.push({
-              row: rowNum,
-              message: `Nem egyértelmű azonosítás: ${rows2.length} munkavállaló egyezik `
-                     + `(${row.last_name} ${row.first_name || ''}, ${row.birth_date}). `
-                     + 'Adj meg anyja nevét a fájlban a megkülönböztetéshez.',
-            });
-            continue;
-          }
-          match = rows2[0] || null;
+
+        if (verdict.status === 'insufficient_fields') {
+          warnings.push({
+            row: rowNum,
+            code: 'duplicate_check_impossible',
+            message: 'Nem ellenőrizhető duplikáció — hiányzó azonosító mezők '
+                   + `(${verdict.available} azonosító mező van, legalább ${MATCH_THRESHOLD} kell). `
+                   + 'A sor importálva lett, de lehet, hogy már létező személy.',
+          });
+        } else if (verdict.status === 'ambiguous') {
+          errors.push({
+            row: rowNum,
+            message: `Nem egyértelmű azonosítás: ${verdict.rivals} munkavállalóra illik `
+                   + `ugyanaz a ${verdict.score} mező (${verdict.fields.map((f) => FIELD_LABEL[f] || f).join(', ')}). `
+                   + 'Adj meg több azonosítót a fájlban.',
+          });
+          continue;
+        } else if (verdict.status === 'match') {
+          match = verdict.candidate;
         }
 
         if (match && insertOnly) {
           errors.push({
             row: rowNum,
-            message: `Duplikált munkavállaló: ${match.last_name} ${match.first_name} `
-                   + `(${match.personal_email || 'nincs email'}) már létezik`,
+            code: 'probable_duplicate',
+            message: `Valószínű duplikáció: ${match.last_name} ${match.first_name}`
+                   + `${match.end_date ? ' (kiléptetett)' : ''} — `
+                   + `${verdict.score} egyező azonosító: `
+                   + `${verdict.fields.map((f) => FIELD_LABEL[f] || f).join(', ')}. `
+                   + 'Ellenőrizd és döntsd el, hogy ugyanaz a személy-e.',
           });
           continue;
         }
@@ -1274,6 +1285,19 @@ const bulkImportEmployees = async (req, res) => {
             changedBy: req.user?.id || null,
           });
         }
+        // A file that lists the same person twice must not create them twice.
+        candidates.push({
+          id: result.rows[0].id,
+          employee_number: result.rows[0].employee_number,
+          first_name: row.first_name || null,
+          last_name: row.last_name || null,
+          birth_date: row.birth_date || null,
+          mothers_name: row.mothers_name || null,
+          passport_number: row.passport_number || null,
+          social_security_number: row.social_security_number || null,
+          tax_id: row.tax_id || null,
+          end_date: row.end_date || null,
+        });
         imported.push(result.rows[0]);
       } catch (err) {
         errors.push({ row: rowNum, message: err.message });
@@ -1285,6 +1309,7 @@ const bulkImportEmployees = async (req, res) => {
     logger.info('Tömeges munkavallaló import', {
       imported: imported.length,
       updated: updated.length,
+      warnings: warnings.length,
       errors: errors.length,
       mode: insertOnly ? 'insert_only' : 'upsert',
     });
@@ -1292,11 +1317,13 @@ const bulkImportEmployees = async (req, res) => {
     res.json({
       success: true,
       message: `${imported.length} új munkavállaló importálva`
-             + (updated.length ? `, ${updated.length} meglévő frissítve` : ''),
+             + (updated.length ? `, ${updated.length} meglévő frissítve` : '')
+             + (warnings.length ? `, ${warnings.length} sornál nem volt ellenőrizhető a duplikáció` : ''),
       data: {
         imported: imported.length,
         updated: updated.length,
         mode: insertOnly ? 'insert_only' : 'upsert',
+        warnings,
         errors
       }
     });
