@@ -21,7 +21,8 @@ const M = '1941-07';
 (async () => {
   let U1, U2, ACC, ROOM, madeLead, madeOpp, madeQuote, convertedContractor, emps = [];
   const asUser = (id, all = true) => ({
-    user: { id, email: 'u@test.local', roles: all ? ['superadmin'] : ['user'], permissions: all ? ['settings.edit'] : [] },
+    user: { id, email: 'u@test.local', roles: all ? ['superadmin'] : ['user'],
+            permissions: all ? ['sales.view','sales.edit','sales.all.view','sales.quotes.accept'] : ['sales.view','sales.edit'] },
     body: {}, params: {}, query: {},
   });
 
@@ -219,6 +220,11 @@ const M = '1941-07';
     const mine = await svc.listLeads(asUser(U2, false), {});
     check('SC-03 a privileged user still sees everything',
       (await svc.listLeads(asUser(U1), {})).some((l) => l.id === madeLead));
+    // The manager grant is what widens visibility — not settings.edit, and not a role.
+    const mgr = asUser(U2, false);
+    mgr.user.permissions = ['sales.view', 'sales.edit', 'sales.all.view'];
+    check('SC-04 sales.all.view is what widens visibility to every owner',
+      (await svc.listLeads(mgr, {})).some((l) => l.id === madeLead));
   } catch (e) { console.error('SUITE ERROR:', e.message); failures++; }
   finally {
     const q=(s,p)=>pool.query(s,p).catch(()=>{});

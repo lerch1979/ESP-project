@@ -33,17 +33,15 @@ const BASES = ['per_person', 'flat', 'per_bed_night'];
 const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
 
 /**
- * May this caller see every sales record?
+ * May this caller see every sales record, or only their own?
  *
- * ASSUMPTION (2026-09-02): superadmin, or any staff user holding `settings.edit` — the
- * permission the whole partner/billing surface already uses. The dedicated `sales.*`
- * namespace ships with the external-agent role in Phase 4; until then treating existing
- * staff as full-visibility keeps the module usable without inventing permissions nobody
- * has been granted yet.
+ * `sales.all.view` (mig 151) is the manager grant. Superadmin bypasses as it does
+ * everywhere else. Anyone else sees their own rows plus what has been explicitly shared
+ * with them — which is the state an external agent will be in from Phase 4.
  */
 const canSeeAll = (req) =>
   !!req?.user?.roles?.includes('superadmin')
-  || !!req?.user?.permissions?.includes('settings.edit');
+  || !!req?.user?.permissions?.includes('sales.all.view');
 
 /**
  * Visibility predicate for a sales table.

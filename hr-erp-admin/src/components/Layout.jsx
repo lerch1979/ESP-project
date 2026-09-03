@@ -152,7 +152,7 @@ const buildMenuSections = (t) => [
       { text: 'Elszámoló lapok', icon: <ReceiptIcon />, path: '/settlements', permission: 'settings.edit' },
       // Sales pipeline (Phase 3). External agents are NOT enabled — Phase 4, gated on
       // the Phase 0 security work.
-      { text: 'Üzletfejlesztés', icon: <TrendingUpIcon />, path: '/sales', permission: 'settings.edit' },
+      { text: 'Üzletfejlesztés', icon: <TrendingUpIcon />, path: '/sales', permission: 'sales.view' },
     ],
   },
   {

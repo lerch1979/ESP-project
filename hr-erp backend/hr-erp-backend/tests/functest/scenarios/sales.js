@@ -107,5 +107,25 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'SALES-06',
+      name: 'a sales.* jogosultság-névtér ÉL — a régi settings.edit önmagában nem elég',
+      expected: { sales_perms_exist: 5, granted_to_admin: true, accept_is_separate: true },
+      hint: 'mig 151 — narrowing access later is a removed grant, not a code refactor',
+      run: async (ctx) => {
+        const perms = await ctx.query(`SELECT slug FROM permissions WHERE module = 'sales' ORDER BY slug`);
+        const granted = await ctx.query(
+          `SELECT r.slug FROM role_permissions rp
+             JOIN permissions p ON p.id = rp.permission_id
+             JOIN roles r ON r.id = rp.role_id
+            WHERE p.slug = 'sales.view'`);
+        return {
+          sales_perms_exist: perms.rows.length,
+          granted_to_admin: granted.rows.some((r) => r.slug === 'admin'),
+          // accepting writes a contract + a rate, so it is NOT bundled into sales.edit
+          accept_is_separate: perms.rows.some((r) => r.slug === 'sales.quotes.accept'),
+        };
+      },
+    },
   ],
 };
