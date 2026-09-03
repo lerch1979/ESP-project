@@ -12,6 +12,7 @@
  * Hungarian character set incl. ő/ű. Core PDF fonts (Helvetica) do not.
  */
 const PDFDocument = require('pdfkit');
+const { byRoomNumber } = require('../utils/roomOrder');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
@@ -360,7 +361,7 @@ async function loadInspectionContext(id) {
        FROM room_inspections ri
        LEFT JOIN accommodation_rooms r ON ri.room_id = r.id
        WHERE ri.inspection_id = $1
-       ORDER BY r.floor NULLS FIRST, r.room_number`,
+       ORDER BY r.floor NULLS FIRST, ${byRoomNumber('r.room_number')}`,
       [id]
     ),
   ]);

@@ -51,6 +51,7 @@ const MODULES = [
   './scenarios/partners',
   './scenarios/sales',
   './scenarios/activities',
+  './scenarios/rooms',
   './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',

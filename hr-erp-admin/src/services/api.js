@@ -431,6 +431,22 @@ export const roomsAPI = {
     const response = await api.delete(`/accommodations/${accommodationId}/rooms/${roomId}`);
     return response.data;
   },
+  // confirm=true is required by the server before it will un-room anyone; the first
+  // call answers 409 with the occupant count so the UI can ask.
+  deleteConfirmed: async (accommodationId, roomId) => {
+    const response = await api.delete(`/accommodations/${accommodationId}/rooms/${roomId}?confirm=true`);
+    return response.data;
+  },
+  assignOccupant: async (accommodationId, roomId, employeeId) => {
+    const response = await api.post(
+      `/accommodations/${accommodationId}/rooms/${roomId}/occupants`, { employee_id: employeeId });
+    return response.data;
+  },
+  removeOccupant: async (accommodationId, roomId, employeeId) => {
+    const response = await api.delete(
+      `/accommodations/${accommodationId}/rooms/${roomId}/occupants/${employeeId}`);
+    return response.data;
+  }
 };
 
 // AI Assistant — admin observability + per-user history/chat

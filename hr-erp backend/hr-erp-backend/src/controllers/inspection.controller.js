@@ -13,6 +13,7 @@
  * Photo upload is a separate endpoint (Day 1b — needs multer + storage decision).
  */
 const { query, transaction } = require('../database/connection');
+const { byRoomNumber } = require('../utils/roomOrder');
 const { logger } = require('../utils/logger');
 const pdfService = require('../services/inspectionPDF.service');
 const notify = require('../services/inAppNotification.service');
@@ -509,7 +510,7 @@ const listRooms = async (req, res) => {
        LEFT JOIN room_inspections ri
          ON ri.room_id = r.id AND ri.inspection_id = $1
        WHERE r.accommodation_id = $2 AND r.is_active = true
-       ORDER BY r.floor NULLS FIRST, r.room_number`,
+       ORDER BY r.floor NULLS FIRST, ${byRoomNumber('r.room_number')}`,
       [id, accommodationId]
     );
 

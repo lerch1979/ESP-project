@@ -1,4 +1,5 @@
 const { query } = require('../database/connection');
+const { byRoomNumber } = require('../utils/roomOrder');
 const { logger } = require('../utils/logger');
 const { scopeOf } = require('../utils/tenantScope');
 
@@ -81,7 +82,7 @@ const getDailyOccupancy = async (req, res) => {
         AND (e.end_date IS NULL OR e.end_date > $1)
       WHERE ar.is_active = true
       GROUP BY ar.accommodation_id, ar.id, ar.room_number, ar.beds
-      ORDER BY ar.room_number
+      ORDER BY ${byRoomNumber('ar.room_number')}
     `, [date]);
 
     // Group rooms by accommodation_id

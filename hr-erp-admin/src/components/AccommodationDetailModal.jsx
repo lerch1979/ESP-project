@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
   Button,
   TextField,
   Grid,
@@ -36,8 +40,10 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  PersonAdd as PersonAddIcon,
+  WarningAmber as WarningIcon,
 } from '@mui/icons-material';
-import { accommodationsAPI, contractorsAPI, roomsAPI } from '../services/api';
+import { accommodationsAPI, contractorsAPI, roomsAPI, employeesAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateContractorModal from './CreateContractorModal';
 
@@ -126,6 +132,11 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   // Rooms state
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
+  // { room, occupant_count, occupants, message } while the delete confirmation is open.
+  const [deleteRoomPrompt, setDeleteRoomPrompt] = useState(null);
+  // The room we are placing someone into, plus the pool to choose from.
+  const [assignTarget, setAssignTarget] = useState(null);
+  const [unhoused, setUnhoused] = useState([]);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [roomFormData, setRoomFormData] = useState({ ...initialRoomForm });
   const [editingRoomId, setEditingRoomId] = useState(null);
@@ -143,6 +154,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   useEffect(() => {
     if (viewTab === 1 && accommodationId) {
       loadRooms();
+      loadUnhoused();
     }
     if (viewTab === 2 && accommodationId) {
       loadUtilities();
@@ -359,6 +371,20 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
     setRoomFormData({ ...initialRoomForm });
   };
 
+  /**
+   * People already at this accommodation but not yet in a room — the pool the room list
+   * can place. Deliberately NOT every employee: putting someone into a room is a room
+   * assignment, and moving them between sites is a different decision that belongs on
+   * the employee record.
+   */
+  const loadUnhoused = useCallback(async () => {
+    try {
+      const r = await employeesAPI.getAll({ accommodation_id: accommodationId, limit: 500 });
+      const list = r?.data?.employees || r?.data || [];
+      setUnhoused(list.filter((e) => !e.room_id && !e.end_date));
+    } catch { setUnhoused([]); }
+  }, [accommodationId]);
+
   const handleSaveRoom = async () => {
     if (!roomFormData.room_number.toString().trim()) {
       toast.error('Szobaszám megadása kötelező!');
@@ -396,18 +422,67 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
     }
   };
 
-  const handleDeleteRoom = async (roomId) => {
-    if (!window.confirm('Biztosan törölöd ezt a szobát? A lakók szoba-hozzárendelése megszűnik.')) return;
-
+  /**
+   * Delete a room.
+   *
+   * The server refuses with 409 + the occupant list when the room is not empty, rather
+   * than un-rooming people on a click the user thought was tidying up. Only then do we
+   * ask, and the confirmation names the people who would be moved — "3 lakó" is a number,
+   * "Kovács Béla, Nagy Anna, Tóth Pál" is a decision.
+   */
+  const handleDeleteRoom = async (room) => {
     try {
-      const response = await roomsAPI.delete(accommodationId, roomId);
+      const response = await roomsAPI.delete(accommodationId, room.id);
       if (response.success) {
-        toast.success('Szoba deaktiválva!');
+        toast.success(response.message || 'Szoba törölve');
         loadRooms();
       }
     } catch (error) {
+      const d = error.response?.data;
+      if (error.response?.status === 409 && d?.requires_confirmation) {
+        setDeleteRoomPrompt({ room, ...d.data, message: d.message });
+        return;
+      }
       console.error('Szoba törlési hiba:', error);
-      toast.error('Hiba a szoba törlésekor');
+      toast.error(d?.message || 'Hiba a szoba törlésekor');
+    }
+  };
+
+  const confirmDeleteRoom = async () => {
+    const room = deleteRoomPrompt?.room;
+    if (!room) return;
+    try {
+      const response = await roomsAPI.deleteConfirmed(accommodationId, room.id);
+      if (response.success) {
+        toast.success(`${response.message} ${response.data?.unhoused_count || 0} lakó került ki a szobából.`);
+        loadRooms();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Hiba a szoba törlésekor');
+    } finally {
+      setDeleteRoomPrompt(null);
+    }
+  };
+
+  const handleRemoveOccupant = async (roomId, employeeId) => {
+    try {
+      await roomsAPI.removeOccupant(accommodationId, roomId, employeeId);
+      toast.success('Lakó kiköltöztetve a szobából');
+      loadRooms();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Hiba a kiköltöztetéskor');
+    }
+  };
+
+  const handleAssignOccupant = async (roomId, employeeId) => {
+    try {
+      await roomsAPI.assignOccupant(accommodationId, roomId, employeeId);
+      toast.success('Lakó beköltöztetve');
+      setAssignTarget(null);
+      loadRooms();
+      loadUnhoused();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Hiba a beköltöztetéskor');
     }
   };
 
@@ -822,10 +897,29 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                                 <TableCell>{room.occupied_beds}/{room.beds}</TableCell>
                                 <TableCell>{ROOM_TYPE_LABELS[room.room_type] || room.room_type}</TableCell>
                                 <TableCell>
-                                  {room.occupants.length > 0
-                                    ? room.occupants.map(o => o.name).join(', ')
-                                    : <Typography variant="body2" color="text.secondary">-</Typography>
-                                  }
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                                    {room.occupants.map((o) => (
+                                      <Chip
+                                        key={o.id} size="small" label={o.name}
+                                        onDelete={() => handleRemoveOccupant(room.id, o.id)}
+                                        title="Kiköltöztetés ebből a szobából"
+                                      />
+                                    ))}
+                                    {room.occupants.length === 0 && (
+                                      <Typography variant="body2" color="text.secondary">-</Typography>
+                                    )}
+                                    {/* The gap a tester hit: rooms could be created here but
+                                        filled only from the Employees page. */}
+                                    {room.free_beds > 0 && (
+                                      <Button
+                                        size="small" startIcon={<PersonAddIcon />}
+                                        onClick={() => setAssignTarget(room)}
+                                        sx={{ textTransform: 'none', minWidth: 0 }}
+                                      >
+                                        Beköltöztetés
+                                      </Button>
+                                    )}
+                                  </Box>
                                 </TableCell>
                                 <TableCell>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
@@ -849,7 +943,7 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                                   <IconButton size="small" onClick={() => handleEditRoom(room)}>
                                     <EditIcon fontSize="small" />
                                   </IconButton>
-                                  <IconButton size="small" color="error" onClick={() => handleDeleteRoom(room.id)}>
+                                  <IconButton size="small" color="error" onClick={() => handleDeleteRoom(room)}>
                                     <DeleteIcon fontSize="small" />
                                   </IconButton>
                                 </TableCell>
@@ -1016,6 +1110,74 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
           </>
         )}
       </DialogActions>
+
+      {/* Un-rooming people is a housing change that feeds billing and consolidation, so
+          the confirmation names who moves rather than just counting them. */}
+      <Dialog open={!!deleteRoomPrompt} onClose={() => setDeleteRoomPrompt(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon color="warning" /> Szoba törlése
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            A(z) <strong>{deleteRoomPrompt?.room_number}</strong> szobában{' '}
+            <strong>{deleteRoomPrompt?.occupant_count} lakó</strong> van. Törlés esetén kikerülnek
+            a szobából — a szálláshelyen maradnak, de szoba nélkül.
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+            {(deleteRoomPrompt?.occupants || []).map((o) => (
+              <Chip key={o.id} size="small" label={o.name} />
+            ))}
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            A változás bekerül a szállás-előzményekbe.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteRoomPrompt(null)}>Mégse</Button>
+          <Button color="error" variant="contained" onClick={confirmDeleteRoom}>
+            Törlés, {deleteRoomPrompt?.occupant_count} lakó kiköltöztetése
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!assignTarget} onClose={() => setAssignTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Beköltöztetés — {assignTarget?.room_number}. szoba</DialogTitle>
+        <DialogContent>
+          {unhoused.length === 0 ? (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Ezen a szálláshelyen nincs szoba nélküli lakó.
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Sok embert egyszerre a <strong>Szoba-sablon</strong> Excel-importtal lehet
+                elhelyezni (Munkavállalók → Import), egyesével pedig a munkavállaló adatlapján.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Typography variant="caption" color="text.secondary">
+                Szabad ágyak: {assignTarget?.free_beds}. Csak azok szerepelnek, akik már ezen a
+                szálláshelyen vannak, de nincsenek szobában.
+              </Typography>
+              <List dense>
+                {unhoused.map((e) => (
+                  <ListItem key={e.id} disablePadding>
+                    <ListItemButton onClick={() => handleAssignOccupant(assignTarget.id, e.id)}>
+                      <ListItemText
+                        primary={`${e.last_name || ''} ${e.first_name || ''}`.trim()}
+                        secondary={e.employee_number || null}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignTarget(null)}>Bezárás</Button>
+        </DialogActions>
+      </Dialog>
 
       <CreateContractorModal
         open={ownerModalOpen}

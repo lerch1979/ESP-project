@@ -88,5 +88,10 @@ router.get('/:id/rooms', checkPermission('accommodations.view'), roomController.
 router.post('/:id/rooms', checkPermission('accommodations.create'), roomController.createRoom);
 router.put('/:id/rooms/:roomId', checkPermission('accommodations.edit'), roomController.updateRoom);
 router.delete('/:id/rooms/:roomId', checkPermission('accommodations.delete'), roomController.deleteRoom);
+// Beköltöztetés/kiköltöztetés a szobalistából. Gated on employees.edit, not
+// accommodations.edit: this writes employees.room_id and occupancy history, so the
+// permission has to be the one that governs the employee record, not the building.
+router.post('/:id/rooms/:roomId/occupants', checkPermission('employees.edit'), roomController.assignOccupant);
+router.delete('/:id/rooms/:roomId/occupants/:employeeId', checkPermission('employees.edit'), roomController.removeOccupant);
 
 module.exports = router;

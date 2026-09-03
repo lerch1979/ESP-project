@@ -1,4 +1,5 @@
 const { query } = require('../database/connection');
+const { byRoomNumber } = require('../utils/roomOrder');
 const { logger } = require('../utils/logger');
 const { buildFilterWhere, buildDateRangeClause } = require('../utils/filterBuilder');
 const analyticsService = require('../services/analytics.service');
@@ -30,7 +31,12 @@ const getReportFilterOptions = async (req, res) => {
       query(`SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position`),
       query(`SELECT DISTINCT permanent_address_country FROM employees WHERE permanent_address_country IS NOT NULL AND permanent_address_country != '' ORDER BY permanent_address_country`),
       query(`SELECT id, name FROM accommodations WHERE is_active = true ORDER BY name`),
-      query(`SELECT DISTINCT room_number FROM employees WHERE room_number IS NOT NULL AND room_number != '' AND end_date IS NULL ORDER BY room_number`),
+      // GROUP BY, not SELECT DISTINCT: under DISTINCT every ORDER BY expression must
+      // also appear in the select list, and the natural-sort expression does not.
+      query(`SELECT room_number FROM employees
+              WHERE room_number IS NOT NULL AND room_number != '' AND end_date IS NULL
+              GROUP BY room_number
+              ORDER BY ${byRoomNumber('room_number')}`),
       query(`SELECT id, name, slug FROM ticket_statuses ORDER BY order_index`),
       query(`SELECT id, name FROM ticket_categories ORDER BY name`),
       query(`SELECT id, name, slug FROM priorities ORDER BY level`),
