@@ -114,6 +114,17 @@ function leaks(body, foreignIds) {
   return [...set].filter((id) => hay.includes(id));
 }
 
+/**
+ * Multipart upload — the bulk-import endpoints take a real file, so a scenario that
+ * tests them has to send one. Without this the import paths were untestable end-to-end,
+ * which is how a lossy delete+reimport cycle shipped unnoticed.
+ */
+async function upload(p, { token, field = 'file', filename = 'import.xlsx', buffer } = {}) {
+  let req = request(app()).post(`/api/v1${p}`);
+  if (token) req = req.set('Authorization', `Bearer ${token}`);
+  return pack(await req.attach(field, buffer, filename));
+}
+
 module.exports = { app, tokenFor, call, get, post, put, del, patch, rowsOf, leaks,
-  raw, rawGet,
+  raw, rawGet, upload,
 };

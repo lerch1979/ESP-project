@@ -688,6 +688,12 @@ export const employeesAPI = {
     return response.data;
   },
 
+  // confirm=true is required before the server will end-date people who are housed;
+  // the first call answers 409 with the housed list so the UI can ask.
+  bulkDeleteConfirmed: async (data) => {
+    const response = await api.post('/employees/bulk-delete?confirm=true', data);
+    return response.data;
+  },
   bulkDelete: async (data) => {
     const response = await api.post('/employees/bulk-delete', data);
     return response.data;

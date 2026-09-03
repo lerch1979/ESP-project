@@ -356,7 +356,11 @@ class AnalyticsService {
         FROM employees e LEFT JOIN employee_status_types est ON e.status_id = est.id
       `),
       query(`SELECT COALESCE(SUM(capacity), 0) AS total_beds FROM accommodations`),
-      query(`SELECT COUNT(*) AS occupied FROM employees WHERE accommodation_id IS NOT NULL`),
+      // end_date guard is required: bulk-delete no longer blanks accommodation_id (it
+      // destroyed the room link), so "has an accommodation" alone now counts leavers too.
+      query(`SELECT COUNT(*) AS occupied FROM employees
+              WHERE accommodation_id IS NOT NULL
+                AND (end_date IS NULL OR end_date > CURRENT_DATE)`),
       // Expiry horizon — non-overlapping buckets 0–30 / 31–60 / 61–90 days.
       query(`
         SELECT

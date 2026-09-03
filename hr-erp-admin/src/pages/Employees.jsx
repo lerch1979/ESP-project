@@ -11,6 +11,7 @@ import {
   TableRow,
   TablePagination,
   Chip,
+  Alert,
   TextField,
   InputAdornment,
   Button,
@@ -396,6 +397,9 @@ function Employees() {
     }
   };
 
+  // { housed_count, housed[], message } while the housing warning is open.
+  const [housedPrompt, setHousedPrompt] = useState(null);
+
   const handleBulkDelete = async () => {
     setBulkActionLoading(true);
     try {
@@ -409,9 +413,34 @@ function Employees() {
         loadEmployees();
       }
     } catch (error) {
+      const d = error.response?.data;
+      // The server refuses when the selection includes housed people, so the warning
+      // names how many lose their accommodation rather than letting it happen silently.
+      if (error.response?.status === 409 && d?.requires_confirmation) {
+        setHousedPrompt({ ...d.data, message: d.message });
+        setDeleteDialogOpen(false);
+        return;
+      }
       console.error('Tömeges törlési hiba:', error);
-      toast.error('Hiba a tömeges törlés során');
+      toast.error(d?.message || 'Hiba a tömeges törlés során');
     } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const confirmBulkDeleteHoused = async () => {
+    setBulkActionLoading(true);
+    try {
+      const response = await employeesAPI.bulkDeleteConfirmed({ employee_ids: selectedIds });
+      if (response.success) {
+        toast.success(response.message);
+        setSelectedIds([]);
+        loadEmployees();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Hiba a tömeges törlés során');
+    } finally {
+      setHousedPrompt(null);
       setBulkActionLoading(false);
     }
   };
@@ -870,6 +899,40 @@ function Employees() {
         open={emailModalOpen}
         onClose={() => setEmailModalOpen(false)}
       />
+
+      {/* Ending employment is routine; removing 279 people from their accommodation is
+          not. The server refuses the first attempt and hands back who would be affected. */}
+      <Dialog open={!!housedPrompt} onClose={() => setHousedPrompt(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Figyelem — szálláson lévő munkavállalók</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {housedPrompt?.message}
+          </Alert>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Érintettek ({housedPrompt?.housed_count}):
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight: 220, overflowY: 'auto' }}>
+            {(housedPrompt?.housed || []).map((h) => (
+              <Chip key={h.id} size="small" label={h.name} />
+            ))}
+            {housedPrompt?.housed_count > (housedPrompt?.housed || []).length && (
+              <Chip size="small" variant="outlined"
+                    label={`+${housedPrompt.housed_count - housedPrompt.housed.length} további`} />
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+            A szállás- és szobabeosztásuk lezárul az előzményekben. A beosztás adatai
+            megmaradnak, így egy későbbi újraimport visszaállítja őket.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHousedPrompt(null)}>Mégse</Button>
+          <Button color="error" variant="contained" disabled={bulkActionLoading}
+                  onClick={confirmBulkDeleteHoused}>
+            Kiléptetés ({housedPrompt?.housed_count} fő szállásáról is)
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

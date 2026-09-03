@@ -1041,7 +1041,27 @@ const bulkImportEmployees = async (req, res) => {
     }
 
     const imported = [];
+    const updated = [];
     const errors = [];
+
+    // UPSERT is the default. The old behaviour — refuse a duplicate, create nothing —
+    // made "re-import the same roster" impossible, so the only way to refresh people was
+    // bulk-delete then import, and that cycle is what destroyed 279 room links on
+    // 2026-09-03. Pass mode:'insert_only' for the old refuse-on-duplicate behaviour.
+    const insertOnly = req.body?.mode === 'insert_only';
+
+    // Columns the file may legitimately overwrite. Anything NOT listed here — room_id,
+    // shift_schedule, billing_client_id, contractor_id — is assignment state that lives
+    // in the app, not in the HR spreadsheet, and a re-import must never clear it.
+    const UPDATABLE = [
+      'position', 'start_date', 'first_name', 'last_name', 'gender', 'birth_date',
+      'birth_place', 'mothers_name', 'marital_status', 'arrival_date', 'visa_expiry',
+      'room_number', 'workplace', 'permanent_address_zip', 'permanent_address_country',
+      'permanent_address_county', 'permanent_address_city', 'permanent_address_street',
+      'permanent_address_number', 'company_name', 'company_email', 'company_phone',
+      'personal_email', 'personal_phone', 'nationality', 'end_date',
+    ];
+    const ENCRYPTED = ['tax_id', 'passport_number', 'social_security_number', 'bank_account'];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -1071,25 +1091,98 @@ const bulkImportEmployees = async (req, res) => {
       // Get individual client for each row insert
       const client = await pool.connect();
       try {
-        // Duplicate detection: name + birth_date + mothers_name
-        if (row.last_name && row.mothers_name) {
-          const dupCheck = await client.query(
-            `SELECT e.id, e.first_name, e.last_name, e.personal_email
-             FROM employees e
-             WHERE e.end_date IS NULL
-               AND LOWER(e.last_name) = LOWER($1)
-               AND LOWER(COALESCE(e.first_name, '')) = LOWER($2)
-               AND LOWER(COALESCE(e.mothers_name, '')) = LOWER($3)`,
-            [row.last_name, row.first_name || '', row.mothers_name]
+        // ── identity match ────────────────────────────────────────────────────
+        // birth_date + last_name + first_name, with mother's name as a TIEBREAKER when
+        // several people share all three. Two things the old check got wrong:
+        //   • it matched on mother's name INSTEAD of birth date (the comment above it
+        //     claimed birth date; the code never used it), and
+        //   • it was gated on `row.mothers_name`, so a file without that column got no
+        //     duplicate detection at all and every row inserted fresh.
+        // It also only looked at end_date IS NULL, so a delete+reimport reported
+        // "0 errors" while silently duplicating the entire roster.
+        let match = null;
+        if (row.last_name && row.birth_date) {
+          const cand = await client.query(
+            `SELECT id, first_name, last_name, mothers_name, end_date, personal_email
+               FROM employees
+              WHERE birth_date = $1::date
+                AND LOWER(last_name) = LOWER($2)
+                AND LOWER(COALESCE(first_name, '')) = LOWER($3)
+              ORDER BY end_date NULLS FIRST`,
+            [row.birth_date, row.last_name, row.first_name || '']
           );
-          if (dupCheck.rows.length > 0) {
-            const dup = dupCheck.rows[0];
+          let rows2 = cand.rows;
+          if (rows2.length > 1 && row.mothers_name) {
+            const narrowed = rows2.filter(
+              (c) => (c.mothers_name || '').toLowerCase() === String(row.mothers_name).toLowerCase());
+            if (narrowed.length > 0) rows2 = narrowed;
+          }
+          if (rows2.length > 1) {
             errors.push({
               row: rowNum,
-              message: `Duplikált munkavállaló: ${dup.last_name} ${dup.first_name} (${dup.personal_email || 'nincs email'}) már létezik`
+              message: `Nem egyértelmű azonosítás: ${rows2.length} munkavállaló egyezik `
+                     + `(${row.last_name} ${row.first_name || ''}, ${row.birth_date}). `
+                     + 'Adj meg anyja nevét a fájlban a megkülönböztetéshez.',
             });
             continue;
           }
+          match = rows2[0] || null;
+        }
+
+        if (match && insertOnly) {
+          errors.push({
+            row: rowNum,
+            message: `Duplikált munkavállaló: ${match.last_name} ${match.first_name} `
+                   + `(${match.personal_email || 'nincs email'}) már létezik`,
+          });
+          continue;
+        }
+
+        if (match) {
+          // UPDATE IN PLACE. Only columns the file actually supplies are written, so a
+          // partial spreadsheet cannot blank out fields it does not know about, and the
+          // assignment columns (room_id, shift_schedule, billing_client_id,
+          // contractor_id) are never in the list at all.
+          const sets = [];
+          const vals = [];
+          let n = 1;
+          for (const col of UPDATABLE) {
+            if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+              sets.push(`${col} = $${n++}`); vals.push(row[col]);
+            }
+          }
+          for (const col of ENCRYPTED) {
+            if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+              sets.push(`${col} = $${n++}`); vals.push(safeEncrypt(row[col]));
+            }
+          }
+          // A row that appears in the file is on the roster again: clear a previous
+          // termination and restore active status, so delete → re-import round-trips.
+          if (!row.end_date) {
+            sets.push('end_date = NULL');
+            if (activeStatusId) { sets.push(`status_id = $${n++}`); vals.push(activeStatusId); }
+          }
+          // Only move them if the file names an accommodation.
+          if (accommodationId) { sets.push(`accommodation_id = $${n++}`); vals.push(accommodationId); }
+          sets.push('updated_at = CURRENT_TIMESTAMP');
+          vals.push(match.id);
+
+          const upd = await client.query(
+            `UPDATE employees SET ${sets.join(', ')} WHERE id = $${n} RETURNING id, employee_number, room_id, accommodation_id`,
+            vals);
+          const row2 = upd.rows[0];
+
+          if (row2.accommodation_id && !row.end_date) {
+            await accHistory.syncAssignment(client, {
+              employeeId: row2.id,
+              accommodationId: row2.accommodation_id,
+              roomId: row2.room_id,   // preserved, not cleared
+              reason: 'bulk import (frissítés)',
+              changedBy: req.user?.id || null,
+            });
+          }
+          updated.push({ id: row2.id, employee_number: row2.employee_number });
+          continue;
         }
 
         // Auto-generate employee number
@@ -1191,14 +1284,19 @@ const bulkImportEmployees = async (req, res) => {
 
     logger.info('Tömeges munkavallaló import', {
       imported: imported.length,
-      errors: errors.length
+      updated: updated.length,
+      errors: errors.length,
+      mode: insertOnly ? 'insert_only' : 'upsert',
     });
 
     res.json({
       success: true,
-      message: `${imported.length} munkavallaló sikeresen importalva`,
+      message: `${imported.length} új munkavállaló importálva`
+             + (updated.length ? `, ${updated.length} meglévő frissítve` : ''),
       data: {
         imported: imported.length,
+        updated: updated.length,
+        mode: insertOnly ? 'insert_only' : 'upsert',
         errors
       }
     });
@@ -1749,17 +1847,50 @@ const bulkDelete = async (req, res) => {
     const leftStatus = await query("SELECT id FROM employee_status_types WHERE slug = 'left'");
     const leftStatusId = leftStatus.rows.length > 0 ? leftStatus.rows[0].id : null;
 
+    // How many of these people are actually housed? Ending someone's employment is
+    // routine; un-housing 279 people is not, and on 2026-09-03 this endpoint did exactly
+    // that in three clicks with no warning and no history entry.
+    const housed = await query(
+      `SELECT id, CONCAT(last_name, ' ', first_name) AS name, employee_number
+         FROM employees
+        WHERE id = ANY($1) AND end_date IS NULL AND accommodation_id IS NOT NULL
+        ORDER BY last_name, first_name`,
+      [employee_ids]
+    );
+    const confirmed = req.query.confirm === 'true' || req.body?.confirm === true;
+    if (housed.rows.length > 0 && !confirmed) {
+      return res.status(409).json({
+        success: false,
+        requires_confirmation: true,
+        message: `A kijelöltek közül ${housed.rows.length} fő jelenleg szálláson van. `
+               + 'Kiléptetésükkel a szállás- és szobabeosztásuk lezárul. Biztosan folytatod?',
+        data: { housed_count: housed.rows.length, housed: housed.rows.slice(0, 50) },
+      });
+    }
+
+    // accommodation_id and room_id are deliberately KEPT. The end date and the closed
+    // history row are what say "no longer housed"; blanking the columns destroyed the
+    // room link the July linker had established and made a delete+reimport cycle lossy.
+    // Occupancy reads filter on end_date, and the history row below is the record.
     const result = await query(
       `UPDATE employees
        SET end_date = CURRENT_DATE,
-           accommodation_id = NULL,
-           room_id = NULL,
            status_id = COALESCE($1, status_id),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ANY($2) AND end_date IS NULL
        RETURNING id`,
       [leftStatusId, employee_ids]
     );
+
+    // Close the occupancy history. Without this the row stays OPEN forever: the roster
+    // says the person left while history still says they are housed — 566 such rows had
+    // accumulated by 2026-09-03.
+    for (const row of result.rows) {
+      await accHistory.syncAssignmentSafe({
+        employeeId: row.id, accommodationId: null, roomId: null,
+        reason: 'bulk delete', changedBy: req.user?.id || null,
+      });
+    }
 
     // Log one entry per employee
     for (const row of result.rows) {
