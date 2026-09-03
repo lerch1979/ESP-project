@@ -33,6 +33,19 @@ const BASES = ['per_person', 'flat', 'per_bed_night'];
 const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
 
 /**
+ * "…or one of this record's activity notes matches" — as an EXISTS, not a JOIN.
+ *
+ * A join against partner_activities would multiply the result row per matching note and
+ * need a DISTINCT, which then fights the ORDER BY. EXISTS also stops at the first hit.
+ * `$${i}` is the SAME placeholder the caller already bound for the name match, so the
+ * pattern is bound once.
+ */
+const activityMatch = (idCol, partyCol, i) =>
+  `EXISTS (SELECT 1 FROM partner_activities xa
+            WHERE xa.${partyCol} = ${idCol}
+              AND (xa.body ILIKE $${i} OR xa.subject ILIKE $${i}))`;
+
+/**
  * May this caller see every sales record, or only their own?
  *
  * `sales.all.view` (mig 151) is the manager grant. Superadmin bypasses as it does
@@ -61,6 +74,21 @@ function scopeClause(req, alias, recordType, startIndex) {
   };
 }
 
+const RECORD_TABLE = { lead: 'partner_leads', opportunity: 'opportunities', quote: 'quotes' };
+
+/**
+ * May this caller see this sales record at all?
+ *
+ * Exported because partner.service needs it: activities can hang off a lead or an
+ * opportunity, and those rows are scoped by owner_user_id + shares, not by the tenant
+ * predicate. Without this the activity routes were a way around sales row visibility.
+ */
+async function canSeeRecord(req, recordType, id) {
+  const table = RECORD_TABLE[recordType];
+  if (!table || !id) return false;
+  return !!(await fetchScoped(req, table, 'r', recordType, id));
+}
+
 /** Fetch one row and refuse it if the caller cannot see it — 404, never 403. */
 async function fetchScoped(req, table, alias, recordType, id) {
   const sc = scopeClause(req, alias, recordType, 2);
@@ -80,7 +108,14 @@ async function listLeads(req, filters = {}) {
   where.push(sc.sql); params.push(...sc.params); i = sc.nextIndex;
 
   if (filters.status) { params.push(filters.status); where.push(`l.status = $${i++}`); }
-  if (filters.q) { params.push(`%${filters.q}%`); where.push(`l.name ILIKE $${i++}`); }
+  // `q` searches the NOTES as well as the name. The thing you remember about a prospect
+  // three weeks later is usually something that was said on a call ("they wanted Győr"),
+  // not the exact company name — and that text was previously write-only.
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(l.name ILIKE $${i} OR l.notes ILIKE $${i} OR ${activityMatch('l.id', 'lead_id', i)})`);
+    i += 1;
+  }
 
   const r = await query(
     `SELECT l.*, c.name AS converted_contractor_name,
@@ -201,6 +236,16 @@ async function listOpportunities(req, filters = {}) {
   if (filters.lead_id) { params.push(filters.lead_id); where.push(`o.lead_id = $${i++}`); }
   if (filters.contractor_id) { params.push(filters.contractor_id); where.push(`o.contractor_id = $${i++}`); }
   if (filters.open_only === 'true') where.push(`o.stage NOT IN ('won','lost')`);
+  // Same note search as leads, plus the party name — on the pipeline you look for
+  // "that Győr deal" without remembering which lead or client it sits under.
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(o.title ILIKE $${i}
+                 OR EXISTS (SELECT 1 FROM partner_leads xl WHERE xl.id = o.lead_id       AND xl.name ILIKE $${i})
+                 OR EXISTS (SELECT 1 FROM contractors   xc WHERE xc.id = o.contractor_id AND xc.name ILIKE $${i})
+                 OR ${activityMatch('o.id', 'opportunity_id', i)})`);
+    i += 1;
+  }
 
   const r = await query(
     `SELECT o.*, l.name AS lead_name, c.name AS contractor_name,
@@ -599,6 +644,7 @@ module.exports = {
   listLeads, saveLead, convertLead,
   listOpportunities, saveOpportunity, pipelineBoard,
   listQuotes, getQuote, saveQuote, sendQuote, acceptQuote, rejectQuote,
+  canSeeRecord,
   shareQuote, revokeQuoteShare, publicQuoteByToken, quoteForDocument,
   _internals: { scopeClause, canSeeAll, lineNet, recomputeTotals },
 };

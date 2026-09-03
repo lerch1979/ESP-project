@@ -2,17 +2,30 @@
  * Partner module — contacts + contracts.
  *
  * Everything here hangs off a "party": exactly one of contractor / accommodation /
- * lead (lead arrives in Phase 3). `resolveParty` is the single place that reads a
- * party out of a request, so no controller invents its own convention.
+ * lead / opportunity (the last two are the sales pipeline, mig 150/152). `resolveParty`
+ * is the single place that reads a party out of a request, so no controller invents its
+ * own convention.
  *
- * Tenant scope reuses `utils/tenantScope` rather than growing a private copy — the
+ * TWO SCOPING RULES, NOT ONE
+ * -------------------------
+ * Contractor- and accommodation-parties are scoped by TENANT (`utils/tenantScope`) — the
  * owning contractor of an accommodation-party row is the accommodation's
  * current_contractor_id, the same rule compensations use.
+ *
+ * Lead- and opportunity-parties are NOT. Sales rows carry ROW-level visibility
+ * (owner_user_id + explicit shares in sales_record_shares) and have no owning contractor
+ * at all before conversion. Running them through the tenant predicate resolved their
+ * owner to NULL, and `ownsRow(scope, null)` is true by design (global content is shared)
+ * — so every lead activity was visible and writable by any authenticated caller,
+ * bypassing the sales row scoping completely. That is inert today, because everyone with
+ * the routes also holds `sales.all.view`, but it is exactly the hole Phase 4 opens on
+ * external agents. `assertPartyInScope` therefore delegates sales parties to
+ * sales.service, which owns that rule.
  */
 const { query, transaction } = require('../database/connection');
 const { scopeOf, ownsRow } = require('../utils/tenantScope');
 
-const PARTY_KEYS = ['contractor_id', 'accommodation_id', 'lead_id'];
+const PARTY_KEYS = ['contractor_id', 'accommodation_id', 'lead_id', 'opportunity_id'];
 const VALID_ROLES = ['megbizo', 'szallasado', 'alvallalkozo'];
 const VALID_STATUSES = ['draft', 'active', 'expired', 'terminated'];
 const VALID_RENEWAL = ['none', 'auto', 'option'];
@@ -45,18 +58,39 @@ function resolveParty(src, { allowLeasePair = false } = {}) {
   return { key: present[0], id: src[present[0]] };
 }
 
-/** The contractor that owns a party, for tenant scoping. */
-async function ownerContractorOf({ contractor_id, accommodation_id }) {
+/**
+ * The contractor a party belongs to — used for tenant scoping AND to attach the
+ * generated follow-up task to the right partner.
+ *
+ * Returns null for a lead, and for an opportunity that still hangs off a lead: before
+ * conversion there IS no contractor. Callers must not read that null as "everyone may
+ * see it" — see assertPartyInScope.
+ */
+async function ownerContractorOf({ contractor_id, accommodation_id, opportunity_id }) {
   if (contractor_id) return contractor_id;
   if (accommodation_id) {
     const r = await query('SELECT current_contractor_id FROM accommodations WHERE id = $1', [accommodation_id]);
     if (r.rows.length === 0) throw new PartnerError('Szálláshely nem található', 404);
     return r.rows[0].current_contractor_id;
   }
-  return null; // lead — Phase 3
+  if (opportunity_id) {
+    const r = await query('SELECT contractor_id FROM opportunities WHERE id = $1', [opportunity_id]);
+    if (r.rows.length === 0) throw new PartnerError('Lehetőség nem található', 404);
+    return r.rows[0].contractor_id; // null while the opportunity is still on a lead
+  }
+  return null; // lead — no contractor until conversion
 }
 
 async function assertPartyInScope(req, party) {
+  // Sales parties answer to row-level visibility, not the tenant predicate. Required
+  // lazily so the two services stay independently requireable.
+  if (party.lead_id || party.opportunity_id) {
+    const sales = require('./sales.service');
+    const type = party.lead_id ? 'lead' : 'opportunity';
+    const ok = await sales.canSeeRecord(req, type, party.lead_id || party.opportunity_id);
+    if (!ok) throw new PartnerError('Nem található', 404);
+    return;
+  }
   const owner = await ownerContractorOf(party);
   if (!ownsRow(scopeOf(req), owner)) throw new PartnerError('Nem található', 404);
 }
@@ -384,13 +418,19 @@ async function listActivities(req, filters = {}) {
   const party = resolveParty(filters);
   await assertPartyInScope(req, { [party.key]: party.id });
   const r = await query(
+    // created_by has been stored since mig 145 but was never resolved to a name, so the
+    // timeline could not answer "who took this call" — the first thing you need before
+    // ringing a prospect back.
     `SELECT pa.*,
             pc.name AS contact_name,
+            TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) AS author_name,
+            u.email AS author_email,
             t.status   AS follow_up_status,
             t.due_date AS follow_up_due_date,
             t.title    AS follow_up_title
        FROM partner_activities pa
        LEFT JOIN partner_contacts pc ON pc.id = pa.contact_id
+       LEFT JOIN users u             ON u.id  = pa.created_by
        LEFT JOIN tasks t             ON t.id  = pa.follow_up_task_id
       WHERE pa.${party.key} = $1
       ORDER BY pa.occurred_at DESC, pa.created_at DESC
@@ -414,12 +454,31 @@ async function createActivity(req, body) {
 
   const kind = body.kind || 'note';
   if (!VALID_KINDS.includes(kind)) throw new PartnerError(`kind: ${VALID_KINDS.join(' | ')}`);
-  if (!body.subject && !body.body) throw new PartnerError('Tárgy vagy leírás megadása kötelező');
+  // Trim before the emptiness check: the quick-capture box sends `body` alone, and a
+  // whitespace-only string is truthy — it would create a note with nothing in it that
+  // still occupies a slot in the timeline.
+  const subject = body.subject == null ? null : String(body.subject).trim() || null;
+  const text = body.body == null ? null : String(body.body).trim() || null;
+  if (!subject && !text) throw new PartnerError('Tárgy vagy leírás megadása kötelező');
 
   if (body.contact_id) {
-    const c = await query(`SELECT ${party.key} AS owner FROM partner_contacts WHERE id = $1`, [body.contact_id]);
-    if (c.rows.length === 0 || c.rows[0].owner !== party.id) {
-      throw new PartnerError('A kapcsolattartó nem ehhez a félhez tartozik');
+    // An opportunity has no contacts of its own — `partner_contacts` has no
+    // opportunity_id column, and shouldn't: you talk to the PROSPECT'S people about a
+    // deal. So the contact must belong to whichever party the opportunity hangs off.
+    if (party.key === 'opportunity_id') {
+      const ok = await query(
+        `SELECT 1 FROM partner_contacts pc
+           JOIN opportunities o ON o.id = $2
+          WHERE pc.id = $1
+            AND ((o.lead_id       IS NOT NULL AND pc.lead_id       = o.lead_id)
+              OR (o.contractor_id IS NOT NULL AND pc.contractor_id = o.contractor_id))`,
+        [body.contact_id, party.id]);
+      if (ok.rows.length === 0) throw new PartnerError('A kapcsolattartó nem ehhez a félhez tartozik');
+    } else {
+      const c = await query(`SELECT ${party.key} AS owner FROM partner_contacts WHERE id = $1`, [body.contact_id]);
+      if (c.rows.length === 0 || c.rows[0].owner !== party.id) {
+        throw new PartnerError('A kapcsolattartó nem ehhez a félhez tartozik');
+      }
     }
   }
 
@@ -431,7 +490,7 @@ async function createActivity(req, body) {
     if (body.follow_up_at) {
       const partyName = await partyLabel(client, party);
       const title = body.follow_up_title
-        || `Utánkövetés — ${partyName}${body.subject ? `: ${body.subject}` : ''}`;
+        || `Utánkövetés — ${partyName}${subject ? `: ${subject}` : ''}`;
 
       // Reuse the ordinary standalone-task shape so the follow-up shows up in the
       // Kanban/GTD views staff already use, with the partner it is about attached.
@@ -443,7 +502,7 @@ async function createActivity(req, body) {
          RETURNING id`,
         [
           title,
-          body.body || null,
+          text,
           body.follow_up_priority || 'medium',
           body.follow_up_assigned_to || req.user?.id || null,
           body.follow_up_at,
@@ -464,7 +523,7 @@ async function createActivity(req, body) {
        RETURNING *`,
       [
         party.id, body.contact_id || null, kind, body.occurred_at || null,
-        body.subject || null, body.body || null,
+        subject, text,
         body.follow_up_at || null, followUpTaskId, req.user?.id || null,
       ],
     );
@@ -481,6 +540,23 @@ async function partyLabel(client, party) {
   if (party.key === 'accommodation_id') {
     const r = await client.query('SELECT name FROM accommodations WHERE id = $1', [party.id]);
     return r.rows[0]?.name || 'Szálláshely';
+  }
+  if (party.key === 'opportunity_id') {
+    // Name the opportunity AND the prospect: "Utánkövetés — 40 fő Győr" alone is
+    // ambiguous in a task list that mixes deals from several partners.
+    const r = await client.query(
+      `SELECT o.title, COALESCE(c.name, l.name) AS party_name
+         FROM opportunities o
+         LEFT JOIN contractors   c ON c.id = o.contractor_id
+         LEFT JOIN partner_leads l ON l.id = o.lead_id
+        WHERE o.id = $1`, [party.id]);
+    const row = r.rows[0];
+    if (!row) return 'Lehetőség';
+    return row.party_name ? `${row.party_name} / ${row.title}` : row.title;
+  }
+  if (party.key === 'lead_id') {
+    const r = await client.query('SELECT name FROM partner_leads WHERE id = $1', [party.id]);
+    return r.rows[0]?.name || 'Érdeklődő';
   }
   return 'Érdeklődő';
 }

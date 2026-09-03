@@ -4,15 +4,15 @@ import {
   Box, Paper, Typography, Tabs, Tab, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, CircularProgress, Alert, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Grid, Stack, IconButton,
-  FormControlLabel, Switch, Divider, List, ListItem,
+  FormControlLabel, Switch, Divider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import EventIcon from '@mui/icons-material/Event';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import api from '../services/api';
+import ActivityPanel from '../components/ActivityPanel';
 
 /**
  * Partner detail — one page for everything about a partner.
@@ -24,8 +24,14 @@ import api from '../services/api';
  *
  * Aktivitás (mig 145) is a real timeline. A follow-up date on an entry creates an
  * actual `tasks` row server-side, so the reminder lands in the Kanban/GTD views staff
- * already use — the chip here shows that task's LIVE status, not just the date we
+ * already use — the chip there shows that task's LIVE status, not just the date we
  * promised.
+ *
+ * Capture itself lives in the shared <ActivityPanel>, an always-open box rather than the
+ * "Új bejegyzés" dialog this tab used to open. Same component as the lead and
+ * opportunity drawers on the sales pipeline, so the capture flow is fixed in one place.
+ * The edit dialog stays — editing an existing entry is rare and deliberate, and unlike
+ * capture it must NOT be one keystroke away.
  */
 
 const ROLE_LABEL = { megbizo: 'Megbízó', szallasado: 'Szállásadó', alvallalkozo: 'Alvállalkozó' };
@@ -65,7 +71,6 @@ export default function PartnerDetail() {
 
   const [activities, setActivities] = useState([]);
   const [contactDialog, setContactDialog] = useState(null);
-  const [activityDialog, setActivityDialog] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,19 +126,6 @@ export default function PartnerDetail() {
     if (form.id) await api.put(`/partners/contacts/${form.id}`, payload);
     else await api.post('/partners/contacts', payload);
     setContactDialog(null);
-    load();
-  };
-
-  const saveActivity = async (form) => {
-    const payload = { ...form, contractor_id: id };
-    if (form.id) await api.put(`/partners/activities/${form.id}`, payload);
-    else await api.post('/partners/activities', payload);
-    setActivityDialog(null);
-    load();
-  };
-
-  const removeActivity = async (aid) => {
-    await api.delete(`/partners/activities/${aid}`);
     load();
   };
 
@@ -316,51 +308,13 @@ export default function PartnerDetail() {
 
       {/* ── Aktivitás ── */}
       {activeTab === 4 && (
-        <Paper>
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button startIcon={<AddIcon />} variant="contained"
-                    onClick={() => setActivityDialog({ kind: 'note' })}>
-              Új bejegyzés
-            </Button>
-          </Box>
-          {activities.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-              Még nincs rögzített aktivitás ennél a partnernél.
-            </Typography>
-          ) : (
-            <List dense sx={{ px: 2, pb: 2 }}>
-              {activities.map((a) => (
-                <ListItem key={a.id} alignItems="flex-start" divider
-                          sx={{ display: 'block', py: 1.5 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                    <Chip size="small" label={KIND_LABEL[a.kind] || a.kind} variant="outlined" />
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{a.subject || '—'}</Typography>
-                    <Box sx={{ flex: 1 }} />
-                    <Typography variant="caption" color="text.secondary">{fmtDateTime(a.occurred_at)}</Typography>
-                  </Stack>
-                  {a.contact_name && (
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Kapcsolattartó: {a.contact_name}
-                    </Typography>
-                  )}
-                  {a.body && <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{a.body}</Typography>}
-                  {a.follow_up_at && (
-                    // The follow-up is a real task; show its live status rather than
-                    // just the date we promised.
-                    <Chip
-                      size="small" sx={{ mt: 1 }} icon={<EventIcon />}
-                      color={a.follow_up_status === 'done' ? 'success' : 'warning'}
-                      label={`Utánkövetés: ${fmtDate(a.follow_up_at)}${a.follow_up_status === 'done' ? ' — kész' : ' — nyitott'}`}
-                    />
-                  )}
-                  <Box sx={{ mt: 0.5 }}>
-                    <IconButton size="small" onClick={() => setActivityDialog(a)}><EditIcon fontSize="small" /></IconButton>
-                    <IconButton size="small" onClick={() => removeActivity(a.id)}><DeleteIcon fontSize="small" /></IconButton>
-                  </Box>
-                </ListItem>
-              ))}
-            </List>
-          )}
+        <Paper sx={{ p: 2 }}>
+          <ActivityPanel
+            party={{ contractor_id: id }}
+            contacts={contacts}
+            title="Előzmények"
+            onChanged={load}
+          />
         </Paper>
       )}
 
@@ -428,12 +382,6 @@ export default function PartnerDetail() {
         onClose={() => setContactDialog(null)}
         onSave={saveContact}
       />
-      <ActivityDialog
-        value={activityDialog}
-        contacts={contacts}
-        onClose={() => setActivityDialog(null)}
-        onSave={saveActivity}
-      />
     </Box>
   );
 }
@@ -484,66 +432,3 @@ function ContactDialog({ value, onClose, onSave }) {
   );
 }
 
-function ActivityDialog({ value, contacts, onClose, onSave }) {
-  const [form, setForm] = useState({});
-  const [err, setErr] = useState(null);
-  useEffect(() => { setForm(value || {}); setErr(null); }, [value]);
-  if (!value) return null;
-
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-
-  const submit = async () => {
-    try { await onSave(form); } catch (e) { setErr(e.response?.data?.message || 'Mentés sikertelen'); }
-  };
-
-  return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{form.id ? 'Bejegyzés szerkesztése' : 'Új aktivitás'}</DialogTitle>
-      <DialogContent>
-        {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
-        <Grid container spacing={2} sx={{ mt: 0 }}>
-          <Grid item xs={12} md={6}>
-            <TextField select fullWidth label="Típus" value={form.kind || 'note'} onChange={set('kind')}>
-              {Object.entries(KIND_LABEL).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
-            </TextField>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField select fullWidth label="Kapcsolattartó" value={form.contact_id || ''} onChange={set('contact_id')}>
-              <MenuItem value="">—</MenuItem>
-              {(contacts || []).map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-            </TextField>
-          </Grid>
-          <Grid item xs={12}><TextField fullWidth label="Tárgy" value={form.subject || ''} onChange={set('subject')} /></Grid>
-          <Grid item xs={12}>
-            <TextField fullWidth multiline rows={4} label="Leírás" value={form.body || ''} onChange={set('body')} />
-          </Grid>
-
-          {/* Only on create: the follow-up writes a task, and editing an activity must
-              not silently spawn a second one. */}
-          {!form.id && (
-            <>
-              <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth type="datetime-local" label="Utánkövetés" InputLabelProps={{ shrink: true }}
-                  value={form.follow_up_at || ''} onChange={set('follow_up_at')}
-                  helperText="Feladatot hoz létre a Teendők között"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField select fullWidth label="Prioritás" value={form.follow_up_priority || 'medium'}
-                           onChange={set('follow_up_priority')} disabled={!form.follow_up_at}>
-                  {['low', 'medium', 'high'].map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-                </TextField>
-              </Grid>
-            </>
-          )}
-        </Grid>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Mégse</Button>
-        <Button variant="contained" onClick={submit}>Mentés</Button>
-      </DialogActions>
-    </Dialog>
-  );
-}

@@ -6,6 +6,80 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-03 (2) — gyors jegyzetelés a sales modulban (mig 152) · SANDBOX, nem deployolt
+
+Small UX round: capture a call in ~20 seconds without navigating away. `partner_activities`
+already existed (mig 145), so most of this is placement — plus one real hole the placement
+work walked straight into.
+
+### A security hole, found by putting the box where it was asked for
+
+`/partners/activities` resolved a LEAD party's owning contractor to NULL, and
+`ownsRow(scope, null)` is TRUE by design — that is the deliberate "globally-authored
+content stays visible" rule from `utils/tenantScope`. Applied to a sales row it meant any
+caller holding `settings.view` could **read, write and delete the notes on any lead**,
+straight past the `owner_user_id` + `sales_record_shares` scoping that the whole Phase 3
+design rests on.
+
+It is inert on today's production, because everyone who can reach the route also holds
+`sales.all.view`. It would stop being inert the moment Phase 4 puts external agents on
+these routes — which is precisely the migration the row scoping was built early to avoid.
+
+The fix: `assertPartyInScope` now delegates lead- and opportunity-parties to
+`sales.canSeeRecord`, which composes the same `scopeClause` every other sales read uses.
+Contractor and accommodation parties keep the tenant predicate. Two scoping rules, each
+named, in the one place that decides.
+
+**The counterfactual was measured, not assumed.** With the fix reverted, ACT-04 reports
+`read: 200 · write: 201 · opp_read: 200` for a `data_controller` (settings.view +
+settings.edit, zero sales permissions). ACT-06 independently caught the same leak by
+counting 4 timeline entries where 3 were written — the outsider's illegitimate note.
+
+### What was built
+
+- **mig 152** — `partner_activities.opportunity_id` joins the party set (CHECK stays
+  "exactly one"). The unit a salesperson works is the deal, not the company; filing a
+  call under the lead makes it correct but unfindable when a prospect has two deals.
+  Plus pg_trgm indexes, because searching note text is an unanchored ILIKE that no
+  B-tree can serve.
+- **`<ActivityPanel>`** — one component, four parties, used by the partner Aktivitás tab
+  and by both sales drawers. Always-open box, type as one-click ToggleButtons, Ctrl+Enter
+  saves. The old "Új bejegyzés" dialog is gone from the capture path; the EDIT dialog
+  moved into the panel so all three surfaces correct entries identically.
+- **Notes drawer** on the leads list and the pipeline cards. A drawer, not a route: the
+  point is to jot something between hanging up and the next call without losing the list.
+- **Author on the timeline** — `created_by` had been stored since mig 145 and never
+  resolved to a name, so it could not answer "who took this call".
+- **Search** — `q` on leads and (newly) on opportunities matches note text via an EXISTS,
+  not a JOIN: a join multiplies rows per matching note and then needs a DISTINCT that
+  fights the ORDER BY.
+
+### Two smaller things fixed on the way
+
+- `createActivity` did not trim, so a whitespace-only body was truthy and created an
+  empty timeline row. The quick box sends `body` alone, which made this reachable in one
+  keystroke (ACT-08).
+- The full-page spinner was gated on `loading` alone; with a debounced search that
+  unmounts the search box after the first keystroke and drops focus. Now only the first
+  load blanks the page.
+
+### State
+
+FUNCTEST **156 passed / 0 failed** (was 148), new ACTIVITY area with 8 cases. Admin build
+clean. Migration 152 applied to sandbox only.
+
+Resident i18n guard not run — deliberately: this round touches admin-only screens and no
+resident-visible enum, which is the guard's stated trigger.
+
+### Next
+
+- Deploy is NOT done: push → CI → pull && up -d → mig 152 via the runner, on approval.
+- Phase 4: external agent enablement, still gated on the Phase 0 security work. ACT-04 is
+  now a standing regression test for one of its preconditions.
+- Unify the three share mechanisms (tech-debt row) — same round as Phase 4.
+
+---
+
 ## SESSION 2026-09-03 — Phase 3: the sales pipeline (leads → opportunities → quotes), deployed
 
 Built autonomously overnight to a written brief, then reviewed and deployed. migs 150–151.

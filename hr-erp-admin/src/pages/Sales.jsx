@@ -4,7 +4,7 @@ import {
   Box, Paper, Typography, Tabs, Tab, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, CircularProgress, Alert, TextField, MenuItem,
   Stack, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Grid, Divider,
-  Tooltip,
+  Tooltip, Drawer, InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -12,8 +12,12 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import LinkIcon from '@mui/icons-material/Link';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import ForumIcon from '@mui/icons-material/Forum';
 import { toast } from 'react-toastify';
-import { salesAPI, accommodationsAPI } from '../services/api';
+import api, { salesAPI, accommodationsAPI } from '../services/api';
+import ActivityPanel from '../components/ActivityPanel';
 
 /**
  * Üzletfejlesztés — the sales pipeline.
@@ -24,6 +28,13 @@ import { salesAPI, accommodationsAPI } from '../services/api';
  * The quote builder mirrors `client_night_rates` field-for-field, because accepting a
  * quote materialises exactly one rate row per line. Anything the form lets you enter
  * that the rate table cannot hold would be a promise the billing engine can't keep.
+ *
+ * NOTES OPEN IN A DRAWER, NOT A PAGE
+ * ---------------------------------
+ * The pipeline has no per-record route, and adding one for note-taking would be the
+ * wrong trade: the point is to jot something down between hanging up and the next call,
+ * without losing the list you were working through. A drawer keeps the list mounted and
+ * behind, so closing it returns you exactly where you were — no reload, no scroll loss.
  */
 
 const STAGES = ['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
@@ -68,20 +79,32 @@ export default function Sales() {
   const [oppDialog, setOppDialog] = useState(null);
   const [quoteDialog, setQuoteDialog] = useState(null);
   const [convertDialog, setConvertDialog] = useState(null);
+  // { type: 'lead' | 'opportunity', row } — the notes drawer.
+  const [notes, setNotes] = useState(null);
+
+  // `q` searches names AND the activity notes server-side (mig 152). Typed into
+  // `qInput`, debounced into `q` so a five-letter search is one request, not five.
+  const [qInput, setQInput] = useState('');
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setQ(qInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [qInput]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
+    const params = q ? { q } : {};
     try {
-      const [l, b, o, q] = await Promise.all([
-        salesAPI.listLeads({}), salesAPI.board(),
-        salesAPI.listOpportunities({}), salesAPI.listQuotes({}),
+      const [l, b, o, qq] = await Promise.all([
+        salesAPI.listLeads(params), salesAPI.board(),
+        salesAPI.listOpportunities(params), salesAPI.listQuotes({}),
       ]);
       setLeads(l?.data || []); setBoard(b?.data || []);
-      setOpps(o?.data || []); setQuotes(q?.data || []);
+      setOpps(o?.data || []); setQuotes(qq?.data || []);
     } catch (e) {
       setError(e.response?.data?.message || 'Nem sikerült betölteni az értékesítési adatokat');
     } finally { setLoading(false); }
-  }, []);
+  }, [q]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -101,7 +124,11 @@ export default function Sales() {
     catch (e) { toast.error(e.response?.data?.message || 'A művelet nem sikerült'); }
   };
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+  // Only the FIRST load blanks the page. A search-triggered reload must not unmount
+  // the search box — that drops focus after the first keystroke and makes it unusable.
+  if (loading && leads.length === 0 && opps.length === 0 && quotes.length === 0 && !q) {
+    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+  }
 
   return (
     <Box>
@@ -124,7 +151,21 @@ export default function Sales() {
       {/* ── ÉRDEKLŐDŐK ── */}
       {tabIdx === 0 && (
         <Paper>
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Box sx={{ p: 2, display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextField
+            size="small" placeholder="Keresés névben és jegyzetekben…"
+            value={qInput} onChange={(e) => setQInput(e.target.value)}
+            sx={{ minWidth: 300 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: qInput
+                ? <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setQInput('')}><CloseIcon fontSize="small" /></IconButton>
+                  </InputAdornment>
+                : null,
+            }}
+          />
+            <Box sx={{ flex: 1 }} />
             <Button startIcon={<AddIcon />} variant="contained" onClick={() => setLeadDialog({ status: 'new' })}>
               Új érdeklődő
             </Button>
@@ -149,7 +190,10 @@ export default function Sales() {
                 {leads.map((l) => (
                   <TableRow key={l.id} hover>
                     <TableCell>
-                      {l.name}
+                      <Box component="span" sx={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+                           onClick={() => setNotes({ type: 'lead', row: l })}>
+                        {l.name}
+                      </Box>
                       {l.converted_contractor_name && (
                         <Typography variant="caption" display="block" color="success.main">
                           → {l.converted_contractor_name}
@@ -166,6 +210,13 @@ export default function Sales() {
                     </TableCell>
                     <TableCell>{l.owner_name || '—'}</TableCell>
                     <TableCell align="right">
+                      {/* Reading the history stays available on a converted lead — that
+                          is precisely when you want to know what was promised. */}
+                      <Tooltip title="Jegyzetek / aktivitás">
+                        <IconButton size="small" onClick={() => setNotes({ type: 'lead', row: l })}>
+                          <ForumIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       {l.status !== 'converted' && (
                         <>
                           <Tooltip title="Szerkesztés">
@@ -188,7 +239,21 @@ export default function Sales() {
       {/* ── PIPELINE (kanban) ── */}
       {tabIdx === 1 && (
         <>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+          <TextField
+            size="small" placeholder="Keresés névben és jegyzetekben…"
+            value={qInput} onChange={(e) => setQInput(e.target.value)}
+            sx={{ minWidth: 300 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+              endAdornment: qInput
+                ? <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setQInput('')}><CloseIcon fontSize="small" /></IconButton>
+                  </InputAdornment>
+                : null,
+            }}
+          />
+            <Box sx={{ flex: 1 }} />
             <Button startIcon={<AddIcon />} variant="contained" onClick={() => setOppDialog({ stage: 'new' })}>
               Új lehetőség
             </Button>
@@ -223,9 +288,20 @@ export default function Sales() {
                           zárás: {fmtDate(o.expected_close_date)}
                         </Typography>
                       )}
-                      {Number(o.quote_count) > 0 && (
-                        <Chip size="small" sx={{ mt: 0.5 }} label={`${o.quote_count} ajánlat`} variant="outlined" />
-                      )}
+                      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
+                        {Number(o.quote_count) > 0 && (
+                          <Chip size="small" label={`${o.quote_count} ajánlat`} variant="outlined" />
+                        )}
+                        <Box sx={{ flex: 1 }} />
+                        <Tooltip title="Jegyzetek / aktivitás">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setNotes({ type: 'opportunity', row: o }); }}
+                          >
+                            <ForumIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
                     </Paper>
                   ))}
                   {items.length === 0 && (
@@ -333,6 +409,8 @@ export default function Sales() {
         </Paper>
       )}
 
+      <NotesDrawer value={notes} onClose={() => setNotes(null)} onChanged={load} />
+
       <LeadDialog value={leadDialog} onClose={() => setLeadDialog(null)}
                   onSave={(f) => run(() => (f.id ? salesAPI.updateLead(f.id, f) : salesAPI.createLead(f)), 'Mentve')
                     .then(() => setLeadDialog(null))} />
@@ -347,6 +425,87 @@ export default function Sales() {
                    onSave={(f) => run(() => salesAPI.createQuote(f), 'Ajánlat létrehozva')
                      .then(() => setQuoteDialog(null))} />
     </Box>
+  );
+}
+
+/**
+ * The notes drawer — one component for both leads and opportunities.
+ *
+ * It carries a short factual header (who / what stage / how much) because the whole
+ * point is to read it in the two seconds before the phone connects, and then the shared
+ * ActivityPanel. The party key is what differs, and the panel takes it as data.
+ */
+function NotesDrawer({ value, onClose, onChanged }) {
+  const [contacts, setContacts] = useState([]);
+  const row = value?.row;
+  const isLead = value?.type === 'lead';
+
+  useEffect(() => {
+    if (!row) { setContacts([]); return; }
+    // An opportunity has no contacts of its own — you talk to the prospect's or the
+    // client's people about a deal, so the list comes from whichever party it hangs off.
+    const params = isLead
+      ? { lead_id: row.id }
+      : (row.lead_id ? { lead_id: row.lead_id } : { contractor_id: row.contractor_id });
+    if (!Object.values(params)[0]) { setContacts([]); return; }
+    api.get('/partners/contacts', { params })
+      .then((r) => setContacts(r.data?.data || []))
+      .catch(() => setContacts([]));
+  }, [row, isLead]);
+
+  if (!value) return null;
+  const party = isLead ? { lead_id: row.id } : { opportunity_id: row.id };
+
+  return (
+    <Drawer anchor="right" open onClose={onClose}
+            PaperProps={{ sx: { width: { xs: '100%', sm: 520 }, p: 2.5 } }}>
+      <Stack direction="row" alignItems="flex-start" sx={{ mb: 1 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="overline" color="text.secondary">
+            {isLead ? 'Érdeklődő' : 'Lehetőség'}
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
+            {isLead ? row.name : row.title}
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} flexWrap="wrap" useFlexGap>
+            {isLead ? (
+              <>
+                <Chip size="small" variant="outlined"
+                      label={LEAD_STATUS_HU[row.status] || row.status} />
+                {row.source && <Chip size="small" variant="outlined" label={row.source} />}
+                {row.expected_headcount != null && (
+                  <Chip size="small" variant="outlined" label={`${row.expected_headcount} fő`} />
+                )}
+              </>
+            ) : (
+              <>
+                <Chip size="small" variant="outlined" color={STAGE_COLOR[row.stage] || 'default'}
+                      label={STAGE_HU[row.stage] || row.stage} />
+                <Chip size="small" variant="outlined"
+                      label={row.lead_name || row.contractor_name || '—'} />
+                {row.expected_monthly_value != null && (
+                  <Chip size="small" variant="outlined"
+                        label={`${fmtMoney(row.expected_monthly_value)}/hó`} />
+                )}
+                {row.expected_close_date && (
+                  <Chip size="small" variant="outlined" label={`zárás: ${fmtDate(row.expected_close_date)}`} />
+                )}
+              </>
+            )}
+          </Stack>
+          {row.owner_name && (
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+              Tulajdonos: {row.owner_name}
+            </Typography>
+          )}
+        </Box>
+        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+      </Stack>
+
+      <Divider sx={{ mb: 2 }} />
+
+      <ActivityPanel party={party} contacts={contacts} title="Előzmények" onChanged={onChanged} />
+    </Drawer>
   );
 }
 
