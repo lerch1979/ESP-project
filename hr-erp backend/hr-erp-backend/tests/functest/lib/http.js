@@ -44,7 +44,28 @@ async function call(method, p, { token, body, query } = {}) {
   if (query) req = req.query(query);
   if (body !== undefined) req = req.send(body);
   const res = await req;
-  return { status: res.status, body: res.body, text: res.text };
+  return pack(res);
+}
+
+/**
+ * Normalise a supertest response.
+ *
+ * Binary endpoints (PDF, xlsx) put nothing useful in `res.text` — supertest only fills
+ * it for text-ish content types — so a scenario checking a downloaded document sees an
+ * empty string and concludes the endpoint is broken. Expose the headers and, for
+ * non-JSON responses, the raw Buffer.
+ */
+function pack(res) {
+  const type = res.headers['content-type'] || '';
+  const binary = !/json|text|html/i.test(type);
+  return {
+    status: res.status,
+    body: res.body,
+    text: res.text,
+    headers: res.headers,
+    contentType: type,
+    buffer: binary && Buffer.isBuffer(res.body) ? res.body : null,
+  };
 }
 
 /**
@@ -58,7 +79,7 @@ async function raw(method, p, { token, body, query } = {}) {
   if (query) req = req.query(query);
   if (body !== undefined) req = req.send(body);
   const res = await req;
-  return { status: res.status, body: res.body, text: res.text };
+  return pack(res);
 }
 const rawGet = (p, o) => raw('get', p, o);
 

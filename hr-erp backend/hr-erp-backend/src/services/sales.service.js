@@ -576,11 +576,29 @@ async function publicQuoteByToken(token) {
   return { ...q, lines: lines.rows };
 }
 
+/** A quote plus the names a document needs — used by both the admin and public PDF. */
+async function quoteForDocument(quoteId) {
+  const r = await query(
+    `SELECT q.*, o.title AS opportunity_title, COALESCE(l.name, c.name) AS partner_name
+       FROM quotes q
+       JOIN opportunities o ON o.id = q.opportunity_id
+       LEFT JOIN partner_leads l ON l.id = o.lead_id
+       LEFT JOIN contractors   c ON c.id = o.contractor_id
+      WHERE q.id = $1`, [quoteId]);
+  const q = r.rows[0];
+  if (!q) return null;
+  const lines = await query(
+    `SELECT ql.*, a.name AS accommodation_name FROM quote_lines ql
+       LEFT JOIN accommodations a ON a.id = ql.accommodation_id
+      WHERE ql.quote_id = $1 ORDER BY ql.line_no`, [quoteId]);
+  return { ...q, lines: lines.rows };
+}
+
 module.exports = {
   SalesError, STAGES, LEAD_STATUSES, BASES,
   listLeads, saveLead, convertLead,
   listOpportunities, saveOpportunity, pipelineBoard,
   listQuotes, getQuote, saveQuote, sendQuote, acceptQuote, rejectQuote,
-  shareQuote, revokeQuoteShare, publicQuoteByToken,
+  shareQuote, revokeQuoteShare, publicQuoteByToken, quoteForDocument,
   _internals: { scopeClause, canSeeAll, lineNet, recomputeTotals },
 };

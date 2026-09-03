@@ -210,6 +210,42 @@ const M = '1941-07';
     check('QA-10 ... and the engine used the quoted per-bed rate',
       Number(billed.calculation_details?.per_bed?.rate_used) === 3500);
 
+    // ── QUOTE PDF ──────────────────────────────────────────────────────────
+    {
+      const fs = require('fs');
+      const pdfSvc = require('../src/services/quotePdf.service');
+      const pdfParse = require('pdf-parse');
+      const forDoc = await svc.quoteForDocument(quote.id);
+      const buf = await pdfSvc.renderQuotePdf(forDoc, {
+        partner_name: forDoc.partner_name, opportunity_title: forDoc.opportunity_title });
+      fs.writeFileSync('/tmp/arajanlat.pdf', buf);
+      const parsed = await pdfParse(buf);
+      const txt = parsed.text;
+
+      check('PD-01 the offer PDF renders', buf.length > 5000 && parsed.numpages >= 1, `${buf.length}b / ${parsed.numpages}p`);
+      check('PD-02 Hungarian ő/ű survive (the WinAnsi trap)',
+        txt.includes('Árajánlat') && /Elszámolási feltételek/.test(txt));
+      check('PD-03 it names the partner and the subject',
+        txt.includes(forDoc.partner_name) && txt.includes('SP 40 fő elhelyezés'));
+      check('PD-04 it carries the money block', /Nettó összesen/.test(txt) && /Bruttó összesen/.test(txt));
+      // Normalise whitespace before matching: pdf-parse reinserts the PDF's own line
+      // breaks, so "min. kihasználtság" arrives split across two lines.
+      const flat = txt.replace(/\s+/g, ' ');
+      check('PD-05 the per-bed terms are spelled out, not truncated',
+        /foglalt ágy/.test(flat) && /min\. kihasználtság: 90%/.test(flat)
+        && /lekötött ágy: 20/.test(flat) && /üres ágy/.test(flat));
+      // hu-HU does not space-group four-digit numbers (3500), but does group the
+      // seven-digit totals (2 170 000) — assert both forms as they actually render.
+      check('PD-06 it shows the quoted rate and the grouped totals',
+        /3500 Ft \/ foglalt ágy/.test(flat) && flat.includes('2 170 000 Ft'));
+      check('PD-07 it withholds our position (probability / expected value / owner)',
+        !/valószínűség/i.test(txt) && !/4 200 000/.test(txt) && !txt.includes(U1));
+      check('PD-08 an accepted quote is not labelled PISZKOZAT', !/PISZKOZAT/.test(txt), 'status=' + forDoc.status);
+      check('PD-09 the filename is partner-scoped',
+        pdfSvc.quoteFileBase(forDoc, { partner_name: forDoc.partner_name }).startsWith('arajanlat-'));
+      console.log('   → /tmp/arajanlat.pdf (' + parsed.numpages + ' oldal, ' + buf.length + ' byte)');
+    }
+
     // ── SCOPING ────────────────────────────────────────────────────────────
     const other = asUser(U2, false);          // no settings.edit → scoped
     const visible = await svc.listLeads(other, {});

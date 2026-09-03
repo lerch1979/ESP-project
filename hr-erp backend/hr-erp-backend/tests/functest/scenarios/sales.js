@@ -127,5 +127,30 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'SALES-07',
+      name: 'ajánlat PDF — admin letöltés ÉS publikus token, ő/ű helyesen',
+      expected: { admin_pdf: 200, is_pdf: true, hungarian_ok: true, public_pdf: 200, revoked_pdf: 404 },
+      hint: 'quotePdf.service reuses reportGenerator + the DejaVu font fix',
+      run: async (ctx, s) => {
+        const a = await http.get(`/sales/quotes/${s.quoteId}/pdf`, { token: s.t });
+        const buf = a.buffer || Buffer.from(a.text || '', 'binary');
+        const parsed = buf.length > 1000 ? await require('pdf-parse')(buf).catch(() => null) : null;
+
+        const sh = await http.post(`/sales/quotes/${s.quoteId}/share`, { token: s.t, body: { expires_in_days: 3 } });
+        const tok = sh.body.data?.share_token;
+        const pub = await http.rawGet(`/public/quote/${tok}/pdf`, {});
+        await http.del(`/sales/quotes/${s.quoteId}/share`, { token: s.t });
+        const after = await http.rawGet(`/public/quote/${tok}/pdf`, {});
+
+        return {
+          admin_pdf: a.status,
+          is_pdf: /application\/pdf/.test(a.contentType) && buf.slice(0, 4).toString() === '%PDF',
+          hungarian_ok: !!parsed && /Árajánlat/.test(parsed.text) && /Elszámolási feltételek/.test(parsed.text),
+          public_pdf: pub.status,
+          revoked_pdf: after.status,
+        };
+      },
+    },
   ],
 };

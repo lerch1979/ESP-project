@@ -41,6 +41,42 @@ const rejectQuote  = handle((req) => svc.rejectQuote(req, req.params.id, req.bod
 const shareQuote   = handle((req) => svc.shareQuote(req, req.params.id, req.body), 'shareQuote', true);
 const revokeShare  = handle((req) => svc.revokeQuoteShare(req, req.params.id), 'revokeShare');
 
+const pdfSvc = require('../services/quotePdf.service');
+
+/** Send a rendered quote PDF. Shared by the admin and public routes. */
+async function sendQuotePdf(res, q) {
+  const buf = await pdfSvc.renderQuotePdf(q, { partner_name: q.partner_name, opportunity_title: q.opportunity_title });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${pdfSvc.quoteFileBase(q, { partner_name: q.partner_name })}.pdf"`);
+  res.send(buf);
+}
+
+/** Admin PDF — scope-checked first, so it cannot become a way around row visibility. */
+const quotePdf = async (req, res) => {
+  try {
+    await svc.getQuote(req, req.params.id);          // 404s if not visible to this caller
+    const q = await svc.quoteForDocument(req.params.id);
+    await sendQuotePdf(res, q);
+  } catch (err) {
+    if (err instanceof svc.SalesError) return res.status(err.status).json({ success: false, message: err.message });
+    logger.error('[sales.quotePdf]', err);
+    res.status(500).json({ success: false, message: 'Ajánlat PDF hiba' });
+  }
+};
+
+/** Public PDF by share token — same expiry/revocation gate as the JSON view. */
+const publicQuotePdf = async (req, res) => {
+  try {
+    const pub = await svc.publicQuoteByToken(req.params.token);
+    if (!pub) return res.status(404).json({ success: false, message: 'Az ajánlat linkje lejárt vagy visszavonásra került.' });
+    const q = await svc.quoteForDocument(pub.id);
+    await sendQuotePdf(res, q);
+  } catch (err) {
+    logger.error('[sales.publicQuotePdf]', err);
+    res.status(500).json({ success: false, message: 'Hiba' });
+  }
+};
+
 /** Public, token-only. Expiry and revocation are checked in the service. */
 const publicQuote = async (req, res) => {
   try {
@@ -58,5 +94,5 @@ module.exports = {
   listOpportunities, createOpportunity, updateOpportunity, board,
   listQuotes, getQuote, createQuote, updateQuote,
   sendQuote, acceptQuote, rejectQuote, shareQuote, revokeShare,
-  publicQuote,
+  publicQuote, quotePdf, publicQuotePdf,
 };

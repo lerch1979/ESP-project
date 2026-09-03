@@ -10,6 +10,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import LinkIcon from '@mui/icons-material/Link';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
 import { salesAPI, accommodationsAPI } from '../services/api';
@@ -284,6 +285,19 @@ export default function Sales() {
                     <TableCell align="right">{fmtMoney(q.gross_amount)}</TableCell>
                     <TableCell>{fmtDate(q.valid_until)}</TableCell>
                     <TableCell align="right">
+                      <Tooltip title="Árajánlat PDF">
+                        <IconButton size="small" onClick={async () => {
+                          try {
+                            const res = await salesAPI.quotePdf(q.id);
+                            const cd = res.headers['content-disposition'] || '';
+                            const name = (cd.match(/filename="(.+?)"/) || [])[1] || `arajanlat-v${q.version}.pdf`;
+                            const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                            const a = document.createElement('a');
+                            a.href = url; a.download = name; a.click();
+                            URL.revokeObjectURL(url);
+                          } catch (e) { toast.error('A PDF letöltése nem sikerült'); }
+                        }}><PictureAsPdfIcon fontSize="small" /></IconButton>
+                      </Tooltip>
                       {q.status === 'draft' && (
                         <Button size="small" onClick={() => run(() => salesAPI.sendQuote(q.id, {}), 'Ajánlat kiküldve')}>
                           Kiküldés

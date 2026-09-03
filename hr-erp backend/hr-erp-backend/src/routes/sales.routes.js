@@ -40,6 +40,7 @@ admin.get('/quotes',               canView, ctrl.listQuotes);
 admin.post('/quotes',              canEdit, ctrl.createQuote);
 admin.get('/quotes/:id',           canView, ctrl.getQuote);
 admin.put('/quotes/:id',           canEdit, ctrl.updateQuote);
+admin.get('/quotes/:id/pdf',       canView, ctrl.quotePdf);
 admin.post('/quotes/:id/send',     canEdit, ctrl.sendQuote);
 // Accept writes a partner_contracts row AND client_night_rates rows in one transaction.
 admin.post('/quotes/:id/accept',   canAccept, ctrl.acceptQuote);
@@ -48,6 +49,8 @@ admin.post('/quotes/:id/share',    canEdit, ctrl.shareQuote);
 admin.delete('/quotes/:id/share',  canEdit, ctrl.revokeShare);
 
 const publicRouter = express.Router();
+// PDF before the bare :token, so the literal segment wins over the param.
+publicRouter.get('/:token/pdf', ctrl.publicQuotePdf);
 publicRouter.get('/:token', ctrl.publicQuote);
 
 module.exports = { admin, publicRouter };

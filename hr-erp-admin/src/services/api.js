@@ -312,6 +312,8 @@ export const salesAPI = {
   sendQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/send`, b)).data,
   acceptQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/accept`, b)).data,
   rejectQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/reject`, b)).data,
+  // Binary — must go out as a blob, not JSON.
+  quotePdf: async (id) => api.get(`/sales/quotes/${id}/pdf`, { responseType: 'blob' }),
   shareQuote: async (id, b) => (await api.post(`/sales/quotes/${id}/share`, b)).data,
   revokeShare: async (id) => (await api.delete(`/sales/quotes/${id}/share`)).data,
 };
