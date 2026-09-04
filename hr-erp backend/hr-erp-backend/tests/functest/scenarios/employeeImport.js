@@ -212,5 +212,83 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'IMP-09',
+      name: 'HIÁNYZÓ ADATOK körút: export → két oszlop kitöltése → visszatöltés',
+      expected: { all_got_language: true, all_got_nationality: true, others_untouched: true, balanced: true },
+      hint: 'the whole point: filling gaps must not disturb anything else on the record',
+      run: async (ctx, s) => {
+        const completeness = require('../../../src/services/dataCompleteness.service');
+
+        // Snapshot everything we are NOT filling, so "nothing else moved" is measured
+        // rather than assumed.
+        const before = (await query(
+          `SELECT id, employee_number, first_name, last_name, birth_date, mothers_name,
+                  position, workplace, arrival_date, accommodation_id, room_id,
+                  shift_schedule, billing_client_id, personal_email, personal_phone,
+                  bank_account, tax_id, passport_number, social_security_number
+             FROM employees WHERE last_name='ImpTeszt' ORDER BY first_name`)).rows;
+
+        const wb = await completeness.buildWorkbook(['preferred_language', 'nationality']);
+        const XL = require('xlsx');
+        const book = XL.read(wb.buffer, { type: 'buffer' });
+        const aoa = XL.utils.sheet_to_json(book.Sheets['Kitöltendő'], { header: 1 });
+        const head = aoa[0];
+        const iLang = head.indexOf('Nyelv');
+        const iNat = head.indexOf('Nemzetiség');
+
+        // Fill ONLY our three people's two columns; leave every other row blank.
+        const ours = [];
+        for (let r = 1; r < aoa.length; r++) {
+          if (aoa[r][1] === 'ImpTeszt') { aoa[r][iLang] = 'ukrán'; aoa[r][iNat] = 'UA'; ours.push(r); }
+        }
+        const out = XL.utils.book_new();
+        XL.utils.book_append_sheet(out, XL.utils.aoa_to_sheet(aoa), 'Kitöltendő');
+        const filled = XL.write(out, { type: 'buffer', bookType: 'xlsx' });
+
+        const up = await http.upload('/employees/bulk', { token: s.t, buffer: filled });
+
+        const after = (await query(
+          `SELECT id, employee_number, first_name, last_name, birth_date, mothers_name,
+                  position, workplace, arrival_date, accommodation_id, room_id,
+                  shift_schedule, billing_client_id, personal_email, personal_phone,
+                  bank_account, tax_id, passport_number, social_security_number,
+                  preferred_language, nationality
+             FROM employees WHERE last_name='ImpTeszt' ORDER BY first_name`)).rows;
+
+        const same = before.length === after.length && before.every((b, i) =>
+          Object.keys(b).every((k) => String(b[k]) === String(after[i][k])));
+
+        // Earlier cases add more ImpTeszt people, so assert against however many the
+        // export actually carried rather than a hard-coded three.
+        return {
+          all_got_language: ours.length > 0 && after.filter((r) => r.preferred_language === 'uk').length === ours.length,
+          all_got_nationality: ours.length > 0 && after.filter((r) => r.nationality === 'UA').length === ours.length,
+          others_untouched: same,
+          balanced: up.body.data?.summary?.balanced === true,
+        };
+      },
+    },
+    {
+      id: 'IMP-10',
+      name: 'az import összesítő KIEGYENLÍTETT: minden sor pontosan egy vödörbe kerül',
+      expected: { balanced: true, accounted_equals_rows: true, has_reasons: true },
+      hint: 'a 300-row round trip must be verifiable at a glance, and silent row drops impossible',
+      run: async (ctx, s) => {
+        // One good row, one that names a megbízó we do not have → exactly one failure.
+        const mixed = sheet([
+          { last_name: 'ImpTeszt', first_name: 'Anna', birth_date: '1990-03-14', accommodation: s.accName },
+          { last_name: 'ImpOsszeg', first_name: 'Uj', birth_date: '1999-09-09',
+            accommodation: s.accName, 'Megbízó': 'Nincs Ilyen Megbízó Kft' },
+        ]);
+        const r = await http.upload('/employees/bulk', { token: s.t, buffer: mixed });
+        const sm = r.body.data?.summary;
+        return {
+          balanced: sm?.balanced === true,
+          accounted_equals_rows: sm?.accounted_for === sm?.rows_in_file,
+          has_reasons: Object.keys(sm?.error_reasons || {}).length > 0 || sm?.failed === 0,
+        };
+      },
+    },
   ],
 };

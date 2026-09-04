@@ -128,6 +128,13 @@ router.post('/', checkPermission('employees.create'), employeeController.createE
  */
 router.post('/bulk', checkPermission('employees.create'), upload.single('file'), employeeController.bulkImportEmployees);
 
+// ── Hiányzó adatok ── overview · drill-down · fill-in workbook.
+// Read-level permission: this only reports what is absent. The workbook carries names and
+// birth dates, so it sits behind employees.view like every other roster export.
+router.get('/completeness', checkPermission('employees.view'), employeeController.getCompleteness);
+router.get('/completeness/export', checkPermission('employees.view'), employeeController.exportCompleteness);
+router.get('/completeness/:field', checkPermission('employees.view'), employeeController.getCompletenessField);
+
 /**
  * PUT /api/v1/employees/:id
  * Munkavállaló frissítése

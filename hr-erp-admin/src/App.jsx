@@ -25,6 +25,7 @@ const Users = lazy(() => import('./pages/Users'));
 const Contractors = lazy(() => import('./pages/Contractors'));
 const Accommodations = lazy(() => import('./pages/Accommodations'));
 const Employees = lazy(() => import('./pages/Employees'));
+const DataCompleteness = lazy(() => import('./pages/DataCompleteness'));
 const ExpiryMonitor = lazy(() => import('./pages/ExpiryMonitor'));
 const GDPRAnonymization = lazy(() => import('./pages/GDPRAnonymization'));
 const ResidentImport = lazy(() => import('./pages/ResidentImport'));
@@ -176,6 +177,7 @@ function App() {
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
               <Route path="accommodations/consolidation" element={<PermissionGuard permission="employees.edit"><ConsolidationEngine /></PermissionGuard>} />
               <Route path="employees" element={<PermissionGuard permission="employees.view"><Employees /></PermissionGuard>} />
+              <Route path="employees/completeness" element={<PermissionGuard permission="employees.view"><DataCompleteness /></PermissionGuard>} />
               <Route path="expiry-monitor" element={<PermissionGuard permission="employees.view"><ExpiryMonitor /></PermissionGuard>} />
               <Route path="anonymization" element={<PermissionGuard permission="users.view"><GDPRAnonymization /></PermissionGuard>} />
               <Route path="residents/import" element={<PermissionGuard permission="employees.create"><ResidentImport /></PermissionGuard>} />

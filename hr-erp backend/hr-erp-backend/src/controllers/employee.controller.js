@@ -157,6 +157,12 @@ const COLUMN_MAP = {
   'személyi szám': 'passport_number',
   'szemelyi szam': 'passport_number',
   'id_number': 'passport_number',
+  'nyelv': 'preferred_language',
+  'language': 'preferred_language',
+  'preferred_language': 'preferred_language',
+  'megbízó': 'billing_client_name',
+  'megbizo': 'billing_client_name',
+  'billing_client': 'billing_client_name',
   'vállalat': 'company_name',
   'vallalat': 'company_name',
   'company': 'company_name',
@@ -972,7 +978,12 @@ const bulkImportEmployees = async (req, res) => {
     const rows = rawRows.map(raw => {
       const mapped = {};
       for (const [key, value] of Object.entries(raw)) {
-        const normalizedKey = key.toLowerCase().trim();
+        // Strip a trailing parenthetical before mapping: the Hiányzó adatok workbook
+        // ships headers like "Vezetéknév (NE MÓDOSÍTSD)" and "Szálláshely (tájékoztató)",
+        // and a site manager may well annotate a column of their own. Without this the
+        // exported file is not re-uploadable — the identity columns fail to map, the row
+        // matches nobody, and the fill-in round trip silently creates new people.
+        const normalizedKey = key.toLowerCase().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
         const dbField = COLUMN_MAP[normalizedKey];
         if (dbField) {
           if (DATE_FIELDS.includes(dbField)) {
@@ -1028,6 +1039,14 @@ const bulkImportEmployees = async (req, res) => {
       accMap[a.name.toLowerCase()] = a.id;
     });
 
+    // Megbízó by name → contractor id. Same shape as accMap: resolved once, not per row.
+    const clientRes = await query(
+      `SELECT c.id, c.name FROM contractors c
+        WHERE c.is_active AND EXISTS (
+          SELECT 1 FROM contractor_roles cr WHERE cr.contractor_id = c.id AND cr.role = 'megbizo')`);
+    const clientMap = {};
+    clientRes.rows.forEach((c) => { clientMap[c.name.toLowerCase().trim()] = c.id; });
+
     // Pre-validate: check all accommodation names before processing any rows
     const uniqueAccNames = [...new Set(
       rows.filter(r => r.accommodation_name).map(r => r.accommodation_name.toLowerCase())
@@ -1045,6 +1064,16 @@ const bulkImportEmployees = async (req, res) => {
     const updated = [];
     const errors = [];
     const warnings = [];
+
+    // Site managers write "ukrán" or "UA", not an ISO code.
+    const LANG = {
+      hu: 'hu', magyar: 'hu', hungarian: 'hu',
+      en: 'en', angol: 'en', english: 'en',
+      uk: 'uk', ua: 'uk', ukran: 'uk', 'ukrán': 'uk', ukrainian: 'uk',
+      tl: 'tl', filippino: 'tl', filipino: 'tl', tagalog: 'tl',
+      de: 'de', 'német': 'de', nemet: 'de', german: 'de',
+    };
+    const normLang = (v) => (v ? LANG[String(v).trim().toLowerCase()] || null : null);
 
     // ── duplicate-detection candidates ────────────────────────────────────────
     // Loaded ONCE, and deliberately including soft-deleted people: a delete+reimport is
@@ -1105,6 +1134,29 @@ const bulkImportEmployees = async (req, res) => {
           errors.push({ row: rowNum, message: `Ismeretlen szálláshely: ${row.accommodation_name}` });
           continue;
         }
+      }
+
+      // ── assignment fields: SET when the file supplies one, NEVER cleared ─────
+      // These four are app-owned state, not spreadsheet data, so a partial file must not
+      // blank them (that rule is why the 2026-09-03 re-import lost 279 room links). But a
+      // fill-in workbook that explicitly names a value must be able to set it — which is
+      // the whole point of the Hiányzó adatok round trip. Hence: settable, not clearable.
+      const assign = {};
+      if (row.preferred_language) {
+        const lang = normLang(row.preferred_language);
+        if (!lang) {
+          errors.push({ row: rowNum, message: `Ismeretlen nyelv: ${row.preferred_language} (hu/en/uk/tl/de)` });
+          continue;
+        }
+        assign.preferred_language = lang;
+      }
+      if (row.billing_client_name) {
+        const cid = clientMap[String(row.billing_client_name).toLowerCase().trim()];
+        if (!cid) {
+          errors.push({ row: rowNum, message: `Ismeretlen megbízó: ${row.billing_client_name}` });
+          continue;
+        }
+        assign.billing_client_id = cid;
       }
 
       // Get individual client for each row insert
@@ -1175,6 +1227,7 @@ const bulkImportEmployees = async (req, res) => {
           }
           // Only move them if the file names an accommodation.
           if (accommodationId) { sets.push(`accommodation_id = $${n++}`); vals.push(accommodationId); }
+          for (const [col, val] of Object.entries(assign)) { sets.push(`${col} = $${n++}`); vals.push(val); }
           sets.push('updated_at = CURRENT_TIMESTAMP');
           vals.push(match.id);
 
@@ -1182,6 +1235,26 @@ const bulkImportEmployees = async (req, res) => {
             `UPDATE employees SET ${sets.join(', ')} WHERE id = $${n} RETURNING id, employee_number, room_id, accommodation_id`,
             vals);
           const row2 = upd.rows[0];
+
+          // Link the room when the file names one. Until now the import only ever wrote
+          // the room NUMBER as text and left room_id null, so occupancy billing saw
+          // nobody in a room — the gap the 2026-09-03 re-link had to repair by hand.
+          if (row.room_number && row2.accommodation_id) {
+            const rm = await client.query(
+              `SELECT id FROM accommodation_rooms
+                WHERE accommodation_id = $1 AND lower(btrim(room_number)) = lower(btrim($2))
+                  AND is_active`, [row2.accommodation_id, row.room_number]);
+            if (rm.rows.length > 0) {
+              await client.query('UPDATE employees SET room_id = $1 WHERE id = $2', [rm.rows[0].id, row2.id]);
+              row2.room_id = rm.rows[0].id;
+            } else {
+              warnings.push({
+                row: rowNum, code: 'room_not_found',
+                message: `A(z) "${row.room_number}" szobaszám nem található ezen a szálláshelyen — `
+                       + 'a szobaszám szövegként rögzült, de a lakó nincs szobához kötve.',
+              });
+            }
+          }
 
           if (row2.accommodation_id && !row.end_date) {
             await accHistory.syncAssignment(client, {
@@ -1274,13 +1347,39 @@ const bulkImportEmployees = async (req, res) => {
             row.end_date || null,
           ]
         );
+        // New arrivals get the same assignment resolution as updates — otherwise a
+        // fill-in workbook could set a language for existing people but not for new ones.
+        const newId = result.rows[0].id;
+        if (Object.keys(assign).length > 0) {
+          const cols = Object.keys(assign).map((c, i) => `${c} = $${i + 1}`).join(', ');
+          await client.query(`UPDATE employees SET ${cols} WHERE id = $${Object.keys(assign).length + 1}`,
+            [...Object.values(assign), newId]);
+        }
+        let newRoomId = null;
+        if (row.room_number && accommodationId) {
+          const rm = await client.query(
+            `SELECT id FROM accommodation_rooms
+              WHERE accommodation_id = $1 AND lower(btrim(room_number)) = lower(btrim($2))
+                AND is_active`, [accommodationId, row.room_number]);
+          if (rm.rows.length > 0) {
+            newRoomId = rm.rows[0].id;
+            await client.query('UPDATE employees SET room_id = $1 WHERE id = $2', [newRoomId, newId]);
+          } else {
+            warnings.push({
+              row: rowNum, code: 'room_not_found',
+              message: `A(z) "${row.room_number}" szobaszám nem található ezen a szálláshelyen — `
+                     + 'a szobaszám szövegként rögzült, de a lakó nincs szobához kötve.',
+            });
+          }
+        }
+
         // Bulk HIRE → open the occupancy history row on the same connection, so an
         // imported worker is billable from day one instead of invisible to snapshots.
         if (accommodationId && !row.end_date) {
           await accHistory.syncAssignment(client, {
-            employeeId: result.rows[0].id,
+            employeeId: newId,
             accommodationId,
-            roomId: null,
+            roomId: newRoomId,
             reason: 'bulk import',
             changedBy: req.user?.id || null,
           });
@@ -1314,12 +1413,34 @@ const bulkImportEmployees = async (req, res) => {
       mode: insertOnly ? 'insert_only' : 'upsert',
     });
 
+    // A 300-row round trip has to be verifiable at a glance: every input row must land
+    // in exactly one bucket, and the buckets must add up to the file's row count. If they
+    // ever don't, rows were dropped silently — which is the thing this report exists to
+    // make impossible to miss.
+    const reasons = {};
+    for (const e of errors) reasons[e.code || 'egyéb'] = (reasons[e.code || 'egyéb'] || 0) + 1;
+    const warnReasons = {};
+    for (const w of warnings) warnReasons[w.code || 'egyéb'] = (warnReasons[w.code || 'egyéb'] || 0) + 1;
+
+    const summary = {
+      rows_in_file: rows.length,
+      updated: updated.length,
+      created: imported.length,
+      failed: errors.length,
+      accounted_for: updated.length + imported.length + errors.length,
+      balanced: updated.length + imported.length + errors.length === rows.length,
+      warnings: warnings.length,
+      error_reasons: reasons,
+      warning_reasons: warnReasons,
+    };
+
     res.json({
       success: true,
-      message: `${imported.length} új munkavállaló importálva`
-             + (updated.length ? `, ${updated.length} meglévő frissítve` : '')
-             + (warnings.length ? `, ${warnings.length} sornál nem volt ellenőrizhető a duplikáció` : ''),
+      message: `${rows.length} sor feldolgozva — `
+             + `${updated.length} frissítve, ${imported.length} új, ${errors.length} hibás`
+             + (warnings.length ? `, ${warnings.length} figyelmeztetés` : ''),
       data: {
+        summary,
         imported: imported.length,
         updated: updated.length,
         mode: insertOnly ? 'insert_only' : 'upsert',
@@ -2223,7 +2344,55 @@ const bulkAssignRooms = async (req, res) => {
   }
 };
 
+/**
+ * Hiányzó adatok — overview, drill-down and the fill-in workbook.
+ * The service owns the field registry so the three stay in step.
+ */
+const dataCompleteness = require('../services/dataCompleteness.service');
+
+const getCompleteness = async (req, res) => {
+  try {
+    res.json({ success: true, data: await dataCompleteness.summary() });
+  } catch (error) {
+    logger.error('Hiányzó adatok lekérési hiba:', error);
+    res.status(500).json({ success: false, message: 'Hiányzó adatok lekérési hiba' });
+  }
+};
+
+const getCompletenessField = async (req, res) => {
+  try {
+    const out = await dataCompleteness.listMissing(req.params.field, { limit: parseInt(req.query.limit, 10) || 500 });
+    if (!out) return res.status(404).json({ success: false, message: 'Ismeretlen mező' });
+    res.json({ success: true, data: out });
+  } catch (error) {
+    logger.error('Hiányzó adatok részletezési hiba:', error);
+    res.status(500).json({ success: false, message: 'Hiányzó adatok részletezési hiba' });
+  }
+};
+
+const exportCompleteness = async (req, res) => {
+  try {
+    const keys = String(req.query.fields || '').split(',').map((k) => k.trim()).filter(Boolean);
+    if (keys.length === 0) {
+      return res.status(400).json({ success: false, message: 'Legalább egy mező megadása kötelező (?fields=...)' });
+    }
+    const wb = await dataCompleteness.buildWorkbook(keys);
+    if (!wb) {
+      return res.status(400).json({ success: false, message: 'Egyik megadott mező sem tölthető ki Excelből' });
+    }
+    logger.info('Hiányzó adatok export', { fields: keys, rows: wb.rows, user: req.user?.id });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',
+      `attachment; filename=hianyzo-adatok-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    res.send(wb.buffer);
+  } catch (error) {
+    logger.error('Hiányzó adatok export hiba:', error);
+    res.status(500).json({ success: false, message: 'Hiányzó adatok export hiba' });
+  }
+};
+
 module.exports = {
+  getCompleteness, getCompletenessField, exportCompleteness,
   getEmployeeStatuses,
   getEmployees,
   getEmployeeById,
