@@ -290,5 +290,26 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'IMP-11',
+      name: 'a Hiányzó adatok végpontok a VALÓDI HTTP útvonalon érhetők el, nem nyeli el a /:id',
+      expected: { summary: 200, has_fields: true, drill: 200, export: 200, is_xlsx: true },
+      hint: 'REGRESSION: /completeness was declared after /:id, so Express passed "completeness" to a uuid column (prod 500, 2026-09-04)',
+      run: async (ctx, s) => {
+        // IMP-09 exercised the service directly, which is exactly why it could not catch
+        // a routing mistake. These calls go over the real router.
+        const sum = await http.get('/employees/completeness', { token: s.t });
+        const drill = await http.get('/employees/completeness/nationality', { token: s.t });
+        const exp = await http.rawGet('/api/v1/employees/completeness/export?fields=nationality',
+          { token: s.t });
+        return {
+          summary: sum.status,
+          has_fields: Array.isArray(sum.body?.data?.fields) && sum.body.data.fields.length > 0,
+          drill: drill.status,
+          export: exp.status,
+          is_xlsx: /spreadsheetml/.test(exp.contentType || ''),
+        };
+      },
+    },
   ],
 };

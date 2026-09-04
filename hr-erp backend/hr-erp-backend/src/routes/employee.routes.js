@@ -114,6 +114,16 @@ router.post('/room-assignments', checkPermission('employees.edit'), upload.singl
  * GET /api/v1/employees/:id
  * Egy munkavállaló részletei
  */
+// These literal paths MUST precede '/:id' below — Express matches in declaration order,
+// so a later '/completeness' would be swallowed by the :id param and reach the DB as a
+// bogus uuid. (It did, on prod, 2026-09-04.)
+// ── Hiányzó adatok ── overview · drill-down · fill-in workbook.
+// Read-level permission: this only reports what is absent. The workbook carries names and
+// birth dates, so it sits behind employees.view like every other roster export.
+router.get('/completeness', checkPermission('employees.view'), employeeController.getCompleteness);
+router.get('/completeness/export', checkPermission('employees.view'), employeeController.exportCompleteness);
+router.get('/completeness/:field', checkPermission('employees.view'), employeeController.getCompletenessField);
+
 router.get('/:id', checkPermission('employees.view'), employeeController.getEmployeeById);
 
 /**
@@ -128,12 +138,6 @@ router.post('/', checkPermission('employees.create'), employeeController.createE
  */
 router.post('/bulk', checkPermission('employees.create'), upload.single('file'), employeeController.bulkImportEmployees);
 
-// ── Hiányzó adatok ── overview · drill-down · fill-in workbook.
-// Read-level permission: this only reports what is absent. The workbook carries names and
-// birth dates, so it sits behind employees.view like every other roster export.
-router.get('/completeness', checkPermission('employees.view'), employeeController.getCompleteness);
-router.get('/completeness/export', checkPermission('employees.view'), employeeController.exportCompleteness);
-router.get('/completeness/:field', checkPermission('employees.view'), employeeController.getCompletenessField);
 
 /**
  * PUT /api/v1/employees/:id
