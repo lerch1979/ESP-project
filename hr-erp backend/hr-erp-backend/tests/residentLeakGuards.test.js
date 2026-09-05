@@ -59,7 +59,12 @@ app.use('/analytics', require('../src/routes/analytics.routes'));
 
 const resident   = { id: 'res-1', contractorId: 'cB', roles: ['accommodated_employee'], permissions: [] };
 const superadmin = { id: 'sa-1',  contractorId: 'cA', roles: ['superadmin'], permissions: [] };
-const operatorB  = { id: 'op-B',  contractorId: 'cB', roles: ['data_controller'], permissions: ['settings.edit', 'wellbeing.admin.view'] };
+// finance.* joined settings.* in mig 154: money and configuration became different
+// audiences so a szállásfelelős could hold one without the other. This operator reaches
+// compensations / salary-deductions / invoice-drafts, so it needs the money permission —
+// what is under test here is the tenant SCOPING inside those handlers, not the gate.
+const operatorB  = { id: 'op-B',  contractorId: 'cB', roles: ['data_controller'],
+  permissions: ['settings.edit', 'finance.view', 'finance.edit', 'wellbeing.admin.view'] };
 
 const as = (u) => JSON.stringify(u);
 const ENDPOINTS = [

@@ -88,6 +88,18 @@ async function _resolveOpenStatusId() {
 // ─── ticket handler ─────────────────────────────────────────────────────────
 
 async function handleTicket({ user, profile, entities, message }) {
+  // The route gate says who may TALK to the assistant; this says who may make it file.
+  // Both are needed: a staff member with dashboard.view but no tickets.create must not
+  // get a write into the staff queue by phrasing it as a chat message.
+  if (!(user?.permissions || []).includes('tickets.create')
+      && !(user?.roles || []).includes('superadmin')) {
+    return {
+      reply: 'Hibajegy létrehozásához nincs jogosultságod. Fordulj az irodához.',
+      created_ticket_id: null,
+      refused: 'tickets.create',
+    };
+  }
+
   const title = (entities.title || message).toString().slice(0, 300);
   const description = entities.description || message;
   const categoryId = await _resolveCategoryId(entities.category || 'general');

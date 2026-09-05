@@ -156,7 +156,7 @@ function App() {
               <Route index element={<HomeRedirect />} />
               <Route path="dashboard" element={<PermissionGuard permission="dashboard.view"><Dashboard /></PermissionGuard>} />
               <Route path="insights" element={<PermissionGuard permission="dashboard.view"><Insights /></PermissionGuard>} />
-              <Route path="billing-rates" element={<PermissionGuard permission="settings.edit"><BillingRates /></PermissionGuard>} />
+              <Route path="billing-rates" element={<PermissionGuard permission="finance.edit"><BillingRates /></PermissionGuard>} />
               <Route path="my-tasks" element={<PermissionGuard permission="dashboard.view"><MyTasks /></PermissionGuard>} />
               {/* Unified tasks + GTD kanban view */}
               <Route path="teendok" element={<PermissionGuard permission="dashboard.view"><UnifiedTasks /></PermissionGuard>} />
@@ -171,7 +171,7 @@ function App() {
               {/* Partner module (Phase 1). Contracts board is listed BEFORE :id so the
                   literal path wins over the param route. */}
               <Route path="partners/contracts" element={<PermissionGuard permission="settings.view"><PartnerContracts /></PermissionGuard>} />
-              <Route path="settlements" element={<PermissionGuard permission="settings.edit"><Settlements /></PermissionGuard>} />
+              <Route path="settlements" element={<PermissionGuard permission="finance.edit"><Settlements /></PermissionGuard>} />
               <Route path="sales" element={<PermissionGuard permission="sales.view"><Sales /></PermissionGuard>} />
               <Route path="partners/:id" element={<PermissionGuard permission="employees.view"><PartnerDetail /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />
@@ -191,11 +191,11 @@ function App() {
               <Route path="activity-log" element={<PermissionGuard permission="settings.view"><ActivityLog /></PermissionGuard>} />
               <Route path="reports/scheduled" element={<PermissionGuard permission="reports.schedule"><ScheduledReports /></PermissionGuard>} />
               <Route path="email-templates" element={<PermissionGuard permission="settings.edit"><EmailTemplates /></PermissionGuard>} />
-              <Route path="cost-centers" element={<PermissionGuard permission="settings.edit"><CostCenters /></PermissionGuard>} />
-              <Route path="invoices" element={<PermissionGuard permission="settings.edit"><Invoices /></PermissionGuard>} />
-              <Route path="invoice-reports" element={<PermissionGuard permission="settings.edit"><InvoiceReports /></PermissionGuard>} />
-              <Route path="invoice-management" element={<PermissionGuard permission="settings.edit"><InvoiceListPage /></PermissionGuard>} />
-              <Route path="admin/billing" element={<PermissionGuard permission="settings.edit"><Billing /></PermissionGuard>} />
+              <Route path="cost-centers" element={<PermissionGuard permission="finance.edit"><CostCenters /></PermissionGuard>} />
+              <Route path="invoices" element={<PermissionGuard permission="finance.edit"><Invoices /></PermissionGuard>} />
+              <Route path="invoice-reports" element={<PermissionGuard permission="finance.edit"><InvoiceReports /></PermissionGuard>} />
+              <Route path="invoice-management" element={<PermissionGuard permission="finance.edit"><InvoiceListPage /></PermissionGuard>} />
+              <Route path="admin/billing" element={<PermissionGuard permission="finance.edit"><Billing /></PermissionGuard>} />
               <Route path="admin/users" element={<PermissionGuard permission="users.manage_permissions"><AdminUsers /></PermissionGuard>} />
               <Route path="admin/users/:id/permissions" element={<PermissionGuard permission="users.manage_permissions"><AdminUserPermissions /></PermissionGuard>} />
               <Route path="admin/roles" element={<PermissionGuard permission="users.manage_permissions"><AdminRoles /></PermissionGuard>} />
@@ -208,7 +208,7 @@ function App() {
               <Route path="email-inbox" element={<PermissionGuard permission="settings.edit"><EmailInbox /></PermissionGuard>} />
               <Route path="finance/email-inbox" element={<Navigate to="/email-inbox?tab=1" replace />} />
               <Route path="finance/classification-rules" element={<PermissionGuard permission="settings.edit"><ClassificationRules /></PermissionGuard>} />
-              <Route path="salary-transparency" element={<PermissionGuard permission="settings.view"><SalaryTransparency /></PermissionGuard>} />
+              <Route path="salary-transparency" element={<PermissionGuard permission="finance.view"><SalaryTransparency /></PermissionGuard>} />
               <Route path="chatbot" element={<PermissionGuard permission="dashboard.view"><ChatbotPage /></PermissionGuard>} />
               <Route path="chatbot/knowledge-base" element={<PermissionGuard permission="faq.edit"><ChatbotKnowledgeBase /></PermissionGuard>} />
               <Route path="chatbot/decision-trees" element={<PermissionGuard permission="faq.edit"><ChatbotDecisionTrees /></PermissionGuard>} />
@@ -253,12 +253,12 @@ function App() {
               <Route path="inspections/schedules" element={<PermissionGuard permission="settings.edit"><InspectionSchedules /></PermissionGuard>} />
               <Route path="inspections/tasks" element={<PermissionGuard permission="settings.edit"><InspectionTasks /></PermissionGuard>} />
               <Route path="inspections/reports" element={<PermissionGuard permission="settings.edit"><InspectionReports /></PermissionGuard>} />
-              <Route path="inspections/hygiene-fine" element={<PermissionGuard permission="settings.edit"><HygieneFineSettings /></PermissionGuard>} />
+              <Route path="inspections/hygiene-fine" element={<PermissionGuard permission="finance.edit"><HygieneFineSettings /></PermissionGuard>} />
               <Route path="inspections/room-trends" element={<PermissionGuard permission="settings.edit"><RoomTrends /></PermissionGuard>} />
               <Route path="inspections/:id" element={<PermissionGuard permission="settings.edit"><InspectionDetail /></PermissionGuard>} />
 
               {/* Compensations */}
-              <Route path="compensations" element={<PermissionGuard permission="settings.edit"><CompensationsList /></PermissionGuard>} />
+              <Route path="compensations" element={<PermissionGuard permission="finance.edit"><CompensationsList /></PermissionGuard>} />
               <Route path="compensations/new" element={<PermissionGuard permission="settings.edit"><CreateCompensation /></PermissionGuard>} />
               <Route path="compensations/new-fine" element={<PermissionGuard permission="settings.edit"><CreateFineFromInspection /></PermissionGuard>} />
               <Route path="compensations/fine-types" element={<PermissionGuard permission="settings.edit"><FineTypesManagement /></PermissionGuard>} />

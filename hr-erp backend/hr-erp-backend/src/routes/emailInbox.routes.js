@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -48,12 +50,12 @@ router.get('/routing-log/:id', controller.getRoutingLog);
 router.get('/:id', controller.getById);
 
 // Write endpoints - require settings.edit permission
-router.post('/upload', checkPermission('settings.edit'), upload.single('file'), controller.upload);
-router.post('/poll-emails', checkPermission('settings.edit'), controller.pollEmails);
-router.post('/classify/:id', checkPermission('settings.edit'), controller.classify);
-router.post('/route/:id', checkPermission('settings.edit'), controller.route);
-router.post('/reclassify/:id', checkPermission('settings.edit'), controller.reclassify);
-router.post('/:id/reclassify-cost-center', checkPermission('settings.edit'), controller.reclassifyCostCenter);
-router.delete('/:id', checkPermission('settings.edit'), controller.remove);
+router.post('/upload', checkPermission('finance.edit'), upload.single('file'), controller.upload);
+router.post('/poll-emails', checkPermission('finance.edit'), controller.pollEmails);
+router.post('/classify/:id', checkPermission('finance.edit'), controller.classify);
+router.post('/route/:id', checkPermission('finance.edit'), controller.route);
+router.post('/reclassify/:id', checkPermission('finance.edit'), controller.reclassify);
+router.post('/:id/reclassify-cost-center', checkPermission('finance.edit'), controller.reclassifyCostCenter);
+router.delete('/:id', checkPermission('finance.edit'), controller.remove);
 
 module.exports = router;

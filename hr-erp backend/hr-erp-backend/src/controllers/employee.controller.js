@@ -618,30 +618,20 @@ const createEmployee = async (req, res) => {
       source: 'create',
     });
 
-    // If no user exists but we have name/email, create one
+    // ── login provisioning is NOT a side effect of creating an employee ──────────
+    // This used to mint a users row with a hardcoded shared password ('changeme123') and
+    // the accommodated_employee role whenever an email happened to be present. Two
+    // problems, both decided against in the Phase 4 role model:
+    //   • every resident issued the same password is one leaked string away from being
+    //     everyone's account;
+    //   • accounts are PROVISIONED by superadmin/admin, never created implicitly — that
+    //     is the whole point of restricting users.* to those two roles.
+    // Creating an employee now records a person. Giving that person a login is a separate,
+    // deliberate act through the users flow.
     if (!userId && email) {
-      const bcrypt = require('bcryptjs');
-      const tempPassword = await bcrypt.hash('changeme123', 10);
-      const userResult = await query(
-        `INSERT INTO users (first_name, last_name, email, phone, password_hash, contractor_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id`,
-        [first_name.trim(), last_name.trim(), email, phone || null, tempPassword, contractor_id || null]
-      );
-      userId = userResult.rows[0].id;
-
-      // Assign accommodated_employee role
-      const roleResult = await query("SELECT id FROM roles WHERE slug = 'accommodated_employee'");
-      if (roleResult.rows.length > 0) {
-        await query(
-          'INSERT INTO user_roles (user_id, role_id, contractor_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-          [userId, roleResult.rows[0].id, contractor_id || null]
-        );
-      }
-
-      // Link user to employee
-      await query('UPDATE employees SET user_id = $1 WHERE id = $2', [userId, result.rows[0].id]);
-      result.rows[0].user_id = userId;
+      logger.info('Munkavállaló létrehozva belépés nélkül — a felhasználót külön kell provisionálni', {
+        employeeId: result.rows[0].id, email,
+      });
     }
 
     logger.info('Uj munkavallaló letrehozva', { employeeId: result.rows[0].id });

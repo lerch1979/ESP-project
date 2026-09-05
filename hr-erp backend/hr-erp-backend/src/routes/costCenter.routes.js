@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -63,25 +65,25 @@ router.get('/:id/descendants', controller.getDescendants);
 router.get('/:id/budget-summary', controller.getBudgetSummary);
 
 // Create
-router.post('/', checkPermission('settings.edit'), controller.create);
+router.post('/', checkPermission('finance.edit'), controller.create);
 
 // Update
-router.put('/:id', checkPermission('settings.edit'), controller.update);
+router.put('/:id', checkPermission('finance.edit'), controller.update);
 
 // Move
-router.post('/:id/move', checkPermission('settings.edit'), controller.move);
+router.post('/:id/move', checkPermission('finance.edit'), controller.move);
 
 // Delete
-router.delete('/:id', checkPermission('settings.edit'), controller.remove);
+router.delete('/:id', checkPermission('finance.edit'), controller.remove);
 
 // ============================================
 // INVOICE CATEGORIES
 // ============================================
 
 router.get('/invoice-categories/list', controller.getInvoiceCategories);
-router.post('/invoice-categories', checkPermission('settings.edit'), controller.createInvoiceCategory);
-router.put('/invoice-categories/:id', checkPermission('settings.edit'), controller.updateInvoiceCategory);
-router.delete('/invoice-categories/:id', checkPermission('settings.edit'), controller.deleteInvoiceCategory);
+router.post('/invoice-categories', checkPermission('finance.edit'), controller.createInvoiceCategory);
+router.put('/invoice-categories/:id', checkPermission('finance.edit'), controller.updateInvoiceCategory);
+router.delete('/invoice-categories/:id', checkPermission('finance.edit'), controller.deleteInvoiceCategory);
 
 // ============================================
 // INVOICES
@@ -89,12 +91,12 @@ router.delete('/invoice-categories/:id', checkPermission('settings.edit'), contr
 
 router.get('/invoices/stats', controller.getInvoiceStats);
 router.get('/invoices/list', controller.getInvoices);
-router.post('/invoices/bulk-action', checkPermission('settings.edit'), controller.bulkInvoiceAction);
-router.post('/invoices/export-to-folder', checkPermission('settings.edit'), controller.exportToFolder);
+router.post('/invoices/bulk-action', checkPermission('finance.edit'), controller.bulkInvoiceAction);
+router.post('/invoices/export-to-folder', checkPermission('finance.edit'), controller.exportToFolder);
 router.get('/invoices/:id', controller.getInvoiceById);
-router.post('/invoices/:id/upload', checkPermission('settings.edit'), invoiceUpload.single('file'), controller.uploadInvoiceFile);
-router.post('/invoices', checkPermission('settings.edit'), controller.createInvoice);
-router.put('/invoices/:id', checkPermission('settings.edit'), controller.updateInvoice);
-router.delete('/invoices/:id', checkPermission('settings.edit'), controller.deleteInvoice);
+router.post('/invoices/:id/upload', checkPermission('finance.edit'), invoiceUpload.single('file'), controller.uploadInvoiceFile);
+router.post('/invoices', checkPermission('finance.edit'), controller.createInvoice);
+router.put('/invoices/:id', checkPermission('finance.edit'), controller.updateInvoice);
+router.delete('/invoices/:id', checkPermission('finance.edit'), controller.deleteInvoice);
 
 module.exports = router;

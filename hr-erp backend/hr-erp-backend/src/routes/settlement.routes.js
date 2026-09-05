@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 /**
  * Settlement-sheet routes.
  *
@@ -16,7 +18,7 @@ const { checkPermission } = require('../middleware/permission');
 
 const admin = express.Router();
 admin.use(authenticateToken);
-const canView = checkPermission('settings.edit');
+const canView = checkPermission('finance.edit');
 
 // Which partners have a settlement for a month → the picker.
 admin.get('/partners', canView, ctrl.listPartners);

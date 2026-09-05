@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoice.controller');
@@ -16,13 +18,13 @@ router.use(authenticateToken);
  * GET /api/v1/invoices
  * Számlák listája szűrőkkel
  */
-router.get('/', checkPermission('settings.view'), invoiceController.getAll);
+router.get('/', checkPermission('finance.view'), invoiceController.getAll);
 
 /**
  * GET /api/v1/invoices/:id
  * Számla részletek
  */
-router.get('/:id', checkPermission('settings.view'), invoiceController.getById);
+router.get('/:id', checkPermission('finance.view'), invoiceController.getById);
 
 // RETIRED: invoice create/update. The LIVE invoice form writes via
 // costCenter.controller (POST/PUT /api/v1/cost-centers/invoices). These
@@ -35,19 +37,19 @@ router.get('/:id', checkPermission('settings.view'), invoiceController.getById);
  * DELETE /api/v1/invoices/:id
  * Számla törlése (soft delete)
  */
-router.delete('/:id', checkPermission('settings.edit'), invoiceController.remove);
+router.delete('/:id', checkPermission('finance.edit'), invoiceController.remove);
 
 /**
  * GET /api/v1/invoices/:invoiceId/payments
  * Számla fizetéseinek listája
  */
-router.get('/:invoiceId/payments', checkPermission('settings.view'), paymentController.getByInvoiceId);
+router.get('/:invoiceId/payments', checkPermission('finance.view'), paymentController.getByInvoiceId);
 
 /**
  * GET /api/v1/invoices/:id/pdf
  * Számla PDF exportálás
  */
-router.get('/:id/pdf', checkPermission('settings.view'), async (req, res) => {
+router.get('/:id/pdf', checkPermission('finance.view'), async (req, res) => {
   try {
     const result = await generateInvoicePDF(req.params.id);
     if (!result) {
@@ -71,7 +73,7 @@ router.get('/:id/pdf', checkPermission('settings.view'), async (req, res) => {
  * POST /api/v1/invoices/:id/send-email
  * Számla küldése emailben PDF melléklettel
  */
-router.post('/:id/send-email', checkPermission('settings.edit'), async (req, res) => {
+router.post('/:id/send-email', checkPermission('finance.edit'), async (req, res) => {
   try {
     const { to, cc, subject, body } = req.body;
     const result = await sendInvoiceEmail(req.params.id, { to, cc, subject, body });

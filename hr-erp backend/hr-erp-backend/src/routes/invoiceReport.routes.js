@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/invoiceReport.controller');
@@ -8,9 +10,9 @@ const { checkPermission } = require('../middleware/permission');
 router.use(authenticateToken);
 
 // Generate report (POST with filter body)
-router.post('/generate', checkPermission('settings.edit'), controller.generateReport);
+router.post('/generate', checkPermission('finance.edit'), controller.generateReport);
 
 // Export report (POST with filter body + format)
-router.post('/export', checkPermission('settings.edit'), controller.exportReport);
+router.post('/export', checkPermission('finance.edit'), controller.exportReport);
 
 module.exports = router;

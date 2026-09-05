@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 /**
  * Two routers exposed:
  *   • admin        — auth + permission gated, mounted at /api/v1/accountant-links
@@ -16,9 +18,9 @@ const { checkPermission } = require('../middleware/permission');
 // ─── Admin (auth) ───────────────────────────────────────────────────
 const admin = express.Router();
 admin.use(authenticateToken);
-admin.get('/',       checkPermission('settings.view'), ctrl.list);
-admin.post('/',      checkPermission('settings.edit'), ctrl.create);
-admin.delete('/:id', checkPermission('settings.edit'), ctrl.revoke);
+admin.get('/',       checkPermission('finance.view'), ctrl.list);
+admin.post('/',      checkPermission('finance.edit'), ctrl.create);
+admin.delete('/:id', checkPermission('finance.edit'), ctrl.revoke);
 
 // ─── Public (no auth, rate-limited per token) ───────────────────────
 const publicRouter = express.Router();

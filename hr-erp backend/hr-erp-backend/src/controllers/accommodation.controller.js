@@ -1,4 +1,5 @@
 const { query, transaction } = require('../database/connection');
+const { redactMoney } = require('../utils/redactMoney');
 const { logger } = require('../utils/logger');
 const XLSX = require('xlsx');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
@@ -156,7 +157,9 @@ const getAccommodations = async (req, res) => {
     res.json({
       success: true,
       data: {
-        accommodations: result.rows,
+        // The site-manager role holds accommodations.view but must never see rent or
+        // cost; the route is legitimately theirs, the money in the payload is not.
+        accommodations: redactMoney(result.rows, req),
         pagination: {
           total: parseInt(countResult.rows[0].total),
           page: parseInt(page),
@@ -203,7 +206,7 @@ const getAccommodationById = async (req, res) => {
 
     res.json({
       success: true,
-      data: { accommodation: result.rows[0] }
+      data: { accommodation: redactMoney(result.rows[0], req) }
     });
   } catch (error) {
     logger.error('Szálláshely lekérési hiba:', error);
@@ -302,7 +305,7 @@ const createAccommodation = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Szálláshely sikeresen létrehozva',
-      data: { accommodation: result.rows[0] }
+      data: { accommodation: redactMoney(result.rows[0], req) }
     });
   } catch (error) {
     logger.error('Szálláshely létrehozási hiba:', error);
@@ -501,7 +504,7 @@ const updateAccommodation = async (req, res) => {
     res.json({
       success: true,
       message: 'Szálláshely sikeresen frissítve',
-      data: { accommodation: result.rows[0] }
+      data: { accommodation: redactMoney(result.rows[0], req) }
     });
   } catch (error) {
     logger.error('Szálláshely frissítési hiba:', error);
@@ -803,7 +806,7 @@ const getUtilityMatrix = async (req, res) => {
         configured: !!r,
       };
     });
-    res.json({ success: true, data: { matrix, configured_count: rows.length, total_lines: UTILITY_LINES.length } });
+    res.json({ success: true, data: redactMoney({ matrix, configured_count: rows.length, total_lines: UTILITY_LINES.length }, req) });
   } catch (error) {
     logger.error('Rezsi-mátrix lekérési hiba:', error);
     res.status(500).json({ success: false, message: 'Rezsi-mátrix lekérési hiba' });

@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
@@ -6,10 +8,10 @@ const { checkPermission } = require('../middleware/permission');
 
 router.use(authenticateToken);
 
-router.get('/', checkPermission('settings.view'), paymentController.getAll);
-router.get('/:id', checkPermission('settings.view'), paymentController.getById);
-router.post('/', checkPermission('settings.edit'), paymentController.create);
-router.put('/:id', checkPermission('settings.edit'), paymentController.update);
-router.delete('/:id', checkPermission('settings.edit'), paymentController.remove);
+router.get('/', checkPermission('finance.view'), paymentController.getAll);
+router.get('/:id', checkPermission('finance.view'), paymentController.getById);
+router.post('/', checkPermission('finance.edit'), paymentController.create);
+router.put('/:id', checkPermission('finance.edit'), paymentController.update);
+router.delete('/:id', checkPermission('finance.edit'), paymentController.remove);
 
 module.exports = router;

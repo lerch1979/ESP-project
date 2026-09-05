@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -35,19 +37,19 @@ const upload = multer({
 router.use(authenticateToken);
 
 // GET routes — staff-only (settings.edit) + contractor-scoped (DEEP_AUDIT finding 3).
-router.get('/stats', checkPermission('settings.edit'), controller.getStats);
-router.get('/', checkPermission('settings.edit'), controller.getAll);
-router.get('/:id', checkPermission('settings.edit'), controller.getById);
+router.get('/stats', checkPermission('finance.edit'), controller.getStats);
+router.get('/', checkPermission('finance.edit'), controller.getAll);
+router.get('/:id', checkPermission('finance.edit'), controller.getById);
 
 // Actions — previously-ungated upload/update/re-ocr are part of the same
 // resident-reachable hole (finding 3), now gated too.
-router.post('/upload', checkPermission('settings.edit'), upload.single('file'), controller.uploadPDF);
-router.post('/poll-emails', checkPermission('settings.edit'), controller.pollEmails);
-router.put('/:id', checkPermission('settings.edit'), controller.update);
-router.post('/:id/approve', checkPermission('settings.edit'), controller.approve);
-router.post('/:id/reject',  checkPermission('settings.edit'), controller.reject);
-router.post('/:id/convert', checkPermission('settings.edit'), controller.convert);
-router.post('/:id/re-ocr', checkPermission('settings.edit'), controller.reRunOCR);
-router.delete('/:id', checkPermission('settings.edit'), controller.remove);
+router.post('/upload', checkPermission('finance.edit'), upload.single('file'), controller.uploadPDF);
+router.post('/poll-emails', checkPermission('finance.edit'), controller.pollEmails);
+router.put('/:id', checkPermission('finance.edit'), controller.update);
+router.post('/:id/approve', checkPermission('finance.edit'), controller.approve);
+router.post('/:id/reject',  checkPermission('finance.edit'), controller.reject);
+router.post('/:id/convert', checkPermission('finance.edit'), controller.convert);
+router.post('/:id/re-ocr', checkPermission('finance.edit'), controller.reRunOCR);
+router.delete('/:id', checkPermission('finance.edit'), controller.remove);
 
 module.exports = router;

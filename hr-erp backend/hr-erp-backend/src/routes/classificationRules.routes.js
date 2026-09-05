@@ -1,3 +1,5 @@
+// Gated on finance.* rather than settings.*: money and configuration are different
+// audiences. A szállásfelelős configures rooms and must never see a rate (mig 154).
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/classificationRules.controller');
@@ -11,8 +13,8 @@ router.get('/', ctrl.list);
 router.post('/test', ctrl.test);
 
 // Settings.edit permission required for mutations
-router.post('/', checkPermission('settings.edit'), ctrl.create);
-router.put('/:id', checkPermission('settings.edit'), ctrl.update);
-router.delete('/:id', checkPermission('settings.edit'), ctrl.remove);
+router.post('/', checkPermission('finance.edit'), ctrl.create);
+router.put('/:id', checkPermission('finance.edit'), ctrl.update);
+router.delete('/:id', checkPermission('finance.edit'), ctrl.remove);
 
 module.exports = router;
