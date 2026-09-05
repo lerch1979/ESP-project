@@ -6,6 +6,65 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-05 — Phase 4 (1. rész): a szerepkör-modell alapjai, éles
+
+migs 153–154. A cél: mindenki csak azt lássa, ami hozzá tartozik.
+
+### A megállapítás, ami az egészet meghatározta
+
+"A szállásfelelős ne lásson pénzügyi adatot" **nem volt kifejezhető**. Minden pénzes
+felület — billing, profit, salary, invoice, expense, compensation, fine, cost center,
+settlement, accountant share: **18 route-fájl** — a `settings.view/edit`-en lógott, ami
+ugyanaz a jog, ami a partner-modult és a díjszerkesztőt is nyitja.
+
+De egy pénzes felület **nem választható el route-szinten**: az `accommodations.view` olyan
+jog, amit a szállásfelelősnek BIRTOKOLNIA kell (szobák, lakók), és ugyanaz a payload viszi
+a `monthly_rent`-et tizenhat helyen. Ott a határ a **mező**, nem a végpont.
+
+Két különböző probléma, két különböző eszköz: `finance.*` névtér a tizenhétre,
+`redactMoney` mező-takarás a tizennyolcadikra. A menüpont elrejtése egyik sem.
+
+### Teszt előbb, javítás utána
+
+A ROLES terület a javítás ELŐTT íródott, és pontosan ott bukott, ahol kellett: a
+szálláshely-részletek payloadján. Route-szintű audit ezt nem találta volna meg. A pásztázó
+**pontos kulcsneveket** néz, nem részstringet — a `/cost/` mintára a `cost_center_name` is
+tüzelne, és egy hamisan riasztó őrszemet kikapcsolnak.
+
+**Élesben majdnem hamis pozitívumot jelentettem.** Az első prod-pásztázás 0 szivárgást
+mutatott — de a kontroll (superadmin) is 0-t, mert a kiválasztott szálláshelynek nem volt
+bérleti díja: a `monthly_rent` oszlop prod-on **mindenhol NULL**, az élő adat a
+`rent_amount`-ban van. Sopronhorpácsra (3 300 000 Ft) újrafuttatva lett értelme:
+nem-pénzügyi felhasználó **0**, superadmin **2 mező a részleteken, 6 a listán**.
+
+### Gate A lezárva
+
+`POST /ai-assistant/chat` rosszabb volt, mint az audit írta: a "minden aktív felhasználó
+chatelhet" azt fedte el, hogy a `handleTicket` valódi `INSERT INTO tickets`-et futtat — így
+bárki, akinek belépése van, **írhatott a staff-sorba**. Most gate-elve, és a `handleTicket`
+külön `tickets.create`-et is néz: a chatelés joga nem a bejelentés joga.
+
+### Egyéb
+
+- A `changeme123` közös jelszavas auto-provisioning megszűnt. Ellenőrizve: **0 élő fiók a 7-ből** használta.
+- `data_controller` → **„Adatkezelő — belső"**. 62 jog „Megbízó" néven élő csapda volt.
+- Hibajegy-backfill: 8 → **12 összekötve**; a maradék 12-t irodai fiók adta fel más nevében, azokhoz nincs mit feloldani.
+
+### Éles ellenőrzés
+
+Senki nem vesztett jogot: a négy superadmin **69 → 71** (finance.view + finance.edit),
+Timi (task_owner) változatlan 14, lakók 1. FUNCTEST **180 passed / 0 failed**.
+
+### Következő — kemény előfeltétellel
+
+A **szállásfelelős** és a **megbízó** szerepkör NEM élesíthető, amíg az
+`employees.billing_client_id` üres (ma 0/279). A megbízó szűrése
+`tickets.linked_employee_id → employees.billing_client_id`, mert minden nagyobb szállás
+vegyes (Sopronhorpács 59 fő: Autoliv + IKEA egy házban) — szállás szerinti szűrés a másik
+ügyfél embereit is megmutatná. Az adat az IRODA-HR munkafüzetből jön vissza.
+
+---
+
 ## SESSION 2026-09-03 (3) — INCIDENT: the test fixtures were sending real email
 
 The owner received "FT Havi kihasználtság" with a real xlsx. FT is the FUNCTEST fixture
