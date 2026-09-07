@@ -192,5 +192,125 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'ROOM-08',
+      name: 'a munkavállaló szálláshelye ÉS szobája szerkeszthető, és az előzmény követi',
+      expected: { status: 200, acc_changed: true, room_set: true, history_follows: true },
+      hint: 'the tester reported this as silently impossible; the API path works, the UI swallowed its errors',
+      run: async (ctx, s) => {
+        const e = (await query(
+          `SELECT id, accommodation_id FROM employees
+            WHERE end_date IS NULL AND accommodation_id IS NOT NULL LIMIT 1`)).rows[0];
+        const dest = (await query(
+          `SELECT id FROM accommodations WHERE id <> $1 AND is_active LIMIT 1`, [e.accommodation_id])).rows[0];
+        const room = (await query(
+          `INSERT INTO accommodation_rooms (accommodation_id, room_number, beds, is_active)
+           VALUES ($1,'MOVE-1',4,true) RETURNING id`, [dest.id])).rows[0];
+
+        const r = await http.put(`/employees/${e.id}`, { token: s.t, body: {
+          accommodation_id: dest.id, room_id: room.id } });
+        const after = (await query('SELECT accommodation_id, room_id FROM employees WHERE id=$1', [e.id])).rows[0];
+        const h = (await query(
+          `SELECT accommodation_id, room_id FROM employee_accommodation_history
+            WHERE employee_id=$1 AND check_out_date IS NULL`, [e.id])).rows[0];
+        return {
+          status: r.status,
+          acc_changed: after.accommodation_id === dest.id,
+          room_set: after.room_id === room.id,
+          history_follows: h?.accommodation_id === dest.id && h?.room_id === room.id,
+        };
+      },
+    },
+    {
+      id: 'ROOM-09',
+      name: '"Kilépett" státusz DÁTUM nélkül elutasítva — nem marad nyitva a szállás',
+      expected: { refused: 400, requires_end_date: true, says_why: true, still_open: true },
+      hint: 'setting the status alone left end_date NULL, so the person went on being billed',
+      run: async (ctx, s) => {
+        const e = (await query(
+          `SELECT id FROM employees WHERE end_date IS NULL AND accommodation_id IS NOT NULL LIMIT 1`)).rows[0];
+        const left = (await query(`SELECT id FROM employee_status_types WHERE slug='left'`)).rows[0];
+        const r = await http.put(`/employees/${e.id}`, { token: s.t, body: { status_id: left.id } });
+        const after = (await query('SELECT end_date FROM employees WHERE id=$1', [e.id])).rows[0];
+        return {
+          refused: r.status,
+          requires_end_date: r.body?.requires_end_date === true,
+          says_why: /kilépés dátumát/i.test(r.body?.message || ''),
+          still_open: after.end_date === null,
+        };
+      },
+    },
+    {
+      id: 'ROOM-10',
+      name: 'kilépési dátummal a szállás-előzmény ZÁRUL azon a napon',
+      expected: { status: 200, end_date_set: true, history_closed_on_that_day: true },
+      hint: 'end_date drives closeAssignment(effectiveDate) — this is what stops the billing',
+      run: async (ctx, s) => {
+        // Must be someone who actually HAS an open occupancy row — the fixture bulk-inserts
+        // employees without history, and closeAssignment can only close what exists.
+        const e = (await query(
+          `SELECT e.id FROM employees e
+             JOIN employee_accommodation_history h
+               ON h.employee_id = e.id AND h.check_out_date IS NULL
+            WHERE e.end_date IS NULL AND e.accommodation_id IS NOT NULL
+              AND h.check_in_date < DATE '1903-06-20'
+            LIMIT 1`)).rows[0];
+        const left = (await query(`SELECT id FROM employee_status_types WHERE slug='left'`)).rows[0];
+        const day = '1903-06-20';   // inside the fixture month, which is NOT finalized
+        const r = await http.put(`/employees/${e.id}`, { token: s.t, body: {
+          status_id: left.id, end_date: day } });
+        const after = (await query(
+          `SELECT TO_CHAR(end_date,'YYYY-MM-DD') d FROM employees WHERE id=$1`, [e.id])).rows[0];
+        const h = (await query(
+          `SELECT TO_CHAR(check_out_date,'YYYY-MM-DD') c FROM employee_accommodation_history
+            WHERE employee_id=$1 ORDER BY check_in_date DESC LIMIT 1`, [e.id])).rows[0];
+        return {
+          status: r.status,
+          end_date_set: after.d === day,
+          history_closed_on_that_day: h?.c === day,
+        };
+      },
+    },
+    {
+      id: 'ROOM-11',
+      name: 'LEZÁRT hónapra eső kilépési dátum megerősítést kér — nem ír át kiszámlázott hónapot',
+      expected: { refused: 409, requires_confirmation: true, names_month: true,
+                  unchanged: true, forced: 200 },
+      hint: 'a back-dated leave silently removes bed-nights from an invoiced month',
+      run: async (ctx, s) => {
+        // Close the month by finalizing its run — and remember the prior state, because
+        // this run is SHARED fixture data: AUTO-06 asserts its status is 'calculated'.
+        // A scenario that mutates shared state and does not put it back fails a later
+        // scenario instead of its own, which is the hardest kind of failure to read.
+        const prior = (await query(
+          `SELECT id, status, finalized_at FROM billing_runs
+            WHERE billing_month = '1903-06' AND status <> 'cancelled'`)).rows;
+        await query(
+          `UPDATE billing_runs SET finalized_at = now(), status='finalized'
+            WHERE billing_month = '1903-06' AND status <> 'cancelled'`);
+        const e = (await query(
+          `SELECT id FROM employees WHERE end_date IS NULL AND accommodation_id IS NOT NULL LIMIT 1`)).rows[0];
+        const left = (await query(`SELECT id FROM employee_status_types WHERE slug='left'`)).rows[0];
+
+        const r = await http.put(`/employees/${e.id}`, { token: s.t, body: {
+          status_id: left.id, end_date: '1903-06-15' } });
+        const mid = (await query('SELECT end_date FROM employees WHERE id=$1', [e.id])).rows[0];
+
+        const forced = await http.put(`/employees/${e.id}`, { token: s.t, body: {
+          status_id: left.id, end_date: '1903-06-15', confirm_closed_month: true } });
+
+        for (const p of prior) {
+          await query('UPDATE billing_runs SET status=$2, finalized_at=$3 WHERE id=$1',
+            [p.id, p.status, p.finalized_at]);
+        }
+        return {
+          refused: r.status,
+          requires_confirmation: r.body?.requires_confirmation === true,
+          names_month: r.body?.closed_month === '1903-06',
+          unchanged: mid.end_date === null,
+          forced: forced.status,
+        };
+      },
+    },
   ],
 };

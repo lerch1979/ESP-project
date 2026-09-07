@@ -6,6 +6,7 @@ import {
   DialogActions,
   Button,
   TextField,
+  Alert,
   Grid,
   Typography,
   Chip,
@@ -13,6 +14,7 @@ import {
   Box,
   Divider,
   FormControl,
+  FormHelperText,
   InputLabel,
   Select,
   MenuItem,
@@ -124,6 +126,10 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [editing, setEditing] = useState(false);
   const [employee, setEmployee] = useState(null);
   const [statuses, setStatuses] = useState([]);
+  // Why the szálláshely/szoba selects may be unusable — shown in the form, not the console.
+  const [dropdownError, setDropdownError] = useState(null);
+  // { statusId, statusName, date, closedMonth } while the leave-date dialog is open.
+  const [leavePrompt, setLeavePrompt] = useState(null);
   const [accommodations, setAccommodations] = useState([]);
   const [formData, setFormData] = useState({});
 
@@ -304,16 +310,39 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
     }
   };
 
+  /**
+   * Load the edit-form dropdowns.
+   *
+   * This used to swallow every failure into console.error. The user-visible result was a
+   * Szálláshely select with nothing in it and no explanation — which is exactly what
+   * "nem enged szálláshelyet váltani, és nem mondja meg miért" looks like from the
+   * outside. A refusal the user cannot see is worse than the refusal itself.
+   */
   const loadDropdowns = async () => {
+    setDropdownError(null);
     try {
       const [statusRes, accRes] = await Promise.all([
         employeesAPI.getStatuses(),
         accommodationsAPI.getAll({ limit: 500 }),
       ]);
       if (statusRes.success) setStatuses(statusRes.data.statuses);
-      if (accRes.success) setAccommodations(accRes.data.accommodations);
+      else setDropdownError('A státuszok betöltése nem sikerült.');
+
+      if (accRes.success) {
+        setAccommodations(accRes.data.accommodations || []);
+        if ((accRes.data.accommodations || []).length === 0) {
+          setDropdownError('Nincs elérhető szálláshely — előbb rögzíts szálláshelyet a Szálláshelyek menüben.');
+        }
+      } else {
+        setDropdownError('A szálláshelyek betöltése nem sikerült.');
+      }
     } catch (error) {
       console.error('Dropdown betöltési hiba:', error);
+      const msg = error.response?.status === 403
+        ? 'Nincs jogosultságod a szálláshelyek listájához, ezért a szálláshely és a szoba nem szerkeszthető.'
+        : (error.response?.data?.message || 'A szálláshely- és státuszlista betöltése nem sikerült. Frissítsd az oldalt.');
+      setDropdownError(msg);
+      toast.error(msg);
     }
   };
 
@@ -341,6 +370,10 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
         setEditing(false);
         loadEmployee();
         onSuccess();
+      } else {
+        // A 200 carrying success:false used to do nothing at all — the dialog simply sat
+        // there and the user concluded the field was not editable.
+        toast.error(response.message || 'A mentés nem sikerült — a szerver nem adott indoklást.');
       }
     } catch (error) {
       console.error('Munkavállaló frissítési hiba:', error);
@@ -352,6 +385,18 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
 
   const handleStatusChange = async (newStatusId) => {
     const newStatus = statuses.find(s => s.id === newStatusId);
+
+    // "Kilépett" is a DATE, not just a label: it closes the occupancy history and stops
+    // the billing. Asking for it up front avoids a second round trip through the 400 the
+    // server would otherwise return.
+    if (newStatus?.slug === 'left') {
+      setLeavePrompt({
+        statusId: newStatusId, statusName: newStatus.name,
+        date: new Date().toISOString().slice(0, 10), closedMonth: null,
+      });
+      return;
+    }
+
     if (!window.confirm(`Biztosan megváltoztatod a státuszt: "${newStatus?.name}"?`)) return;
 
     setSaving(true);
@@ -361,13 +406,44 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
         toast.success('Státusz sikeresen megváltoztatva!');
         loadEmployee();
         onSuccess();
+      } else {
+        toast.error(response.message || 'A státusz módosítása nem sikerült.');
       }
     } catch (error) {
       console.error('Státusz változtatási hiba:', error);
-      toast.error('Hiba a státusz megváltoztatásakor');
+      toast.error(error.response?.data?.message || 'Hiba a státusz megváltoztatásakor');
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Submit the leave, handling the closed-month refusal rather than swallowing it. */
+  const submitLeave = async (force = false) => {
+    setSaving(true);
+    try {
+      const res = await employeesAPI.update(employeeId, {
+        status_id: leavePrompt.statusId,
+        end_date: leavePrompt.date,
+        ...(force ? { confirm_closed_month: true } : {}),
+      });
+      if (res.success) {
+        toast.success(`Kiléptetve ${leavePrompt.date} dátummal — a szállás-előzmény lezárva.`);
+        setLeavePrompt(null);
+        loadEmployee();
+        onSuccess();
+      } else {
+        toast.error(res.message || 'A kiléptetés nem sikerült.');
+      }
+    } catch (error) {
+      const d = error.response?.data;
+      if (error.response?.status === 409 && d?.requires_confirmation) {
+        // Show WHY, with the month named, and let them decide — a silent refusal here
+        // would be the same failure mode as the szálláshely one.
+        setLeavePrompt((p) => ({ ...p, closedMonth: d.closed_month, warning: d.message }));
+      } else {
+        toast.error(d?.message || 'A kiléptetés nem sikerült.');
+      }
+    } finally { setSaving(false); }
   };
 
   const handleClose = () => {
@@ -563,6 +639,7 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
               handleChange={handleChange}
               statuses={statuses}
               accommodations={accommodations}
+              dropdownError={dropdownError}
               employee={employee}
               onPhotoUpload={handlePhotoUpload}
               onPhotoDelete={handlePhotoDelete}
@@ -1072,6 +1149,42 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* Kilépés: the date is the fact. It closes the occupancy history and stops billing,
+          so a date that lands in an already-invoiced month is refused with the month named. */}
+      <Dialog open={!!leavePrompt} onClose={() => setLeavePrompt(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Kiléptetés</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Add meg a kilépés dátumát. Ez zárja le a szállás-előzményt, és ettől a naptól
+            nem számlázunk éjszakát.
+          </Typography>
+          <TextField
+            type="date" fullWidth label="Kilépés dátuma" InputLabelProps={{ shrink: true }}
+            value={leavePrompt?.date || ''}
+            onChange={(e) => setLeavePrompt((p) => ({ ...p, date: e.target.value, closedMonth: null }))}
+          />
+          {leavePrompt?.closedMonth && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {leavePrompt.warning}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeavePrompt(null)}>Mégse</Button>
+          {leavePrompt?.closedMonth ? (
+            <Button color="warning" variant="contained" disabled={saving}
+                    onClick={() => submitLeave(true)}>
+              Mégis, lezárt hónapra is
+            </Button>
+          ) : (
+            <Button variant="contained" disabled={saving || !leavePrompt?.date}
+                    onClick={() => submitLeave(false)}>
+              Kiléptetés
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
     </Dialog>
   );
 }
@@ -1229,22 +1342,35 @@ function ViewDetails({ employee, buildAddress, onPhotoUpload, onPhotoDelete, pho
   );
 }
 
-function EditForm({ formData, handleChange, statuses, accommodations, employee, onPhotoUpload, onPhotoDelete, photoUploading }) {
+function EditForm({ formData, handleChange, statuses, accommodations, employee, onPhotoUpload, onPhotoDelete, photoUploading, dropdownError }) {
   const photoInputRef = React.useRef(null);
   const [availableRooms, setAvailableRooms] = React.useState([]);
   const [roomsLoading, setRoomsLoading] = React.useState(false);
+  const [roomsError, setRoomsError] = React.useState(null);
 
   // Fetch rooms when accommodation_id changes
   React.useEffect(() => {
     if (formData.accommodation_id) {
       setRoomsLoading(true);
+      setRoomsError(null);
       roomsAPI.getByAccommodation(formData.accommodation_id)
         .then(response => {
           if (response.success) {
-            setAvailableRooms(response.data.rooms);
+            const rooms = response.data.rooms || [];
+            setAvailableRooms(rooms);
+            // An empty select with no caption is indistinguishable from a broken one.
+            if (rooms.length === 0) {
+              setRoomsError('Ehhez a szálláshelyhez nincs rögzített szoba — előbb vegyél fel szobát a Szálláshely adatlapján.');
+            }
+          } else {
+            setAvailableRooms([]);
+            setRoomsError(response.message || 'A szobalista betöltése nem sikerült.');
           }
         })
-        .catch(() => setAvailableRooms([]))
+        .catch((err) => {
+          setAvailableRooms([]);
+          setRoomsError(err.response?.data?.message || 'A szobalista betöltése nem sikerült. Frissítsd az oldalt.');
+        })
         .finally(() => setRoomsLoading(false));
     } else {
       setAvailableRooms([]);
@@ -1425,7 +1551,7 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
         <Divider />
       </Grid>
       <Grid item xs={6}>
-        <FormControl fullWidth>
+        <FormControl fullWidth error={!!dropdownError}>
           <InputLabel>Szálláshely</InputLabel>
           <Select value={formData.accommodation_id} onChange={(e) => { handleChange('accommodation_id', e.target.value); handleChange('room_id', ''); }} label="Szálláshely">
             <MenuItem value="">Nincs</MenuItem>
@@ -1433,10 +1559,11 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
               <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
             ))}
           </Select>
+          {dropdownError && <FormHelperText>{dropdownError}</FormHelperText>}
         </FormControl>
       </Grid>
       <Grid item xs={6}>
-        <FormControl fullWidth disabled={!formData.accommodation_id || roomsLoading}>
+        <FormControl fullWidth disabled={!formData.accommodation_id || roomsLoading} error={!!roomsError}>
           <InputLabel>Szoba</InputLabel>
           <Select value={formData.room_id} onChange={(e) => handleChange('room_id', e.target.value)} label="Szoba">
             <MenuItem value="">Nincs</MenuItem>
@@ -1446,6 +1573,11 @@ function EditForm({ formData, handleChange, statuses, accommodations, employee, 
               </MenuItem>
             ))}
           </Select>
+          <FormHelperText>
+            {roomsError
+              || (!formData.accommodation_id ? 'Előbb válassz szálláshelyet.' : '')
+              || (roomsLoading ? 'Szobák betöltése…' : '')}
+          </FormHelperText>
         </FormControl>
       </Grid>
 

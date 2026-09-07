@@ -137,6 +137,12 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
   // The room we are placing someone into, plus the pool to choose from.
   const [assignTarget, setAssignTarget] = useState(null);
   const [unhoused, setUnhoused] = useState([]);
+  // { employee, fromRoom } while the relocation dialog is open.
+  const [movingOccupant, setMovingOccupant] = useState(null);
+  const [moveTarget, setMoveTarget] = useState({ accommodation_id: '', room_id: '' });
+  const [moveRooms, setMoveRooms] = useState([]);
+  const [allAccommodations, setAllAccommodations] = useState([]);
+  const [moveSaving, setMoveSaving] = useState(false);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [roomFormData, setRoomFormData] = useState({ ...initialRoomForm });
   const [editingRoomId, setEditingRoomId] = useState(null);
@@ -384,6 +390,50 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
       setUnhoused(list.filter((e) => !e.room_id && !e.end_date));
     } catch { setUnhoused([]); }
   }, [accommodationId]);
+
+  /**
+   * Relocation from the room list — the main workflow when people shuffle between
+   * houses. It writes through PUT /employees/:id rather than a new endpoint, because
+   * that path already moves the employees row and its occupancy history inside ONE
+   * transaction (employee.controller: housingTouched → syncAssignment). A separate
+   * "move" endpoint would be a second place for that invariant to drift.
+   */
+  const openMove = async (occupant, room) => {
+    setMovingOccupant({ employee: occupant, fromRoom: room });
+    setMoveTarget({ accommodation_id: accommodationId, room_id: room.id });
+    try {
+      const r = await accommodationsAPI.getAll({ limit: 500 });
+      setAllAccommodations(r?.data?.accommodations || []);
+    } catch { setAllAccommodations([]); }
+  };
+
+  // Rooms of whichever accommodation the move dialog currently points at.
+  useEffect(() => {
+    if (!moveTarget.accommodation_id) { setMoveRooms([]); return; }
+    roomsAPI.getByAccommodation(moveTarget.accommodation_id)
+      .then((r) => setMoveRooms(r?.data?.rooms || []))
+      .catch(() => setMoveRooms([]));
+  }, [moveTarget.accommodation_id]);
+
+  const submitMove = async () => {
+    setMoveSaving(true);
+    try {
+      const res = await employeesAPI.update(movingOccupant.employee.id, {
+        accommodation_id: moveTarget.accommodation_id || null,
+        room_id: moveTarget.room_id || null,
+      });
+      if (res.success) {
+        toast.success(`${movingOccupant.employee.name} átköltöztetve`);
+        setMovingOccupant(null);
+        loadRooms();
+        loadUnhoused();
+      } else {
+        toast.error(res.message || 'A költöztetés nem sikerült.');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'A költöztetés nem sikerült.');
+    } finally { setMoveSaving(false); }
+  };
 
   const handleSaveRoom = async () => {
     if (!roomFormData.room_number.toString().trim()) {
@@ -901,8 +951,10 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                                     {room.occupants.map((o) => (
                                       <Chip
                                         key={o.id} size="small" label={o.name}
+                                        onClick={() => openMove(o, room)}
                                         onDelete={() => handleRemoveOccupant(room.id, o.id)}
-                                        title="Kiköltöztetés ebből a szobából"
+                                        title="Kattints a költöztetéshez · X = kiköltöztetés"
+                                        sx={{ cursor: 'pointer' }}
                                       />
                                     ))}
                                     {room.occupants.length === 0 && (
@@ -1110,6 +1162,47 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
           </>
         )}
       </DialogActions>
+
+      {/* Relocation — room AND accommodation, without leaving the page. */}
+      <Dialog open={!!movingOccupant} onClose={() => setMovingOccupant(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Költöztetés — {movingOccupant?.employee?.name}</DialogTitle>
+        <DialogContent>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+            Jelenleg: {movingOccupant?.fromRoom?.room_number}. szoba
+          </Typography>
+          <TextField
+            select fullWidth label="Szálláshely" sx={{ mb: 2 }}
+            value={moveTarget.accommodation_id}
+            onChange={(e) => setMoveTarget({ accommodation_id: e.target.value, room_id: '' })}
+          >
+            {allAccommodations.map((a) => (
+              <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select fullWidth label="Szoba"
+            value={moveTarget.room_id}
+            onChange={(e) => setMoveTarget((t) => ({ ...t, room_id: e.target.value }))}
+            helperText={moveRooms.length === 0
+              ? 'Ehhez a szálláshelyhez nincs rögzített szoba.'
+              : 'A szállás-előzmény automatikusan frissül.'}
+          >
+            <MenuItem value="">Nincs szoba (csak szálláshely)</MenuItem>
+            {moveRooms.map((r) => (
+              <MenuItem key={r.id} value={r.id} disabled={r.free_beds <= 0 && r.id !== movingOccupant?.fromRoom?.id}>
+                {r.room_number}. szoba ({r.occupied_beds}/{r.beds} ágy)
+                {r.free_beds <= 0 && r.id !== movingOccupant?.fromRoom?.id ? ' — tele' : ''}
+              </MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMovingOccupant(null)}>Mégse</Button>
+          <Button variant="contained" onClick={submitMove} disabled={moveSaving || !moveTarget.accommodation_id}>
+            Költöztetés
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Un-rooming people is a housing change that feeds billing and consolidation, so
           the confirmation names who moves rather than just counting them. */}

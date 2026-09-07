@@ -13,6 +13,7 @@ const statusHistory = require('../services/entityStatusHistory.service');
 // daily occupancy snapshot (and therefore the billing engine) reads.
 const accHistory = require('../services/accommodationHistory.service');
 const { findDuplicate, FIELD_LABEL, MATCH_THRESHOLD } = require('../utils/employeeIdentity');
+const { monthStatus } = require('../utils/monthLock');
 
 const EMPLOYEE_FILTER_FIELD_MAP = {
   status: 'est.name',
@@ -690,6 +691,43 @@ const updateEmployee = async (req, res) => {
       }
     }
 
+    // ── leaving: the DATE is the fact, the status is only its label ──────────────
+    // Marking someone "Kilépett" used to change status_id and nothing else, so they kept
+    // an open occupancy row and went on being billed. The leave DATE is what closes the
+    // stay, so it is required rather than assumed to be today — people hand in notice
+    // late, and back-dating is the normal case, not the exception.
+    if (body.status_id !== undefined && body.status_id) {
+      const st = await query('SELECT slug FROM employee_status_types WHERE id = $1', [body.status_id]);
+      const leaving = st.rows[0]?.slug === 'left';
+      const endDateGiven = body.end_date !== undefined && body.end_date !== null && body.end_date !== '';
+      if (leaving && !endDateGiven && !existing.rows[0].end_date) {
+        return res.status(400).json({
+          success: false,
+          requires_end_date: true,
+          message: 'A "Kilépett" státuszhoz meg kell adni a kilépés dátumát — '
+                 + 'ez zárja le a szállás-előzményt és ettől a naptól nem számlázunk.',
+        });
+      }
+    }
+
+    // A back-dated leave rewrites occupancy for a month that may already be invoiced.
+    if (body.end_date !== undefined && body.end_date !== null && body.end_date !== ''
+        && String(body.end_date) !== String(existing.rows[0].end_date || '')) {
+      const m = await monthStatus(body.end_date);
+      const confirmed = body.confirm_closed_month === true || req.query.confirm_closed_month === 'true';
+      if (m.closed && !confirmed) {
+        return res.status(409).json({
+          success: false,
+          requires_confirmation: true,
+          closed_month: m.month,
+          message: `A megadott kilépési dátum a(z) ${m.month} hónapra esik, ami már LE VAN ZÁRVA `
+                 + `(lezárva: ${new Date(m.finalizedAt).toISOString().slice(0, 10)}). `
+                 + 'A mentés módosítaná egy már kiszámlázott hónap éjszakáit. '
+                 + 'Csak akkor folytasd, ha a számlát is helyesbítitek.',
+        });
+      }
+    }
+
     // Verify accommodation if provided
     if (body.accommodation_id !== undefined && body.accommodation_id !== null && body.accommodation_id !== '') {
       const accCheck = await query('SELECT id FROM accommodations WHERE id = $1', [body.accommodation_id]);
@@ -738,8 +776,16 @@ const updateEmployee = async (req, res) => {
       'status_id', 'accommodation_id', 'notes', 'contractor_id',
     ];
 
+    // `end_date` is in BOTH lists (originalFields and EMPLOYEE_DIRECT_FIELDS), so the
+    // builder used to emit it twice and Postgres rejected the whole statement with
+    // "multiple assignments to same column". Setting a leave date from the employee form
+    // therefore ALWAYS returned 500 — a pre-existing bug, found by the leave-date tests.
+    // A Set makes the class of mistake impossible rather than fixing this one instance.
+    const assigned = new Set();
+
     for (const field of originalFields) {
-      if (body[field] !== undefined) {
+      if (body[field] !== undefined && !assigned.has(field)) {
+        assigned.add(field);
         fields.push(`${field} = $${paramIndex}`);
         params.push(body[field] || null);
         paramIndex++;
@@ -749,7 +795,8 @@ const updateEmployee = async (req, res) => {
     // All new employee direct fields (encrypt PII before storing)
     const PII_ENCRYPT_FIELDS = ['social_security_number', 'passport_number', 'bank_account', 'tax_id'];
     for (const field of EMPLOYEE_DIRECT_FIELDS) {
-      if (body[field] !== undefined) {
+      if (body[field] !== undefined && !assigned.has(field)) {
+        assigned.add(field);
         fields.push(`${field} = $${paramIndex}`);
         let value = body[field] || null;
         if (field === 'shift_schedule') value = normalizeShift(value); // slug or null — never trips the CHECK
