@@ -1,4 +1,5 @@
 const { query, transaction } = require('../database/connection');
+const mnb = require('../services/mnbRates.service');
 const { logger } = require('../utils/logger');
 const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
@@ -223,23 +224,58 @@ const create = async (req, res) => {
 
     const invoiceNumber = await generateInvoiceNumber();
 
+    // Teljesítés drives the exchange rate (mig 156); it falls back to the invoice date,
+    // which is what the system assumed before the column existed.
+    const perfDate = req.body.performance_date || invoice_date;
+
+    // ── foreign currency, same rule as accommodation_expenses ────────────────
+    // `amount` is stored in FORINT because the cost-centre summary trigger and every
+    // invoice report SUM it — before this, a 22,28 EUR invoice was being added to a forint
+    // total as twenty-two forints.
+    const cur = String(currency || 'HUF').toUpperCase();
+    let fxAmount = amount;
+    let fxTotal = total_amount || amount;
+    let fx = { original_amount: null, original_currency: null, exchange_rate: null,
+               exchange_rate_date: null, rate_status: 'not_needed' };
+
+    if (cur !== 'HUF') {
+      const conv = await mnb.toHuf(amount, cur, perfDate);
+      if (conv.status === 'ok') {
+        fxAmount = conv.amountHuf;
+        fxTotal = Math.round(Number(total_amount || amount) * (conv.rate / (conv.unit || 1)) * 100) / 100;
+        fx = { original_amount: amount, original_currency: cur, exchange_rate: conv.rate,
+               exchange_rate_date: conv.rateDate, rate_status: 'ok' };
+      } else {
+        // Never guess; the month-close and the MNB árfolyamok page surface it.
+        fxAmount = 0; fxTotal = 0;
+        fx = { original_amount: amount, original_currency: cur, exchange_rate: null,
+               exchange_rate_date: null, rate_status: 'missing' };
+        logger.warn(`[invoice] árfolyam hiányzik (${cur}): ${conv.reason || 'ismeretlen ok'}`);
+      }
+    }
+
     const result = await query(
       `INSERT INTO invoices (
         invoice_number, vendor_name, vendor_tax_number, amount, currency,
-        vat_amount, total_amount, invoice_date, due_date,
+        vat_amount, total_amount, invoice_date, due_date, performance_date,
         cost_center_id, category_id, description, notes,
         line_items, client_name, client_id, contractor_id,
-        payment_status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        payment_status, created_by,
+        original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $20, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                $21, $22, $23, $24, $25)
        RETURNING *`,
       [
         invoiceNumber, vendor_name || null, vendor_tax_number || null,
-        amount, currency || 'HUF', vat_amount || null,
-        total_amount || amount, invoice_date, due_date || null,
+        fxAmount, currency || 'HUF', vat_amount || null,
+        fxTotal, invoice_date, due_date || null,
         cost_center_id, category_id || null, description || null, notes || null,
         line_items ? JSON.stringify(line_items) : null,
         client_name || null, client_id || null, contractor_id || null,
-        'draft', req.user.id
+        'draft', req.user.id,
+        perfDate,
+        fx.original_amount, fx.original_currency, fx.exchange_rate,
+        fx.exchange_rate_date, fx.rate_status
       ]
     );
 

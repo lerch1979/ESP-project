@@ -30,7 +30,7 @@ const formatFileSize = (bytes) => {
 
 const INITIAL_FORM = {
   invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
-  total_amount: '', currency: 'HUF', invoice_date: '', due_date: '', payment_date: '',
+  total_amount: '', currency: 'HUF', invoice_date: '', performance_date: '', due_date: '', payment_date: '',
   payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
 };
 
@@ -55,6 +55,7 @@ export default function InvoiceFormModal({
         total_amount: editData.total_amount || '',
         currency: editData.currency || 'HUF',
         invoice_date: editData.invoice_date ? editData.invoice_date.substring(0, 10) : '',
+        performance_date: editData.performance_date ? editData.performance_date.substring(0, 10) : '',
         due_date: editData.due_date ? editData.due_date.substring(0, 10) : '',
         payment_date: editData.payment_date ? editData.payment_date.substring(0, 10) : '',
         payment_status: editData.payment_status || 'pending',
@@ -155,6 +156,13 @@ export default function InvoiceFormModal({
             <TextField label="Számla dátum *" type="date" value={form.invoice_date}
               onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
               size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />
+            {/* Teljesítés drives the MNB rate for a foreign-currency invoice — a service
+                performed in September but invoiced in October converts at September's
+                rate. Blank falls back to the invoice date. */}
+            <TextField label="Teljesítés dátuma" type="date" value={form.performance_date}
+              onChange={(e) => setForm({ ...form, performance_date: e.target.value })}
+              size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }}
+              helperText={form.currency !== 'HUF' ? 'Ez dönti el az MNB árfolyamot' : ' '} />
             <FormControl size="small" sx={{ width: 100 }}>
               <InputLabel>Pénznem</InputLabel>
               <Select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} label="Pénznem">
