@@ -414,6 +414,13 @@ export const accommodationsAPI = {
 };
 
 // Rooms API
+// MNB árfolyamok — hiányzó tételek, újrapróbálkozás, és az auditálható árfolyam-napló.
+export const exchangeRatesAPI = {
+  missing: async (params = {}) => (await api.get('/exchange-rates/missing', { params })).data,
+  retry: async (body = {}) => (await api.post('/exchange-rates/retry', body)).data,
+  list: async (params = {}) => (await api.get('/exchange-rates', { params })).data,
+};
+
 export const roomsAPI = {
   getByAccommodation: async (accommodationId) => {
     const response = await api.get(`/accommodations/${accommodationId}/rooms`);

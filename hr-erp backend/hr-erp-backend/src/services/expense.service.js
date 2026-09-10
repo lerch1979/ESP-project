@@ -1,4 +1,6 @@
 const { query } = require('../database/connection');
+const mnb = require('./mnbRates.service');
+const { logger } = require('../utils/logger');
 const {
   deriveBillingMonth, generateFingerprint, computeNetVat,
 } = require('../models/expense.model');
@@ -193,6 +195,32 @@ class ExpenseService {
       return { error: 'Számlázási hónap vagy teljesítés dátum kötelező', status: 400 };
     }
 
+    // ── foreign currency ────────────────────────────────────────────────────
+    // The user types the amount in the ORIGINAL currency; `amount` on the row stays the
+    // booked FORINT value, because every consumer downstream (billingEngine, profit,
+    // operatingCosts, the settlement sheets) reads it and assumes forint. The rate is
+    // frozen here and never recomputed, so this expense will always show the HUF it was
+    // booked at.
+    const cur = String(data.currency || 'HUF').toUpperCase();
+    let fx = { rate_status: 'not_needed', original_amount: null, original_currency: null,
+               exchange_rate: null, exchange_rate_date: null };
+    let amountHuf = data.amount;
+
+    if (cur !== 'HUF') {
+      const conv = await mnb.toHuf(data.amount, cur, data.performance_date || billing_month + '-01');
+      if (conv.status === 'ok') {
+        amountHuf = conv.amountHuf;
+        fx = { rate_status: 'ok', original_amount: data.amount, original_currency: cur,
+               exchange_rate: conv.rate, exchange_rate_date: conv.rateDate };
+      } else {
+        // Never guess. Store what we know and let the month-close surface it.
+        amountHuf = 0;
+        fx = { rate_status: 'missing', original_amount: data.amount, original_currency: cur,
+               exchange_rate: null, exchange_rate_date: null };
+        logger.warn(`[expense] árfolyam hiányzik (${cur}): ${conv.reason || 'ismeretlen ok'}`);
+      }
+    }
+
     const fingerprint = generateFingerprint({
       vendor_name: data.vendor_name,
       amount: data.amount,
@@ -214,20 +242,22 @@ class ExpenseService {
         performance_date, invoice_date, vendor_name, vendor_tax_number,
         dedup_fingerprint, file_attachments, cost_center_id,
         source, ai_confidence, status, payment_date, payment_status,
-        net_amount, vat_rate, vat_amount, vat_exemption_reason, is_reverse_vat
+        net_amount, vat_rate, vat_amount, vat_exemption_reason, is_reverse_vat,
+        original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status
        ) VALUES (
         $1, $2, $3, $4, COALESCE($5, 'HUF'),
         $6, $7, $8, $9,
         $10, $11, $12, $13,
         $14, COALESCE($15::jsonb, '[]'::jsonb), $16,
         COALESCE($17, 'manual'), $18, COALESCE($19, 'confirmed'), $20, COALESCE($21, 'unpaid'),
-        $22, $23, $24, $25, COALESCE($26, FALSE)
+        $22, $23, $24, $25, COALESCE($26, FALSE),
+        $27, $28, $29, $30, $31
        ) RETURNING *`,
       [
         data.accommodation_id,
         billing_month,
         data.category,
-        data.amount,
+        amountHuf,
         data.currency || null,
         data.invoice_number || null,
         data.attachment_url || null,
@@ -250,6 +280,8 @@ class ExpenseService {
         vatSplit.vat_amount,
         data.vat_exemption_reason || null,
         data.is_reverse_vat === true || data.is_reverse_vat === 'true' ? true : null,
+        fx.original_amount, fx.original_currency, fx.exchange_rate,
+        fx.exchange_rate_date, fx.rate_status,
       ],
     );
 

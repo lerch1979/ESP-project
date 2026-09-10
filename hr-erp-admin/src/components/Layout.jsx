@@ -79,6 +79,7 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
+import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -137,6 +138,7 @@ const buildMenuSections = (t) => [
     items: [
       { text: t('nav.residents'), icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
       { text: 'Hiányzó adatok', icon: <PlaylistAddCheckIcon />, path: '/employees/completeness', permission: 'employees.view' },
+      { text: 'MNB árfolyamok', icon: <CurrencyExchangeIcon />, path: '/exchange-rates', permission: 'finance.view' },
       { text: t('nav.accommodations'), icon: <ApartmentIcon />, path: '/accommodations', permission: 'accommodations.view' },
       { text: 'Szoba-konszolidáció', icon: <MeetingRoomIcon />, path: '/accommodations/consolidation', permission: 'employees.edit' },
       { text: 'Lejárati figyelő', icon: <HourglassBottomIcon />, path: '/expiry-monitor', permission: 'employees.view' },

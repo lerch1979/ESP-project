@@ -371,6 +371,32 @@ const finalizeRun = async (req, res) => {
       if (run.status === 'finalized') {
         return { status: 409, body: { success: false, message: `A(z) ${run.billing_month} hónap már le van zárva.` } };
       }
+
+      // A month with an unconverted foreign-currency cost would close UNDERSTATED: the
+      // expense is on the books with a HUF value of 0 because we refused to guess a rate.
+      // Blocking is the only honest answer — but blocking without saying what to fix is a
+      // wall, so the refusal carries the list and each row's id.
+      const missing = await client.query(
+        `SELECT e.id, e.vendor_name, e.invoice_number, e.category,
+                e.original_amount, e.original_currency,
+                TO_CHAR(e.performance_date,'YYYY-MM-DD') AS performance_date,
+                a.name AS accommodation
+           FROM accommodation_expenses e
+           LEFT JOIN accommodations a ON a.id = e.accommodation_id
+          WHERE e.billing_month = $1 AND e.deleted_at IS NULL AND e.rate_status = 'missing'
+          ORDER BY e.performance_date NULLS LAST, a.name`, [run.billing_month]);
+
+      if (missing.rows.length > 0) {
+        return { status: 409, body: {
+          success: false,
+          requires_rate_resolution: true,
+          message: `A(z) ${run.billing_month} hónap nem zárható le: ${missing.rows.length} tételnél `
+                 + 'hiányzik az MNB árfolyam, így a forint érték még nem ismert. '
+                 + 'Kérd le újra az árfolyamot, vagy javítsd a tételeket.',
+          data: { billing_month: run.billing_month, missing_count: missing.rows.length, missing: missing.rows },
+        } };
+      }
+
       await client.query(
         `UPDATE billing_runs SET status='finalized', finalized_at=NOW(), finalized_by=$2 WHERE id=$1`,
         [run.id, req.user?.id || null]);

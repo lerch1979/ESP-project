@@ -23,6 +23,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'react-toastify';
+import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI, billingAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
@@ -138,8 +139,11 @@ const SectionLabel = ({ children, sx }) => (
 // Tab 1: Expenses
 // ────────────────────────────────────────────────────────────────────────
 
+const CURRENCIES = ['HUF', 'EUR', 'USD', 'GBP', 'CHF', 'PLN', 'RON'];
+
 const EMPTY_FORM = {
   accommodation_id: '',
+  currency: 'HUF',
   performance_date: '',
   billing_month: '',
   invoice_date: '',
@@ -174,6 +178,7 @@ function ExpensesTab() {
   // ─── Reference data ────────────────────────────────────────────────
   const [accommodations, setAccommodations] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
+  const [costCenterTree, setCostCenterTree] = useState([]);
 
   // ─── Form ──────────────────────────────────────────────────────────
   const [formOpen, setFormOpen] = useState(false);
@@ -220,6 +225,13 @@ function ExpensesTab() {
       try {
         const res = await costCentersAPI.getAll({ limit: 500, is_active: true });
         const list = res?.data?.costCenters || res?.costCenters || res?.data || [];
+        // The TREE, not just the flat list: a flat picker shows "Rezsi" with no parent, so
+        // every option reads as top-level and nobody can tell what sits under what. Same
+        // component the invoice flow already uses.
+        try {
+          const t = await costCentersAPI.getTree({ is_active: true });
+          setCostCenterTree(t?.data?.tree || t?.data || []);
+        } catch { setCostCenterTree([]); }
         setCostCenters(Array.isArray(list) ? list : []);
       } catch (e) {
         // Cost centers are optional UX; silent failure with empty list
@@ -296,6 +308,7 @@ function ExpensesTab() {
       vendor_tax_number: row.vendor_tax_number || '',
       invoice_number: row.invoice_number || '',
       cost_center_id: row.cost_center_id || '',
+      currency: row.original_currency || row.currency || 'HUF',
       notes: row.notes || '',
       vat_rate: row.vat_rate != null ? String(row.vat_rate) : '',
       net_amount: row.net_amount != null ? String(row.net_amount) : '',
@@ -532,6 +545,7 @@ function ExpensesTab() {
       vendor_tax_number: form.vendor_tax_number?.trim() || null,
       invoice_number: form.invoice_number?.trim() || null,
       cost_center_id: form.cost_center_id || null,
+      currency: form.currency || 'HUF',
       notes: form.notes?.trim() || null,
       // VAT (migration 114)
       vat_rate: numOrNull(form.vat_rate),
@@ -760,7 +774,30 @@ function ExpensesTab() {
                     <TableCell>
                       <Chip size="small" label={meta.label} color={meta.color} variant="outlined" />
                     </TableCell>
-                    <TableCell align="right">{fmtMoney(row.amount)}</TableCell>
+                    <TableCell align="right">
+                      {/* Both figures, always: the original is what the invoice says, the
+                          forint is what we booked — and the rate + its publication date is
+                          what makes a disputed number checkable against mnb.hu. */}
+                      {row.rate_status === 'missing' ? (
+                        <Tooltip title="Az MNB árfolyam nem volt lekérhető. A hónap nem zárható le, amíg ez nem rendeződik.">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {Number(row.original_amount).toLocaleString('hu-HU', { minimumFractionDigits: 2 })} {row.original_currency}
+                            </Typography>
+                            <Chip size="small" color="warning" variant="outlined" label="árfolyam hiányzik" />
+                          </Box>
+                        </Tooltip>
+                      ) : row.original_currency ? (
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {Number(row.original_amount).toLocaleString('hu-HU', { minimumFractionDigits: 2 })} {row.original_currency}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {fmtMoney(row.amount)} — MNB {Number(row.exchange_rate).toLocaleString('hu-HU')}, {row.exchange_rate_date}
+                          </Typography>
+                        </Box>
+                      ) : fmtMoney(row.amount)}
+                    </TableCell>
                     <TableCell align="center">
                       {fileCount > 0 ? (
                         <Chip size="small" label={fileCount} color="primary" variant="outlined" />
@@ -866,17 +903,36 @@ function ExpensesTab() {
                 }
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <TextField
                 required fullWidth size="small"
-                label="Bruttó összeg (Ft)"
+                label={`Bruttó összeg (${form.currency || 'HUF'})`}
                 type="number"
-                inputProps={{ min: 0, step: 1 }}
+                inputProps={{ min: 0, step: 0.01 }}
                 value={form.amount}
                 onChange={(e) => setAmount(e.target.value)}
                 helperText="Bruttó (a teljes számla végösszege)"
               />
             </Grid>
+            <Grid item xs={12} md={2}>
+              <TextField
+                select fullWidth size="small" label="Pénznem"
+                value={form.currency || 'HUF'}
+                onChange={(e) => setForm({ ...form, currency: e.target.value })}
+              >
+                {CURRENCIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              </TextField>
+            </Grid>
+            {(form.currency || 'HUF') !== 'HUF' && (
+              <Grid item xs={12}>
+                <Alert severity="info" icon={false} sx={{ py: 0.5 }}>
+                  A tétel a <strong>teljesítés dátumára</strong> érvényes MNB
+                  középárfolyamon kerül könyvelésre, és az árfolyam rögzül a tételen — egy
+                  régi költség mindig azt a forint értéket mutatja, amin könyveltük.
+                  {' '}Hétvégére/ünnepnapra az utolsó közzétett árfolyam érvényes.
+                </Alert>
+              </Grid>
+            )}
             <Grid item xs={12}>
               <TextField
                 fullWidth size="small"
@@ -1103,18 +1159,22 @@ function ExpensesTab() {
                     a saját bevallásodban. Tipikus esetek: építési-szerelési munka, fémhulladék.
                   </Alert>
                 )}
-                <Autocomplete
-                  size="small"
-                  options={costCenters}
-                  value={selectedCostCenter}
-                  onChange={(_, v) => setForm({ ...form, cost_center_id: v?.id || '' })}
-                  getOptionLabel={(opt) => opt ? `${opt.name}${opt.code ? ` (${opt.code})` : ''}` : ''}
-                  isOptionEqualToValue={(a, b) => a.id === b.id}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Költséghely" helperText="Opcionális: hozzárendelhető a régi cost_center taxonómiához" />
-                  )}
-                  noOptionsText="Nincs találat"
+                {/* The recursive tree, not a flat list. A flat picker renders "Rezsi" with
+                    no parent, so every option reads as top-level — which is exactly how a
+                    three-level taxonomy came to look like a one-level one. */}
+                <CostCenterSelector
+                  value={form.cost_center_id}
+                  onChange={(val) => setForm({ ...form, cost_center_id: val })}
+                  costCenters={costCenters}
+                  costCenterTree={costCenterTree}
+                  label="Költséghely (opcionális)"
                 />
+                <Alert severity="info" icon={false} sx={{ py: 0.5, mt: 0.5 }}>
+                  A költséghely azt mondja meg, <strong>milyen jellegű</strong> a költség.
+                  Azt, hogy <strong>melyik házhoz</strong> tartozik, a fenti{' '}
+                  <strong>Szálláshely</strong> mező dönti el — az kerül a szállásonkénti
+                  költségkimutatásba és az elszámoló lapokra.
+                </Alert>
               </Stack>
             </AccordionDetails>
           </Accordion>
@@ -1296,6 +1356,7 @@ function DraftsTab() {
 
   const [accommodations, setAccommodations] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
+  const [costCenterTree, setCostCenterTree] = useState([]);
 
   useEffect(() => {
     (async () => {
