@@ -1430,23 +1430,40 @@ export const costCentersAPI = {
   },
 
   // Invoices
+  //
+  // Az útvonalak mögött már a karbantartott számla-controller áll (a besorolással, a
+  // teljesítés dátumával és a beszállító-hivatkozással együtt), az viszont beburkolva adja
+  // vissza az adatot: { invoices, pagination } illetve { invoice }. A hívó képernyők a régi,
+  // lapos alakra épülnek, ezért itt bontjuk ki — így a két számla-modul egyesítése nem
+  // igényelte minden képernyő egyidejű átírását.
   getInvoices: async (params = {}) => {
     const response = await api.get('/cost-centers/invoices/list', { params });
-    return response.data;
+    const d = response.data;
+    return d?.data?.invoices
+      ? { ...d, data: d.data.invoices, pagination: d.data.pagination }
+      : d;
   },
 
   getInvoiceById: async (id) => {
     const response = await api.get(`/cost-centers/invoices/${id}`);
-    return response.data;
+    const d = response.data;
+    return d?.data?.invoice ? { ...d, data: d.data.invoice } : d;
   },
 
   createInvoice: async (data) => {
     const response = await api.post('/cost-centers/invoices', data);
-    return response.data;
+    const d = response.data;
+    return d?.data?.invoice ? { ...d, data: d.data.invoice } : d;
   },
 
   updateInvoice: async (id, data) => {
     const response = await api.put(`/cost-centers/invoices/${id}`, data);
+    const d = response.data;
+    return d?.data?.invoice ? { ...d, data: d.data.invoice } : d;
+  },
+
+  bulkReallocateInvoices: async (payload) => {
+    const response = await api.post('/cost-centers/invoices/bulk-reallocate', payload);
     return response.data;
   },
 

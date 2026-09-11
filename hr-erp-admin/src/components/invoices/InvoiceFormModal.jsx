@@ -86,9 +86,29 @@ export default function InvoiceFormModal({
         category_id: editData.category_id || '',
         description: editData.description || '',
         notes: editData.notes || '',
+        vendor_contractor_id: editData.vendor_contractor_id || null,
       });
+      // A meglévő besorolást vissza KELL tölteni. Enélkül a szerkesztő űrlap üres célponttal
+      // nyílik, és mentéskor üres felosztást küld — vagyis egy fizetési státusz átállítása
+      // némán letörölné a számla könyvelési hozzárendelését.
+      const existing = Array.isArray(editData.allocations) ? editData.allocations : [];
+      const key = (a) => (a.target_type === 'accommodation' ? `acc:${a.accommodation_id}` : a.target_type);
+      if (existing.length > 1) {
+        setSplit(true);
+        setSplitRows(existing.map((a) => ({ target: key(a), amount: String(a.amount ?? '') })));
+        setSingleTarget('');
+      } else {
+        setSplit(false);
+        setSplitRows([]);
+        setSingleTarget(existing.length === 1 ? key(existing[0]) : '');
+      }
     } else {
       setForm(INITIAL_FORM);
+      // Új számlánál a célpont is tisztán induljon, különben az előző számlán kiválasztott
+      // szálláshely ráragadna a következőre.
+      setSingleTarget('');
+      setSplit(false);
+      setSplitRows([]);
     }
     setFile(null);
   }, [editData, open]);

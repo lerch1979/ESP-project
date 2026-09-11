@@ -266,5 +266,213 @@ module.exports = {
         return { merged: m.status, one_name: names, linked: linked > 0, refuses_diff_tax: bad.status };
       },
     },
+    {
+      id: 'ALLOC-12',
+      name: 'a FELÜLET útvonalán rögzített számla besorolása is megmarad',
+      expected: { created: 201, rows: 1, type: 'accommodation', full_amount: 40000 },
+      hint: 'a képernyő a /cost-centers/invoices végpontot hívja — az a controller korábban nem is ismerte a besorolást, így a funkció kattintható felületről elérhetetlen volt',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Felület Kft', amount: 40000, total_amount: 40000,
+          invoice_date: '2026-09-02', cost_center_id: s.cc,
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+        s.ui = r.body?.data?.invoice?.id || r.body?.data?.id;
+        const al = (await query(`SELECT target_type, amount FROM invoice_allocations
+           WHERE invoice_id=$1`, [s.ui])).rows;
+        return { created: r.status, rows: al.length, type: al[0]?.target_type,
+                 full_amount: Number(al[0]?.amount) };
+      },
+    },
+    {
+      id: 'ALLOC-13',
+      name: 'egy fizetési státusz átállítása NEM törli a meglévő besorolást',
+      expected: { updated: 200, still_allocated: 1, same_house: true },
+      hint: 'a szerkesztő űrlap besorolás nélkül küldött mentése némán kiürítette volna a hozzárendelést',
+      run: async (ctx, s) => {
+        const r = await http.put(`/cost-centers/invoices/${s.ui}`, { token: s.t,
+          body: { payment_status: 'sent' } });
+        const al = (await query(`SELECT accommodation_id FROM invoice_allocations
+           WHERE invoice_id=$1`, [s.ui])).rows;
+        return { updated: r.status, still_allocated: al.length,
+                 same_house: al[0]?.accommodation_id === s.a1.id };
+      },
+    },
+    {
+      id: 'ALLOC-14',
+      name: 'tömeges átsorolás: a kijelölt számlák új költséghelyre kerülnek',
+      expected: { ok: 200, updated: 2, both_moved: true, allocation_untouched: 1 },
+      hint: 'a költséghely-fa a meglévő számlák UTÁN alakult ki — enélkül egyesével kellene átnyitogatni mindet',
+      run: async (ctx, s) => {
+        const cc2 = (await query(
+          `INSERT INTO cost_centers (name, code, is_active) VALUES ('ALLOC Új Költséghely','ALLOC-UJ',true)
+           RETURNING id`)).rows[0].id;
+        s.cc2 = cc2;
+
+        // SAJÁT számlák, NYITOTT hónapban (2026-12). A suite 2026-09-et lezárja, és az
+        // átsorolás — helyesen — nem nyúl lezárt hónaphoz; ezt az ALLOC-16 vizsgálja
+        // külön. Itt a tömeges átsorolás a tárgy, ezért nem osztozunk azon a hónapon.
+        const mk = async (nev, osszeg, hova) => {
+          const r = await http.post('/invoices', { token: s.t, body: {
+            vendor_name: nev, amount: osszeg, total_amount: osszeg,
+            invoice_date: '2026-12-01', performance_date: '2026-12-01',
+            cost_center_id: s.cc, ...(hova ? { allocations: [hova] } : {}) } });
+          return r.body?.data?.invoice?.id;
+        };
+        s.b1 = await mk('ALLOC Tömeges Egy Kft', 40000,
+          { target_type: 'accommodation', accommodation_id: s.a1.id });
+        s.b2 = await mk('ALLOC Tömeges Kettő Kft', 50000, null);
+
+        const r = await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+          invoice_ids: [s.b1, s.b2], cost_center_id: cc2 } });
+        const moved = (await query(
+          `SELECT count(*)::int c FROM invoices WHERE id = ANY($1) AND cost_center_id=$2`,
+          [[s.b1, s.b2], cc2])).rows[0].c;
+        // A besorolást nem kértük — nem is szabad hozzányúlnia.
+        const al = (await query(`SELECT count(*)::int c FROM invoice_allocations
+           WHERE invoice_id=$1`, [s.b1])).rows[0].c;
+        return { ok: r.status, updated: r.body?.data?.updated_count, both_moved: moved === 2,
+                 allocation_untouched: al };
+      },
+    },
+    {
+      id: 'ALLOC-15',
+      name: 'tömeges besorolás: a kijelölt számlák a TELJES összegükkel kerülnek a megadott házra',
+      expected: { ok: 200, updated: 2, both_on_house: true, amounts_full: true, nothing_skipped: 0 },
+      hint: 'egy célpontnál nem kell összeget gépelni — mindegyik számla a sajátjával megy át',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+          invoice_ids: [s.b1, s.b2],
+          allocation: { target_type: 'accommodation', accommodation_id: s.a2.id } } });
+        const al = (await query(
+          `SELECT al.invoice_id, al.accommodation_id, al.amount, i.total_amount
+             FROM invoice_allocations al JOIN invoices i ON i.id = al.invoice_id
+            WHERE al.invoice_id = ANY($1)`, [[s.b1, s.b2]])).rows;
+        return {
+          ok: r.status, updated: r.body?.data?.updated_count,
+          both_on_house: al.length === 2 && al.every((x) => x.accommodation_id === s.a2.id),
+          amounts_full: al.every((x) => Number(x.amount) === Number(x.total_amount)),
+          nothing_skipped: r.body?.data?.skipped_count,
+        };
+      },
+    },
+    {
+      id: 'ALLOC-16',
+      name: 'LEZÁRT hónap számlája kimarad, és a válasz megnevezi — `force`-szal viszont átmegy',
+      expected: { skipped: 1, names_month: true, not_moved: true, forced: 1, moved_after_force: true },
+      hint: 'egy már kiszámlázott időszak kimutatását nem írjuk át észrevétlenül',
+      run: async (ctx, s) => {
+        const inv = await http.post('/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Lezárt Hónap Kft', amount: 10000, total_amount: 10000,
+          invoice_date: '2026-01-15', performance_date: '2026-01-15', cost_center_id: s.cc } });
+        const id = inv.body?.data?.invoice?.id;
+        // Izolált hónap: 2026-01-et egyetlen másik forgatókönyv sem használja.
+        await query(`INSERT INTO billing_runs (billing_month, run_type, status, finalized_at)
+                     VALUES ('2026-01','incoming','finalized', NOW())`);
+        try {
+          const r = await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+            invoice_ids: [id], cost_center_id: s.cc2 } });
+          const sk = r.body?.data?.skipped?.[0];
+          const after = (await query(`SELECT cost_center_id FROM invoices WHERE id=$1`, [id])).rows[0];
+
+          const f = await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+            invoice_ids: [id], cost_center_id: s.cc2, force: true } });
+          const after2 = (await query(`SELECT cost_center_id FROM invoices WHERE id=$1`, [id])).rows[0];
+
+          return {
+            skipped: r.body?.data?.skipped_count,
+            names_month: /2026-01/.test(sk?.reason || ''),
+            not_moved: after.cost_center_id !== s.cc2,
+            forced: f.body?.data?.updated_count,
+            moved_after_force: after2.cost_center_id === s.cc2,
+          };
+        } finally {
+          await query(`DELETE FROM billing_runs WHERE billing_month='2026-01'`);
+        }
+      },
+    },
+    {
+      id: 'ALLOC-17',
+      name: 'a több ház között FELOSZTOTT számla nem esik szét egyetlen célpontra',
+      expected: { skipped: 1, split_intact: 2, says_split: true, overwritten: 1, after_force: 1 },
+      hint: 'egy célpont ráhúzása eldobná a részösszegeket — külön engedély nélkül nem tesszük',
+      run: async (ctx, s) => {
+        // Felosztott számla NYITOTT hónapban — lásd az ALLOC-14 indoklását.
+        const sp = await http.post('/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Felosztott Kft', amount: 90000, total_amount: 90000,
+          invoice_date: '2026-12-02', performance_date: '2026-12-02', cost_center_id: s.cc,
+          allocations: [
+            { target_type: 'accommodation', accommodation_id: s.a1.id, amount: 60000 },
+            { target_type: 'accommodation', accommodation_id: s.a2.id, amount: 30000 },
+          ] } });
+        const spId = sp.body?.data?.invoice?.id;
+
+        const r = await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+          invoice_ids: [spId],
+          allocation: { target_type: 'general' } } });
+        const intact = (await query(`SELECT count(*)::int c FROM invoice_allocations
+           WHERE invoice_id=$1`, [spId])).rows[0].c;
+
+        const f = await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+          invoice_ids: [spId],
+          allocation: { target_type: 'general' }, overwrite_split: true } });
+        const after = (await query(`SELECT count(*)::int c FROM invoice_allocations
+           WHERE invoice_id=$1`, [spId])).rows[0].c;
+
+        return {
+          skipped: r.body?.data?.skipped_count,
+          split_intact: intact,
+          says_split: /felosztva/.test(r.body?.data?.skipped?.[0]?.reason || ''),
+          overwritten: f.body?.data?.updated_count,
+          after_force: after,
+        };
+      },
+    },
+    {
+      id: 'ALLOC-18',
+      name: 'a felület listája visszaadja a besorolást, és a költséghely-szűrő a GYEREKEKRE is illeszkedik',
+      expected: { ok: 200, has_allocations: true, parent_finds_child: true },
+      hint: 'ha a szűrő csak a pontos egyezést nézné, egy szülő-költséghely kiválasztása üres listát adna',
+      run: async (ctx, s) => {
+        const child = (await query(
+          `INSERT INTO cost_centers (name, code, parent_id, is_active)
+           VALUES ('ALLOC Gyerek','ALLOC-GY',$1,true) RETURNING id`, [s.cc2])).rows[0].id;
+        const inv = await http.post('/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Gyerek Kft', amount: 5000, total_amount: 5000,
+          invoice_date: '2026-09-03', cost_center_id: child, target_type: 'central' } });
+        const list = await http.get('/cost-centers/invoices/list', { token: s.t,
+          query: { cost_center_id: s.cc2, limit: 200 } });
+        const rows = list.body?.data?.invoices || [];
+        return {
+          ok: list.status,
+          has_allocations: rows.some((x) => Array.isArray(x.allocations) && x.allocations.length > 0),
+          parent_finds_child: rows.some((x) => x.id === inv.body?.data?.invoice?.id),
+        };
+      },
+    },
+    {
+      id: 'ALLOC-19',
+      name: 'a tömeges törlés visszafordítható: a sor megmarad, a lista nem mutatja',
+      expected: { deleted: 200, gone_from_list: true, row_survives: 1, file_kept: true },
+      hint: 'korábban a felület véglegesen törölt, és a számlaképet a lemezről is levette — egy téves kijelölés visszavonhatatlan volt',
+      run: async (ctx, s) => {
+        const inv = await http.post('/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Törlendő Kft', amount: 7000, total_amount: 7000,
+          invoice_date: '2026-09-04', cost_center_id: s.cc, target_type: 'general' } });
+        const id = inv.body?.data?.invoice?.id;
+        await query(`UPDATE invoices SET file_path='uploads/invoices/alloc-proba.pdf' WHERE id=$1`, [id]);
+
+        const d = await http.post('/cost-centers/invoices/bulk-action', { token: s.t,
+          body: { action: 'delete', ids: [id] } });
+        const list = await http.get('/cost-centers/invoices/list', { token: s.t, query: { limit: 200 } });
+        const row = (await query(
+          `SELECT deleted_at, file_path FROM invoices WHERE id=$1`, [id])).rows;
+        return {
+          deleted: d.status,
+          gone_from_list: !(list.body?.data?.invoices || []).some((x) => x.id === id),
+          row_survives: row.length,
+          file_kept: !!row[0]?.file_path,
+        };
+      },
+    },
   ],
 };

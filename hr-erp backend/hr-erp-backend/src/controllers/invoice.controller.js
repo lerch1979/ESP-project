@@ -4,6 +4,7 @@ const mnb = require('../services/mnbRates.service');
 const { logger } = require('../utils/logger');
 const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
+const { monthStatus } = require('../utils/monthLock');
 const { isValidUUID, sanitizeString, validateAmount, sanitizeSearch, parsePagination } = require('../utils/validation');
 
 const VALID_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
@@ -45,7 +46,8 @@ async function generateInvoiceNumber() {
 const getAll = async (req, res) => {
   try {
     const { payment_status, vendor_name, date_from, date_to, sort_by, sort_order,
-            accommodation_id, target_type, unallocated } = req.query;
+            accommodation_id, target_type, unallocated,
+            cost_center_id, category_id } = req.query;
     const { page, limit, offset } = parsePagination(req.query);
     const search = sanitizeSearch(req.query.search, { maxLength: 200 });
 
@@ -94,6 +96,24 @@ const getAll = async (req, res) => {
       whereConditions.push(`i.invoice_date <= $${paramIndex}`);
       params.push(date_to);
       paramIndex++;
+    }
+
+    // A költséghely a LESZÁRMAZOTTAKKAL együtt szűr. A fa azért van, hogy a "Rezsi" alatt
+    // meglegyen a víz, a gáz és az áram; ha a szűrő csak a pontos egyezést nézné, a "Rezsi"
+    // kiválasztása üres listát adna, és a fa a kimutatásban használhatatlan lenne.
+    if (cost_center_id) {
+      whereConditions.push(`i.cost_center_id IN (
+        WITH RECURSIVE subtree AS (
+          SELECT id FROM cost_centers WHERE id = $${paramIndex}
+          UNION ALL
+          SELECT cc2.id FROM cost_centers cc2 JOIN subtree st ON cc2.parent_id = st.id
+        ) SELECT id FROM subtree)`);
+      params.push(cost_center_id); paramIndex++;
+    }
+
+    if (category_id) {
+      whereConditions.push(`i.category_id = $${paramIndex}`);
+      params.push(category_id); paramIndex++;
     }
 
     // ── hova könyveltük ─────────────────────────────────────────────────────
@@ -373,7 +393,10 @@ const update = async (req, res) => {
       'SELECT * FROM invoices WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
-    if (current.rows.length === 0) {
+    // Az olvasás (getById) bérlőre szűr, az írás viszont nem szűrt: egy másik bérlő
+    // számlája azonosító alapján módosítható és törölhető volt. "Nem található" a válasz,
+    // nem "nincs jogosultság" — a létezés ténye sem szivároghat ki.
+    if (current.rows.length === 0 || !ownsRow(scopeOf(req), current.rows[0].contractor_id)) {
       return res.status(404).json({
         success: false,
         message: 'Számla nem található'
@@ -495,7 +518,10 @@ const remove = async (req, res) => {
       'SELECT * FROM invoices WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
-    if (current.rows.length === 0) {
+    // Az olvasás (getById) bérlőre szűr, az írás viszont nem szűrt: egy másik bérlő
+    // számlája azonosító alapján módosítható és törölhető volt. "Nem található" a válasz,
+    // nem "nincs jogosultság" — a létezés ténye sem szivároghat ki.
+    if (current.rows.length === 0 || !ownsRow(scopeOf(req), current.rows[0].contractor_id)) {
       return res.status(404).json({
         success: false,
         message: 'Számla nem található'
@@ -577,11 +603,194 @@ const summary = async (req, res) => {
   }
 };
 
+/**
+ * Tömeges átsorolás (bulk reallocate): több számla költséghelyének és/vagy könyvelési
+ * célpontjának átállítása egy lépésben.
+ *
+ * MIÉRT KELL
+ * ----------
+ * A költséghely-fa a már bent lévő számlák UTÁN alakult ki. A meglévő tételeket egyesével
+ * átnyitogatni annyi kattintás, hogy a gyakorlatban nem történik meg — a szállásonkénti
+ * kimutatás pedig addig téves marad. Ez az endpoint a kijelölt számlákat egy menetben viszi
+ * át, és nem csak azt mondja meg, hány sikerült, hanem azt is, mi maradt ki és miért.
+ *
+ * AMIT NEM ÍR FELÜL CSENDBEN
+ * --------------------------
+ * Két eset adatot semmisítene meg úgy, hogy a hívó nem látja. Mindkettő alapból KIMARAD,
+ * és külön kapcsoló kell hozzá:
+ *   • LEZÁRT HÓNAP — a költséghely átírása egy már kiszámlázott hónap kimutatását
+ *     változtatja meg visszamenőleg. `force` kell hozzá, és a naplóba bekerül, hogy
+ *     felülbírálás történt.
+ *   • TÖBB SOROS FELOSZTÁS — ha egy számla több szálláshely között van megosztva, egyetlen
+ *     célpont ráhúzása eldobná a részösszegeket. `overwrite_split` kell hozzá.
+ *
+ * A tömeges besorolás szándékosan EGYETLEN célpontot enged: a felosztás számlánként külön
+ * összegekből áll, amit egy kijelölésre sorosan nem lehet értelmesen ráhúzni. Aki felosztani
+ * akar, azt számlánként teszi a szerkesztő űrlapon.
+ */
+const bulkReallocate = async (req, res) => {
+  try {
+    const { invoice_ids, cost_center_id, allocation, force, overwrite_split } = req.body;
+
+    if (!Array.isArray(invoice_ids) || invoice_ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Nincs kijelölt számla' });
+    }
+    if (invoice_ids.length > 500) {
+      return res.status(400).json({ success: false, message: 'Egyszerre legfeljebb 500 számla sorolható át' });
+    }
+    if (invoice_ids.some((x) => !isValidUUID(x))) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
+
+    // Legalább az egyiket állítani kell, különben a hívás nem csinálna semmit — és a
+    // "0 számla frissítve" válasz úgy nézne ki, mintha a jogosultság hiányzott volna.
+    const wantsCostCenter = cost_center_id !== undefined;
+    const wantsAllocation = allocation !== undefined;
+    if (!wantsCostCenter && !wantsAllocation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nincs mit átállítani: adj meg költséghelyet vagy könyvelési célpontot',
+      });
+    }
+
+    if (wantsCostCenter) {
+      if (!cost_center_id) {
+        return res.status(400).json({ success: false, message: 'A költséghely nem üríthető — válassz másikat' });
+      }
+      if (!isValidUUID(cost_center_id)) {
+        return res.status(400).json({ success: false, message: 'Érvénytelen költséghely azonosító' });
+      }
+      const cc = await query('SELECT id FROM cost_centers WHERE id = $1 AND is_active = true', [cost_center_id]);
+      if (cc.rows.length === 0) {
+        return res.status(400).json({ success: false, message: 'Ismeretlen vagy inaktív költséghely' });
+      }
+    }
+
+    let allocRow = null;
+    if (wantsAllocation && allocation !== null) {
+      if (!allocations.TARGETS.includes(allocation.target_type)) {
+        return res.status(400).json({ success: false, message: `Ismeretlen célpont: ${allocation.target_type}` });
+      }
+      if (allocation.target_type === 'accommodation') {
+        if (!allocation.accommodation_id || !isValidUUID(allocation.accommodation_id)) {
+          return res.status(400).json({ success: false, message: 'Szálláshely típusnál a szálláshely megadása kötelező' });
+        }
+        const acc = await query('SELECT id FROM accommodations WHERE id = $1', [allocation.accommodation_id]);
+        if (acc.rows.length === 0) {
+          return res.status(400).json({ success: false, message: 'Ismeretlen szálláshely' });
+        }
+      } else if (allocation.accommodation_id) {
+        return res.status(400).json({
+          success: false,
+          message: `${allocations.LABEL[allocation.target_type]} típushoz nem adható meg szálláshely`,
+        });
+      }
+      allocRow = {
+        target_type: allocation.target_type,
+        accommodation_id: allocation.target_type === 'accommodation' ? allocation.accommodation_id : null,
+      };
+    }
+
+    const scope = scopeOf(req.user);
+    const found = await query(
+      `SELECT i.id, i.invoice_number, i.cost_center_id, i.contractor_id,
+              i.total_amount, i.amount,
+              COALESCE(i.performance_date, i.invoice_date) AS book_date,
+              (SELECT count(*) FROM invoice_allocations al WHERE al.invoice_id = i.id) AS alloc_count
+         FROM invoices i
+        WHERE i.id = ANY($1) AND i.deleted_at IS NULL`, [invoice_ids]);
+
+    const updated = [];
+    const skipped = [];
+
+    // Ami nem jött vissza, az törölt vagy nem létezik. Ha ezt elhallgatnánk, a hívó úgy
+    // látná, hogy 10-ből 8 sikerült, és nem tudná meg, hogy kettő nincs is meg.
+    const seen = new Set(found.rows.map((x) => x.id));
+    for (const id of invoice_ids) {
+      if (!seen.has(id)) {
+        skipped.push({ id, invoice_number: null, reason: 'Nem található (törölt vagy ismeretlen számla)' });
+      }
+    }
+
+    for (const inv of found.rows) {
+      if (!ownsRow(scope, inv.contractor_id)) {
+        skipped.push({ id: inv.id, invoice_number: inv.invoice_number, reason: 'Nincs jogosultság ehhez a számlához' });
+        continue;
+      }
+
+      const lock = await monthStatus(inv.book_date);
+      if (lock.closed && !force) {
+        skipped.push({
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          reason: `${lock.month} le van zárva — az átsorolás átírná a már kiszámlázott hónapot`,
+        });
+        continue;
+      }
+
+      if (wantsAllocation && Number(inv.alloc_count) > 1 && !overwrite_split) {
+        skipped.push({
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          reason: `${inv.alloc_count} tételre van felosztva — egyetlen célpont felülírná a részösszegeket`,
+        });
+        continue;
+      }
+
+      // A besorolás megy előbb: ha az elbukik, a költséghely érintetlen marad, és a számla
+      // nem kerül félkész állapotba.
+      if (wantsAllocation) {
+        const total = Number(inv.total_amount || inv.amount);
+        // FRISS MÁSOLAT számlánként: a szolgáltatás az egy-soros esetben a számla
+        // végösszegét ÍRJA BELE a sorba. Ugyanazt az objektumot körbeadva a második
+        // számlára az első összege ragadna rá — és az eltérés miatt kimaradna.
+        const a = await allocations.setAllocations(
+          inv.id, allocRow ? [{ ...allocRow }] : [], total, req.user.id);
+        if (a.error) {
+          skipped.push({ id: inv.id, invoice_number: inv.invoice_number, reason: a.error });
+          continue;
+        }
+      }
+      if (wantsCostCenter) {
+        await query('UPDATE invoices SET cost_center_id = $1 WHERE id = $2 AND deleted_at IS NULL',
+          [cost_center_id, inv.id]);
+      }
+
+      await logActivity({
+        userId: req.user.id,
+        entityType: 'invoice',
+        entityId: inv.id,
+        action: 'bulk_reallocate',
+        changes: {
+          ...(wantsCostCenter ? { cost_center_id: { from: inv.cost_center_id, to: cost_center_id } } : {}),
+          ...(wantsAllocation
+            ? { allocation: { to: allocRow ? (allocRow.accommodation_id || allocRow.target_type) : null } }
+            : {}),
+          ...(lock.closed ? { lezart_honap_felulbiralva: lock.month } : {}),
+        },
+      });
+      updated.push({ id: inv.id, invoice_number: inv.invoice_number });
+    }
+
+    res.json({
+      success: true,
+      message: skipped.length === 0
+        ? `${updated.length} számla átsorolva`
+        : `${updated.length} számla átsorolva, ${skipped.length} kimaradt`,
+      data: { updated, skipped, updated_count: updated.length, skipped_count: skipped.length },
+    });
+  } catch (error) {
+    logger.error('Tömeges átsorolási hiba:', error);
+    res.status(500).json({ success: false, message: 'Tömeges átsorolási hiba' });
+  }
+};
+
 module.exports = {
   summary,
   getAll,
   getById,
   create,
   update,
+  bulkReallocate,
   remove
 };

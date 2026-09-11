@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const controller = require('../controllers/costCenter.controller');
+const invoiceController = require('../controllers/invoice.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { checkPermission } = require('../middleware/permission');
 
@@ -89,14 +90,26 @@ router.delete('/invoice-categories/:id', checkPermission('finance.edit'), contro
 // INVOICES
 // ============================================
 
+// A SZÁMLA-CRUD EGYETLEN HELYEN ÉL: invoice.controller.
+//
+// Két párhuzamos számla-implementáció volt a rendszerben. A felület ezt az útvonalat hívja,
+// a fejlesztés viszont a másikon (`/invoices`) folyt — így a besorolás (hova könyveljük), a
+// teljesítés dátuma és a beszállító-hivatkozás elkészült, de a képernyőről elérhetetlen
+// maradt, mert ez a controller nem ismerte ezeket a mezőket. Ráadásul a régi változat nem
+// szűrt bérlőre, nem vette figyelembe a `deleted_at`-et, és véglegesen törölt.
+//
+// Ezért az útvonal maradt (a felület nem tört el), a mögötte lévő logika viszont a
+// karbantartott controllerre mutat. A régi számla-függvények törölve lettek, hogy a
+// kettősség ne éledjen újra.
 router.get('/invoices/stats', controller.getInvoiceStats);
-router.get('/invoices/list', controller.getInvoices);
+router.get('/invoices/list', invoiceController.getAll);
 router.post('/invoices/bulk-action', checkPermission('finance.edit'), controller.bulkInvoiceAction);
+router.post('/invoices/bulk-reallocate', checkPermission('finance.edit'), invoiceController.bulkReallocate);
 router.post('/invoices/export-to-folder', checkPermission('finance.edit'), controller.exportToFolder);
-router.get('/invoices/:id', controller.getInvoiceById);
+router.get('/invoices/:id', invoiceController.getById);
 router.post('/invoices/:id/upload', checkPermission('finance.edit'), invoiceUpload.single('file'), controller.uploadInvoiceFile);
-router.post('/invoices', checkPermission('finance.edit'), controller.createInvoice);
-router.put('/invoices/:id', checkPermission('finance.edit'), controller.updateInvoice);
-router.delete('/invoices/:id', checkPermission('finance.edit'), controller.deleteInvoice);
+router.post('/invoices', checkPermission('finance.edit'), invoiceController.create);
+router.put('/invoices/:id', checkPermission('finance.edit'), invoiceController.update);
+router.delete('/invoices/:id', checkPermission('finance.edit'), invoiceController.remove);
 
 module.exports = router;

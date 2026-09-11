@@ -23,6 +23,10 @@ router.get('/', checkPermission('finance.view'), invoiceController.getAll);
 // a felület POST /invoices-t és PUT /invoices/:id-t hív, és élesben 405-öt kapott.
 // Ezért nem lehetett a felületről számlát rögzíteni, és ezért van 13 számla, mind más
 // úton (OCR-draft konverzió) bekerülve.
+// A tömeges átsorolás a '/:id' mintájú útvonalak ELŐTT áll: fix útvonal, de a sorrend
+// itt szándékos — a /employees/completeness eset pont attól lett 500-as élesben, hogy egy
+// fix útvonal egy paraméteres mögé került.
+router.post('/bulk-reallocate', checkPermission('finance.edit'), invoiceController.bulkReallocate);
 router.post('/', checkPermission('finance.edit'), invoiceController.create);
 router.put('/:id', checkPermission('finance.edit'), invoiceController.update);
 
@@ -34,12 +38,17 @@ router.put('/:id', checkPermission('finance.edit'), invoiceController.update);
 router.get('/summary', checkPermission('finance.view'), invoiceController.summary);
 router.get('/:id', checkPermission('finance.view'), invoiceController.getById);
 
-// RETIRED: invoice create/update. The LIVE invoice form writes via
-// costCenter.controller (POST/PUT /api/v1/cost-centers/invoices). These
-// invoice.controller.create/update handlers had zero callers and diverged from
-// the live path (a fix to contractor_id here never reached the form) — removed
-// to keep one source of truth for invoice create/update. list/get/delete/
-// payments/pdf/email below remain live.
+// EGY FORRÁS — de a másik irányban, mint korábban.
+//
+// A kettősség (két számla-implementáció) egyszer már feltűnt, és akkor EZEK a kezelők
+// lettek nyugdíjazva, mert a felület a costCenter.controller-t hívta. A döntés azóta
+// megfordult: a fejlesztés itt folytatódott — a besorolás (hova könyveljük), a teljesítés
+// dátuma, a devizás átváltás és a bérlő-szűrés mind itt van —, a másik példány pedig
+// elavult és réseket hordozott (nem szűrt bérlőre, véglegesen törölt).
+//
+// Ezért most a `/cost-centers/invoices/*` útvonalak mutatnak IDE (lásd
+// routes/costCenter.routes.js), a másik controller számla-CRUD-ja pedig törölve lett.
+// A felület útvonalai nem változtak, csak a mögöttük lévő logika egységesült.
 
 /**
  * DELETE /api/v1/invoices/:id

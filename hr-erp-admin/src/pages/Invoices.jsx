@@ -15,7 +15,7 @@ import {
   Warning as OverdueIcon, Visibility as ViewIcon,
   CalendarMonth as MonthlyIcon, FileDownload as ExportIcon,
   CheckBox as BulkPaidIcon, FolderZip as FolderExportIcon,
-  Download as DownloadIcon,
+  Download as DownloadIcon, DriveFileMove as ReallocateIcon,
 } from '@mui/icons-material';
 import { accommodationsAPI, costCentersAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
@@ -23,6 +23,7 @@ import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import InvoiceDetailDialog from '../components/invoices/InvoiceDetailDialog';
 import InvoiceFormModal from '../components/invoices/InvoiceFormModal';
 import ExportToFolderModal from '../components/invoices/ExportToFolderModal';
+import BulkReallocateDialog from '../components/invoices/BulkReallocateDialog';
 
 // ============================================
 // CONSTANTS
@@ -133,6 +134,7 @@ function Invoices() {
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [reallocOpen, setReallocOpen] = useState(false);
 
   // ============================================
   // DATA LOADING
@@ -461,6 +463,10 @@ function Invoices() {
                 onClick={handleBulkMarkPaid}>
                 Fizetve megjelölés
               </Button>
+              <Button size="small" variant="outlined" startIcon={<ReallocateIcon />}
+                onClick={() => setReallocOpen(true)}>
+                Átsorolás
+              </Button>
               <Button size="small" variant="outlined" color="error" startIcon={<DeleteIcon />}
                 onClick={handleBulkDelete}>
                 Törlés
@@ -636,6 +642,17 @@ function Invoices() {
         onClose={() => setExportOpen(false)}
         costCenters={costCenters}
         costCenterTree={costCenterTree}
+      />
+
+      {/* Tömeges átsorolás */}
+      <BulkReallocateDialog
+        open={reallocOpen}
+        onClose={() => setReallocOpen(false)}
+        invoiceIds={Array.from(selectedIds)}
+        costCenters={costCenters}
+        costCenterTree={costCenterTree}
+        accommodations={accommodations}
+        onDone={() => { setSelectedIds(new Set()); loadInvoices(); loadStats(); }}
       />
 
       {/* Delete confirmation */}

@@ -5,6 +5,7 @@ const fs = require('fs');
 const XLSX = require('xlsx');
 const archiver = require('archiver');
 const { isValidUUID, sanitizeString, sanitizeSearch } = require('../utils/validation');
+const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 
 // ============================================
 // TREE HELPERS
@@ -759,266 +760,17 @@ const deleteInvoiceCategory = async (req, res) => {
 // ============================================
 // INVOICES
 // ============================================
+//
+// A számla-CRUD (lista, egy elem, létrehozás, módosítás, törlés) NEM itt él, hanem a
+// controllers/invoice.controller.js-ben. Korábban mindkét helyen megvolt, és a felület
+// ezt a — kevésbé karbantartott — példányt hívta: így a besorolás, a teljesítés dátuma és
+// a beszállító-hivatkozás elkészült, de a képernyőről elérhetetlen maradt, ráadásul ez a
+// változat nem szűrt bérlőre és véglegesen törölt. Az útvonalak azóta a másik controllerre
+// mutatnak (routes/costCenter.routes.js), az itteni másolat pedig törölve lett.
+//
+// Ami itt maradt, az a számla köré épülő kiszolgáló-funkció: statisztika, tömeges művelet,
+// fájlfeltöltés, mappába exportálás.
 
-const getInvoices = async (req, res) => {
-  try {
-    const {
-      search, cost_center_id, category_id, payment_status,
-      date_from, date_to, page = 1, limit = 50
-    } = req.query;
-    const offset = (page - 1) * limit;
-
-    let sql = `
-      SELECT i.*,
-        cc.name AS cost_center_name, cc.code AS cost_center_code, cc.icon AS cost_center_icon,
-        ic.name AS category_name, ic.icon AS category_icon
-      FROM invoices i
-      LEFT JOIN cost_centers cc ON i.cost_center_id = cc.id
-      LEFT JOIN invoice_categories ic ON i.category_id = ic.id
-      WHERE 1=1`;
-    const params = [];
-    let paramIdx = 0;
-
-    if (search) {
-      paramIdx++;
-      sql += ` AND (i.invoice_number ILIKE $${paramIdx} OR i.vendor_name ILIKE $${paramIdx} OR i.description ILIKE $${paramIdx})`;
-      params.push(`%${search}%`);
-    }
-
-    if (cost_center_id) {
-      // Include all descendants of the cost center
-      paramIdx++;
-      sql += ` AND i.cost_center_id IN (
-        WITH RECURSIVE subtree AS (
-          SELECT id FROM cost_centers WHERE id = $${paramIdx}
-          UNION ALL
-          SELECT cc.id FROM cost_centers cc JOIN subtree st ON cc.parent_id = st.id
-        )
-        SELECT id FROM subtree
-      )`;
-      params.push(cost_center_id);
-    }
-
-    if (category_id) {
-      paramIdx++;
-      sql += ` AND i.category_id = $${paramIdx}`;
-      params.push(category_id);
-    }
-
-    if (payment_status) {
-      paramIdx++;
-      sql += ` AND i.payment_status = $${paramIdx}`;
-      params.push(payment_status);
-    }
-
-    if (date_from) {
-      paramIdx++;
-      sql += ` AND i.invoice_date >= $${paramIdx}`;
-      params.push(date_from);
-    }
-
-    if (date_to) {
-      paramIdx++;
-      sql += ` AND i.invoice_date <= $${paramIdx}`;
-      params.push(date_to);
-    }
-
-    // Count
-    const countSql = sql.replace(/SELECT i\.\*,[\s\S]*?FROM invoices i/, 'SELECT COUNT(*) FROM invoices i');
-    const countResult = await query(countSql, params);
-    const total = parseInt(countResult.rows[0].count);
-
-    // Fetch
-    paramIdx++;
-    sql += ` ORDER BY i.invoice_date DESC LIMIT $${paramIdx}`;
-    params.push(parseInt(limit));
-    paramIdx++;
-    sql += ` OFFSET $${paramIdx}`;
-    params.push(parseInt(offset));
-
-    const result = await query(sql, params);
-
-    res.json({
-      success: true,
-      data: result.rows,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    logger.error('Invoice lista hiba:', error);
-    res.status(500).json({ success: false, message: 'Hiba a számlák lekérésekor' });
-  }
-};
-
-const getInvoiceById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await query(
-      `SELECT i.*,
-        cc.name AS cost_center_name, cc.code AS cost_center_code, cc.path AS cost_center_path,
-        ic.name AS category_name, ic.icon AS category_icon
-       FROM invoices i
-       LEFT JOIN cost_centers cc ON i.cost_center_id = cc.id
-       LEFT JOIN invoice_categories ic ON i.category_id = ic.id
-       WHERE i.id = $1`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Számla nem található' });
-    }
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    logger.error('Invoice lekérési hiba:', error);
-    res.status(500).json({ success: false, message: 'Hiba a számla lekérésekor' });
-  }
-};
-
-const createInvoice = async (req, res) => {
-  try {
-    const {
-      invoice_number, vendor_name, vendor_tax_number, amount, currency,
-      vat_amount, total_amount, invoice_date, due_date, payment_date,
-      payment_status, cost_center_id, category_id, description, notes,
-      file_path, ocr_data, contractor_id, line_items
-    } = req.body;
-
-    if (!cost_center_id) {
-      return res.status(400).json({ success: false, message: 'A költséghely megadása kötelező' });
-    }
-    if (!amount) {
-      return res.status(400).json({ success: false, message: 'Az összeg megadása kötelező' });
-    }
-    if (!invoice_date) {
-      return res.status(400).json({ success: false, message: 'A számla dátum megadása kötelező' });
-    }
-
-    // Validate cost center exists
-    const ccCheck = await query('SELECT id FROM cost_centers WHERE id = $1 AND is_active = true', [cost_center_id]);
-    if (ccCheck.rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'Az aktív költséghely nem található' });
-    }
-
-    const result = await query(
-      `INSERT INTO invoices (
-        invoice_number, vendor_name, vendor_tax_number, amount, currency,
-        vat_amount, total_amount, invoice_date, due_date, payment_date,
-        payment_status, cost_center_id, category_id, description, notes,
-        file_path, ocr_data, contractor_id, line_items, created_by
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
-      RETURNING *`,
-      [
-        invoice_number || null, vendor_name || null, vendor_tax_number || null,
-        amount, currency || 'HUF', vat_amount || null,
-        total_amount || amount, invoice_date, due_date || null, payment_date || null,
-        payment_status || 'pending', cost_center_id, category_id || null,
-        description || null, notes || null, file_path || null,
-        ocr_data || null, contractor_id || null,
-        line_items !== undefined ? JSON.stringify(line_items) : null, req.user?.id || null
-      ]
-    );
-
-    logger.info('Számla létrehozva:', { id: result.rows[0].id, invoice_number });
-
-    res.status(201).json({
-      success: true,
-      message: 'Számla sikeresen létrehozva',
-      data: result.rows[0]
-    });
-  } catch (error) {
-    logger.error('Invoice létrehozási hiba:', error);
-    res.status(500).json({ success: false, message: 'Hiba a számla létrehozásakor' });
-  }
-};
-
-const updateInvoice = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      invoice_number, vendor_name, vendor_tax_number, amount, currency,
-      vat_amount, total_amount, invoice_date, due_date, payment_date,
-      payment_status, cost_center_id, category_id, description, notes,
-      file_path, ocr_data, contractor_id, line_items
-    } = req.body;
-
-    const existing = await query('SELECT id FROM invoices WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Számla nem található' });
-    }
-
-    const fields = [];
-    const params = [];
-    let paramIdx = 0;
-
-    const addField = (fieldName, value) => {
-      if (value !== undefined) {
-        paramIdx++;
-        fields.push(`${fieldName} = $${paramIdx}`);
-        params.push(value);
-      }
-    };
-
-    addField('invoice_number', invoice_number);
-    addField('vendor_name', vendor_name);
-    addField('vendor_tax_number', vendor_tax_number);
-    addField('amount', amount);
-    addField('currency', currency);
-    addField('vat_amount', vat_amount);
-    addField('total_amount', total_amount);
-    addField('invoice_date', invoice_date);
-    addField('due_date', due_date);
-    addField('payment_date', payment_date);
-    addField('payment_status', payment_status);
-    addField('cost_center_id', cost_center_id);
-    addField('category_id', category_id);
-    addField('description', description);
-    addField('notes', notes);
-    addField('file_path', file_path);
-    addField('ocr_data', ocr_data);
-    addField('contractor_id', contractor_id);
-    addField('line_items', line_items !== undefined ? JSON.stringify(line_items) : undefined);
-
-    if (fields.length === 0) {
-      return res.status(400).json({ success: false, message: 'Nincs frissítendő mező' });
-    }
-
-    paramIdx++;
-    params.push(id);
-
-    const result = await query(
-      `UPDATE invoices SET ${fields.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
-      params
-    );
-
-    res.json({ success: true, message: 'Számla frissítve', data: result.rows[0] });
-  } catch (error) {
-    logger.error('Invoice frissítési hiba:', error);
-    res.status(500).json({ success: false, message: 'Hiba a számla frissítésekor' });
-  }
-};
-
-const deleteInvoice = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await query('DELETE FROM invoices WHERE id = $1 RETURNING id', [id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Számla nem található' });
-    }
-
-    logger.info('Számla törölve:', { id });
-    res.json({ success: true, message: 'Számla sikeresen törölve' });
-  } catch (error) {
-    logger.error('Invoice törlési hiba:', error);
-    res.status(500).json({ success: false, message: 'Hiba a számla törlésekor' });
-  }
-};
 
 // ============================================
 // INVOICE STATS
@@ -1026,6 +778,9 @@ const deleteInvoice = async (req, res) => {
 
 const getInvoiceStats = async (req, res) => {
   try {
+    // A számlák törlése soft delete. A `deleted_at` szűrése nélkül a fejléc összegei a már
+    // törölt tételeket is tartalmaznák, és nem egyeznének az alattuk lévő listával.
+    const sc = contractorPredicate(scopeOf(req), 'i.contractor_id', 1);
     const result = await query(`
       SELECT
         COUNT(*) AS total_count,
@@ -1036,8 +791,9 @@ const getInvoiceStats = async (req, res) => {
         COALESCE(SUM(total_amount), 0) AS total_sum,
         COALESCE(SUM(total_amount) FILTER (WHERE invoice_date >= date_trunc('month', CURRENT_DATE)), 0) AS monthly_sum,
         COUNT(*) FILTER (WHERE invoice_date >= date_trunc('month', CURRENT_DATE)) AS monthly_count
-      FROM invoices
-    `);
+      FROM invoices i
+      WHERE i.deleted_at IS NULL AND ${sc.sql}
+    `, sc.params);
 
     const row = result.rows[0];
     res.json({
@@ -1071,29 +827,32 @@ const bulkInvoiceAction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Akció és azonosítók megadása kötelező' });
     }
 
+    if (ids.some((x) => !isValidUUID(x))) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
+
     let affectedCount = 0;
+    // A tömeges műveletek is a hívó bérlőjére korlátozódnak — egy azonosító-lista
+    // különben átnyúlna a saját körén.
+    const sc = contractorPredicate(scopeOf(req), 'contractor_id', 2);
 
     if (action === 'mark_paid') {
       const result = await query(
         `UPDATE invoices SET payment_status = 'paid', payment_date = CURRENT_DATE
-         WHERE id = ANY($1) AND payment_status != 'paid'`,
-        [ids]
+         WHERE id = ANY($1) AND payment_status != 'paid' AND deleted_at IS NULL AND ${sc.sql}`,
+        [ids, ...sc.params]
       );
       affectedCount = result.rowCount;
     } else if (action === 'delete') {
-      // Delete associated files first
-      const filesToDelete = await query(
-        'SELECT id, file_path FROM invoices WHERE id = ANY($1) AND file_path IS NOT NULL',
-        [ids]
+      // Soft delete — és a csatolt fájl MARAD. Korábban a sor véglegesen eltűnt, a fájlt
+      // pedig a lemezről is letörölte: egy téves kijelölés visszavonhatatlan volt, és a
+      // számlakép sem volt meg többé. A soft delete csak akkor ér valamit, ha a bizonylat
+      // is megvan mellé.
+      const result = await query(
+        `UPDATE invoices SET deleted_at = NOW()
+          WHERE id = ANY($1) AND deleted_at IS NULL AND ${sc.sql}`,
+        [ids, ...sc.params]
       );
-      for (const row of filesToDelete.rows) {
-        const fullPath = path.join(__dirname, '..', '..', row.file_path);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
-        }
-      }
-
-      const result = await query('DELETE FROM invoices WHERE id = ANY($1)', [ids]);
       affectedCount = result.rowCount;
     } else {
       return res.status(400).json({ success: false, message: 'Ismeretlen akció: ' + action });
@@ -1450,11 +1209,6 @@ module.exports = {
   updateInvoiceCategory,
   deleteInvoiceCategory,
   // Invoices
-  getInvoices,
-  getInvoiceById,
-  createInvoice,
-  updateInvoice,
-  deleteInvoice,
   getInvoiceStats,
   bulkInvoiceAction,
   uploadInvoiceFile,
