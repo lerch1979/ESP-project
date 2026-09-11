@@ -243,7 +243,8 @@ class ExpenseService {
         dedup_fingerprint, file_attachments, cost_center_id,
         source, ai_confidence, status, payment_date, payment_status,
         net_amount, vat_rate, vat_amount, vat_exemption_reason, is_reverse_vat,
-        original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status
+        original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status,
+        vendor_contractor_id
        ) VALUES (
         $1, $2, $3, $4, COALESCE($5, 'HUF'),
         $6, $7, $8, $9,
@@ -251,7 +252,7 @@ class ExpenseService {
         $14, COALESCE($15::jsonb, '[]'::jsonb), $16,
         COALESCE($17, 'manual'), $18, COALESCE($19, 'confirmed'), $20, COALESCE($21, 'unpaid'),
         $22, $23, $24, $25, COALESCE($26, FALSE),
-        $27, $28, $29, $30, $31
+        $27, $28, $29, $30, $31, $32
        ) RETURNING *`,
       [
         data.accommodation_id,
@@ -282,6 +283,7 @@ class ExpenseService {
         data.is_reverse_vat === true || data.is_reverse_vat === 'true' ? true : null,
         fx.original_amount, fx.original_currency, fx.exchange_rate,
         fx.exchange_rate_date, fx.rate_status,
+        data.vendor_contractor_id || null,
       ],
     );
 

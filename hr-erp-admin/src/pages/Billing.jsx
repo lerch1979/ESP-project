@@ -151,6 +151,7 @@ const EMPTY_FORM = {
   category: 'rezsi',
   amount: '',
   vendor_name: '',
+  vendor_contractor_id: null,
   vendor_tax_number: '',
   invoice_number: '',
   cost_center_id: '',

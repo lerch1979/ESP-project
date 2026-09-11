@@ -54,13 +54,20 @@ export default function VendorAutocomplete({
             .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes(needle)).slice(0, 30);
         }}
         onInputChange={(_, v, reason) => {
-          if (reason === 'input') onChange({ vendor_name: v });
+          // Szabad gépelésnél a törzs-kapcsolat megszűnik: a név már nem azé a partneré.
+          if (reason === 'input') onChange({ vendor_name: v, vendor_contractor_id: null });
         }}
         onChange={(_, v) => {
-          if (!v) { onChange({ vendor_name: '' }); return; }
-          if (typeof v === 'string') { onChange({ vendor_name: v }); return; }
-          // Kiválasztáskor az adószám magától jön — ez az egész lényege.
-          onChange({ vendor_name: v.name, vendor_tax_number: v.tax_number || '' });
+          if (!v) { onChange({ vendor_name: '', vendor_contractor_id: null }); return; }
+          if (typeof v === 'string') { onChange({ vendor_name: v, vendor_contractor_id: null }); return; }
+          // Kiválasztáskor az adószám magától jön — ez az egész lényege. A
+          // contractor_id-t is továbbadjuk: ez köti a tételt a partner-törzshöz, és
+          // ettől lesz a beszállító egy HELYEN javítható.
+          onChange({
+            vendor_name: v.name,
+            vendor_tax_number: v.tax_number || '',
+            vendor_contractor_id: v.contractor_id || null,
+          });
         }}
         renderOption={(props, o) => (
           <Box component="li" {...props} key={o.name}>
@@ -68,6 +75,7 @@ export default function VendorAutocomplete({
               <Typography variant="body2" noWrap>{o.name}</Typography>
               <Typography variant="caption" color="text.secondary">
                 {o.tax_number || 'nincs adószám'} · {o.usage_count}× használva
+                {o.contractor_id ? ' · törzsadat' : ' · még nincs partnerként rögzítve'}
               </Typography>
             </Box>
           </Box>

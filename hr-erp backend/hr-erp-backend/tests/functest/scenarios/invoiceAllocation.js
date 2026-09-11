@@ -182,5 +182,89 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'ALLOC-09',
+      name: 'a beszállító a PARTNER-TÖRZSBŐL jön, saját beszallito szereppel',
+      expected: { from_master: true, has_role: true, invoice_linked: true },
+      hint: 'mig 158 — a szabad szöveg mellé valódi kapcsolat kerül, nem helyette',
+      run: async (ctx, s) => {
+        // A migráció a sandbox RESET során fut, a fixture ELŐTT — tehát nincs mit
+        // besorolnia. Egy törzs-beszállítót itt hozunk létre, ahogy a mig 158 tenné.
+        const c = (await query(
+          `INSERT INTO contractors (name, slug, is_active, tax_number)
+           VALUES ('ALLOC Törzs Beszállító Kft','alloc-torzs-beszallito',true,'12345678-2-42')
+           RETURNING id`)).rows[0];
+        await query(`INSERT INTO contractor_roles (contractor_id, role) VALUES ($1,'beszallito')`, [c.id]);
+
+        const r = await http.get('/vendors', { token: s.t });
+        const v = (r.body?.data?.vendors || []).find((x) => x.contractor_id);
+        if (!v) throw new Error('nincs törzs-beszállító a /vendors válaszában');
+        const role = v ? (await query(
+          `SELECT count(*)::int c FROM contractor_roles WHERE contractor_id=$1 AND role='beszallito'`,
+          [v.contractor_id])).rows[0].c : 0;
+        // Új számla a törzsből választott beszállítóval.
+        const inv = await http.post('/invoices', { token: s.t, body: {
+          vendor_name: v.name, vendor_contractor_id: v.contractor_id,
+          amount: 1000, total_amount: 1000, invoice_date: '2026-09-01',
+          cost_center_id: s.cc, target_type: 'general' } });
+        const linked = (await query(
+          `SELECT vendor_contractor_id FROM invoices WHERE id=$1`, [inv.body?.data?.invoice?.id])).rows[0];
+        return {
+          from_master: !!v,
+          has_role: role === 1,
+          invoice_linked: linked?.vendor_contractor_id === v.contractor_id,
+        };
+      },
+    },
+    {
+      id: 'ALLOC-10',
+      name: 'az eltérő írásmódú pár MEGJELENIK a duplikátum-listán, de összevonni NEM vonja össze magától',
+      expected: { listed: true, same_tax_flag: true, still_two: 2 },
+      hint: 'a felhasználó dönti el, melyik a helyes írásmód — a gép csak jelez',
+      run: async (ctx, s) => {
+        const acc = (await query(`SELECT id FROM accommodations WHERE is_active LIMIT 1`)).rows[0];
+        for (const nev of ['Próba Vízmű Zrt.', '"PRÓBA" Vízmű Zrt.']) {
+          await query(
+            `INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount,
+               vendor_name, vendor_tax_number, performance_date)
+             VALUES ($1,'2026-09','rezsi',1000,$2,'99999999-2-08',CURRENT_DATE)`, [acc.id, nev]);
+        }
+        const d = await http.get('/vendors/duplicates', { token: s.t });
+        const pair = (d.body?.data?.pairs || []).find((p) => /proba vizmu/.test(p.kulcs));
+        const still = (await query(
+          `SELECT count(DISTINCT vendor_name)::int c FROM accommodation_expenses
+            WHERE vendor_name ILIKE '%VÍZMŰ%' AND deleted_at IS NULL`)).rows[0].c;
+        return { listed: !!pair, same_tax_flag: pair?.azonos_adoszam === true, still_two: still };
+      },
+    },
+    {
+      id: 'ALLOC-11',
+      name: 'összevonás a VÁLASZTOTT írásmódra — és eltérő adószámnál megáll',
+      expected: { merged: 200, one_name: 1, linked: true, refuses_diff_tax: 409 },
+      hint: 'két hasonló név mögött állhat két külön cég; az adószám a megbízható jel',
+      run: async (ctx, s) => {
+        const m = await http.post('/vendors/merge', { token: s.t, body: {
+          keep_name: 'Próba Vízmű Zrt.', merge_names: ['"PRÓBA" Vízmű Zrt.'] } });
+        const names = (await query(
+          `SELECT count(DISTINCT vendor_name)::int c FROM accommodation_expenses
+            WHERE vendor_name ILIKE '%VÍZMŰ%' AND deleted_at IS NULL`)).rows[0].c;
+        const linked = (await query(
+          `SELECT count(*)::int c FROM accommodation_expenses
+            WHERE vendor_name='Próba Vízmű Zrt.' AND vendor_contractor_id IS NOT NULL`)).rows[0].c;
+
+        // Eltérő adószámú pár: itt meg KELL állnia.
+        const acc = (await query(`SELECT id FROM accommodations WHERE is_active LIMIT 1`)).rows[0];
+        await query(`INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount,
+            vendor_name, vendor_tax_number, performance_date)
+          VALUES ($1,'2026-09','rezsi',1000,'Más Cég Kft','11111111-1-11',CURRENT_DATE)`, [acc.id]);
+        await query(`INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount,
+            vendor_name, vendor_tax_number, performance_date)
+          VALUES ($1,'2026-09','rezsi',1000,'Mas Ceg Kft','22222222-2-22',CURRENT_DATE)`, [acc.id]);
+        const bad = await http.post('/vendors/merge', { token: s.t, body: {
+          keep_name: 'Más Cég Kft', merge_names: ['Mas Ceg Kft'] } });
+
+        return { merged: m.status, one_name: names, linked: linked > 0, refuses_diff_tax: bad.status };
+      },
+    },
   ],
 };

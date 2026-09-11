@@ -304,9 +304,10 @@ const create = async (req, res) => {
         cost_center_id, category_id, description, notes,
         line_items, client_name, client_id, contractor_id,
         payment_status, created_by,
-        original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status
+        original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status,
+        vendor_contractor_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $20, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-                $21, $22, $23, $24, $25)
+                $21, $22, $23, $24, $25, $26)
        RETURNING *`,
       [
         invoiceNumber, vendor_name || null, vendor_tax_number || null,
@@ -318,7 +319,8 @@ const create = async (req, res) => {
         'draft', req.user.id,
         perfDate,
         fx.original_amount, fx.original_currency, fx.exchange_rate,
-        fx.exchange_rate_date, fx.rate_status
+        fx.exchange_rate_date, fx.rate_status,
+        req.body.vendor_contractor_id || null,
       ]
     );
 

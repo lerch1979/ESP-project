@@ -31,6 +31,7 @@ const formatFileSize = (bytes) => {
 
 const INITIAL_FORM = {
   invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
+  vendor_contractor_id: null,
   total_amount: '', currency: 'HUF', invoice_date: '', performance_date: '', due_date: '', payment_date: '',
   payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
 };
