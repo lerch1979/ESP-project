@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { toast } from 'react-toastify';
 import CostCenterSelector from '../components/invoices/CostCenterSelector';
+import VendorAutocomplete from '../components/VendorAutocomplete';
 import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI, billingAPI } from '../services/api';
 
 // ────────────────────────────────────────────────────────────────────────
@@ -1012,22 +1013,17 @@ function ExpensesTab() {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth size="small"
-                label="Beszállító neve"
-                value={form.vendor_name}
-                onChange={(e) => setForm({ ...form, vendor_name: e.target.value })}
-                helperText="Számlához kapcsolódó költség esetén javasolt"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth size="small"
-                label="Adószám"
-                value={form.vendor_tax_number}
-                onChange={(e) => setForm({ ...form, vendor_tax_number: e.target.value })}
-              />
+            {/* Ugyanaz a komponens, mint a számla-űrlapon: ha a beszállító már szerepelt
+                bárhol, a név kiválasztásakor az adószám magától jön. */}
+            <Grid item xs={12} md={8}>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <VendorAutocomplete
+                  name={form.vendor_name}
+                  taxNumber={form.vendor_tax_number}
+                  onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                  nameLabel="Beszállító neve"
+                />
+              </Box>
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField

@@ -413,6 +413,7 @@ app.use(`${API_PREFIX}/worker-specializations`, workerSpecializationRoutes);
 app.use(`${API_PREFIX}/user-workload`, userWorkloadRoutes);
 app.use(`${API_PREFIX}/sla-policies`, slaPolicyRoutes);
 app.use(`${API_PREFIX}/invoices`, invoiceRoutes);
+app.use(`${API_PREFIX}/vendors`, require('./routes/vendor.routes'));
 app.use(`${API_PREFIX}/payments`, paymentRoutes);
 app.use(`${API_PREFIX}/expenses`, expenseRoutes);
 app.use(`${API_PREFIX}/exchange-rates`, require('./routes/exchangeRate.routes'));

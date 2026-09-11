@@ -146,5 +146,41 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'ALLOC-07',
+      name: 'a beszállító-javaslat visszaadja a korábbi neveket és az adószámot',
+      expected: { status: 200, has_vendor: true, has_tax: true, carries_contractor_id: true },
+      hint: 'a contractor_id már MOST is ott van (null) — a partner-törzs megjelenésekor a felület nem változik',
+      run: async (ctx, s) => {
+        await http.post('/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Vízmű Zrt.', vendor_tax_number: '11611226-2-08',
+          amount: 5000, total_amount: 5000, invoice_date: '2026-09-01',
+          cost_center_id: s.cc, target_type: 'general' } });
+        const r = await http.get('/vendors', { token: s.t });
+        const v = (r.body?.data?.vendors || []).find((x) => x.name === 'ALLOC Vízmű Zrt.');
+        return {
+          status: r.status,
+          has_vendor: !!v,
+          has_tax: v?.tax_number === '11611226-2-08',
+          // A mező LÉTEZIK, csak üres — ezen múlik, hogy a (b) lépés ne törje el a felületet.
+          carries_contractor_id: v ? Object.prototype.hasOwnProperty.call(v, 'contractor_id') : false,
+        };
+      },
+    },
+    {
+      id: 'ALLOC-08',
+      name: 'a keresés ÉKEZET- és kisbetű-független',
+      expected: { lower_no_accent: 1, upper_with_accent: 1, nonsense: 0 },
+      hint: 'ugyanaz a deaccent szabály, amit a partnernév-kereső szkript használ',
+      run: async (ctx, s) => {
+        const hit = async (q) => ((await http.get(`/vendors?q=${encodeURIComponent(q)}`, { token: s.t }))
+          .body?.data?.vendors || []).filter((x) => x.name === 'ALLOC Vízmű Zrt.').length;
+        return {
+          lower_no_accent: await hit('vizmu'),
+          upper_with_accent: await hit('VÍZMŰ'),
+          nonsense: await hit('zzz-nincs-ilyen'),
+        };
+      },
+    },
   ],
 };

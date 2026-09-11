@@ -10,6 +10,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import CostCenterSelector from './CostCenterSelector';
+import VendorAutocomplete from '../VendorAutocomplete';
 import { UPLOADS_BASE_URL } from '../../services/api';
 
 const CURRENCIES = ['HUF', 'EUR', 'USD'];
@@ -210,12 +211,11 @@ export default function InvoiceFormModal({
           <Divider />
           <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Szállító</Typography>
           <Stack direction="row" spacing={2}>
-            <TextField label="Szállító neve" value={form.vendor_name}
-              onChange={(e) => setForm({ ...form, vendor_name: e.target.value })}
-              size="small" sx={{ flex: 2 }} />
-            <TextField label="Adószám" value={form.vendor_tax_number}
-              onChange={(e) => setForm({ ...form, vendor_tax_number: e.target.value })}
-              size="small" sx={{ flex: 1 }} placeholder="12345678-2-42" />
+            <VendorAutocomplete
+              name={form.vendor_name}
+              taxNumber={form.vendor_tax_number}
+              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+            />
           </Stack>
 
           {/* --- Összegek --- */}
