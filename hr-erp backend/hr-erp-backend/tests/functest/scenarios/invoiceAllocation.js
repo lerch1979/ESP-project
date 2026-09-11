@@ -64,8 +64,8 @@ module.exports = {
     {
       id: 'ALLOC-03',
       name: 'a részösszegek NEM adják ki a végösszeget → elutasítva, a hiány megnevezve',
-      expected: { refused: 400, says_missing: true, no_rows: 0 },
-      hint: 'a csendben elnyelt maradék hónapokkal később derül ki — akkor már követhetetlenül',
+      expected: { refused: 400, says_missing: true, no_rows: 0, no_invoice_created: true },
+      hint: 'a számla SEM jöhet létre: különben a javítás után két számla marad (élesben elő is fordult)',
       run: async (ctx, s) => {
         const r = await http.post('/invoices', { token: s.t, body: {
           vendor_name: 'ALLOC Nem Egyezik Kft', amount: 100000, total_amount: 100000,
@@ -76,10 +76,14 @@ module.exports = {
           ] } });
         const id = r.body?.data?.invoice_id;
         const al = id ? (await query(`SELECT count(*)::int c FROM invoice_allocations WHERE invoice_id=$1`, [id])).rows[0].c : 0;
+        // A lényeg: a visszautasított számla NEM maradhat bent félig kész állapotban.
+        const orphan = (await query(
+          `SELECT count(*)::int c FROM invoices WHERE vendor_name='ALLOC Nem Egyezik Kft' AND deleted_at IS NULL`)).rows[0].c;
         return {
           refused: r.status,
           says_missing: /Hiányzik/.test(r.body?.message || ''),
           no_rows: al,
+          no_invoice_created: orphan === 0,
         };
       },
     },

@@ -249,6 +249,13 @@ const create = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A fizetési határidő nem lehet a számla dátuma előtt' });
     }
 
+    // A felosztást MÉG a számla létrehozása előtt ellenőrizzük. Különben egy rossz
+    // összegnél a számla már bent van, a felhasználó kijavítja és újra menti — és két
+    // számla lesz belőle. (Ez élesben elő is fordult a 2026-09-11-i ellenőrzésen.)
+    const requestedAlloc = req.body.allocations
+      || (req.body.accommodation_id ? [{ target_type: 'accommodation', accommodation_id: req.body.accommodation_id }] : null)
+      || (req.body.target_type ? [{ target_type: req.body.target_type }] : null);
+
     const invoiceNumber = await generateInvoiceNumber();
 
     // Teljesítés drives the exchange rate (mig 156); it falls back to the invoice date,
@@ -281,6 +288,15 @@ const create = async (req, res) => {
       }
     }
 
+    if (requestedAlloc) {
+      const check = allocations.validateAllocations(requestedAlloc, fxTotal);
+      if (check.error) {
+        // A számla MÉG NEM jött létre — a felhasználó javíthat és újra mentheti
+        // anélkül, hogy duplikátumot hagyna maga után.
+        return res.status(check.status || 400).json({ success: false, message: check.error });
+      }
+    }
+
     const result = await query(
       `INSERT INTO invoices (
         invoice_number, vendor_name, vendor_tax_number, amount, currency,
@@ -306,20 +322,9 @@ const create = async (req, res) => {
       ]
     );
 
-    // Felosztás: a gyakori eset egyetlen sor, és akkor összeget sem kell megadni.
-    const allocRows = req.body.allocations
-      || (req.body.accommodation_id ? [{ target_type: 'accommodation', accommodation_id: req.body.accommodation_id }] : null)
-      || (req.body.target_type ? [{ target_type: req.body.target_type }] : null);
-    if (allocRows) {
-      const a = await allocations.setAllocations(result.rows[0].id, allocRows, fxTotal, req.user.id);
-      if (a.error) {
-        // A számla már létrejött; a felosztás hibáját NEM nyeljük el, mert e nélkül a
-        // tétel kimarad minden szállásonkénti kimutatásból.
-        return res.status(a.status || 400).json({
-          success: false, message: a.error,
-          data: { invoice_id: result.rows[0].id, invoice_created: true },
-        });
-      }
+    if (requestedAlloc) {
+      const a = await allocations.setAllocations(result.rows[0].id, requestedAlloc, fxTotal, req.user.id);
+      if (a.error) return res.status(a.status || 400).json({ success: false, message: a.error });
       result.rows[0].allocations = a.allocations;
     }
 

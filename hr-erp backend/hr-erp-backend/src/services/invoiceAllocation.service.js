@@ -107,4 +107,49 @@ async function getAllocationsFor(invoiceIds) {
   return by;
 }
 
-module.exports = { TARGETS, LABEL, setAllocations, getAllocations, getAllocationsFor };
+/**
+ * A felosztás ELLENŐRZÉSE, még a számla létrehozása előtt.
+ *
+ * Miért külön: ha a számlát előbb hozzuk létre és csak utána bukik meg a felosztás, a
+ * felhasználó hibaüzenetet kap egy olyan számláról, ami MÁR bent van. Kijavítja az
+ * összeget, újra ment — és két számla lesz belőle. Ezért az összeg-ellenőrzés nem igényli
+ * a számla azonosítóját, és előre lefuttatható.
+ *
+ * @returns {{error?:string, status?:number, rows?:Array}}
+ */
+function validateAllocations(rows, invoiceTotal) {
+  const list = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  if (list.length === 0) return { rows: [] };
+
+  for (const r of list) {
+    if (!TARGETS.includes(r.target_type)) {
+      return { error: `Ismeretlen célpont: ${r.target_type}`, status: 400 };
+    }
+    if (r.target_type === 'accommodation' && !r.accommodation_id) {
+      return { error: 'Szálláshely típusnál a szálláshely megadása kötelező', status: 400 };
+    }
+    if (r.target_type !== 'accommodation' && r.accommodation_id) {
+      return { error: `${LABEL[r.target_type]} típushoz nem adható meg szálláshely`, status: 400 };
+    }
+  }
+
+  const copy = list.map((x) => ({ ...x }));
+  if (copy.length === 1 && (copy[0].amount === undefined || copy[0].amount === null || copy[0].amount === '')) {
+    copy[0].amount = invoiceTotal;
+  }
+
+  const sum = r2(copy.reduce((a, x) => a + Number(x.amount || 0), 0));
+  const total = r2(invoiceTotal);
+  if (sum !== total) {
+    const diff = r2(total - sum);
+    return {
+      error: `A felosztott összegek (${sum.toLocaleString('hu-HU')} Ft) nem adják ki a számla `
+           + `végösszegét (${total.toLocaleString('hu-HU')} Ft). `
+           + `${diff > 0 ? `Hiányzik ${diff.toLocaleString('hu-HU')} Ft.` : `Többlet: ${Math.abs(diff).toLocaleString('hu-HU')} Ft.`}`,
+      status: 400,
+    };
+  }
+  return { rows: copy };
+}
+
+module.exports = { TARGETS, LABEL, setAllocations, getAllocations, getAllocationsFor, validateAllocations };

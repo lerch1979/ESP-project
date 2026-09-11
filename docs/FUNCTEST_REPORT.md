@@ -1,8 +1,8 @@
 # FUNCTEST REPORT — automated end-to-end functional suite
 
-**198 passed / 0 failed / 6 known-gap / 5 fixed**  ·  209 scenarios  ·  12258ms
+**198 passed / 0 failed / 6 known-gap / 5 fixed**  ·  209 scenarios  ·  10462ms
 
-- Generated: 2026-09-11T10:40:27.463Z
+- Generated: 2026-09-11T11:04:38.433Z
 - Database: `hr_erp_sandbox` (sandbox-only — the guard refuses anything else)
 - Command: `npm run functest`
 - Fixture month: `1903-06` · fixture tag: `FT`
@@ -262,7 +262,7 @@
 |---|---|---|---|
 | **ALLOC-01** a gyakori eset EGY kattintás: egy szálláshely, összeg megadása nélkül | {"created":201,"rows":1,"type":"accommodation","amount":50000} | {"created":201,"rows":1,"type":"accommodation","amount":50000} | ✅ PASS |
 | **ALLOC-02** megosztás két ház között — mindkettő a SAJÁT részével jelenik meg | {"created":201,"rows":2,"sum":90000,"first":60000,"second":30000} | {"created":201,"rows":2,"sum":90000,"first":60000,"second":30000} | ✅ PASS |
-| **ALLOC-03** a részösszegek NEM adják ki a végösszeget → elutasítva, a hiány megnevezve | {"refused":400,"says_missing":true,"no_rows":0} | {"refused":400,"says_missing":true,"no_rows":0} | ✅ PASS |
+| **ALLOC-03** a részösszegek NEM adják ki a végösszeget → elutasítva, a hiány megnevezve | {"refused":400,"says_missing":true,"no_rows":0,"no_invoice_created":true} | {"refused":400,"says_missing":true,"no_rows":0,"no_invoice_created":true} | ✅ PASS |
 | **ALLOC-04** általános és központi célpont — szálláshely nélkül, és szálláshellyel nem is engedi | {"general":201,"central":201,"acc_on_general":400} | {"general":201,"central":201,"acc_on_general":400} | ✅ PASS |
 | **ALLOC-05** szűrés szálláshelyre: a megosztott számla EGYSZER jelenik meg, nem annyiszor ahány ház | {"a1_has_both":true,"single_rows":true,"general_only":1} | {"a1_has_both":true,"single_rows":true,"general_only":1} | ✅ PASS |
 | **ALLOC-06** összesítő: célpontonként összegez, és külön mutatja a be nem sorolt számlákat | {"has_accommodation":true,"has_general":true,"a1_amount":110000,"unallocated_visible":true} | {"has_accommodation":true,"has_general":true,"a1_amount":110000,"unallocated_visible":true} | ✅ PASS |
