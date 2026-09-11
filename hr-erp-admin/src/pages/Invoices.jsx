@@ -17,7 +17,7 @@ import {
   CheckBox as BulkPaidIcon, FolderZip as FolderExportIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';
-import { costCentersAPI, UPLOADS_BASE_URL } from '../services/api';
+import { accommodationsAPI, costCentersAPI, UPLOADS_BASE_URL } from '../services/api';
 import { toast } from 'react-toastify';
 import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import InvoiceDetailDialog from '../components/invoices/InvoiceDetailDialog';
@@ -115,6 +115,7 @@ function Invoices() {
   // Lookups
   const [costCenters, setCostCenters] = useState([]);
   const [costCenterTree, setCostCenterTree] = useState([]);
+  const [accommodations, setAccommodations] = useState([]);
   const [categories, setCategories] = useState([]);
 
   // Dialogs
@@ -139,15 +140,21 @@ function Invoices() {
 
   const loadLookups = useCallback(async () => {
     try {
-      const [ccRes, treeRes, catRes] = await Promise.all([
+      const [ccRes, treeRes, catRes, accRes] = await Promise.all([
         costCentersAPI.getAll({ limit: 500 }),
         costCentersAPI.getTree({ is_active: 'true' }),
         costCentersAPI.getInvoiceCategories(),
+        accommodationsAPI.getAll({ limit: 500 }),
       ]);
       if (ccRes.success) setCostCenters(ccRes.data);
       if (treeRes.success) setCostCenterTree(treeRes.data);
       if (catRes.success) setCategories(catRes.data);
-    } catch (e) { /* silent */ }
+      if (accRes?.success) setAccommodations(accRes.data?.accommodations || []);
+    } catch (e) {
+      // Nem némán: üres szálláshely-lista mellett a "hova könyveljük" mező használhatatlan,
+      // és a felhasználó nem tudja, miért.
+      toast.error('A törzsadatok (költséghely / szálláshely) betöltése nem sikerült');
+    }
   }, []);
 
   const loadInvoices = useCallback(async () => {
@@ -615,6 +622,7 @@ function Invoices() {
         open={formOpen} onClose={() => setFormOpen(false)}
         onSave={handleSave} editData={editData}
         costCenters={costCenters} costCenterTree={costCenterTree} categories={categories}
+        accommodations={accommodations}
       />
 
       <InvoiceDetailDialog

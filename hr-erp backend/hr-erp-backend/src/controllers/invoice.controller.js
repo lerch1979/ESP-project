@@ -1,4 +1,5 @@
 const { query, transaction } = require('../database/connection');
+const allocations = require('../services/invoiceAllocation.service');
 const mnb = require('../services/mnbRates.service');
 const { logger } = require('../utils/logger');
 const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
@@ -43,11 +44,15 @@ async function generateInvoiceNumber() {
  */
 const getAll = async (req, res) => {
   try {
-    const { payment_status, vendor_name, date_from, date_to, sort_by, sort_order } = req.query;
+    const { payment_status, vendor_name, date_from, date_to, sort_by, sort_order,
+            accommodation_id, target_type, unallocated } = req.query;
     const { page, limit, offset } = parsePagination(req.query);
     const search = sanitizeSearch(req.query.search, { maxLength: 200 });
 
     let whereConditions = ['i.deleted_at IS NULL'];
+    // A "hova könyveltük" szűrés EXISTS-szel megy, nem JOIN-nal: egy három házra osztott
+    // számla különben háromszor jelenne meg a listában.
+    const allocFilters = [];
     let params = [];
     let paramIndex = 1;
 
@@ -91,6 +96,22 @@ const getAll = async (req, res) => {
       paramIndex++;
     }
 
+    // ── hova könyveltük ─────────────────────────────────────────────────────
+    if (accommodation_id) {
+      whereConditions.push(`EXISTS (SELECT 1 FROM invoice_allocations al
+         WHERE al.invoice_id = i.id AND al.accommodation_id = $${paramIndex})`);
+      params.push(accommodation_id); paramIndex++;
+    }
+    if (target_type) {
+      whereConditions.push(`EXISTS (SELECT 1 FROM invoice_allocations al
+         WHERE al.invoice_id = i.id AND al.target_type = $${paramIndex})`);
+      params.push(target_type); paramIndex++;
+    }
+    // A még be nem sorolt számlák listája — ezek maradnának ki minden kimutatásból.
+    if (unallocated === 'true') {
+      whereConditions.push(`NOT EXISTS (SELECT 1 FROM invoice_allocations al WHERE al.invoice_id = i.id)`);
+    }
+
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
 
     const countResult = await query(
@@ -112,6 +133,10 @@ const getAll = async (req, res) => {
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
+
+    // A felosztás EGY lekérdezéssel jön a teljes oldalhoz, nem soronként.
+    const allocBy = await allocations.getAllocationsFor(result.rows.map((x) => x.id));
+    for (const row of result.rows) row.allocations = allocBy[row.id] || [];
 
     res.json({
       success: true,
@@ -166,6 +191,8 @@ const getById = async (req, res) => {
         message: 'Számla nem található'
       });
     }
+
+    result.rows[0].allocations = await allocations.getAllocations(result.rows[0].id);
 
     res.json({
       success: true,
@@ -279,6 +306,23 @@ const create = async (req, res) => {
       ]
     );
 
+    // Felosztás: a gyakori eset egyetlen sor, és akkor összeget sem kell megadni.
+    const allocRows = req.body.allocations
+      || (req.body.accommodation_id ? [{ target_type: 'accommodation', accommodation_id: req.body.accommodation_id }] : null)
+      || (req.body.target_type ? [{ target_type: req.body.target_type }] : null);
+    if (allocRows) {
+      const a = await allocations.setAllocations(result.rows[0].id, allocRows, fxTotal, req.user.id);
+      if (a.error) {
+        // A számla már létrejött; a felosztás hibáját NEM nyeljük el, mert e nélkül a
+        // tétel kimarad minden szállásonkénti kimutatásból.
+        return res.status(a.status || 400).json({
+          success: false, message: a.error,
+          data: { invoice_id: result.rows[0].id, invoice_created: true },
+        });
+      }
+      result.rows[0].allocations = a.allocations;
+    }
+
     await logActivity({
       userId: req.user.id,
       entityType: 'invoice',
@@ -387,6 +431,20 @@ const update = async (req, res) => {
       ]
     );
 
+    // Felosztás frissítése, ha a kérés hozott ilyet. Ha nem hozott, a meglévő marad —
+    // egy fizetési állapot átállítása nem törölheti a könyvelési hozzárendelést.
+    if (req.body.allocations !== undefined
+        || req.body.accommodation_id !== undefined
+        || req.body.target_type !== undefined) {
+      const rows = req.body.allocations
+        || (req.body.accommodation_id ? [{ target_type: 'accommodation', accommodation_id: req.body.accommodation_id }] : [])
+        || [];
+      const a = await allocations.setAllocations(
+        id, rows, Number(result.rows[0].total_amount || result.rows[0].amount), req.user.id);
+      if (a.error) return res.status(a.status || 400).json({ success: false, message: a.error });
+    }
+    result.rows[0].allocations = await allocations.getAllocations(id);
+
     const changes = diffObjects(current.rows[0], result.rows[0], [
       'vendor_name', 'amount', 'payment_status', 'due_date', 'cost_center_id'
     ]);
@@ -463,7 +521,57 @@ const remove = async (req, res) => {
   }
 };
 
+/**
+ * GET /invoices/summary — a BEJÖVŐ számlák összege aszerint, hova könyveltük őket.
+ *
+ * Külön végpont, és NEM épül bele a meglévő költség-riportba (invoiceReport), mert az az
+ * `accommodation_expenses` táblát összegzi. Ha a kettőt egy számba olvasztanám, minden
+ * olyan tétel duplán jelenne meg, amit számlaként ÉS költségként is rögzítettek — és egy
+ * csendben duplázó kimutatás rosszabb, mint két külön, őszinte szám.
+ */
+const summary = async (req, res) => {
+  try {
+    const { date_from, date_to } = req.query;
+    const params = [];
+    const where = ['i.deleted_at IS NULL'];
+    const sc = contractorPredicate(scopeOf(req), 'i.contractor_id', params.length + 1);
+    where.push(sc.sql); params.push(...sc.params);
+    if (date_from) { params.push(date_from); where.push(`i.performance_date >= $${params.length}::date`); }
+    if (date_to) { params.push(date_to); where.push(`i.performance_date <= $${params.length}::date`); }
+    const w = `WHERE ${where.join(' AND ')}`;
+
+    const rows = (await query(
+      `SELECT al.target_type,
+              al.accommodation_id,
+              a.name AS accommodation_name,
+              COUNT(DISTINCT i.id) AS invoice_count,
+              COALESCE(SUM(al.amount), 0) AS amount
+         FROM invoice_allocations al
+         JOIN invoices i ON i.id = al.invoice_id
+         LEFT JOIN accommodations a ON a.id = al.accommodation_id
+         ${w}
+        GROUP BY al.target_type, al.accommodation_id, a.name
+        ORDER BY al.target_type, a.name`, params)).rows;
+
+    // A be nem sorolt számlák külön: ezek egyik kimutatásba sem számítanak bele, és
+    // amíg nem látszanak, senki nem is tudja, hogy hiányoznak.
+    const un = (await query(
+      `SELECT COUNT(*) AS invoice_count, COALESCE(SUM(i.total_amount), 0) AS amount
+         FROM invoices i ${w}
+          AND NOT EXISTS (SELECT 1 FROM invoice_allocations al WHERE al.invoice_id = i.id)`, params)).rows[0];
+
+    res.json({ success: true, data: {
+      by_target: rows,
+      unallocated: { invoice_count: Number(un.invoice_count), amount: Number(un.amount) },
+    } });
+  } catch (error) {
+    logger.error('Számla-összesítő hiba:', error);
+    res.status(500).json({ success: false, message: 'Számla-összesítő hiba' });
+  }
+};
+
 module.exports = {
+  summary,
   getAll,
   getById,
   create,

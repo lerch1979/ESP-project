@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Stack, TextField, CircularProgress, Divider,
-  MenuItem, Select, FormControl, InputLabel, Tooltip,
+  MenuItem, Select, FormControl, InputLabel, Tooltip, IconButton,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon, PictureAsPdf as PdfIcon,
@@ -36,12 +36,33 @@ const INITIAL_FORM = {
 
 export default function InvoiceFormModal({
   open, onClose, onSave, editData,
-  costCenters = [], costCenterTree = [], categories = [],
+  costCenters = [], costCenterTree = [], categories = [], accommodations = [],
 }) {
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
+  // "" | "general" | "central" | "acc:<uuid>"
+  const [singleTarget, setSingleTarget] = useState('');
+  const [split, setSplit] = useState(false);
+  const [splitRows, setSplitRows] = useState([]);
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+
+  const updateSplit = (i, patch) =>
+    setSplitRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  /** "acc:<uuid>" | "general" | "central" → a szervernek küldött alak. */
+  const toAllocation = (target, amount) => {
+    if (!target) return null;
+    const base = amount === '' || amount === undefined ? {} : { amount: Number(amount) };
+    return target.startsWith('acc:')
+      ? { target_type: 'accommodation', accommodation_id: target.slice(4), ...base }
+      : { target_type: target, ...base };
+  };
+
+  // Mennyi hiányzik még a végösszegből — a felosztás közben végig látszik.
+  const invoiceTotal = Number(form.total_amount || form.amount || 0);
+  const splitDiff = Math.round(
+    (invoiceTotal - splitRows.reduce((a, r) => a + Number(r.amount || 0), 0)) * 100) / 100;
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -114,8 +135,21 @@ export default function InvoiceFormModal({
     if (!form.amount) { toast.error('Összeg megadása kötelező'); return; }
     if (!form.invoice_date) { toast.error('Számla dátum megadása kötelező'); return; }
 
+    // Felosztásnál itt fogjuk meg a különbözetet: a szerver is elutasítaná, de jobb
+    // most szólni, mint a mentés után hibaüzenettel.
+    if (split && splitRows.length > 0 && splitDiff !== 0) {
+      toast.error(splitDiff > 0
+        ? `A felosztásból hiányzik ${splitDiff.toLocaleString('hu-HU')} Ft`
+        : `A felosztás ${Math.abs(splitDiff).toLocaleString('hu-HU')} Ft-tal több a végösszegnél`);
+      return;
+    }
+
     setSaving(true);
     try {
+      const allocations = split
+        ? splitRows.map((r) => toAllocation(r.target, r.amount)).filter(Boolean)
+        : (singleTarget ? [toAllocation(singleTarget)] : []);
+
       const data = {
         ...form,
         amount: parseFloat(form.amount),
@@ -124,6 +158,7 @@ export default function InvoiceFormModal({
         category_id: form.category_id || null,
         payment_date: form.payment_date || null,
         due_date: form.due_date || null,
+        allocations,
       };
       await onSave(data, file);
       onClose();
@@ -222,6 +257,88 @@ export default function InvoiceFormModal({
               </Select>
             </FormControl>
           </Stack>
+
+          {/* --- Hova könyveljük --- */}
+          {/* A költséghely azt mondja meg, MILYEN JELLEGŰ a kiadás; ez pedig azt, hogy
+              KIRE terheljük. A gyakori eset egy célpont, ezért az alapnézet egyetlen
+              legördülő — a felosztás külön kapcsolóval jön elő. */}
+          <Divider />
+          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            Hova könyveljük
+          </Typography>
+
+          {!split ? (
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <InputLabel>Szálláshely / általános / központi</InputLabel>
+                <Select
+                  value={singleTarget}
+                  onChange={(e) => setSingleTarget(e.target.value)}
+                  label="Szálláshely / általános / központi"
+                >
+                  <MenuItem value="">-- Nincs hozzárendelve --</MenuItem>
+                  <MenuItem value="general">Általános (cég kiadásai)</MenuItem>
+                  <MenuItem value="central">Központi (saját rész)</MenuItem>
+                  <Divider />
+                  {accommodations.map((a) => (
+                    <MenuItem key={a.id} value={`acc:${a.id}`}>{a.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button size="small" onClick={() => setSplit(true)} sx={{ mt: 0.5, whiteSpace: 'nowrap' }}>
+                Felosztás több helyre
+              </Button>
+            </Stack>
+          ) : (
+            <Box>
+              {splitRows.map((row, i) => (
+                <Stack key={i} direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
+                  <FormControl size="small" sx={{ flex: 2 }}>
+                    <InputLabel>Célpont</InputLabel>
+                    <Select
+                      value={row.target}
+                      onChange={(e) => updateSplit(i, { target: e.target.value })}
+                      label="Célpont"
+                    >
+                      <MenuItem value="general">Általános (cég kiadásai)</MenuItem>
+                      <MenuItem value="central">Központi (saját rész)</MenuItem>
+                      <Divider />
+                      {accommodations.map((a) => (
+                        <MenuItem key={a.id} value={`acc:${a.id}`}>{a.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Összeg" type="number" size="small" sx={{ flex: 1 }}
+                    value={row.amount}
+                    onChange={(e) => updateSplit(i, { amount: e.target.value })}
+                  />
+                  <IconButton size="small" onClick={() => setSplitRows(splitRows.filter((_, j) => j !== i))}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              ))}
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button size="small" onClick={() => setSplitRows([...splitRows, { target: '', amount: '' }])}>
+                  + Sor
+                </Button>
+                <Button size="small" onClick={() => { setSplit(false); setSplitRows([]); }}>
+                  Mégse, egy helyre
+                </Button>
+                <Box sx={{ flex: 1 }} />
+                {/* A különbözet folyamatosan látszik — mentéskor a szerver is ellenőrzi,
+                    de itt derül ki időben, nem a hibaüzenetből. */}
+                <Typography variant="caption"
+                  color={splitDiff === 0 ? 'success.main' : 'error.main'} sx={{ fontWeight: 600 }}>
+                  {splitDiff === 0
+                    ? 'Kiadja a végösszeget ✓'
+                    : splitDiff > 0
+                      ? `Hiányzik ${splitDiff.toLocaleString('hu-HU')} Ft`
+                      : `Többlet ${Math.abs(splitDiff).toLocaleString('hu-HU')} Ft`}
+                </Typography>
+              </Stack>
+            </Box>
+          )}
 
           {/* --- Fizetés --- */}
           <Divider />

@@ -19,11 +19,19 @@ router.use(authenticateToken);
  * Számlák listája szűrőkkel
  */
 router.get('/', checkPermission('finance.view'), invoiceController.getAll);
+// A controllerben a `create` és az `update` megvolt, de route NEM tartozott hozzájuk —
+// a felület POST /invoices-t és PUT /invoices/:id-t hív, és élesben 405-öt kapott.
+// Ezért nem lehetett a felületről számlát rögzíteni, és ezért van 13 számla, mind más
+// úton (OCR-draft konverzió) bekerülve.
+router.post('/', checkPermission('finance.edit'), invoiceController.create);
+router.put('/:id', checkPermission('finance.edit'), invoiceController.update);
 
 /**
  * GET /api/v1/invoices/:id
  * Számla részletek
  */
+// A literal útvonal a '/:id' ELŐTT — különben a param elnyeli (a completeness-tanulság).
+router.get('/summary', checkPermission('finance.view'), invoiceController.summary);
 router.get('/:id', checkPermission('finance.view'), invoiceController.getById);
 
 // RETIRED: invoice create/update. The LIVE invoice form writes via
