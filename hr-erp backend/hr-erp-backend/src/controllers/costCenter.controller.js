@@ -6,6 +6,7 @@ const XLSX = require('xlsx');
 const archiver = require('archiver');
 const { isValidUUID, sanitizeString, sanitizeSearch } = require('../utils/validation');
 const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
+const expenseSync = require('../services/invoiceExpenseSync.service');
 
 // ============================================
 // TREE HELPERS
@@ -850,10 +851,14 @@ const bulkInvoiceAction = async (req, res) => {
       // is megvan mellé.
       const result = await query(
         `UPDATE invoices SET deleted_at = NOW()
-          WHERE id = ANY($1) AND deleted_at IS NULL AND ${sc.sql}`,
+          WHERE id = ANY($1) AND deleted_at IS NULL AND ${sc.sql}
+        RETURNING id`,
         [ids, ...sc.params]
       );
       affectedCount = result.rowCount;
+      // A belőlük képzett szállásköltség-sorok is megszűnnek — a kimutatás nem őrizhet
+      // olyan tételt, aminek a bizonylatát épp most vontuk vissza.
+      for (const row of result.rows) await expenseSync.syncFromAllocations(row.id);
     } else {
       return res.status(400).json({ success: false, message: 'Ismeretlen akció: ' + action });
     }

@@ -1,5 +1,6 @@
 const { query, transaction } = require('../database/connection');
 const allocations = require('../services/invoiceAllocation.service');
+const expenseSync = require('../services/invoiceExpenseSync.service');
 const mnb = require('../services/mnbRates.service');
 const { logger } = require('../utils/logger');
 const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
@@ -360,6 +361,10 @@ const create = async (req, res) => {
       const a = await allocations.setAllocations(result.rows[0].id, requestedAlloc, fxTotal, req.user.id);
       if (a.error) return res.status(a.status || 400).json({ success: false, message: a.error });
       result.rows[0].allocations = a.allocations;
+      // Ha a besorolásból NEM lett költségsor (bérleti díj, cégszintű célpont, lezárt
+      // hónap), azt a felhasználónak látnia kell — különben azt hiszi, a költség
+      // megjelent a kimutatásban, holott nem.
+      result.rows[0].expense_sync = a.expense_sync;
     }
 
     await logActivity({
@@ -485,6 +490,10 @@ const update = async (req, res) => {
         id, rows, Number(result.rows[0].total_amount || result.rows[0].amount), req.user.id);
       if (a.error) return res.status(a.status || 400).json({ success: false, message: a.error });
     }
+    // A számla adatai (teljesítés dátuma, kategória, szállító) a képzett költségsoron is
+    // ott vannak. Ha a besorolást nem bántottuk, a fenti ág nem futott le — a szinkront
+    // ilyenkor is el kell végezni, különben a költségoldal a régi adatokat őrizné.
+    result.rows[0].expense_sync = await expenseSync.syncFromAllocations(id);
     result.rows[0].allocations = await allocations.getAllocations(id);
 
     const changes = diffObjects(current.rows[0], result.rows[0], [
@@ -544,6 +553,10 @@ const remove = async (req, res) => {
       'UPDATE invoices SET deleted_at = NOW() WHERE id = $1',
       [id]
     );
+
+    // A bizonylattal együtt a belőle képzett költségsor is megszűnik — különben a
+    // kimutatásban ott maradna egy tétel, aminek a számlája már nincs meg.
+    await expenseSync.syncFromAllocations(id);
 
     await logActivity({
       userId: req.user.id,

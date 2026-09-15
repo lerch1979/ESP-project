@@ -215,6 +215,16 @@ function Invoices() {
   const handleEdit = (invoice) => { setEditData(invoice); setFormOpen(true); };
   const handleView = (invoice) => { setDetailInvoice(invoice); setDetailOpen(true); };
 
+  // Ha a besorolásból nem lett szállásköltség-sor, azt meg kell mondani: különben a
+  // felhasználó abban a hitben marad, hogy a költség megjelent a kimutatásban.
+  const warnIfNoExpense = (invoice) => {
+    const skipped = invoice?.expense_sync?.skipped || [];
+    if (skipped.length === 0) return;
+    const reasons = [...new Set(skipped.map((x) => x.reason))];
+    toast.info(`A számla mentve. Szállásköltség-sor nem képződött: ${reasons.join(' · ')}`,
+      { autoClose: 8000 });
+  };
+
   const handleSave = async (data, file) => {
     let savedInvoice;
     if (editData) {
@@ -230,6 +240,7 @@ function Invoices() {
         savedInvoice = res.data;
       }
     }
+    warnIfNoExpense(savedInvoice);
 
     // Upload file if provided
     if (file && savedInvoice) {

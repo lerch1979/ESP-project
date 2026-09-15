@@ -542,5 +542,174 @@ module.exports = {
         return { db_default: m && m[1], no_pending_left: left };
       },
     },
+    {
+      id: 'ALLOC-24',
+      name: 'a besorolás KÉPEZI a szállásköltség-sort — a kimutatás forrásában is megjelenik',
+      expected: { created: 201, expense_rows: 1, house_ok: true, amount_ok: 40000, source: 'invoice', month: '2026-12' },
+      hint: 'a felület az invoices-ba írt, a költségriport az accommodation_expenses-t olvasta — júliustól nullát mutatott, miközben a számlák érkeztek',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Hídteszt Kft', amount: 40000, total_amount: 40000,
+          invoice_date: '2026-12-05', performance_date: '2026-12-05', cost_center_id: s.cc,
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+        s.bridge = r.body?.data?.invoice?.id;
+        const e = (await query(
+          `SELECT accommodation_id, amount, billing_month, source, category
+             FROM accommodation_expenses WHERE invoice_id=$1 AND deleted_at IS NULL`,
+          [s.bridge])).rows;
+        return { created: r.status, expense_rows: e.length, house_ok: e[0]?.accommodation_id === s.a1.id,
+                 amount_ok: Number(e[0]?.amount), source: e[0]?.source, month: e[0]?.billing_month };
+      },
+    },
+    {
+      id: 'ALLOC-25',
+      name: 'ismételt mentés NEM duplázza a költséget — az átsorolás átviszi a másik házra',
+      expected: { after_resave: 1, after_move: 1, moved_house: true, old_house_zero: 0 },
+      hint: 'ez a legfontosabb védelem: egy kétszer könyvelt költség hónapokkal később derül ki',
+      run: async (ctx, s) => {
+        // ugyanaz a besorolás még egyszer
+        await http.put(`/cost-centers/invoices/${s.bridge}`, { token: s.t, body: {
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+        const after1 = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [s.bridge])).rows[0].c;
+
+        // átsorolás a másik házra
+        await http.post('/cost-centers/invoices/bulk-reallocate', { token: s.t, body: {
+          invoice_ids: [s.bridge],
+          allocation: { target_type: 'accommodation', accommodation_id: s.a2.id } } });
+        const rows = (await query(`SELECT accommodation_id FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [s.bridge])).rows;
+        const old = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND accommodation_id=$2 AND deleted_at IS NULL`,
+          [s.bridge, s.a1.id])).rows[0].c;
+        return { after_resave: after1, after_move: rows.length,
+                 moved_house: rows[0]?.accommodation_id === s.a2.id, old_house_zero: old };
+      },
+    },
+    {
+      id: 'ALLOC-26',
+      name: 'a BÉRLETI DÍJ nem képez költségsort — a motor a bérleti konstrukcióból már számolja',
+      expected: { created: 201, expense_rows: 0, says_why: true },
+      hint: 'a bérbeadói számla átvezetése kétszer terhelné a házat: egyszer a rent_amount, egyszer a költségsor',
+      run: async (ctx, s) => {
+        const cat = (await query(
+          `INSERT INTO invoice_categories (name) VALUES ('Bérleti díj')
+           ON CONFLICT DO NOTHING RETURNING id`)).rows[0]
+          || (await query(`SELECT id FROM invoice_categories WHERE name='Bérleti díj' LIMIT 1`)).rows[0];
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Bérbeadó Kft', amount: 300000, total_amount: 300000,
+          invoice_date: '2026-12-06', performance_date: '2026-12-06',
+          cost_center_id: s.cc, category_id: cat.id,
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+        const id = r.body?.data?.invoice?.id;
+        const e = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [id])).rows[0].c;
+        const sk = JSON.stringify(r.body?.data?.invoice?.expense_sync?.skipped
+                                  || r.body?.data?.expense_sync?.skipped || []);
+        return { created: r.status, expense_rows: e, says_why: /bérleti díj/i.test(sk) };
+      },
+    },
+    {
+      id: 'ALLOC-27',
+      name: 'az általános és a központi célpont nem szállásköltség',
+      expected: { created: 201, expense_rows: 0 },
+      hint: 'cégszintű kiadás — nincs mögötte ház, amire terhelni lehetne',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Általános Kft', amount: 5000, total_amount: 5000,
+          invoice_date: '2026-12-06', performance_date: '2026-12-06', cost_center_id: s.cc,
+          allocations: [{ target_type: 'general' }] } });
+        const e = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [r.body?.data?.invoice?.id])).rows[0].c;
+        return { created: r.status, expense_rows: e };
+      },
+    },
+    {
+      id: 'ALLOC-28',
+      name: 'a számla törlésével a képzett költségsor is megszűnik',
+      expected: { rows_before: 1, deleted: 200, rows_after: 0 },
+      hint: 'a kimutatás nem őrizhet olyan tételt, aminek a bizonylata már nincs meg',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Törlendő Híd Kft', amount: 9000, total_amount: 9000,
+          invoice_date: '2026-12-07', performance_date: '2026-12-07', cost_center_id: s.cc,
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+        const id = r.body?.data?.invoice?.id;
+        const before = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [id])).rows[0].c;
+        const d = await http.del(`/cost-centers/invoices/${id}`, { token: s.t });
+        const after = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [id])).rows[0].c;
+        return { rows_before: before, deleted: d.status, rows_after: after };
+      },
+    },
+    {
+      id: 'ALLOC-29',
+      name: 'a besorolás törlése a költségsort is elviszi — az üres lista TÖRÖL, nem hagy érintetlenül',
+      expected: { alloc_before: 1, alloc_after: 0, expense_after: 0 },
+      hint: 'a "Besorolás törlése" korábban némán nem csinált semmit: a szolgáltatás üres listánál azonnal visszatért',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Besorolás Törlés Kft', amount: 6000, total_amount: 6000,
+          invoice_date: '2026-12-08', performance_date: '2026-12-08', cost_center_id: s.cc,
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+        const id = r.body?.data?.invoice?.id;
+        const b = (await query(`SELECT count(*)::int c FROM invoice_allocations WHERE invoice_id=$1`,
+          [id])).rows[0].c;
+        await http.put(`/cost-centers/invoices/${id}`, { token: s.t, body: { allocations: [] } });
+        const a = (await query(`SELECT count(*)::int c FROM invoice_allocations WHERE invoice_id=$1`,
+          [id])).rows[0].c;
+        const e = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [id])).rows[0].c;
+        return { alloc_before: b, alloc_after: a, expense_after: e };
+      },
+    },
+    {
+      id: 'ALLOC-30',
+      name: 'a megosztott számla HÁZANKÉNT külön költségsort képez, a részösszegével',
+      expected: { rows: 2, sum: 90000, first: 60000, second: 30000 },
+      hint: 'egy takarítási számla két szállóra: mindkét ház a saját részét viseli',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Megosztott Híd Kft', amount: 90000, total_amount: 90000,
+          invoice_date: '2026-12-09', performance_date: '2026-12-09', cost_center_id: s.cc,
+          allocations: [
+            { target_type: 'accommodation', accommodation_id: s.a1.id, amount: 60000, expense_category: 'takaritas' },
+            { target_type: 'accommodation', accommodation_id: s.a2.id, amount: 30000, expense_category: 'takaritas' },
+          ] } });
+        const e = (await query(
+          `SELECT amount, category FROM accommodation_expenses
+            WHERE invoice_id=$1 AND deleted_at IS NULL ORDER BY amount DESC`,
+          [r.body?.data?.invoice?.id])).rows;
+        return { rows: e.length, sum: e.reduce((a, x) => a + Number(x.amount), 0),
+                 first: Number(e[0]?.amount), second: Number(e[1]?.amount) };
+      },
+    },
+    {
+      id: 'ALLOC-31',
+      name: 'LEZÁRT hónapra a költségsor nem képződik magától, és a válasz megmondja, miért',
+      expected: { created: 201, expense_rows: 0, says_closed: true, alloc_saved: 1 },
+      hint: 'egy már kiszámlázott hónap költségoldalát nem írjuk át észrevétlenül — a besorolás viszont elmentődik',
+      run: async (ctx, s) => {
+        await query(`INSERT INTO billing_runs (billing_month, run_type, status, finalized_at)
+                     VALUES ('2026-02','incoming','finalized', NOW())`);
+        try {
+          const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+            vendor_name: 'ALLOC Lezárt Híd Kft', amount: 11000, total_amount: 11000,
+            invoice_date: '2026-02-10', performance_date: '2026-02-10', cost_center_id: s.cc,
+            allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
+          const id = r.body?.data?.invoice?.id;
+          const e = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+             WHERE invoice_id=$1 AND deleted_at IS NULL`, [id])).rows[0].c;
+          const al = (await query(`SELECT count(*)::int c FROM invoice_allocations WHERE invoice_id=$1`,
+            [id])).rows[0].c;
+          const sk = JSON.stringify(r.body?.data?.invoice?.expense_sync?.skipped
+                                    || r.body?.data?.expense_sync?.skipped || []);
+          return { created: r.status, expense_rows: e, says_closed: /le van zárva/.test(sk), alloc_saved: al };
+        } finally {
+          await query(`DELETE FROM billing_runs WHERE billing_month='2026-02'`);
+        }
+      },
+    },
   ],
 };

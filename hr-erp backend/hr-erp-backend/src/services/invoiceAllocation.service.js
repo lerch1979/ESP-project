@@ -16,6 +16,7 @@
  * gépelni ahhoz, hogy „ez a Sarród I.-hez tartozik".
  */
 const { query, transaction } = require('../database/connection');
+const expenseSync = require('./invoiceExpenseSync.service');
 
 const TARGETS = ['accommodation', 'general', 'central'];
 const LABEL = {
@@ -37,7 +38,18 @@ const r2 = (n) => Math.round(Number(n) * 100) / 100;
  */
 async function setAllocations(invoiceId, rows, invoiceTotal, userId = null) {
   const list = Array.isArray(rows) ? rows.filter(Boolean) : [];
-  if (list.length === 0) return { allocations: [] };   // "nincs hozzárendelve" megengedett
+
+  // Az ÜRES lista szándékos törlés: "ez a számla ne tartozzon sehova". Korábban itt egy
+  // korai visszatérés állt, ami a meglévő sorokat érintetlenül hagyta — a felületen a
+  // "Besorolás törlése" tehát némán nem csinált semmit. Aki egyáltalán NEM akar hozzányúlni
+  // a besoroláshoz, az nem küld `allocations` mezőt; azt a hívó szűri ki, nem ez.
+  if (list.length === 0) {
+    return transaction(async (client) => {
+      await client.query('DELETE FROM invoice_allocations WHERE invoice_id = $1', [invoiceId]);
+      const sync = await expenseSync.syncFromAllocations(invoiceId, client);
+      return { allocations: [], expense_sync: sync };
+    });
+  }
 
   for (const r of list) {
     if (!TARGETS.includes(r.target_type)) {
@@ -73,12 +85,20 @@ async function setAllocations(invoiceId, rows, invoiceTotal, userId = null) {
     const out = [];
     for (const x of list) {
       const ins = await client.query(
-        `INSERT INTO invoice_allocations (invoice_id, target_type, accommodation_id, amount, note, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [invoiceId, x.target_type, x.accommodation_id || null, r2(x.amount), x.note || null, userId]);
+        `INSERT INTO invoice_allocations
+           (invoice_id, target_type, accommodation_id, amount, note, created_by,
+            expense_category, utility_line)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [invoiceId, x.target_type, x.accommodation_id || null, r2(x.amount), x.note || null, userId,
+         x.expense_category || null, x.utility_line || null]);
       out.push(ins.rows[0]);
     }
-    return { allocations: out };
+
+    // A szállásköltség-sor a besorolás MELLÉKTERMÉKE, ugyanabban a tranzakcióban. Nincs
+    // külön "átvezetés" gomb, amit el lehet felejteni megnyomni — ez az oka, hogy a
+    // költségkimutatás júliustól üres volt, miközben a számlák érkeztek.
+    const sync = await expenseSync.syncFromAllocations(invoiceId, client);
+    return { allocations: out, expense_sync: sync };
   });
 }
 

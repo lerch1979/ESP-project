@@ -40,6 +40,7 @@ export default function InvoiceFormModal({
   // "" | "general" | "central" | "acc:<uuid>"
   const [singleTarget, setSingleTarget] = useState('');
   const [split, setSplit] = useState(false);
+  const [expenseCategory, setExpenseCategory] = useState('');   // '' = a számla kategóriájából
   const [splitRows, setSplitRows] = useState([]);
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -87,6 +88,7 @@ export default function InvoiceFormModal({
       // nyílik, és mentéskor üres felosztást küld — vagyis egy fizetési státusz átállítása
       // némán letörölné a számla könyvelési hozzárendelését.
       const existing = Array.isArray(editData.allocations) ? editData.allocations : [];
+      setExpenseCategory(existing[0]?.expense_category || '');
       const key = (a) => (a.target_type === 'accommodation' ? `acc:${a.accommodation_id}` : a.target_type);
       if (existing.length > 1) {
         setSplit(true);
@@ -104,6 +106,7 @@ export default function InvoiceFormModal({
       setSingleTarget('');
       setSplit(false);
       setSplitRows([]);
+      setExpenseCategory('');
     }
     setFile(null);
   }, [editData, open]);
@@ -163,9 +166,10 @@ export default function InvoiceFormModal({
 
     setSaving(true);
     try {
-      const allocations = split
+      const allocations = (split
         ? splitRows.map((r) => toAllocation(r.target, r.amount)).filter(Boolean)
-        : (singleTarget ? [toAllocation(singleTarget)] : []);
+        : (singleTarget ? [toAllocation(singleTarget)] : []))
+        .map((a) => (expenseCategory ? { ...a, expense_category: expenseCategory } : a));
 
       const data = {
         ...form,
@@ -282,6 +286,25 @@ export default function InvoiceFormModal({
           <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
             Hova könyveljük
           </Typography>
+
+          {/* A szállásköltség-kimutatás négy vödörben összesít. A számla kategóriája (szabad
+              szöveges lista) ezekre nem képezhető le egy az egyben — takarítás-kategóriájú
+              számla például nincs is —, ezért itt megadható. Üresen hagyva a rendszer a
+              számla kategóriájából következtet. */}
+          <FormControl size="small" sx={{ maxWidth: 280 }}>
+            <InputLabel>Költség típusa a kimutatásban</InputLabel>
+            <Select
+              value={expenseCategory}
+              onChange={(e) => setExpenseCategory(e.target.value)}
+              label="Költség típusa a kimutatásban"
+            >
+              <MenuItem value="">Automatikus (a számla kategóriájából)</MenuItem>
+              <MenuItem value="rezsi">Rezsi</MenuItem>
+              <MenuItem value="karbantartas">Karbantartás</MenuItem>
+              <MenuItem value="takaritas">Takarítás</MenuItem>
+              <MenuItem value="egyeb">Egyéb</MenuItem>
+            </Select>
+          </FormControl>
 
           {!split ? (
             <Stack direction="row" spacing={2} alignItems="flex-start">
