@@ -15,12 +15,7 @@ import { UPLOADS_BASE_URL } from '../../services/api';
 
 const CURRENCIES = ['HUF', 'EUR', 'USD'];
 
-const PAYMENT_STATUSES = {
-  pending: { label: 'Függőben' },
-  paid: { label: 'Fizetve' },
-  overdue: { label: 'Lejárt' },
-  cancelled: { label: 'Sztornó' },
-};
+import { PAYMENT_STATUSES, CREATE_STATUSES, selectableFrom } from '../../constants/invoiceStatus';
 
 const formatFileSize = (bytes) => {
   if (!bytes) return '';
@@ -33,7 +28,7 @@ const INITIAL_FORM = {
   invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
   vendor_contractor_id: null,
   total_amount: '', currency: 'HUF', invoice_date: '', performance_date: '', due_date: '', payment_date: '',
-  payment_status: 'pending', cost_center_id: '', category_id: '', description: '', notes: '',
+  payment_status: 'draft', cost_center_id: '', category_id: '', description: '', notes: '',
 };
 
 export default function InvoiceFormModal({
@@ -81,7 +76,7 @@ export default function InvoiceFormModal({
         performance_date: editData.performance_date ? editData.performance_date.substring(0, 10) : '',
         due_date: editData.due_date ? editData.due_date.substring(0, 10) : '',
         payment_date: editData.payment_date ? editData.payment_date.substring(0, 10) : '',
-        payment_status: editData.payment_status || 'pending',
+        payment_status: editData.payment_status || 'draft',
         cost_center_id: editData.cost_center_id || '',
         category_id: editData.category_id || '',
         description: editData.description || '',
@@ -371,8 +366,11 @@ export default function InvoiceFormModal({
             <FormControl size="small" sx={{ flex: 1 }}>
               <InputLabel>Státusz</InputLabel>
               <Select value={form.payment_status} onChange={(e) => setForm({ ...form, payment_status: e.target.value })} label="Státusz">
-                {Object.entries(PAYMENT_STATUSES).map(([val, cfg]) => (
-                  <MenuItem key={val} value={val}>{cfg.label}</MenuItem>
+                {/* Új számlánál szabad a választás (egy régi, már kifizetett számlát nincs
+                    értelme végigvinni a piszkozat → fizetve úton); meglévőnél a szerver
+                    állapotgépe szabja meg, mi a következő lépés. */}
+                {(editData ? selectableFrom(editData.payment_status) : CREATE_STATUSES).map((val) => (
+                  <MenuItem key={val} value={val}>{PAYMENT_STATUSES[val]?.label || val}</MenuItem>
                 ))}
               </Select>
             </FormControl>

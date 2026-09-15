@@ -9,12 +9,7 @@ import {
 } from '@mui/icons-material';
 import { UPLOADS_BASE_URL } from '../../services/api';
 
-const PAYMENT_STATUSES = {
-  pending: { label: 'Függőben', color: 'warning' },
-  paid: { label: 'Fizetve', color: 'success' },
-  overdue: { label: 'Lejárt', color: 'error' },
-  cancelled: { label: 'Sztornó', color: 'default' },
-};
+import { PAYMENT_STATUSES } from '../../constants/invoiceStatus';
 
 const formatCurrency = (val, currency = 'HUF') => {
   if (!val && val !== 0) return '-';

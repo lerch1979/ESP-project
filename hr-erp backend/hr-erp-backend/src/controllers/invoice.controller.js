@@ -308,6 +308,18 @@ const create = async (req, res) => {
       }
     }
 
+    // A RÖGZÍTÉSKOR megadott állapot érvényesül. Korábban itt egy kötött 'draft' állt: egy
+    // már kifizetett régi számla is piszkozatként jött létre, onnan pedig a felületen nem
+    // volt továbblépés — csak a sztornó. Az állapotgép a MÓDOSÍTÁSRA vonatkozik, arra nem,
+    // hogy milyen állapotban kerül be egy bizonylat.
+    const newStatus = req.body.payment_status || 'draft';
+    if (!VALID_STATUSES.includes(newStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Érvénytelen státusz. Lehetséges értékek: ${VALID_STATUSES.join(', ')}`,
+      });
+    }
+
     if (requestedAlloc) {
       const check = allocations.validateAllocations(requestedAlloc, fxTotal);
       if (check.error) {
@@ -336,7 +348,7 @@ const create = async (req, res) => {
         cost_center_id, category_id || null, description || null, notes || null,
         line_items ? JSON.stringify(line_items) : null,
         client_name || null, client_id || null, contractor_id || null,
-        'draft', req.user.id,
+        newStatus, req.user.id,
         perfDate,
         fx.original_amount, fx.original_currency, fx.exchange_rate,
         fx.exchange_rate_date, fx.rate_status,

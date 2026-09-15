@@ -198,7 +198,36 @@ For older history: `git log --oneline --since="2026-04-01"`.
 - Old pipeline has produced 0 finalized invoices since build. 5 drafts pending unreviewed for a month.
 - **Risk:** If old pipeline gets unblocked, expenses go to `invoices` while new ones go to `accommodation_expenses` — profit dashboard misses the old side.
 
-**Status:** Open decision. See `docs/ARCH_COST_TRACKING_OPTIONS.md`. Recommendation: deprecate old pipeline as Phase 3, single source of truth in new system.
+**Status:** Decided 2026-06-21 (`accommodation_expenses` = single source of truth; the
+email-OCR pipeline feeds it via Convert; the legacy `approve() → invoices` path returns 410).
+
+### ⚠️ THE SPLIT CAME BACK — 2026-09-15
+
+The 2026-06-21 decision held on paper, but the live usage moved the other way:
+
+- `accommodation_expenses` (what the profit/margin report reads): **last row 2026-06**.
+- `invoices` (what the Számlák screen writes): **2026-09, 16 invoices, 10.9 M Ft**.
+
+So since July the per-accommodation cost report has shown **zero cost** while the invoices
+kept arriving — on the other table. The September rounds widened the gap rather than
+closing it: `invoice_allocations` (mig 157) answers the SAME question as
+`accommodation_expenses.accommodation_id` — "which house does this cost belong to" — in a
+second table that no report reads.
+
+The two tables share **23 columns**. This is not "invoice vs cost"; it is two invoice
+tables. Both are still small (16 + 17 rows), which is exactly why the merge is cheap now
+and gets dearer every month.
+
+**Status:** open — a clean single path is being proposed (2026-09-15). Do NOT add another
+field to either table before it is decided.
+
+### Deduction line items on resident/client settlement sheets — OPEN QUESTION
+
+Deferred deliberately on 2026-09-15. The incoming-invoice line-item work (supplier deducts
+a pre-paid utility from their own invoice) is expected to cover the real-world practice.
+Whether the resident- or client-facing settlement sheets need their own deduction
+mechanism is left to actual use to show. Revisit when a case appears that the supplier-side
+solution cannot express.
 
 ### docs/PROJECT_CONTEXT.md vs PROJECT_STATE.md (this file)
 

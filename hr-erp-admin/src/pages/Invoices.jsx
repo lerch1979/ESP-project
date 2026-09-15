@@ -23,18 +23,14 @@ import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import InvoiceDetailDialog from '../components/invoices/InvoiceDetailDialog';
 import InvoiceFormModal from '../components/invoices/InvoiceFormModal';
 import ExportToFolderModal from '../components/invoices/ExportToFolderModal';
+import { PAYMENT_STATUSES, selectableFrom } from '../constants/invoiceStatus';
 import BulkReallocateDialog from '../components/invoices/BulkReallocateDialog';
 
 // ============================================
 // CONSTANTS
 // ============================================
 
-const PAYMENT_STATUSES = {
-  pending: { label: 'Függőben', color: 'warning', icon: <PendingIcon fontSize="small" /> },
-  paid: { label: 'Fizetve', color: 'success', icon: <PaidIcon fontSize="small" /> },
-  overdue: { label: 'Lejárt', color: 'error', icon: <OverdueIcon fontSize="small" /> },
-  cancelled: { label: 'Sztornó', color: 'default', icon: null },
-};
+
 
 const formatCurrency = (val, currency = 'HUF') => {
   if (!val && val !== 0) return '-';
@@ -578,8 +574,12 @@ function Invoices() {
                                 />
                               )}
                             >
-                              {Object.entries(PAYMENT_STATUSES).map(([val, cfg]) => (
-                                <MenuItem key={val} value={val}>{cfg.label}</MenuItem>
+                              {/* Csak a jelenlegi állapot és a belőle elérhető lépések:
+                                  a szerver állapotgépe a többit 400-zal utasítaná vissza. */}
+                              {selectableFrom(inv.payment_status).map((val) => (
+                                <MenuItem key={val} value={val} disabled={val === inv.payment_status}>
+                                  {PAYMENT_STATUSES[val]?.label || val}
+                                </MenuItem>
                               ))}
                             </Select>
                           </FormControl>

@@ -23,12 +23,7 @@ import InvoiceFormModal from '../components/invoices/InvoiceFormModal';
 // PAYMENT STATUS CONFIG
 // ============================================
 
-const PAYMENT_STATUSES = {
-  pending: { label: 'Függőben', color: 'warning' },
-  paid: { label: 'Fizetve', color: 'success' },
-  overdue: { label: 'Lejárt', color: 'error' },
-  cancelled: { label: 'Sztornó', color: 'default' },
-};
+import { PAYMENT_STATUSES } from '../constants/invoiceStatus';
 
 // Format large amounts for badges (e.g. 1.57M, 234K)
 const formatCompactAmount = (val) => {

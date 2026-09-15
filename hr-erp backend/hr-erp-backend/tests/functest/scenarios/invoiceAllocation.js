@@ -474,5 +474,73 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'ALLOC-20',
+      name: 'egy már kifizetett régi számla FIZETVE állapotban rögzíthető, nem ragad piszkozatban',
+      expected: { created: 201, status: 'paid' },
+      hint: 'a rögzítéskor megadott állapot érvényesül — korábban kötött draft jött létre, ahonnan a felületen csak a sztornó vezetett tovább',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Régi Számla Kft', amount: 12000, total_amount: 12000,
+          invoice_date: '2026-12-03', cost_center_id: s.cc, payment_status: 'paid' } });
+        const row = (await query(`SELECT payment_status FROM invoices WHERE id=$1`,
+          [r.body?.data?.invoice?.id])).rows[0];
+        return { created: r.status, status: row?.payment_status };
+      },
+    },
+    {
+      id: 'ALLOC-21',
+      name: 'a piszkozatnak VAN útja a véglegesítésig: draft → sent → paid',
+      expected: { created_as: 'draft', to_sent: 200, to_paid: 200, final: 'paid' },
+      hint: 'a felület korábbi státuszkészletéből egyik lépés sem volt érvényes, a sztornót leszámítva',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Piszkozat Kft', amount: 8000, total_amount: 8000,
+          invoice_date: '2026-12-03', cost_center_id: s.cc } });
+        const id = r.body?.data?.invoice?.id;
+        const created = (await query(`SELECT payment_status FROM invoices WHERE id=$1`, [id])).rows[0];
+        const a = await http.put(`/cost-centers/invoices/${id}`, { token: s.t,
+          body: { payment_status: 'sent' } });
+        const b = await http.put(`/cost-centers/invoices/${id}`, { token: s.t,
+          body: { payment_status: 'paid', payment_date: '2026-12-04' } });
+        const fin = (await query(`SELECT payment_status FROM invoices WHERE id=$1`, [id])).rows[0];
+        return { created_as: created?.payment_status, to_sent: a.status, to_paid: b.status,
+                 final: fin?.payment_status };
+      },
+    },
+    {
+      id: 'ALLOC-22',
+      name: 'a szerver által nem ismert állapot (pending) elutasítva — se rögzítéskor, se módosításkor',
+      expected: { on_create: 400, on_update: 400, unchanged: 'draft' },
+      hint: 'a felület négy képernyőn kínálta a pending-et, amit a szerver sosem fogadott el',
+      run: async (ctx, s) => {
+        const bad = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Pending Kft', amount: 3000, total_amount: 3000,
+          invoice_date: '2026-12-03', cost_center_id: s.cc, payment_status: 'pending' } });
+        const ok = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Pending2 Kft', amount: 3000, total_amount: 3000,
+          invoice_date: '2026-12-03', cost_center_id: s.cc } });
+        const id = ok.body?.data?.invoice?.id;
+        const upd = await http.put(`/cost-centers/invoices/${id}`, { token: s.t,
+          body: { payment_status: 'pending' } });
+        const row = (await query(`SELECT payment_status FROM invoices WHERE id=$1`, [id])).rows[0];
+        return { on_create: bad.status, on_update: upd.status, unchanged: row?.payment_status };
+      },
+    },
+    {
+      id: 'ALLOC-23',
+      name: 'az oszlop alapértéke sem vezet zsákutcába: a DB-default is érvényes állapot',
+      expected: { db_default: 'draft', no_pending_left: 0 },
+      hint: 'mig 159 — a pending állapotból az állapotgép szerint SEMMI nem elérhető, tehát ami oda kerül, ott ragad',
+      run: async () => {
+        const d = (await query(
+          `SELECT column_default FROM information_schema.columns
+            WHERE table_name='invoices' AND column_name='payment_status'`)).rows[0];
+        const left = (await query(
+          `SELECT count(*)::int c FROM invoices WHERE payment_status='pending'`)).rows[0].c;
+        const m = /'([a-z_]+)'/.exec(d?.column_default || '');
+        return { db_default: m && m[1], no_pending_left: left };
+      },
+    },
   ],
 };
