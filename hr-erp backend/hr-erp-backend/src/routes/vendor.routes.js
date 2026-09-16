@@ -10,6 +10,8 @@ router.use(authenticateToken);
 // A literal utak a gyökér elé/mellé — itt nincs :id param, de a sorrend így is beszédes.
 router.get('/duplicates', checkPermission('finance.view'), ctrl.duplicates);
 router.post('/merge', checkPermission('finance.edit'), ctrl.merge);
+router.get('/keep-separate', checkPermission('finance.view'), ctrl.listKeepSeparate);
+router.post('/keep-separate', checkPermission('finance.edit'), ctrl.keepSeparate);
 router.get('/', checkPermission('finance.view'), ctrl.suggest);
 
 module.exports = router;

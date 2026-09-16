@@ -118,6 +118,12 @@ const duplicates = async (req, res) => {
       csoport.get(k).push(r);
     }
 
+    // A "szándékosan különálló" jelölés SZÁNDÉKOSAN nem jelenik meg itt. Ez a lista
+    // azonos normalizált kulcsú neveket csoportosít (RÁBA / "Rába"), a különállónak
+    // jelölt párok viszont épp eltérő kulcsúak (Barcza Gyula / Barcza Gyuláné) — egy
+    // csoporton belül tehát sosem állna fenn. A védelem ott hat, ahol írna: a
+    // /vendors/merge visszautasítja őket; a rögzített párok a GET /vendors/keep-separate
+    // listán nézhetők meg.
     const parok = [...csoport.entries()]
       .filter(([, list]) => new Set(list.map((x) => x.nev)).size > 1)
       .map(([kulcs, list]) => {
@@ -157,6 +163,23 @@ const merge = async (req, res) => {
     }
     if (others.includes(keep)) {
       return res.status(400).json({ success: false, message: 'A megtartott név nem szerepelhet az összevonandók között' });
+    }
+
+    // ELSŐ fék: emberi döntés, hogy ezek KÜLÖN entitások. Ez erősebb minden heurisztikánál,
+    // ezért az adószám-vizsgálat elé kerül, és `force`-szal sem léphető át: a hasonló nevű
+    // szállásadók összevonása két partner pénzügyeit keverné össze.
+    const keys = [keep, ...others].map((n) => nameKey(n));
+    const tiltott = (await query(
+      `SELECT name_key_a, name_key_b, reason FROM vendor_keep_separate
+        WHERE (name_key_a = ANY($1) AND name_key_b = ANY($1))`, [keys])).rows;
+    if (tiltott.length > 0) {
+      const t = tiltott[0];
+      return res.status(409).json({
+        success: false,
+        message: 'Ez a két partner szándékosan különálló, nem vonható össze: '
+               + `${t.reason || `${t.name_key_a} / ${t.name_key_b}`}`,
+        data: { keep_separate: tiltott },
+      });
     }
 
     // Biztonsági fék: ha az összevonandók adószáma eltér a megtartottétól, megállunk.
@@ -218,4 +241,52 @@ const merge = async (req, res) => {
   }
 };
 
-module.exports = { suggest, duplicates, merge };
+/**
+ * POST /vendors/keep-separate — { name_a, name_b, reason }
+ *
+ * "Ez a két partner szándékosan külön." Az összevonás ezután visszautasítja őket, a
+ * duplikátum-lista pedig megjelöli. A tudás a rendszerbe kerül, nem egy levelezésbe.
+ */
+const keepSeparate = async (req, res) => {
+  try {
+    const a = nameKey(req.body?.name_a || '');
+    const b = nameKey(req.body?.name_b || '');
+    const reason = String(req.body?.reason || '').trim() || null;
+    if (!a || !b) {
+      return res.status(400).json({ success: false, message: 'name_a és name_b megadása kötelező' });
+    }
+    if (a === b) {
+      return res.status(400).json({ success: false, message: 'A két név ugyanaz — nincs mit különtartani' });
+    }
+    const [lo, hi] = a < b ? [a, b] : [b, a];
+    const r = await query(
+      `INSERT INTO vendor_keep_separate (name_key_a, name_key_b, reason, created_by)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (name_key_a, name_key_b) DO UPDATE SET reason = COALESCE(EXCLUDED.reason, vendor_keep_separate.reason)
+       RETURNING *`, [lo, hi, reason, req.user?.id || null]);
+    res.json({
+      success: true,
+      message: 'Rögzítve: ez a két partner szándékosan különálló, összevonni nem lehet őket',
+      data: { pair: r.rows[0] },
+    });
+  } catch (error) {
+    logger.error('keep-separate rögzítési hiba:', error);
+    res.status(500).json({ success: false, message: 'Rögzítési hiba' });
+  }
+};
+
+/** GET /vendors/keep-separate — a rögzített "soha ne vond össze" párok. */
+const listKeepSeparate = async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT k.name_key_a, k.name_key_b, k.reason, k.created_at, u.first_name, u.last_name
+         FROM vendor_keep_separate k LEFT JOIN users u ON u.id = k.created_by
+        ORDER BY k.name_key_a, k.name_key_b`);
+    res.json({ success: true, data: { count: r.rows.length, pairs: r.rows } });
+  } catch (error) {
+    logger.error('keep-separate lista hiba:', error);
+    res.status(500).json({ success: false, message: 'Lekérdezési hiba' });
+  }
+};
+
+module.exports = { suggest, duplicates, merge, keepSeparate, listKeepSeparate };

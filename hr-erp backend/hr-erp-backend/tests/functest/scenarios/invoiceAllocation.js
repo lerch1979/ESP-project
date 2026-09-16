@@ -711,5 +711,54 @@ module.exports = {
         }
       },
     },
+    {
+      id: 'ALLOC-32',
+      name: 'a szándékosan különálló partnerpár összevonása ELBUKIK — `force`-szal is',
+      expected: { refused: 409, says_reason: true, forced_also_refused: 409, still_two: 2 },
+      hint: 'Barcza Gyula (Sarród I.) és a tulajdonostársak közössége (Beled) két külön entitás — az összevonásuk két partner pénzügyeit keverné',
+      run: async (ctx, s) => {
+        const acc = (await query(`SELECT id FROM accommodations WHERE is_active LIMIT 1`)).rows[0];
+        for (const nev of ['Teszt Kovács Géza', 'Teszt Kovács Gézáné']) {
+          await query(
+            `INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount,
+               vendor_name, performance_date)
+             VALUES ($1,'2026-09','egyeb',1000,$2,CURRENT_DATE)`, [acc.id, nev]);
+        }
+        const k = await http.post('/vendors/keep-separate', { token: s.t, body: {
+          name_a: 'Teszt Kovács Géza', name_b: 'Teszt Kovács Gézáné',
+          reason: 'Két külön szállásadó, a névegyezés véletlen' } });
+        if (k.status !== 200) throw new Error(`keep-separate: ${k.status} ${JSON.stringify(k.body)}`);
+
+        const m = await http.post('/vendors/merge', { token: s.t, body: {
+          keep_name: 'Teszt Kovács Géza', merge_names: ['Teszt Kovács Gézáné'] } });
+        const f = await http.post('/vendors/merge', { token: s.t, body: {
+          keep_name: 'Teszt Kovács Géza', merge_names: ['Teszt Kovács Gézáné'], force: true } });
+        const still = (await query(
+          `SELECT count(DISTINCT vendor_name)::int c FROM accommodation_expenses
+            WHERE vendor_name ILIKE 'Teszt Kovács%' AND deleted_at IS NULL`)).rows[0].c;
+        return {
+          refused: m.status,
+          says_reason: /szándékosan különálló/i.test(m.body?.message || ''),
+          forced_also_refused: f.status,
+          still_two: still,
+        };
+      },
+    },
+    {
+      id: 'ALLOC-33',
+      name: 'a rögzített különállások VISSZAOLVASHATÓK, és a négy Barcza-entitás köztük van',
+      expected: { ok: 200, test_pair_listed: true, barcza_pairs: 6 },
+      hint: 'a duplikátum-listán nem jelenhetnek meg (eltérő a normalizált kulcsuk), ezért kell ez a nézet — különben a döntés láthatatlan',
+      run: async (ctx, s) => {
+        const r = await http.get('/vendors/keep-separate', { token: s.t });
+        const pairs = r.body?.data?.pairs || [];
+        const barcza = pairs.filter((p) => /barcza|sozen/.test(p.name_key_a + p.name_key_b));
+        return {
+          ok: r.status,
+          test_pair_listed: pairs.some((p) => /teszt kovacs/.test(p.name_key_a)),
+          barcza_pairs: barcza.length,
+        };
+      },
+    },
   ],
 };
