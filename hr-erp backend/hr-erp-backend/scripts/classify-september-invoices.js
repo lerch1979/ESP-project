@@ -48,7 +48,7 @@ const DECISIONS = {
   'SBTK-2026-11':        { target: 'acc:Beled' },
 
   // ── szándékosan kimarad ───────────────────────────────────────────
-  'KS-728241S-2026/163': { skip: 'Petőháza bérleti díj — előbb a bérleti konstrukciót kell beállítani' },
+  'KS-728241S-2026/163': { target: 'acc:Petőháza' },   // bérleti díj: a motor számolja (flat 355 600)
   'INV-000007':          { skip: 'Gede László — tételesen újrarögzítjük a megelőlegezett tétellel' },
   '100005674787':        { target: 'acc:Sopronhorpács', category: 'rezsi', utility: 'viz_csatorna' },
 };

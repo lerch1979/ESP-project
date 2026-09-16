@@ -74,18 +74,23 @@ function daysInMonthOf(month) {
  * the same specificity the later valid_from wins. Returns the row or null.
  */
 function makeRateResolver(rates) {
-  return (clientId, accId, dateStr) => {
+  return (clientId, accId, dateStr, workplaceId = null) => {
     if (!clientId) return null;
     let best = null;
     for (const r of rates) {
       if (r.contractor_id !== clientId) continue;
       if (r.accommodation_id && r.accommodation_id !== accId) continue;
+      // A munkahelyre szóló díj csak az ADOTT munkahely lakóira érvényes; a workplace_id
+      // nélküli sor mindenkire (mig 164).
+      if (r.workplace_id && r.workplace_id !== workplaceId) continue;
       if (dateStr < r.valid_from) continue;
       if (r.valid_to && dateStr > r.valid_to) continue;
       if (!best) { best = r; continue; }
-      const bSpec = !!best.accommodation_id;
-      const rSpec = !!r.accommodation_id;
-      if (rSpec !== bSpec) { if (rSpec) best = r; continue; }
+      // Specifikusabb nyer, a munkahely a legerősebb jel: ha a megbízó munkahelyenként
+      // eltérő díjat alkudott ki, azt nem írhatja felül egy általánosabb házszintű sor.
+      const score = (x) => (x.workplace_id ? 2 : 0) + (x.accommodation_id ? 1 : 0);
+      const sb = score(best); const sr = score(r);
+      if (sr !== sb) { if (sr > sb) best = r; continue; }
       if (r.valid_from > best.valid_from) best = r;
     }
     return best;
@@ -290,7 +295,7 @@ function occupancyByDay(rows) {
  * occupancy floor. capacity = contracted_beds when set, else the accommodation's physical
  * beds. Returns net/vat plus a `per_bed` breakdown for the invoice + profit dashboard.
  */
-function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds, billableDays) {
+function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds, billableDays, workplaceId = null) {
   const occ = occupancyByDay(rows);
   const [Y, M] = month.split('-').map(Number);
   // MONTH-TO-DATE: never bill the contracted block for days the occupancy job has not
@@ -305,7 +310,7 @@ function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, ac
   let capacity = null, contracted = null, floorPct = null, rateUsed = null, rateEmpty = null;
   for (let day = 1; day <= lastDay; day++) {
     const dStr = `${Y}-${String(M).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const row = resolveRow(clientId, accId, dStr);
+    const row = resolveRow(clientId, accId, dStr, workplaceId);
     if (!row || row.billing_basis !== 'per_bed_night') continue;
     const rUsed = Number(row.rate_used) || 0;
     const rEmpty = Number(row.rate_empty) || 0;
@@ -345,19 +350,20 @@ function computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, ac
  * the month (the first applicable row's basis wins).
  */
 function computeGroupRevenue(rows, resolveRow, accId, clientId, daysInMonth, opts = {}) {
+  const workplaceId = opts.workplaceId || null;
   const { rezsiTotal = 0, utilitiesBilling = 'we_pay', groupEmpDays = 0, accEmpDays = 0, month = null, accBeds = 0,
           billableDays = daysInMonth } = opts;
   const dayRow = new Map();
   let peekBasis = null;
   for (const r of rows) {
     const d = localDateStr(r.snapshot_date);
-    if (!dayRow.has(d)) { const row = resolveRow(clientId, accId, d); dayRow.set(d, row); if (row && !peekBasis) peekBasis = row.billing_basis; }
+    if (!dayRow.has(d)) { const row = resolveRow(clientId, accId, d, workplaceId); dayRow.set(d, row); if (row && !peekBasis) peekBasis = row.billing_basis; }
   }
 
   let baseNet = 0, baseVat = 0, vatRate = 0, basis = null, vatExempt = false, perBed = null;
 
   if (peekBasis === 'per_bed_night' && month) {
-    const pb = computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds, billableDays);
+    const pb = computePerBed(rows, resolveRow, accId, clientId, month, daysInMonth, accBeds, billableDays, workplaceId);
     basis = 'per_bed_night';
     baseNet = pb.baseNet; baseVat = pb.baseVat; vatRate = pb.vatRate; vatExempt = pb.vatExempt; perBed = pb.perBed;
   } else {
@@ -447,7 +453,7 @@ async function calculateMonthlyBilling(month, opts = {}) {
     const snapRows = await client.query(
       `SELECT os.snapshot_date, os.employee_id,
               (e.first_name || ' ' || COALESCE(e.last_name, '')) AS employee_name,
-              e.billing_client_id, os.accommodation_id, os.room_id, ar.room_number,
+              e.billing_client_id, e.workplace_id, os.accommodation_id, os.room_id, ar.room_number,
               os.accommodation_monthly_rent, os.room_occupant_count, os.per_occupant_daily_share
          FROM occupancy_snapshots os
          JOIN employees e ON e.id = os.employee_id
@@ -461,7 +467,7 @@ async function calculateMonthlyBilling(month, opts = {}) {
 
     // Preloads: rate rows (with basis/vat/flat/per-bed), operating expenses, rezsi, utilities flag.
     const rateRows = await client.query(
-      `SELECT contractor_id, accommodation_id, rate_per_night, flat_amount, billing_basis, vat_rate, vat_exempt,
+      `SELECT contractor_id, accommodation_id, workplace_id, rate_per_night, flat_amount, billing_basis, vat_rate, vat_exempt,
               rate_used, rate_empty, occupancy_floor_pct, contracted_beds,
               TO_CHAR(valid_from, 'YYYY-MM-DD') AS valid_from, TO_CHAR(valid_to, 'YYYY-MM-DD') AS valid_to
          FROM client_night_rates`
@@ -624,13 +630,24 @@ async function calculateMonthlyBilling(month, opts = {}) {
     // ─── 3. Group by (accommodation_id, billing_client_id). Clients whose profile
     //        has invoicing_enabled=false are SKIPPED entirely (no billing row); their
     //        occupancy is excluded from the run (their unbilled cost is absorbed). ───
+    // A MUNKAHELY a harmadik csoportosítási kulcs (mig 164): egy házban vegyesen lakhatnak
+    // eltérő díjú munkahelyek dolgozói (Sopronhorpács: 42 Autoliv-os, 17 IKEA-s), és
+    // mindegyik a saját díján számlázódik. Külön billing sort kapnak, hogy az elszámoló
+    // lapon is látszódjon, melyik díj melyik körre vonatkozik.
     const groups = new Map();
     const skippedClients = new Set();
     for (const r of snapRows.rows) {
       const prof = profByClient.get(r.billing_client_id);
       if (prof && prof.invoicing_enabled === false) { skippedClients.add(r.billing_client_id); continue; }
-      const key = `${r.accommodation_id}|${r.billing_client_id || ''}`;
-      if (!groups.has(key)) groups.set(key, { accommodation_id: r.accommodation_id, billing_client_id: r.billing_client_id, rows: [] });
+      const key = `${r.accommodation_id}|${r.billing_client_id || ''}|${r.workplace_id || ''}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          accommodation_id: r.accommodation_id,
+          billing_client_id: r.billing_client_id,
+          workplace_id: r.workplace_id || null,
+          rows: [],
+        });
+      }
       groups.get(key).rows.push(r);
     }
 
@@ -681,6 +698,7 @@ async function calculateMonthlyBilling(month, opts = {}) {
         month,
         accBeds: accBedsByAcc.get(grp.accommodation_id) || 0,
         billableDays,
+        workplaceId: grp.workplace_id,
       });
       if (grp.billing_client_id && rev.net === 0) noRateGroups++;
 
@@ -769,11 +787,11 @@ async function calculateMonthlyBilling(month, opts = {}) {
 
       await client.query(
         `INSERT INTO accommodation_billings (
-           billing_run_id, billing_month, accommodation_id, partner_contractor_id,
+           billing_run_id, billing_month, accommodation_id, partner_contractor_id, workplace_id,
            total_amount, vat_amount, gross_amount, cost_amount, margin_amount, total_employee_days,
            payroll_handoff, compensation_amount, calculation_details, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'draft')`,
-        [runId, month, grp.accommodation_id, grp.billing_client_id,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'draft')`,
+        [runId, month, grp.accommodation_id, grp.billing_client_id, grp.workplace_id,
          netWithUtilities, vatWithUtilities, grossWithUtilities, totalCost, margin,
          cost.totalEmployeeDays, payrollHandoff, compensationAmount, details]
       );

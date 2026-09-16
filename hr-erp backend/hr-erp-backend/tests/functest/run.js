@@ -57,6 +57,7 @@ const MODULES = [
   './scenarios/currency',
   './scenarios/invoiceAllocation',
   './scenarios/prepaidRecovery',
+  './scenarios/workplaceRates',
   './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',
