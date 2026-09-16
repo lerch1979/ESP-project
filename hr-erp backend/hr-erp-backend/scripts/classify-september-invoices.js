@@ -50,7 +50,7 @@ const DECISIONS = {
   // ── szándékosan kimarad ───────────────────────────────────────────
   'KS-728241S-2026/163': { skip: 'Petőháza bérleti díj — előbb a bérleti konstrukciót kell beállítani' },
   'INV-000007':          { skip: 'Gede László — tételesen újrarögzítjük a megelőlegezett tétellel' },
-  '100005674787':        { skip: 'Soproni Vízmű 67 596 Ft — a fogyasztási hely még tisztázandó' },
+  '100005674787':        { target: 'acc:Sopronhorpács', category: 'rezsi', utility: 'viz_csatorna' },
 };
 
 (async () => {

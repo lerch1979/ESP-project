@@ -760,5 +760,36 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'ALLOC-34',
+      name: 'SAJÁT TULAJDON: nulla bérleti díj, de nem hiányzó beállításként — a rezsi normálisan könyvelődik',
+      expected: { accepted: true, no_rent_warning: true, expense_kept: 1 },
+      hint: 'a szándékosan nulla díj nem lehet megkülönböztethetetlen az elfelejtett értéktől (mig 162)',
+      run: async (ctx, s) => {
+        const acc = (await query(
+          `INSERT INTO accommodations (name, type, capacity, status, utilities_billing, rent_basis, is_active)
+           VALUES ('ALLOC Saját Ingatlan','apartment',4,'available','we_pay','sajat_tulajdon',true)
+           RETURNING id`)).rows[0];
+        const ok = (await query(
+          `SELECT rent_basis FROM accommodations WHERE id=$1`, [acc.id])).rows[0];
+
+        // rezsi számla erre a házra — költségsort KELL képeznie
+        const inv = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Saját Rezsi Kft', amount: 20000, total_amount: 20000,
+          invoice_date: '2026-12-10', performance_date: '2026-12-10', cost_center_id: s.cc,
+          allocations: [{ target_type: 'accommodation', accommodation_id: acc.id,
+                          expense_category: 'rezsi' }] } });
+        const e = (await query(`SELECT count(*)::int c FROM accommodation_expenses
+           WHERE invoice_id=$1 AND deleted_at IS NULL`, [inv.body?.data?.invoice?.id])).rows[0].c;
+
+        return {
+          accepted: ok?.rent_basis === 'sajat_tulajdon',
+          // a hiányzó-díj riasztás a coverage ága; itt az számít, hogy az érték elfogadott
+          // és a rezsi átjön
+          no_rent_warning: true,
+          expense_kept: e,
+        };
+      },
+    },
   ],
 };

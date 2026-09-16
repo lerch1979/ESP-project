@@ -207,6 +207,16 @@ const rateCoverage = async (req, res) => {
         matrixCount.set(r.accommodation_id, r.c);
       }
       for (const a of accs) {
+        // Saját ingatlan: nincs bérleti díj és nincs kitől bérelni. Szándékos nulla, nem
+        // hiányzó adat — a rezsi-mátrixot viszont itt is ki kell tölteni, az alább fut.
+        if (a.rent_basis === 'sajat_tulajdon') {
+          const configured = matrixCount.get(a.id) || 0;
+          if (configured < UTILITY_LINE_COUNT) {
+            costIssues.push({ type: 'incomplete_utilities_matrix', accommodation_name: a.name,
+              detail: `${configured}/${UTILITY_LINE_COUNT} rezsi sor beállítva` });
+          }
+          continue;
+        }
         if (!a.rent_basis) {
           costIssues.push({ type: 'no_rent_basis', accommodation_name: a.name,
             detail: a.rent_amount ? 'a régi havi bérleti díjjal számol (flat)' : 'nincs bérleti díj sem → 0 költség' });

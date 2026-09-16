@@ -143,7 +143,11 @@ function computeRentCost(rentFor, siteOccupantsByDay, groupOccupantsByDay, daysI
     lastBasis = effective;
 
     let dayCost;
-    if (effective === 'per_bed_night') {
+    if (effective === 'sajat_tulajdon') {
+      // SAJÁT INGATLAN: nincs bérleti díj. A rezsi külön, költségsorként érkezik — a nulla
+      // itt döntés, nem hiányzó adat (mig 162).
+      dayCost = 0;
+    } else if (effective === 'per_bed_night') {
       // ÉJSZAKÁNKÉNTI: we pay for each occupied bed that night, at THAT night's rate.
       const rate = Number(cfg.perBedRate) || 0;
       dayCost = siteCount * rate;

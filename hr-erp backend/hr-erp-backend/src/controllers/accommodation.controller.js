@@ -770,7 +770,7 @@ const bulkImportAccommodations = async (req, res) => {
 // Rent basis + the six-line utilities matrix live on the ACCOMMODATION, because the
 // contract is a property of the property: the same szállásadó may rent us one site on a
 // flat monthly rent and another per occupied bed-night.
-const RENT_BASES = ['flat', 'per_bed_night', 'mixed'];
+const RENT_BASES = ['flat', 'per_bed_night', 'mixed', 'sajat_tulajdon'];
 const UTILITY_LINES = ['viz_csatorna', 'internet', 'aram', 'gaz', 'kozos_koltseg', 'hulladekszallitas'];
 const UTILITY_LABELS = {
   viz_csatorna: 'Víz és csatorna',
