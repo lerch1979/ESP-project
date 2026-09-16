@@ -58,15 +58,19 @@ WHERE NOT EXISTS (
   SELECT 1 FROM vendor_keep_separate k
    WHERE k.name_key_a = least(v.a, v.b) AND k.name_key_b = greatest(v.a, v.b));
 
--- ── Barcza Gyuláné a Sarród I. kapcsolattartója ─────────────────────────
--- Így a neve ott van, ahol keresni fogják, és nem lesz belőle önálló partner azért,
--- mert valakinek kell egy hely, ahova felírja.
-INSERT INTO partner_contacts (accommodation_id, contractor_id, name, role_title, language, is_primary, is_active, notes)
-SELECT a.id, a.current_contractor_id, 'Barcza Gyuláné', 'Kapcsolattartó', 'hu', true, true,
-       'A Sarród I. kapcsolattartója. NEM önálló partner és nem azonos Barcza Gyulával (a szállásadóval) — lásd vendor_keep_separate.'
-  FROM accommodations a
- WHERE a.name = 'Sarród I.'
-   AND NOT EXISTS (SELECT 1 FROM partner_contacts pc
-                    WHERE pc.accommodation_id = a.id AND pc.name = 'Barcza Gyuláné');
+-- ── Barcza Gyuláné ─────────────────────────────────────────────────────
+-- Ő MÁR a helyén van: a partner_contacts táblában, Barcza Gyulához kötve,
+-- "kapcsolattartó" szereppel és telefonszámmal. Nem hozunk létre újat — egy második
+-- sor épp azt a kettősséget teremtené, ami ellen ez a migráció szól. Csak a megjegyzést
+-- egészítjük ki, hogy a szándék a rekord mellett álljon.
+--
+-- (A partner_contacts CHECK-je szerint pontosan EGY kapcsolat adható meg: lead,
+--  partner vagy szálláshely — nála a partner az, és úgy is helyes.)
+UPDATE partner_contacts
+   SET notes = COALESCE(NULLIF(btrim(notes), '') || ' · ', '')
+             || 'Kapcsolattartó, NEM önálló partner: nem azonos Barcza Gyulával (a Sarród I. szállásadójával), '
+             || 'sem a Beled szállásadójával (tulajdonostársak közössége). Lásd vendor_keep_separate.'
+ WHERE name = 'Barcza Gyuláné'
+   AND (notes IS NULL OR notes NOT LIKE '%vendor_keep_separate%');
 
 COMMIT;
