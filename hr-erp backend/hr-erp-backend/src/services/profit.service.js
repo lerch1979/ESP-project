@@ -31,7 +31,9 @@ class ProfitService {
    *           i.e. it reconciles EXACTLY with the billing engine's margin_amount
    *           (DEEP_AUDIT finding: the dashboard used to omit rent and overstate profit).
    * Expense = SUM(accommodation_expenses.amount) for the month,
-   *           excluding soft-deleted rows, grouped by category.
+   *           excluding soft-deleted rows AND prepaid recoverable items
+   *           (cost_bearer='megelolegezett' — those are a claim, not a cost),
+   *           grouped by category.
    *
    * Note: accommodation_billings has no deleted_at column — cancellation
    * is tracked via status='cancelled' on both billing_runs and
@@ -88,6 +90,10 @@ class ProfitService {
       FROM accommodation_expenses
       WHERE billing_month = $1
         AND deleted_at IS NULL
+        -- A megelőlegezett tétel KÖVETELÉS, nem ráfordítás: a szállásadó helyett fizettük ki,
+        -- és a következő elszámolásban levonjuk. Ha itt is beszámítana, a ház annyival
+        -- többe kerülne, mint amennyibe valójában került (mig 163).
+        AND cost_bearer = 'sajat'
         ${accSuffix}
         ${scopeSuffix}
       GROUP BY accommodation_id, category

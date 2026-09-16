@@ -526,8 +526,11 @@ async function calculateMonthlyBilling(month, opts = {}) {
     for (const p of profRows.rows) profByClient.set(p.contractor_id, p);
 
     const expRows = await client.query(
+      // cost_bearer='sajat': a megelőlegezett tétel a szállásadótól visszajár, tehát nem a
+      // ház költsége — különben a levonással együtt kétszer csökkentené az eredményt.
       `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
-        WHERE billing_month = $1 AND deleted_at IS NULL GROUP BY accommodation_id`, [month]);
+        WHERE billing_month = $1 AND deleted_at IS NULL AND cost_bearer = 'sajat'
+        GROUP BY accommodation_id`, [month]);
     const expenseByAcc = new Map();
     for (const r of expRows.rows) expenseByAcc.set(r.accommodation_id, Number(r.total));
 
@@ -599,7 +602,7 @@ async function calculateMonthlyBilling(month, opts = {}) {
     const utilExpRows = await client.query(
       `SELECT accommodation_id, utility_line, COALESCE(SUM(amount), 0) AS amount
          FROM accommodation_expenses
-        WHERE billing_month = $1 AND deleted_at IS NULL
+        WHERE billing_month = $1 AND deleted_at IS NULL AND cost_bearer = 'sajat'
         GROUP BY accommodation_id, utility_line`, [month]);
     const utilExpByAcc = new Map();
     for (const r of utilExpRows.rows) {
@@ -609,7 +612,8 @@ async function calculateMonthlyBilling(month, opts = {}) {
 
     const rezsiRows = await client.query(
       `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
-        WHERE billing_month = $1 AND deleted_at IS NULL AND category = 'rezsi' GROUP BY accommodation_id`, [month]);
+        WHERE billing_month = $1 AND deleted_at IS NULL AND cost_bearer = 'sajat'
+          AND category = 'rezsi' GROUP BY accommodation_id`, [month]);
     const rezsiByAcc = new Map();
     for (const r of rezsiRows.rows) rezsiByAcc.set(r.accommodation_id, Number(r.total));
 

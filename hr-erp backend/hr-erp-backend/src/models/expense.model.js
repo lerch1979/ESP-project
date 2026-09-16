@@ -171,6 +171,17 @@ function validateCreate(data) {
     errors.push('Pénznem kódja 3 karakter kell legyen (pl. HUF)');
   }
 
+  // MEGELŐLEGEZETT TÉTEL: enélkül nem tudni, kitől jár vissza, és a követelés
+  // láthatatlanul elveszne a költségek között. A DB CHECK-je is megköveteli — jobb itt
+  // megállni, érthető üzenettel, mint egy megszorítás-hibával.
+  if (data.cost_bearer !== undefined && data.cost_bearer !== null
+      && !['sajat', 'megelolegezett'].includes(data.cost_bearer)) {
+    errors.push("A költségviselő csak 'sajat' vagy 'megelolegezett' lehet");
+  }
+  if (data.cost_bearer === 'megelolegezett' && !data.recoverable_from_contractor_id) {
+    errors.push('Megelőlegezett tételnél meg kell adni, kitől jár vissza (recoverable_from_contractor_id)');
+  }
+
   if (data.invoice_number && String(data.invoice_number).length > 100) {
     errors.push('Számlaszám maximum 100 karakter lehet');
   }

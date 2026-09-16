@@ -11,9 +11,13 @@ router.use(authenticateToken);
 router.get('/',     checkPermission('finance.view'), expenseController.getAll);
 // /check-duplicates must come before /:id so :id doesn't capture the literal
 router.post('/check-duplicates', checkPermission('finance.view'), expenseController.checkDuplicates);
+// A fix útvonal a '/:id' ELŐTT — különben a paraméteres nyeli el (a /employees/completeness
+// éles 500-asa pont ezen múlt).
+router.get('/recoverable', checkPermission('finance.view'), expenseController.recoverable);
 router.get('/:id',  checkPermission('finance.view'), expenseController.getById);
 router.post('/',    checkPermission('finance.edit'), expenseController.create);
 router.put('/:id',  checkPermission('finance.edit'), expenseController.update);
+router.post('/:id/recover', checkPermission('finance.edit'), expenseController.recover);
 router.delete('/:id', checkPermission('finance.edit'), expenseController.remove);
 
 // File attachments (multipart upload via the controller's own multer mw)

@@ -23,6 +23,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'react-toastify';
+import RecoverableClaimsTab from '../components/finance/RecoverableClaimsTab';
 import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import VendorAutocomplete from '../components/VendorAutocomplete';
 import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI, billingAPI } from '../services/api';
@@ -42,6 +43,7 @@ const TABS = ['expenses', 'drafts', 'runs', 'billings', 'shares', 'profit', 'ope
 const TAB_LABELS = [
   'Költségek', 'Beérkezett számlák', 'Számlázási futások',
   'Számlázások', 'Könyvelői hozzáférés', 'Profit dashboard', 'Üzemeltetési költségek',
+  'Megelőlegezett tételek',
 ];
 
 // ────────────────────────────────────────────────────────────────────────
@@ -162,6 +164,11 @@ const EMPTY_FORM = {
   vat_amount: '',
   vat_exemption_reason: '',  // 'aam' | 'targy_mentes' | ''
   is_reverse_vat: false,
+  // Megelőlegezett tétel (mig 163): a szállásadó helyett fizettük ki, visszajár tőle.
+  // Ilyenkor a tétel KÖVETELÉS, nem ráfordítás — a kimutatásokból kimarad.
+  cost_bearer: 'sajat',
+  recoverable_from_contractor_id: '',
+  recovery_note: '',
 };
 
 function ExpensesTab() {
@@ -305,6 +312,9 @@ function ExpensesTab() {
       billing_month: row.billing_month || '',
       invoice_date: fmtDateInput(row.invoice_date),
       category: row.category || 'rezsi',
+      cost_bearer: row.cost_bearer || 'sajat',
+      recoverable_from_contractor_id: row.recoverable_from_contractor_id || '',
+      recovery_note: row.recovery_note || '',
       amount: row.amount != null ? String(row.amount) : '',
       vendor_name: row.vendor_name || '',
       vendor_tax_number: row.vendor_tax_number || '',
@@ -323,7 +333,7 @@ function ExpensesTab() {
     setVatAmountsManual(true);  // ditto for net/vat
     setStagedFiles([]);
     setExistingFiles(row.file_attachments || []);
-    setShowAdvanced(!!row.cost_center_id || !!row.is_reverse_vat);
+    setShowAdvanced(!!row.cost_center_id || !!row.is_reverse_vat || row.cost_bearer === 'megelolegezett');
     setDedupWarning(null);
     setOverrideNote('');
     setFormError('');
@@ -555,6 +565,10 @@ function ExpensesTab() {
       vat_amount: numOrNull(form.vat_amount),
       vat_exemption_reason: form.vat_exemption_reason || null,
       is_reverse_vat: !!form.is_reverse_vat,
+      cost_bearer: form.cost_bearer === 'megelolegezett' ? 'megelolegezett' : 'sajat',
+      recoverable_from_contractor_id:
+        form.cost_bearer === 'megelolegezett' ? (form.recoverable_from_contractor_id || null) : null,
+      recovery_note: form.cost_bearer === 'megelolegezett' ? (form.recovery_note?.trim() || null) : null,
       ...extra,
     };
   };
@@ -1141,6 +1155,52 @@ function ExpensesTab() {
             </AccordionSummary>
             <AccordionDetails>
               <Stack spacing={2}>
+                {/* MEGELŐLEGEZETT TÉTEL — a szállásadó helyett fizettük ki.
+                    A "kitől jár vissza" nem külön választás: a kiválasztott ház
+                    szállásadója az, és a gyakorlatban mindig ő. Egy második partner-lista
+                    csak lehetőséget adna arra, hogy a követelés rossz partnerhez kerüljön. */}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={form.cost_bearer === 'megelolegezett'}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        const acc = accommodations.find((a) => a.id === form.accommodation_id);
+                        setForm((f) => ({
+                          ...f,
+                          cost_bearer: on ? 'megelolegezett' : 'sajat',
+                          recoverable_from_contractor_id: on ? (acc?.current_contractor_id || '') : '',
+                        }));
+                      }}
+                    />
+                  }
+                  label="Megelőlegezett tétel — a szállásadó helyett fizettük ki, visszajár tőle"
+                />
+                {form.cost_bearer === 'megelolegezett' && (() => {
+                  const acc = accommodations.find((a) => a.id === form.accommodation_id);
+                  const nev = acc?.current_contractor_name;
+                  return nev ? (
+                    <Stack spacing={1.5}>
+                      <Alert severity="info" sx={{ py: 0.5 }}>
+                        Követelésként tartjuk nyilván <strong>{nev}</strong> felé — a szállás
+                        költségébe és a profitba nem számít bele. A következő havi szállásadói
+                        elszámoláson levonásként jelenik meg.
+                      </Alert>
+                      <TextField
+                        size="small" label="Megjegyzés a követeléshez (opcionális)"
+                        value={form.recovery_note}
+                        onChange={(e) => setForm({ ...form, recovery_note: e.target.value })}
+                        placeholder="pl. Vízóracsere — szerződés szerint a bérbeadó terhe"
+                      />
+                    </Stack>
+                  ) : (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                      Ehhez a szálláshoz nincs szállásadó rögzítve, így nincs kitől visszakérni.
+                      Előbb állítsd be a szálláshely szállásadóját.
+                    </Alert>
+                  );
+                })()}
+
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -2614,6 +2674,7 @@ export default function Billing() {
       {tabIdx === 4 && <AccountantShareTab />}
       {tabIdx === 5 && <ProfitTab />}
       {tabIdx === 6 && <OperatingCostsTab />}
+      {tabIdx === 7 && <RecoverableClaimsTab />}
     </Box>
   );
 }

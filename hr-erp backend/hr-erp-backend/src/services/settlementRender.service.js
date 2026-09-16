@@ -122,8 +122,31 @@ function landlordXlsx(sheet) {
     rows: sheet.accommodations,
     summary: [
       ['Ágyéjszaka összesen', sheet.totals.bed_nights],
-      ['FIZETENDŐ ÖSSZESEN', sheet.totals.cost_total],
+      ['Bruttó elszámolás', sheet.totals.gross_total ?? sheet.totals.cost_total],
+      ...((sheet.deductions || []).length > 0
+        ? [['Levonások (általunk megelőlegezve)', -(sheet.totals.deductions_total || 0)]]
+        : []),
+      ['FIZETENDŐ ÖSSZESEN', sheet.totals.net_payable ?? sheet.totals.cost_total],
     ],
+  });
+
+  // A levonások SAJÁT lapon, tételesen. A bruttó díj és a korrekció így külön olvasható —
+  // egy csökkentett végösszegből nem lehetne visszafejteni, mi az eredeti díj.
+  const deductions = excel._helpers.buildSheet({
+    sheetName: 'Levonások',
+    title: 'Általunk megelőlegezett tételek — a szállásadó terhére',
+    columns: [
+      { key: 'accommodation_name', label: 'Szálláshely' },
+      { key: 'keletkezett', label: 'Keletkezett', type: 'date' },
+      { key: 'vendor_name', label: 'Szállító' },
+      { key: 'invoice_number', label: 'Számlaszám' },
+      { key: 'category', label: 'Kategória' },
+      { key: 'athozott', label: 'Áthozott',
+        render: (r) => (r.athozott ? `igen — ${r.honnan_hozott} (${r.kor_nap} napja)` : '—') },
+      { key: 'amount', label: 'Levonás', type: 'money' },
+    ],
+    rows: sheet.deductions || [],
+    summary: [['LEVONÁS ÖSSZESEN', sheet.totals.deductions_total || 0]],
   });
 
   const utils = excel._helpers.buildSheet({
@@ -140,7 +163,9 @@ function landlordXlsx(sheet) {
       }))),
   });
 
-  return excel.addBook([overview, gridSheet(sheet), utils]);
+  const lapok = [overview, gridSheet(sheet), utils];
+  if ((sheet.deductions || []).length > 0) lapok.push(deductions);
+  return excel.addBook(lapok);
 }
 
 function clientXlsx(sheet) {
@@ -270,8 +295,33 @@ function renderPdf(sheet) {
     doc.moveDown(0.5);
     doc.x = 50;   // drawSimpleTable leaves x at a column offset; without this the
                   // right-aligned total is laid out in a narrow box and gets clipped.
-    doc.fontSize(12).text(`Fizetendő összesen: ${money(sheet.totals.cost_total)}`,
-      50, doc.y, { width: doc.page.width - 100, align: 'right' });
+
+    const ded = sheet.deductions || [];
+    if (ded.length === 0) {
+      doc.fontSize(12).text(`Fizetendő összesen: ${money(sheet.totals.cost_total)}`,
+        50, doc.y, { width: doc.page.width - 100, align: 'right' });
+    } else {
+      // A bruttó díj és a levonás KÜLÖN sorban: a szállásadónak látnia kell, mi a
+      // szerződés szerinti díj és mi a korrekció — nem csak a végeredményt.
+      doc.fontSize(11).text(`Bruttó elszámolás: ${money(sheet.totals.gross_total)}`,
+        50, doc.y, { width: doc.page.width - 100, align: 'right' });
+      doc.moveDown(0.8);
+      doc.x = 50;
+      rg.drawSectionTitle(doc, 'Levonások — általunk megelőlegezve');
+      rg.drawSimpleTable(doc,
+        ['Szálláshely', 'Megnevezés', 'Keletkezett', 'Levonás'],
+        ded.map((d) => [
+          d.accommodation_name || '—',
+          [d.vendor_name, d.invoice_number].filter(Boolean).join(' · ') || d.category || '—',
+          (d.athozott ? `${String(d.keletkezett).slice(0, 10)} (áthozott)` : String(d.keletkezett).slice(0, 10)),
+          '− ' + money(d.amount),
+        ]),
+        { colWidths: [150, 175, 90, 80] });
+      doc.moveDown(0.5);
+      doc.x = 50;
+      doc.fontSize(12).text(`FIZETENDŐ: ${money(sheet.totals.net_payable)}`,
+        50, doc.y, { width: doc.page.width - 100, align: 'right' });
+    }
   } else {
     rg.drawSectionTitle(doc, 'Szálláshelyek');
     rg.drawSimpleTable(doc,

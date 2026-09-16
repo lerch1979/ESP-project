@@ -28,6 +28,7 @@
  * to `employees` for NAMES ONLY — never for the client relation.
  */
 const { query } = require('../database/connection');
+const prepaid = require('./prepaidRecovery.service');
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
@@ -342,6 +343,13 @@ async function landlordSheet({ month, landlordId }) {
     }
   }
 
+  // LEVONÁSOK: amit a szállásadó helyett fizettünk ki és visszajár tőle. A lista a hónap
+  // végéig keletkezett NYITOTT követeléseket hozza — a korábbi hónapokból származókat
+  // "áthozott" jelöléssel, hogy látszódjon, ha egy tétel hónapok óta görög.
+  const deductions = await prepaid.deductionsFor(landlordId, month);
+  const grossTotal = accommodations.reduce((s, a) => s + a.cost_total, 0);
+  const deductionTotal = deductions.reduce((s, d) => s + Number(d.amount), 0);
+
   return {
     kind: 'landlord',
     privacy_warnings: privacyWarnings,
@@ -350,11 +358,17 @@ async function landlordSheet({ month, landlordId }) {
     partner: ll.rows[0],
     accommodations,
     grid,
+    deductions,
     totals: {
       bed_nights: accommodations.reduce((s, a) => s + a.bed_nights, 0),
       // What we owe. The landlord side has no VAT here: what we pay is driven by the
       // cost terms, and the landlord invoices us — their VAT is on THEIR document.
-      cost_total: accommodations.reduce((s, a) => s + a.cost_total, 0),
+      cost_total: grossTotal,
+      // A bruttó és a fizetendő KÜLÖN szerepel, nem egyetlen csökkentett összegként:
+      // enélkül nem látszana, mi az eredeti díj és mi a korrekció.
+      gross_total: grossTotal,
+      deductions_total: deductionTotal,
+      net_payable: Math.round((grossTotal - deductionTotal) * 100) / 100,
     },
   };
 }

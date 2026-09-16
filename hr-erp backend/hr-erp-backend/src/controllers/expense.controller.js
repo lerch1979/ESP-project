@@ -2,10 +2,12 @@ const multer = require('multer');
 const { query } = require('../database/connection');
 const expenseService = require('../services/expense.service');
 const dedupService = require('../services/expenseDeduplication.service');
+const prepaid = require('../services/prepaidRecovery.service');
 const storage = require('../services/storage.service');
 const { validateCreate, validateUpdate } = require('../models/expense.model');
 const { logger } = require('../utils/logger');
 const { logActivity } = require('../utils/activityLogger');
+const { isValidUUID } = require('../utils/validation');
 const { scopeOf } = require('../utils/tenantScope');
 
 // File-upload middleware. Memory-storage so we can validate MIME + size
@@ -431,8 +433,67 @@ const deleteFile = async (req, res) => {
   }
 };
 
+/**
+ * GET /expenses/recoverable — nyitott megelőlegezett tételek, KOROSÍTVA.
+ *
+ * A korosítás nem dísz: a tulajdonos kérése az volt, hogy ha valaki hónapokig görget maga
+ * előtt egy követelést, az látszódjon. Egy sima nyitott-lista ezt elrejtené — ugyanúgy
+ * nézne ki a 23 000 Ft az első és a hatodik hónapban.
+ */
+const recoverable = async (req, res) => {
+  try {
+    const out = await prepaid.openClaims({
+      contractorId: req.query.contractor_id || null,
+      asOfMonth: /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : null,
+    });
+    res.json({ success: true, data: out });
+  } catch (error) {
+    logger.error('Megelőlegezett tételek lekérési hiba:', error);
+    res.status(500).json({ success: false, message: 'Lekérdezési hiba' });
+  }
+};
+
+/**
+ * POST /expenses/:id/recover — levonás rögzítése egy havi szállásadói elszámolásban.
+ * Body: { month, amount?, note? }  — összeg nélkül a teljes nyitott követelést vonja le.
+ */
+const recover = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító formátum' });
+    }
+    const month = String(req.body?.month || '');
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ success: false, message: 'Hónap formátum: YYYY-MM' });
+    }
+    const r = await prepaid.recordRecovery({
+      expenseId: id, month, amount: req.body?.amount, note: req.body?.note || null,
+      userId: req.user.id,
+    });
+    if (r.error) return res.status(r.status || 400).json({ success: false, message: r.error });
+
+    await logActivity({
+      userId: req.user.id, entityType: 'expense', entityId: id, action: 'recover',
+      changes: { levonva: r.recovered, marad: r.remaining, honap: month },
+    });
+    res.json({
+      success: true,
+      message: r.remaining > 0
+        ? `${r.recovered.toLocaleString('hu-HU')} Ft levonva, ${r.remaining.toLocaleString('hu-HU')} Ft marad nyitva`
+        : `${r.recovered.toLocaleString('hu-HU')} Ft levonva — a követelés rendezve`,
+      data: r,
+    });
+  } catch (error) {
+    logger.error('Levonás rögzítési hiba:', error);
+    res.status(500).json({ success: false, message: 'Levonás rögzítési hiba' });
+  }
+};
+
 module.exports = {
   getAll, getById, create, update, remove, checkDuplicates,
   uploadFile, downloadFile, deleteFile,
   uploadWithErrorHandling,
+  recoverable,
+  recover,
 };

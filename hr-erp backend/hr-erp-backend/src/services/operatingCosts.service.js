@@ -57,6 +57,10 @@ class OperatingCostsService {
       FROM accommodation_expenses
       WHERE billing_month = $1
         AND deleted_at IS NULL
+        -- A megelőlegezett tétel KÖVETELÉS, nem ráfordítás: a szállásadó helyett fizettük ki,
+        -- és a következő elszámolásban levonjuk. Ha itt is beszámítana, a ház annyival
+        -- többe kerülne, mint amennyibe valójában került (mig 163).
+        AND cost_bearer = 'sajat'
         ${accSuffix}
       GROUP BY accommodation_id, category
       `,

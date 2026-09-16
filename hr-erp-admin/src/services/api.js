@@ -2691,6 +2691,16 @@ export const gtdAPI = {
 
 // ─── Accommodation Expenses (occupancy billing — migration 112/113) ───
 export const expensesAPI = {
+  /** Nyitott megelőlegezett tételek, korosítva — amit a szállásadó helyett fizettünk ki. */
+  getRecoverable: async (params = {}) => {
+    const response = await api.get('/expenses/recoverable', { params });
+    return response.data;
+  },
+  /** Levonás rögzítése egy havi szállásadói elszámolásban. Összeg nélkül: a teljes maradék. */
+  recover: async (id, payload) => {
+    const response = await api.post(`/expenses/${id}/recover`, payload);
+    return response.data;
+  },
   getAll: async (params = {}) => {
     const response = await api.get('/expenses', { params });
     return response.data;

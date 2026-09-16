@@ -244,7 +244,8 @@ class ExpenseService {
         source, ai_confidence, status, payment_date, payment_status,
         net_amount, vat_rate, vat_amount, vat_exemption_reason, is_reverse_vat,
         original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status,
-        vendor_contractor_id
+        vendor_contractor_id,
+        cost_bearer, recoverable_from_contractor_id, recovery_status, recovery_note
        ) VALUES (
         $1, $2, $3, $4, COALESCE($5, 'HUF'),
         $6, $7, $8, $9,
@@ -252,7 +253,8 @@ class ExpenseService {
         $14, COALESCE($15::jsonb, '[]'::jsonb), $16,
         COALESCE($17, 'manual'), $18, COALESCE($19, 'confirmed'), $20, COALESCE($21, 'unpaid'),
         $22, $23, $24, $25, COALESCE($26, FALSE),
-        $27, $28, $29, $30, $31, $32
+        $27, $28, $29, $30, $31, $32,
+        COALESCE($33, 'sajat'), $34, $35, $36
        ) RETURNING *`,
       [
         data.accommodation_id,
@@ -284,6 +286,14 @@ class ExpenseService {
         fx.original_amount, fx.original_currency, fx.exchange_rate,
         fx.exchange_rate_date, fx.rate_status,
         data.vendor_contractor_id || null,
+        // MEGELŐLEGEZETT TÉTEL: a szállásadó helyett fizettük ki, visszajár tőle. Ilyenkor
+        // a tétel követelés, nem ráfordítás — a kimutatások kihagyják (mig 163). A
+        // 'nyitott' állapotot itt adjuk meg, nem a hívó: a DB CHECK-je megköveteli, és egy
+        // elfelejtett állapotú követelés láthatatlanul elveszne a költségek közt.
+        data.cost_bearer === 'megelolegezett' ? 'megelolegezett' : 'sajat',
+        data.cost_bearer === 'megelolegezett' ? (data.recoverable_from_contractor_id || null) : null,
+        data.cost_bearer === 'megelolegezett' ? 'nyitott' : null,
+        data.cost_bearer === 'megelolegezett' ? (data.recovery_note || null) : null,
       ],
     );
 
