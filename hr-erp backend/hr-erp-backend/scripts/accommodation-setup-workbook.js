@@ -31,6 +31,7 @@ const LINE_HU = {
     SELECT a.id, a.name, a.address,
            coalesce(c.name, '') AS szallasado,
            coalesce(a.rent_basis, '') AS rent_basis,
+           coalesce(a.rent_vat_treatment, '') AS afa,
            a.rent_amount, a.rent_per_bed_night,
            (SELECT count(*) FROM accommodation_utility_lines u WHERE u.accommodation_id = a.id)::int AS rezsi_sor,
            (SELECT count(*) FROM partner_contracts p WHERE p.accommodation_id = a.id)::int AS szerzodes,
@@ -94,26 +95,32 @@ const LINE_HU = {
   XLSX.utils.book_append_sheet(wb, wsInfo, 'Útmutató');
 
   // ── 1. lap: alapadatok ──────────────────────────────────────────────────
+  const AFA_HU = { afamentes: 'áfamentes', netto_levonhato: 'nettó + levonható ÁFA',
+                   brutto_nem_levonhato: 'bruttó, nem levonható' };
   const h1 = ['Szálláshely (NE ÍRD ÁT)', 'Cím', 'Lakók ma', 'Szállásadó', 'Bérleti alap (fix / fő-éj / saját tulajdon)',
-              'Összeg (Ft/hó vagy Ft/fő/éj)', 'Szerződés kezdete', 'Felmondási idő (nap)',
+              'Összeg (Ft/hó vagy Ft/fő/éj)', 'ÁFA-kezelés', 'Szerződés kezdete', 'Felmondási idő (nap)',
               'Határozott? (igen/nem)', 'Lejárat (ha határozott)', 'Megjegyzés', 'MI HIÁNYZIK MOST'];
   const BASIS_HU = { flat: 'fix', per_bed_night: 'fő-éj', mixed: 'vegyes', sajat_tulajdon: 'saját tulajdon' };
   const rows1 = accs.map((a) => {
     const hiany = [];
     if (!a.szallasado && a.rent_basis !== 'sajat_tulajdon') hiany.push('szállásadó');
     if (!a.rent_basis) hiany.push('bérleti konstrukció + összeg');
+    if (a.rent_basis && a.rent_basis !== 'sajat_tulajdon' && !a.afa) {
+      hiany.push('ÁFA-kezelés (áfamentes / nettó+levonható)');
+    }
     if (a.szerzodes === 0 && a.rent_basis !== 'sajat_tulajdon') hiany.push('szerződés');
     if (a.rezsi_sor < 6) hiany.push(`rezsi-mátrix (${a.rezsi_sor}/6)`);
     return [
       a.name, a.address || '', a.lakok, a.szallasado,
       BASIS_HU[a.rent_basis] || '',
       a.rent_amount ? Number(a.rent_amount) : (a.rent_per_bed_night ? Number(a.rent_per_bed_night) : ''),
+      AFA_HU[a.afa] || '',
       '', '', '', '', '',
       hiany.length ? hiany.join(' · ') : '— teljes —',
     ];
   });
   const ws1 = XLSX.utils.aoa_to_sheet([h1, ...rows1]);
-  ws1['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 9 }, { wch: 28 }, { wch: 34 }, { wch: 26 },
+  ws1['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 9 }, { wch: 28 }, { wch: 34 }, { wch: 26 }, { wch: 22 },
                   { wch: 17 }, { wch: 19 }, { wch: 20 }, { wch: 20 }, { wch: 26 }, { wch: 40 }];
   ws1['!freeze'] = { xSplit: 1, ySplit: 1 };
   XLSX.utils.book_append_sheet(wb, ws1, 'Alapadatok');
