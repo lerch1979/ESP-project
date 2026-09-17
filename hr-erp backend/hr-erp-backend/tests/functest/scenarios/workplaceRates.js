@@ -160,5 +160,38 @@ module.exports = {
         return { refused: hiba !== null, blokk_marad_lehetseges: blokkOk };
       },
     },
+    {
+      id: 'WPR-05',
+      name: 'a margó NETTÓ költséggel számol — az ÁFA átfutó tétel, nem ráfordítás',
+      expected: { brutto_rogzitve: 127000, netto_szamol: 100000, nem_brutto: true },
+      hint: 'az `amount` a bruttó végösszeg; ha a margó azzal számolna, ÁFA-val felfújt költséget mutatna a nettó bevétel mellett',
+      run: async (ctx, s) => {
+        const acc = (await query(
+          `INSERT INTO accommodations (name, type, capacity, status, utilities_billing, is_active)
+           VALUES ('WPR ÁFA teszt','apartment',4,'available','we_pay',true) RETURNING id`)).rows[0];
+        await query(
+          `INSERT INTO accommodation_expenses (accommodation_id, billing_month, category, amount,
+             net_amount, vat_amount, vat_rate, vendor_name, performance_date)
+           VALUES ($1,'2026-11','rezsi',127000,100000,27000,27,'WPR ÁFA Kft','2026-11-05')`,
+          [acc.id]);
+
+        const rogzitve = (await query(
+          `SELECT amount, net_amount FROM accommodation_expenses
+            WHERE accommodation_id=$1 AND billing_month='2026-11'`, [acc.id])).rows[0];
+
+        // amit a kimutatás lát: a NETTÓ
+        const szamolt = (await query(
+          `SELECT COALESCE(SUM(COALESCE(net_amount, amount)), 0) AS total
+             FROM accommodation_expenses
+            WHERE billing_month='2026-11' AND accommodation_id=$1
+              AND deleted_at IS NULL AND cost_bearer='sajat'`, [acc.id])).rows[0];
+
+        return {
+          brutto_rogzitve: Number(rogzitve.amount),
+          netto_szamol: Number(szamolt.total),
+          nem_brutto: Number(szamolt.total) !== Number(rogzitve.amount),
+        };
+      },
+    },
   ],
 };

@@ -86,7 +86,7 @@ class ProfitService {
 
     const expenseRows = await query(
       `
-      SELECT accommodation_id, category, SUM(amount) AS amount
+      SELECT accommodation_id, category, SUM(COALESCE(net_amount, amount)) AS amount
       FROM accommodation_expenses
       WHERE billing_month = $1
         AND deleted_at IS NULL

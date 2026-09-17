@@ -534,7 +534,10 @@ async function calculateMonthlyBilling(month, opts = {}) {
     const expRows = await client.query(
       // cost_bearer='sajat': a megelőlegezett tétel a szállásadótól visszajár, tehát nem a
       // ház költsége — különben a levonással együtt kétszer csökkentené az eredményt.
-      `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
+      // NETTÓ: az `amount` a bruttó végösszeg, a bevétel viszont nettó — bruttóval a
+      // margó ÁFA-val felfújt költséget mutatna. Az ÁFA levonható, tehát átfutó tétel.
+      `SELECT accommodation_id, COALESCE(SUM(COALESCE(net_amount, amount)), 0) AS total
+         FROM accommodation_expenses
         WHERE billing_month = $1 AND deleted_at IS NULL AND cost_bearer = 'sajat'
         GROUP BY accommodation_id`, [month]);
     const expenseByAcc = new Map();
@@ -606,7 +609,7 @@ async function calculateMonthlyBilling(month, opts = {}) {
     // Individual utility expenses (not the pre-aggregated total) so each can be matched
     // to its matrix line and, where configured, re-billed to the megbízó.
     const utilExpRows = await client.query(
-      `SELECT accommodation_id, utility_line, COALESCE(SUM(amount), 0) AS amount
+      `SELECT accommodation_id, utility_line, COALESCE(SUM(COALESCE(net_amount, amount)), 0) AS amount
          FROM accommodation_expenses
         WHERE billing_month = $1 AND deleted_at IS NULL AND cost_bearer = 'sajat'
         GROUP BY accommodation_id, utility_line`, [month]);
@@ -617,7 +620,8 @@ async function calculateMonthlyBilling(month, opts = {}) {
     }
 
     const rezsiRows = await client.query(
-      `SELECT accommodation_id, COALESCE(SUM(amount), 0) AS total FROM accommodation_expenses
+      `SELECT accommodation_id, COALESCE(SUM(COALESCE(net_amount, amount)), 0) AS total
+         FROM accommodation_expenses
         WHERE billing_month = $1 AND deleted_at IS NULL AND cost_bearer = 'sajat'
           AND category = 'rezsi' GROUP BY accommodation_id`, [month]);
     const rezsiByAcc = new Map();
