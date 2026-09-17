@@ -2085,6 +2085,12 @@ function ProfitTab() {
   const rows = data?.by_accommodation || [];
   const isEmpty = !loading && data && rows.length === 0;
 
+  // HÓNAP KÖZBEN a szám nem vethető össze egy teljes hónappal: a foglaltság csak addig a
+  // napig van meg, ameddig a napi rögzítés elért. Ez nem lábjegyzet, hanem a fejlécbe való
+  // — egy 16 napos szeptember és egy 30 napos augusztus egymás mellett félrevezet.
+  const cov = data?.coverage;
+  const reszHonap = !!cov?.partial;
+
   const profitColor = summary?.total_profit > 0
     ? COLOR_PROFIT_POS
     : summary?.total_profit < 0
@@ -2105,6 +2111,17 @@ function ProfitTab() {
             sx={{ minWidth: 180 }}
             disabled={loading}
           />
+          {cov && (
+            <Chip
+              size="small"
+              color={reszHonap ? 'warning' : 'success'}
+              variant={reszHonap ? 'filled' : 'outlined'}
+              label={reszHonap
+                ? `RÉSZHÓNAP — ${cov.days_with_data}/${cov.days_in_month} nap`
+                : `teljes hónap — ${cov.days_in_month}/${cov.days_in_month} nap`}
+              sx={{ fontWeight: 700 }}
+            />
+          )}
           <Tooltip title="Újraszámítás">
             <span>
               <IconButton onClick={refresh} disabled={loading}><RefreshIcon /></IconButton>
@@ -2126,11 +2143,23 @@ function ProfitTab() {
         </Stack>
       </Paper>
 
+      {/* A részhónap jelzése a SZÁMOK FÖLÖTT: a fejléc-chipet könnyű elnézni, és épp az
+          összehasonlítás a veszélyes — egy félig telt hónap kevesebb bevételt mutat, ami
+          visszaesésnek látszik, holott csak hiányzik a hónap másik fele. */}
+      {reszHonap && (
+        <Alert severity="warning" sx={{ mb: 2, fontWeight: 500 }}>
+          <strong>Ez egy RÉSZHÓNAP: {cov.days_with_data} nap a {cov.days_in_month}-ból.</strong>{' '}
+          Az alábbi számok csak eddig a napig tartalmaznak foglaltságot
+          {cov.last_data_day ? ` (utolsó adatnap: ${String(cov.last_data_day).substring(0, 10)})` : ''},
+          ezért <u>nem hasonlíthatók össze</u> egy lezárt, teljes hónappal.
+        </Alert>
+      )}
+
       {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} sm={6} md={3}>
           <SummaryCard
-            title="Összes bevétel"
+            title={reszHonap ? `Összes bevétel (${cov.days_with_data}/${cov.days_in_month} nap)` : 'Összes bevétel'}
             value={fmtMoney(summary?.total_income ?? 0)}
             color={COLOR_INCOME}
             icon={<TrendingUpIcon />}
@@ -2138,7 +2167,7 @@ function ProfitTab() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SummaryCard
-            title="Összes költség"
+            title={reszHonap ? "Összes költség ({X}/{Y} nap)".replace("{X}", cov.days_with_data).replace("{Y}", cov.days_in_month) : "Összes költség"}
             value={fmtMoney(summary?.total_expenses ?? 0)}
             color={COLOR_EXPENSE}
             icon={<TrendingDownIcon />}
@@ -2146,7 +2175,7 @@ function ProfitTab() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SummaryCard
-            title="Bérleti díj"
+            title={reszHonap ? "Bérleti díj ({X}/{Y} nap)".replace("{X}", cov.days_with_data).replace("{Y}", cov.days_in_month) : "Bérleti díj"}
             value={fmtMoney(summary?.total_rent ?? 0)}
             color={COLOR_EXPENSE}
             icon={<TrendingDownIcon />}
@@ -2154,7 +2183,7 @@ function ProfitTab() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SummaryCard
-            title="Profit"
+            title={reszHonap ? "Profit ({X}/{Y} nap)".replace("{X}", cov.days_with_data).replace("{Y}", cov.days_in_month) : "Profit"}
             value={fmtMoney(summary?.total_profit ?? 0)}
             color={profitColor}
             icon={<AccountBalanceIcon />}

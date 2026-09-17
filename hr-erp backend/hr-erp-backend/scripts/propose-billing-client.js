@@ -33,15 +33,20 @@ const MAPPING = {
   const partners = new Map((await query(
     `SELECT id, name FROM contractors WHERE is_active`)).rows.map((r) => [r.name, r.id]));
 
-  // CSAK AKTÍV dolgozók. A kiléptetett sorokra megbízót rendelni értelmetlen: nem
-  // számláznak utánuk, viszont a művelet elfedné, hogy valójában hány emberről van szó —
-  // a 835-ös szám is így jött ki korábban, a kiléptetetteket is beleszámolva.
+  // AKTÍV dolgozók + azok a KILÉPTETETTEK, akiknek volt foglaltsága: aki ott aludt, az
+  // után jár a díj, akkor is, ha azóta elment. A hozzárendelés nélkül az ő éjszakáik
+  // egyszerűen nem számlázódnak — májustól augusztusig a foglaltság 15,2%-a esett így ki.
+  // Akinek SOHA nem volt foglaltsága, az továbbra sem kap megbízót: nincs mit számlázni
+  // utána, és a művelet csak elfedné, hány emberről van szó valójában.
   const rows = (await query(`
     SELECT coalesce(nullif(btrim(e.workplace), ''), '') AS workplace,
            count(*)::int AS fo,
            count(e.billing_client_id)::int AS mar_van,
            count(*) FILTER (WHERE e.accommodation_id IS NOT NULL)::int AS elszallasolva
-      FROM employees e WHERE e.end_date IS NULL GROUP BY 1 ORDER BY 2 DESC`)).rows;
+      FROM employees e
+     WHERE e.end_date IS NULL
+        OR EXISTS (SELECT 1 FROM occupancy_snapshots o WHERE o.employee_id = e.id)
+     GROUP BY 1 ORDER BY 2 DESC`)).rows;
 
   const terv = []; const kimarad = [];
   for (const r of rows) {
@@ -76,10 +81,11 @@ const MAPPING = {
     let total = 0;
     for (const t of terv) {
       const r = await query(
-        `UPDATE employees SET billing_client_id = $1
-          WHERE coalesce(nullif(btrim(workplace), ''), '') = $2
-            AND end_date IS NULL
-            AND (billing_client_id IS NULL OR billing_client_id <> $1)`,
+        `UPDATE employees e SET billing_client_id = $1
+          WHERE coalesce(nullif(btrim(e.workplace), ''), '') = $2
+            AND (e.end_date IS NULL
+                 OR EXISTS (SELECT 1 FROM occupancy_snapshots o WHERE o.employee_id = e.id))
+            AND (e.billing_client_id IS NULL OR e.billing_client_id <> $1)`,
         [t.celId, t.workplace]);
       total += r.rowCount;
     }

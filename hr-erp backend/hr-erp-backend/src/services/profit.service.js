@@ -227,9 +227,30 @@ class ProfitService {
     const totalCommittedBeds = byAcc.reduce((s, r) => s + r.capacity.committed_beds, 0);
     const totalCompensation = round2(byAcc.reduce((s, r) => s + (r.compensation_amount || 0), 0));
 
+    // HÓNAP KÖZBEN a szám nem hasonlítható össze egy teljes hónappal: a foglaltsági
+    // pillanatképek csak addig a napig vannak meg, ameddig a cron elért. Egy 16 napos
+    // szeptember és egy 30 napos augusztus egymás mellé téve félrevezet — ezért a
+    // lefedettség nem egy lábjegyzet, hanem a válasz része, hogy a felület ki tudja tenni
+    // a fejlécbe.
+    const cov = (await query(
+      `SELECT count(DISTINCT snapshot_date)::int AS napok,
+              max(snapshot_date) AS utolso
+         FROM occupancy_snapshots
+        WHERE to_char(snapshot_date, 'YYYY-MM') = $1`, [month])).rows[0];
+    const [yy, mm] = month.split('-').map(Number);
+    const napokAHonapban = new Date(yy, mm, 0).getDate();
+    const lefedettseg = {
+      days_with_data: cov.napok || 0,
+      days_in_month: napokAHonapban,
+      last_data_day: cov.utolso || null,
+      // true, ha a hónapnak van olyan napja, amiről még nincs adat
+      partial: (cov.napok || 0) < napokAHonapban,
+    };
+
     return {
       data: {
         month,
+        coverage: lefedettseg,
         summary: {
           total_income: totalIncome,
           total_expenses: totalExpenses,
