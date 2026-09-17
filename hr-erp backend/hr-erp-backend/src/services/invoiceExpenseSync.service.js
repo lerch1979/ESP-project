@@ -86,6 +86,7 @@ async function syncFromAllocations(invoiceId, client) {
             i.invoice_date, i.performance_date, i.notes, i.file_path, i.created_by,
             i.currency, i.original_amount, i.original_currency, i.exchange_rate,
             i.exchange_rate_date, i.rate_status, i.cost_center_id, i.deleted_at,
+            i.amount AS inv_net, i.total_amount AS inv_gross,
             ic.name AS category_name
        FROM invoices i
        LEFT JOIN invoice_categories ic ON ic.id = i.category_id
@@ -103,6 +104,19 @@ async function syncFromAllocations(invoiceId, client) {
     : await q(`SELECT * FROM invoice_allocations WHERE invoice_id = $1`, [invoiceId]);
 
   const isRent = RENT_CATEGORY_RE.test(inv.category_name || '');
+
+  /**
+   * A besorolás összege a számla VÉGÖSSZEGÉBŐL (bruttó) van felosztva, a kimutatás
+   * viszont nettóval számol — az ÁFA levonható, tehát átfutó tétel. Ezért a képzett
+   * költségsorra a nettó részt is kiszámoljuk, a számla saját nettó/bruttó arányával.
+   * Enélkül a ház 27%-kal többe kerülne a papíron, mint a valóságban: a petőházi
+   * rezsiszámla 616 173 Ft-tal terhelt 485 176 helyett.
+   */
+  const netRatio = (Number(inv.inv_gross) > 0 && Number(inv.inv_net) > 0)
+    ? Number(inv.inv_net) / Number(inv.inv_gross)
+    : null;
+  const nettoResz = (brutto) => (netRatio === null ? null
+    : Math.round(Number(brutto) * netRatio * 100) / 100);
 
   // Amiből költségsor lesz: csak a szálláshelyhez rendelt sorok.
   const wanted = [];
@@ -167,13 +181,17 @@ async function syncFromAllocations(invoiceId, client) {
                 vendor_contractor_id = $10, invoice_date = $11, performance_date = $12,
                 cost_center_id = $13, attachment_url = $14, currency = $15,
                 original_amount = $16, original_currency = $17, exchange_rate = $18,
-                exchange_rate_date = $19, rate_status = $20, updated_at = NOW()
+                exchange_rate_date = $19, rate_status = $20,
+                net_amount = $22, vat_amount = $23, updated_at = NOW()
           WHERE id = $21`,
         [a.accommodation_id, month, bucket, a.amount, utilLine, note,
          inv.invoice_number, inv.vendor_name, inv.vendor_tax_number, inv.vendor_contractor_id,
          inv.invoice_date, inv.performance_date, inv.cost_center_id, inv.file_path,
          inv.currency || 'HUF', inv.original_amount, inv.original_currency,
-         inv.exchange_rate, inv.exchange_rate_date, inv.rate_status || 'not_needed', cur.id]);
+         inv.exchange_rate, inv.exchange_rate_date, inv.rate_status || 'not_needed', cur.id,
+         nettoResz(a.amount),
+         nettoResz(a.amount) === null ? null
+           : Math.round((Number(a.amount) - nettoResz(a.amount)) * 100) / 100]);
       updated++;
       continue;
     }
@@ -184,15 +202,19 @@ async function syncFromAllocations(invoiceId, client) {
          invoice_number, vendor_name, vendor_tax_number, vendor_contractor_id,
          invoice_date, performance_date, cost_center_id, notes, attachment_url,
          original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status,
-         utility_line, source, status, created_by, invoice_id, invoice_allocation_id
+         utility_line, source, status, created_by, invoice_id, invoice_allocation_id,
+         net_amount, vat_amount
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-                 'invoice','confirmed',$21,$22,$23)`,
+                 'invoice','confirmed',$21,$22,$23,$24,$25)`,
       [a.accommodation_id, month, bucket, a.amount, inv.currency || 'HUF',
        inv.invoice_number, inv.vendor_name, inv.vendor_tax_number, inv.vendor_contractor_id,
        inv.invoice_date, inv.performance_date, inv.cost_center_id, note, inv.file_path,
        inv.original_amount, inv.original_currency, inv.exchange_rate,
        inv.exchange_rate_date, inv.rate_status || 'not_needed',
-       utilLine, inv.created_by, invoiceId, a.id]);
+       utilLine, inv.created_by, invoiceId, a.id,
+       nettoResz(a.amount),
+       nettoResz(a.amount) === null ? null
+         : Math.round((Number(a.amount) - nettoResz(a.amount)) * 100) / 100]);
     created++;
   }
 

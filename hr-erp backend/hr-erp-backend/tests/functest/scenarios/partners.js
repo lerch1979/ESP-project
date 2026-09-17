@@ -17,7 +17,25 @@ const ymd = (d) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 };
-const plusDays = (n) => ymd(new Date(Date.now() + n * 864e5));
+/**
+ * NAPTÁRI napokkal számolunk, nem milliszekundumokkal, és rögzített mai naphoz.
+ *
+ * Két buktató van itt, és mindkettő úgy bukik el, hogy közben semmi nem romlott el:
+ *
+ * 1. ÓRAÁTÁLLÍTÁS. A `Date.now() + 100 * 864e5` pontosan 2400 órát ad hozzá — csakhogy
+ *    egy szeptemberi naptól száz nap decemberbe ér, át az októberi visszaállításon, ahol
+ *    egy nap 25 órás. A végeredmény egy nappal korábbra esik, a 100 napos lejáratból 99
+ *    lesz. A setDate() naptári napot lép, ezért ez nem érinti.
+ * 2. ÉJFÉL. A szerződést az egyik eset hozza létre, a határidőt egy másik ellenőrzi; ha
+ *    közben átfordul a nap, szintén elcsúszik egyet. A rögzített MA mindkét oldalt
+ *    ugyanahhoz a naphoz köti.
+ */
+const MA = new Date();
+const plusDays = (n) => {
+  const d = new Date(MA);
+  d.setDate(d.getDate() + n);
+  return ymd(d);
+};
 
 module.exports = {
   area: 'PARTNERS',
@@ -100,7 +118,7 @@ module.exports = {
       run: async (ctx, s) => {
         const list = await http.get('/partners/contracts', { token: s.t, query: { leases_only: 'true' } });
         const lease = (list.body.data?.contracts || []).find((c) => c.title === 'FT Bérlet A');
-        const days = (d) => Math.round((new Date(ymd(d)) - new Date(ymd(new Date()))) / 864e5);
+        const days = (d) => Math.round((new Date(ymd(d)) - new Date(ymd(MA))) / 864e5);
         return {
           notice_in_days: days(lease.notice_deadline),
           expiry_in_days: days(lease.end_date),

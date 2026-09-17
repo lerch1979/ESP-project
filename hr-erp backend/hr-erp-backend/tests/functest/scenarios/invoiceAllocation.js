@@ -791,5 +791,26 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'ALLOC-35',
+      name: 'a képzett költségsor NETTÓ összeget is kap — nem a bruttó terheli a házat',
+      expected: { created: 201, koltsegsor: 1, brutto: 127000, netto: 100000, afa: 27000 },
+      hint: 'a besorolás a végösszegből oszt (bruttó), a kimutatás viszont nettóval számol — enélkül a ház 27%-kal többe kerül a papíron',
+      run: async (ctx, s) => {
+        const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+          vendor_name: 'ALLOC Nettó Teszt Kft', amount: 100000, vat_amount: 27000,
+          total_amount: 127000, invoice_date: '2026-12-11', performance_date: '2026-12-11',
+          cost_center_id: s.cc,
+          allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id,
+                          expense_category: 'rezsi' }] } });
+        const e = (await query(
+          `SELECT amount, net_amount, vat_amount FROM accommodation_expenses
+            WHERE invoice_id=$1 AND deleted_at IS NULL`, [r.body?.data?.invoice?.id])).rows;
+        return {
+          created: r.status, koltsegsor: e.length,
+          brutto: Number(e[0]?.amount), netto: Number(e[0]?.net_amount), afa: Number(e[0]?.vat_amount),
+        };
+      },
+    },
   ],
 };
