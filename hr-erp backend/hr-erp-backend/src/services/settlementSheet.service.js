@@ -348,7 +348,16 @@ async function landlordSheet({ month, landlordId }) {
   // LEVONÁSOK: amit a szállásadó helyett fizettünk ki és visszajár tőle. A lista a hónap
   // végéig keletkezett NYITOTT követeléseket hozza — a korábbi hónapokból származókat
   // "áthozott" jelöléssel, hogy látszódjon, ha egy tétel hónapok óta görög.
-  const deductions = await prepaid.deductionsFor(landlordId, month);
+  const deductionRows = await prepaid.deductionsFor(landlordId, month);
+  // A FELIRATOT itt állítjuk elő, nem a képernyőn: ugyanez a lap megy PDF-be, Excelbe és
+  // a megosztott linkre is, és mindháromnak ugyanazt kell mondania. Az "áthozott" jelölés
+  // nélkül egy hónapok óta görgő tétel ugyanúgy néz ki, mint egy most keletkezett.
+  const deductions = deductionRows.map((d) => ({
+    ...d,
+    label: d.athozott
+      ? `${d.vendor_name || d.category} — előző hónapról áthozott (${d.honnan_hozott})`
+      : `${d.vendor_name || d.category} — ${d.accommodation_name}`,
+  }));
   const grossTotal = accommodations.reduce((s, a) => s + a.cost_total, 0);
   const deductionTotal = deductions.reduce((s, d) => s + Number(d.amount), 0);
 

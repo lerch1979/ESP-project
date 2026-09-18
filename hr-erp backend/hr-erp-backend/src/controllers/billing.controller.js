@@ -7,6 +7,7 @@
  */
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const corrections = require('../services/billingCorrection.service');
 const billingEngine = require('../services/billingEngine.service');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -396,6 +397,28 @@ const finalizeRun = async (req, res) => {
           WHERE e.billing_month = $1 AND e.deleted_at IS NULL AND e.rate_status = 'missing'
           ORDER BY e.performance_date NULLS LAST, a.name`, [run.billing_month]);
 
+      // JÓVÁHAGYOTT, de vissza nem vezetett korrekció szintén megállítja a zárást.
+      // Ugyanaz a logika, mint az árfolyamnál: egy elismert, de ki nem küldött levonással
+      // lezárt hónap azt jelenti, hogy a pénz elfelejtődött. A még jóvá nem hagyott
+      // JAVASLAT nem blokkol — az nem elismert tartozás —, de a válaszban ott a
+      // figyelmeztetés, hogy a döntés ne "nem tudtam róla" alapon szülessen.
+      const korr = await corrections.blockingForMonth(run.billing_month);
+      if (korr.blocking.length > 0) {
+        return {
+          status: 409,
+          body: {
+            success: false,
+            message: `A(z) ${run.billing_month} hónap nem zárható le: ${korr.blocking.length} jóváhagyott `
+              + 'korrekció még nincs visszavezetve számlára. Vezesd vissza őket, vagy vesd el a korrekciót.',
+            data: {
+              billing_month: run.billing_month,
+              blocking_corrections: korr.blocking,
+              warning_corrections: korr.warnings,
+            },
+          },
+        };
+      }
+
       if (missing.rows.length > 0) {
         return { status: 409, body: {
           success: false,
@@ -415,7 +438,19 @@ const finalizeRun = async (req, res) => {
          VALUES ($1,$2,$3,'finalize',$4,$5)`,
         [run.id, run.billing_month, run.run_type, (req.body && req.body.reason) || null, req.user?.id || null]);
       logger.info(`[billing] month ${run.billing_month} FINALIZED by ${req.user?.email}`);
-      return { status: 200, body: { success: true, data: { id: run.id, billing_month: run.billing_month, status: 'finalized' } } };
+      return {
+        status: 200,
+        body: {
+          success: true,
+          // A figyelmeztetések a SIKERES zárás válaszában is ott vannak: a hónap lezárult,
+          // de a ki nem vizsgált különbözetek nem tűntek el, és nem is szabad, hogy a
+          // zárás ténye elfedje őket.
+          data: {
+            id: run.id, billing_month: run.billing_month, status: 'finalized',
+            warning_corrections: korr.warnings,
+          },
+        },
+      };
     });
     res.status(out.status).json(out.body);
   } catch (e) {

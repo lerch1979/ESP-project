@@ -14,5 +14,6 @@ router.post('/', checkPermission('finance.edit'), ctrl.propose);
 router.post('/:id/approve', checkPermission('finance.edit'), ctrl.approve);
 router.post('/:id/reject',  checkPermission('finance.edit'), ctrl.reject);
 router.post('/:id/settle',  checkPermission('finance.edit'), ctrl.settle);
+router.patch('/:id/lines/:lineId', checkPermission('finance.edit'), ctrl.setLine);
 
 module.exports = router;

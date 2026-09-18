@@ -14,8 +14,9 @@ const propose = async (req, res) => {
     const r = await svc.propose({
       contractorId: req.body?.contractor_id,
       month: req.body?.affected_month,
-      invoicedAmount: req.body?.invoiced_amount,
-      invoicedBreakdown: req.body?.invoiced_breakdown || [],
+      // Az előre számlázott tételsorok: ház + munkahely + ágy × nap × díj. Ma kézi
+      // bevitel; a Számlázz.hu-integrációval ugyanez a tömb jön majd gépből.
+      lines: req.body?.lines || [],
       note: req.body?.note || null,
       userId: req.user.id,
     });
@@ -28,10 +29,17 @@ const propose = async (req, res) => {
     });
     res.status(201).json({
       success: true,
-      message: r.data.coverage.complete
-        ? `Javaslat: ${Number(c.amount).toLocaleString('hu-HU')} Ft visszavezetése`
-        : `Javaslat elkészült, DE a hónapból csak ${r.data.coverage.days_with_data}/${r.data.coverage.days_in_month} `
-          + 'napra van foglaltsági adat — a különbözet egy része hiányzó adat lehet, nem túlszámlázás.',
+      message: (() => {
+        const ft = Math.abs(Number(c.amount)).toLocaleString('hu-HU');
+        const irany = r.data.direction === 'tulszamlazas'
+          ? `${ft} Ft visszavezetése (túlszámlázás)`
+          : `${ft} Ft pótszámlázása (alulszámlázás)`;
+        return r.data.coverage.complete
+          ? `Javaslat: ${irany}`
+          : `Javaslat elkészült (${irany}), DE a hónapból csak `
+            + `${r.data.coverage.days_with_data}/${r.data.coverage.days_in_month} napra van foglaltsági `
+            + 'adat — a különbözet egy része hiányzó adat lehet, nem valós eltérés.';
+      })(),
       data: r.data,
     });
   } catch (e) {
@@ -95,6 +103,32 @@ const settle = async (req, res) => {
   }
 };
 
+/** Egy tételsor ki-/bekapcsolása a jóváhagyás előtt — a kivett sor látható marad. */
+const setLine = async (req, res) => {
+  try {
+    if (!isValidUUID(req.params.id) || !isValidUUID(req.params.lineId)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen azonosító' });
+    }
+    const r = await svc.setLineIncluded({
+      correctionId: req.params.id, lineId: req.params.lineId, included: !!req.body?.included,
+    });
+    if (r.error) return res.status(r.status || 400).json({ success: false, message: r.error });
+    await logActivity({
+      userId: req.user.id, entityType: 'billing_correction', entityId: req.params.id,
+      action: req.body?.included ? 'line_include' : 'line_exclude',
+      changes: { sor: req.params.lineId, uj_osszeg: r.data.correction.amount },
+    });
+    res.json({
+      success: true,
+      message: req.body?.included ? 'Tételsor visszavéve a korrekcióba' : 'Tételsor kihagyva a korrekcióból',
+      data: r.data,
+    });
+  } catch (e) {
+    logger.error('Korrekció-tételsor hiba:', e);
+    res.status(500).json({ success: false, message: 'Tételsor-módosítási hiba' });
+  }
+};
+
 const open = async (req, res) => {
   try {
     const out = await svc.open({ contractorId: req.query.contractor_id || null });
@@ -105,4 +139,4 @@ const open = async (req, res) => {
   }
 };
 
-module.exports = { propose, approve, reject, settle, open };
+module.exports = { propose, approve, reject, settle, open, setLine };

@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead,
+  Box, Checkbox, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Chip, Button, CircularProgress, Alert, TextField, MenuItem, Stack,
   Dialog, DialogTitle, DialogContent, DialogActions, Collapse, IconButton, Divider, Tooltip,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
-import { billingCorrectionAPI, contractorsAPI } from '../services/api';
+import { billingCorrectionAPI, contractorsAPI, accommodationsAPI, workplacesAPI } from '../services/api';
 
 /**
  * Számlakorrekciók — az előre kiszámlázott ágyszám visszavezetése a tényleges foglaltságra.
@@ -44,73 +45,76 @@ const nextMonth = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-function Levezetes({ correction }) {
+function Levezetes({ correction, onToggleLine, busy }) {
   const b = correction.breakdown || {};
-  const actual = b.actual || [];
-  const invoiced = b.invoiced || [];
+  const sorok = b.lines || [];
   return (
     <Box sx={{ m: 1, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-        Tényleges foglaltság — {correction.affected_month}
+        Levezetés — {correction.affected_month}
       </Typography>
-      {actual.length === 0 ? (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Ehhez a hónaphoz nincs eltárolt számlázási részlet — a levezetés üres.
-        </Alert>
+      {sorok.length === 0 ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>Ehhez a korrekcióhoz nincs eltárolt tételsor.</Alert>
       ) : (
         <Table size="small" sx={{ mb: 2, bgcolor: 'background.paper' }}>
           <TableHead>
             <TableRow>
               <TableCell>Szálláshely</TableCell>
               <TableCell>Munkahely</TableCell>
-              <TableCell align="right">Ágyéjszaka</TableCell>
-              <TableCell align="right">Díj</TableCell>
-              <TableCell align="right">Nettó</TableCell>
+              <TableCell align="right">Előre számlázva</TableCell>
+              <TableCell align="right">Tényleges</TableCell>
+              <TableCell align="right">Különbözet</TableCell>
+              <TableCell align="right">Összeg</TableCell>
+              {onToggleLine && <TableCell align="center">Beszámít</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
-            {actual.map((r, i) => (
-              <TableRow key={i}>
+            {sorok.map((r, i) => (
+              <TableRow key={r.line_id || i} sx={{ opacity: r.included === false ? 0.45 : 1 }}>
                 <TableCell>{r.accommodation}</TableCell>
                 <TableCell>{r.workplace}</TableCell>
-                <TableCell align="right">{r.bed_nights}</TableCell>
-                <TableCell align="right">{r.rate_used == null ? '—' : fmtMoney(r.rate_used)}</TableCell>
-                <TableCell align="right">{fmtMoney(r.net_amount)}</TableCell>
+                {/* Az ágy × nap × díj végig látszik: enélkül a különbözet csak egy szám */}
+                <TableCell align="right">
+                  {r.invoiced_beds} ágy × {r.invoiced_days} nap × {fmtMoney(r.rate)}
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    {fmtMoney(r.invoiced_amount)}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  {r.actual_bed_nights} ágyéj
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    {fmtMoney(r.actual_amount)}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{r.diff_bed_nights} ágyéj</TableCell>
+                <TableCell align="right"
+                           sx={{ fontWeight: 700, color: Number(r.diff_amount) < 0 ? 'info.main' : 'error.main' }}>
+                  {fmtMoney(r.diff_amount)}
+                </TableCell>
+                {onToggleLine && (
+                  <TableCell align="center">
+                    <Checkbox size="small" disabled={busy} checked={r.included !== false}
+                              onChange={(e) => onToggleLine(r.line_id, e.target.checked)} />
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
 
-      {invoiced.length > 0 && (
-        <>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            Kiszámlázott (a számláról)
-          </Typography>
-          <Table size="small" sx={{ mb: 2, bgcolor: 'background.paper' }}>
-            <TableBody>
-              {invoiced.map((r, i) => (
-                <TableRow key={i}>
-                  <TableCell>{r.label || r.workplace || '—'}</TableCell>
-                  <TableCell align="right">{fmtMoney(r.amount)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
-
-      <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
-        <Typography variant="body2">Kiszámlázva: <strong>{fmtMoney(correction.invoiced_amount)}</strong></Typography>
+      <Stack direction="row" spacing={3} sx={{ mt: 1 }} flexWrap="wrap">
+        <Typography variant="body2">Előre számlázva: <strong>{fmtMoney(correction.invoiced_amount)}</strong></Typography>
         <Typography variant="body2">Tényleges: <strong>{fmtMoney(correction.actual_amount)}</strong></Typography>
-        <Typography variant="body2" color="error">
-          Különbözet: <strong>{fmtMoney(correction.amount)}</strong>
+        <Typography variant="body2" color={Number(correction.amount) < 0 ? 'info.main' : 'error.main'}>
+          {Number(correction.amount) < 0 ? 'Pótszámlázandó' : 'Visszajár'}:{' '}
+          <strong>{fmtMoney(Math.abs(Number(correction.amount)))}</strong>
         </Typography>
       </Stack>
       {b.coverage && b.coverage.complete === false && (
         <Alert severity="warning" sx={{ mt: 2 }}>
           A hónapból csak <strong>{b.coverage.days_with_data}/{b.coverage.days_in_month}</strong> napra
-          van foglaltsági adat. A különbözet egy része hiányzó adat lehet, nem túlszámlázás.
+          van foglaltsági adat. A különbözet egy része hiányzó adat lehet, nem valós eltérés.
         </Alert>
       )}
       {correction.note && (
@@ -122,7 +126,7 @@ function Levezetes({ correction }) {
   );
 }
 
-function Sor({ c, onApprove, onReject, onSettle, busy }) {
+function Sor({ c, onApprove, onReject, onSettle, onToggleLine, busy }) {
   const [open, setOpen] = useState(false);
   const st = STATUS[c.status] || { label: c.status, color: 'default' };
   return (
@@ -137,11 +141,22 @@ function Sor({ c, onApprove, onReject, onSettle, busy }) {
         <TableCell>{c.affected_month}</TableCell>
         <TableCell align="right">{fmtMoney(c.invoiced_amount)}</TableCell>
         <TableCell align="right">{fmtMoney(c.actual_amount)}</TableCell>
-        <TableCell align="right" sx={{ fontWeight: 700 }}>{fmtMoney(c.amount)}</TableCell>
+        <TableCell align="right"
+                   sx={{ fontWeight: 700, color: Number(c.amount) < 0 ? 'info.main' : 'error.main' }}>
+          {fmtMoney(Math.abs(Number(c.amount)))}
+          <Typography variant="caption" sx={{ display: 'block', fontWeight: 400 }}>
+            {Number(c.amount) < 0 ? 'pótszámlázandó' : 'visszajár'}
+          </Typography>
+        </TableCell>
         <TableCell align="right">
           {Number(c.settled_amount) > 0 ? fmtMoney(c.settled_amount) : '—'}
         </TableCell>
-        <TableCell align="right" sx={{ fontWeight: 700 }}>{fmtMoney(c.open_amount)}</TableCell>
+        <TableCell align="right" sx={{ fontWeight: 700 }}>{fmtMoney(Math.abs(Number(c.open_amount)))}</TableCell>
+        <TableCell>
+          <Chip size="small" variant="outlined"
+                label={{ '0-30': '0–30 nap', '31-60': '31–60', '61-90': '61–90', '90+': '90+ nap' }[c.aging_bucket] || '—'}
+                color={c.aging_bucket === '90+' ? 'error' : c.aging_bucket === '61-90' ? 'warning' : 'default'} />
+        </TableCell>
         <TableCell>
           <Chip size="small" label={st.label} color={st.color}
                 variant={c.status === 'javaslat' ? 'outlined' : 'filled'} />
@@ -168,8 +183,11 @@ function Sor({ c, onApprove, onReject, onSettle, busy }) {
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell sx={{ py: 0, borderBottom: open ? undefined : 'none' }} colSpan={10}>
-          <Collapse in={open} timeout="auto" unmountOnExit><Levezetes correction={c} /></Collapse>
+        <TableCell sx={{ py: 0, borderBottom: open ? undefined : 'none' }} colSpan={11}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Levezetes correction={c} busy={busy}
+                       onToggleLine={c.status === 'javaslat' ? onToggleLine : null} />
+          </Collapse>
         </TableCell>
       </TableRow>
     </>
@@ -184,8 +202,24 @@ export default function BillingCorrections() {
   const [error, setError] = useState(null);
 
   const [newOpen, setNewOpen] = useState(false);
-  const [form, setForm] = useState({ contractor_id: '', affected_month: thisMonth(), invoiced_amount: '', note: '' });
+  const [accommodations, setAccommodations] = useState([]);
+  const [workplaces, setWorkplaces] = useState([]);
+  const [form, setForm] = useState({
+    contractor_id: '', affected_month: thisMonth(), note: '',
+    lines: [{ accommodation_id: '', workplace_id: '', beds: '', days: 30, rate: '' }],
+  });
 
+  const setLine = (i, mezo, ertek) => setForm((f) => ({
+    ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, [mezo]: ertek } : l)),
+  }));
+  const elozetesOsszeg = form.lines.reduce(
+    (a, l) => a + Number(l.beds || 0) * Number(l.days || 0) * Number(l.rate || 0), 0);
+  // Egy hiányos sor az EGÉSZ javaslatot elutasítaná a szerveren — inkább itt tiltjuk a gombot.
+  const ervenyes = form.contractor_id && /^\d{4}-\d{2}$/.test(form.affected_month)
+    && form.lines.every((l) => l.accommodation_id && Number(l.beds) >= 0
+      && Number(l.days) > 0 && Number(l.rate) >= 0 && l.beds !== '' && l.rate !== '');
+
+  const nyitottId = useRef(null);
   const [settleFor, setSettleFor] = useState(null);
   const [settleForm, setSettleForm] = useState({ month: nextMonth(), amount: '' });
 
@@ -203,6 +237,14 @@ export default function BillingCorrections() {
         const r = await contractorsAPI.getAll({ limit: 500 });
         setContractors(r?.data?.contractors || r?.data || []);
       } catch { /* a lista nélkül is használható a képernyő */ }
+      try {
+        const a = await accommodationsAPI.getAll({ limit: 200 });
+        setAccommodations(a?.data?.accommodations || a?.data || []);
+      } catch { /* nem végzetes */ }
+      try {
+        const w = await workplacesAPI.list();
+        setWorkplaces(w?.data?.workplaces || w?.data || []);
+      } catch { /* nem végzetes */ }
     })();
   }, []);
 
@@ -212,12 +254,17 @@ export default function BillingCorrections() {
       const r = await billingCorrectionAPI.propose({
         contractor_id: form.contractor_id,
         affected_month: form.affected_month,
-        invoiced_amount: Number(form.invoiced_amount),
+        lines: form.lines.map((l) => ({
+          accommodation_id: l.accommodation_id,
+          workplace_id: l.workplace_id || null,
+          beds: Number(l.beds), days: Number(l.days), rate: Number(l.rate),
+        })),
         note: form.note || null,
       });
       toast.success(r.message || 'Javaslat elkészült');
       setNewOpen(false);
-      setForm({ contractor_id: '', affected_month: thisMonth(), invoiced_amount: '', note: '' });
+      setForm({ contractor_id: '', affected_month: thisMonth(), note: '',
+        lines: [{ accommodation_id: '', workplace_id: '', beds: '', days: 30, rate: '' }] });
       load();
     } catch (e) { toast.error(e.response?.data?.message || 'A javaslat nem készült el'); }
     finally { setBusy(false); }
@@ -239,6 +286,16 @@ export default function BillingCorrections() {
     setBusy(true);
     try { toast.success((await billingCorrectionAPI.reject(c.id, note)).message); load(); }
     catch (e) { toast.error(e.response?.data?.message || 'Elvetés sikertelen'); }
+    finally { setBusy(false); }
+  };
+
+  const toggleLine = async (lineId, included) => {
+    setBusy(true);
+    try {
+      const r = await billingCorrectionAPI.setLine(nyitottId.current, lineId, included);
+      toast.success(r.message);
+      load();
+    } catch (e) { toast.error(e.response?.data?.message || 'A tételsor módosítása nem sikerült'); }
     finally { setBusy(false); }
   };
 
@@ -314,6 +371,7 @@ export default function BillingCorrections() {
                 <TableCell align="right">Különbözet</TableCell>
                 <TableCell align="right">Beszámítva</TableCell>
                 <TableCell align="right">Nyitva</TableCell>
+                <TableCell>Kor</TableCell>
                 <TableCell>Állapot</TableCell>
                 <TableCell align="right" />
               </TableRow>
@@ -321,12 +379,13 @@ export default function BillingCorrections() {
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={11} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     Nincs nyitott korrekció.
                   </TableCell>
                 </TableRow>
               ) : rows.map((c) => (
                 <Sor key={c.id} c={c} busy={busy}
+                     onToggleLine={(lineId, inc) => { nyitottId.current = c.id; toggleLine(lineId, inc); }}
                      onApprove={approve} onReject={reject}
                      onSettle={(x) => { setSettleFor(x); setSettleForm({ month: nextMonth(), amount: '' }); }} />
               ))}
@@ -335,36 +394,98 @@ export default function BillingCorrections() {
         </TableContainer>
       )}
 
-      {/* ÚJ KORREKCIÓ — a kiszámlázott összeg kézzel jön, mert a rendszer nem tudja,
-          mi ment ki a számlán: az a számlázóprogramban készült. */}
-      <Dialog open={newOpen} onClose={() => setNewOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Új korrekciós javaslat</DialogTitle>
+      {/* ÚJ KORREKCIÓ — az ELŐRE SZÁMLÁZOTT tételsorokat ember viszi be, mert a
+          Számlázz.hu-integráció még nincs megépítve. Ágy / nap / díj külön mezőben áll,
+          nem végösszegként: amikor az integráció elkészül, ugyanezek tölthetők gépből. */}
+      <Dialog open={newOpen} onClose={() => setNewOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>Új korrekciós javaslat — előre számlázott tételek</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add meg, <strong>mennyit számláztunk ki</strong> arra a hónapra. A tényleges foglaltságot
-            és a különbözetet a rendszer számolja hozzá, és leveti házanként.
+            Vidd be, <strong>mit számláztunk ki előre</strong> arra a hónapra, házanként és
+            munkahelyenként. A díj munkahelyenként eltér, ezért kell mindkét bontás. A tényleges
+            foglaltságot és a különbözetet a rendszer számolja hozzá.
           </Typography>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField select fullWidth size="small" label="Megbízó" value={form.contractor_id}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+            <TextField select size="small" label="Megbízó" value={form.contractor_id} sx={{ minWidth: 260 }}
                        onChange={(e) => setForm({ ...form, contractor_id: e.target.value })}>
               {contractors.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
             </TextField>
-            <TextField fullWidth size="small" label="Érintett hónap (YYYY-MM)" value={form.affected_month}
+            <TextField size="small" label="Érintett hónap (YYYY-MM)" value={form.affected_month}
                        onChange={(e) => setForm({ ...form, affected_month: e.target.value })}
-                       helperText="Az a hónap, AMIRE a számla szólt — nem az, amelyikben levonjuk" />
-            <TextField fullWidth size="small" label="Kiszámlázott nettó összeg (Ft)" type="number"
-                       value={form.invoiced_amount}
-                       onChange={(e) => setForm({ ...form, invoiced_amount: e.target.value })} />
-            <TextField fullWidth size="small" label="Megjegyzés" multiline rows={2} value={form.note}
-                       onChange={(e) => setForm({ ...form, note: e.target.value })} />
+                       helperText="Amire a számla szólt — nem az, amelyikben levonjuk" />
           </Stack>
+
+          <TableContainer component={Paper} variant="outlined" sx={{ mb: 1 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ minWidth: 200 }}>Szálláshely</TableCell>
+                  <TableCell sx={{ minWidth: 150 }}>Munkahely</TableCell>
+                  <TableCell align="right">Ágy</TableCell>
+                  <TableCell align="right">Nap</TableCell>
+                  <TableCell align="right">Díj (Ft)</TableCell>
+                  <TableCell align="right">Összeg</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {form.lines.map((l, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <TextField select fullWidth size="small" variant="standard" value={l.accommodation_id}
+                                 onChange={(e) => setLine(i, 'accommodation_id', e.target.value)}>
+                        {accommodations.map((a) => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
+                      </TextField>
+                    </TableCell>
+                    <TableCell>
+                      <TextField select fullWidth size="small" variant="standard" value={l.workplace_id}
+                                 onChange={(e) => setLine(i, 'workplace_id', e.target.value)}>
+                        <MenuItem value="">(nincs)</MenuItem>
+                        {workplaces.map((w) => <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
+                      </TextField>
+                    </TableCell>
+                    <TableCell align="right" sx={{ width: 90 }}>
+                      <TextField fullWidth size="small" variant="standard" type="number" value={l.beds}
+                                 onChange={(e) => setLine(i, 'beds', e.target.value)} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ width: 90 }}>
+                      <TextField fullWidth size="small" variant="standard" type="number" value={l.days}
+                                 onChange={(e) => setLine(i, 'days', e.target.value)} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ width: 110 }}>
+                      <TextField fullWidth size="small" variant="standard" type="number" value={l.rate}
+                                 onChange={(e) => setLine(i, 'rate', e.target.value)} />
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {fmtMoney(Number(l.beds || 0) * Number(l.days || 0) * Number(l.rate || 0))}
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" disabled={form.lines.length === 1}
+                                  onClick={() => setForm({ ...form, lines: form.lines.filter((_, j) => j !== i) })}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell colSpan={5} sx={{ fontWeight: 700 }}>ELŐRE SZÁMLÁZOTT ÖSSZESEN</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>{fmtMoney(elozetesOsszeg)}</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Button size="small" startIcon={<AddIcon />} onClick={() => setForm({
+            ...form, lines: [...form.lines, { accommodation_id: '', workplace_id: '', beds: '', days: 30, rate: '' }],
+          })}>Tételsor hozzáadása</Button>
+
+          <TextField fullWidth size="small" label="Megjegyzés" multiline rows={2} sx={{ mt: 2 }}
+                     value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setNewOpen(false)}>Mégse</Button>
-          <Button variant="contained" onClick={propose}
-                  disabled={busy || !form.contractor_id || !form.invoiced_amount}>
-            Kiszámolás
-          </Button>
+          <Button variant="contained" onClick={propose} disabled={busy || !ervenyes}>Kiszámolás</Button>
         </DialogActions>
       </Dialog>
 

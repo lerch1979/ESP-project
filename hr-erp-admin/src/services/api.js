@@ -340,6 +340,8 @@ export const billingCorrectionAPI = {
   approve: async (id) => (await api.post(`/billing-corrections/${id}/approve`)).data,
   reject: async (id, note) => (await api.post(`/billing-corrections/${id}/reject`, { note })).data,
   settle: async (id, body) => (await api.post(`/billing-corrections/${id}/settle`, body)).data,
+  setLine: async (id, lineId, included) =>
+    (await api.patch(`/billing-corrections/${id}/lines/${lineId}`, { included })).data,
 };
 
 // GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).
