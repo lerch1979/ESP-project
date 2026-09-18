@@ -9,9 +9,10 @@
  * touching the controller. Don't expand this interface for S3 specifics
  * until we actually add S3 — speculative breadth is the enemy here.
  *
- * Tech debt: uploads/ is not currently in the nightly backup cron. Before
- * production cutover, EITHER add it to the backup OR migrate to S3.
- * Tracked in PROJECT_STATE.md.
+ * A nightly backup DOES cover this: backup.sh tars the whole /app/uploads volume
+ * alongside the DB dump (verified 2026-09-18). Anything written through this adapter is
+ * therefore in the 2:30 backup — which is the reason to route new file types here rather
+ * than inventing a second write path.
  */
 
 const fs = require('fs/promises');
@@ -33,6 +34,9 @@ const ALLOWED_MIMES = Object.freeze(Object.keys(EXT_BY_MIME));
 
 const BILLING_MONTH_RE = /^\d{4}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Amihez egy irat tartozhat. A mappanév ebből lesz — ezért zárt lista, nem szabad szöveg. */
+const DOC_PARTY_TYPES = Object.freeze(['contract', 'contractor', 'accommodation', 'lead', 'employee']);
 
 class LocalStorageAdapter {
   /**
@@ -76,6 +80,50 @@ class LocalStorageAdapter {
       path: relPath,
       uploaded_at: new Date().toISOString(),
       uploaded_by,
+    };
+  }
+
+  /**
+   * Persist a document attached to a PARTY (contract, partner, property, lead).
+   *
+   * Deliberately a separate method from save(): that one is expense-shaped —
+   * `expense_id` and `billing_month` are mandatory there and drive the
+   * uploads/expenses/YYYY/MM/<id>/ layout that live data already sits in. Widening it
+   * with optional parameters would put an `if` in the middle of a path that works, and
+   * the existing files would have to keep matching whichever branch stays.
+   *
+   * Layout: uploads/documents/<party_type>/<party_id>/<uuid>.<ext>
+   */
+  async saveDocument({ buffer, mime, party_type, party_id, original_name, uploaded_by = null }) {
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+      throw new Error('saveDocument: buffer required');
+    }
+    if (!EXT_BY_MIME[mime]) {
+      throw new Error(`saveDocument: unsupported mime ${mime}`);
+    }
+    if (!DOC_PARTY_TYPES.includes(party_type)) {
+      throw new Error(`saveDocument: unknown party_type ${party_type}`);
+    }
+    if (!UUID_RE.test(String(party_id || ''))) {
+      throw new Error('saveDocument: party_id must be UUID');
+    }
+
+    const file_id = crypto.randomUUID();
+    const ext = EXT_BY_MIME[mime];
+    const relPath = path.posix.join('documents', party_type, party_id, `${file_id}.${ext}`);
+    const absPath = this._absolute(relPath);
+
+    await fs.mkdir(path.dirname(absPath), { recursive: true });
+    await fs.writeFile(absPath, buffer);
+
+    return {
+      id: file_id,
+      path: relPath,
+      mime,
+      size: buffer.length,
+      original_name: original_name || null,
+      uploaded_by,
+      uploaded_at: new Date().toISOString(),
     };
   }
 
@@ -150,3 +198,4 @@ module.exports = instance;
 module.exports.ALLOWED_MIMES = ALLOWED_MIMES;
 module.exports.EXT_BY_MIME = EXT_BY_MIME;
 module.exports.UPLOAD_ROOT = UPLOAD_ROOT;
+module.exports.DOC_PARTY_TYPES = DOC_PARTY_TYPES;

@@ -12,6 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import api from '../services/api';
+import DocumentPanel from '../components/partners/DocumentPanel';
 import ActivityPanel from '../components/ActivityPanel';
 
 /**
@@ -275,38 +276,14 @@ export default function PartnerDetail() {
 
       {/* ── Dokumentumok ── */}
       {activeTab === 3 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Megnevezés</TableCell>
-                <TableCell>Típus</TableCell>
-                <TableCell>Fájl</TableCell>
-                <TableCell>Feltöltve</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {documents.length === 0 && (
-                <TableRow><TableCell colSpan={4}>
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-                    Nincs a partnerhez csatolt dokumentum.
-                  </Typography>
-                </TableCell></TableRow>
-              )}
-              {documents.map((d) => (
-                <TableRow key={d.id} hover>
-                  <TableCell>{d.title}</TableCell>
-                  <TableCell>{d.document_type || '—'}</TableCell>
-                  <TableCell>{d.file_name}</TableCell>
-                  <TableCell>{fmtDate(d.created_at)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DocumentPanel
+          partyType="contractor"
+          partyId={id}
+          cim="A partnerhez tartozó iratok"
+          onChanged={load}
+        />
       )}
 
-      {/* ── Aktivitás ── */}
       {activeTab === 4 && (
         <Paper sx={{ p: 2 }}>
           <ActivityPanel

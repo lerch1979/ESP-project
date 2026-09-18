@@ -42,7 +42,8 @@ const isDocOutOfScope = (scope, docEmployeeId, docContractor) =>
  */
 const getDocuments = async (req, res) => {
   try {
-    const { search, document_type, employee_id, page = 1, limit = 20 } = req.query;
+    const { search, document_type, employee_id, page = 1, limit = 20,
+            contract_id, contractor_id, accommodation_id, lead_id } = req.query;
     const offset = (page - 1) * limit;
 
     let whereConditions = ['d.deleted_at IS NULL'];
@@ -90,6 +91,22 @@ const getDocuments = async (req, res) => {
       paramIndex++;
     }
 
+    // PARTY-SZŰRŐK. A felület eddig is küldte a contractor_id-t, a szerver viszont
+    // figyelmen kívül hagyta — vagyis a partner Dokumentumok füle MINDEN iratot mutatott
+    // volna, nem csak az övét. Csendben, mert a lista attól még betöltődött.
+    if (contract_id) {
+      whereConditions.push(`d.contract_id = $${paramIndex}`); params.push(contract_id); paramIndex++;
+    }
+    if (contractor_id) {
+      whereConditions.push(`d.contractor_id = $${paramIndex}`); params.push(contractor_id); paramIndex++;
+    }
+    if (accommodation_id) {
+      whereConditions.push(`d.accommodation_id = $${paramIndex}`); params.push(accommodation_id); paramIndex++;
+    }
+    if (lead_id) {
+      whereConditions.push(`d.lead_id = $${paramIndex}`); params.push(lead_id); paramIndex++;
+    }
+
     const whereClause = whereConditions.length > 0
       ? `WHERE ${whereConditions.join(' AND ')}`
       : '';
@@ -107,6 +124,8 @@ const getDocuments = async (req, res) => {
         d.id, d.title, d.description, d.document_type,
         d.employee_id, d.uploaded_by, d.file_name, d.file_path,
         d.file_size, d.mime_type, d.created_at, d.updated_at,
+        d.contract_id, d.contractor_id, d.accommodation_id, d.lead_id,
+        d.document_date, d.is_signed_copy,
         COALESCE(e.last_name, '') as employee_last_name,
         COALESCE(e.first_name, '') as employee_first_name,
         e.employee_number,
@@ -214,7 +233,9 @@ const createDocument = async (req, res) => {
       });
     }
 
-    const { title, description, document_type, employee_id } = req.body;
+    const { title, description, document_type, employee_id,
+            contract_id, contractor_id, accommodation_id, lead_id,
+            document_date, is_signed_copy } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({
@@ -246,9 +267,49 @@ const createDocument = async (req, res) => {
       tenantId = empContractor || scope.contractorId;
     }
 
+    // ── a PARTY, amihez az irat tartozik ────────────────────────────────────
+    // Pontosan egy lehet: munkavállaló, szerződés, partner, ingatlan vagy lead. A mig 144
+    // óta az oszlopok megvannak, de az API sosem töltötte ki őket — a partner adatlap
+    // Dokumentumok füle ezért maradt üres akkor is, ha volt mit mutatnia.
+    const partyFields = { employee_id, contract_id, contractor_id, accommodation_id, lead_id };
+    const megadott = Object.entries(partyFields).filter(([, v]) => v);
+    if (megadott.length > 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Egy irat pontosan egy helyhez tartozhat (munkavállaló, szerződés, partner, ingatlan vagy lead)',
+      });
+    }
+
+    // A szerződéshez csatolt iratnál a szerződés partnerét örököljük: így a partner
+    // adatlapján is előjön, anélkül hogy kétszer kellene felvinni.
+    let contractOwner = null;
+    if (contract_id) {
+      const c = await query(
+        'SELECT id, contractor_id FROM partner_contracts WHERE id = $1', [contract_id]);
+      if (c.rows.length === 0) {
+        return res.status(400).json({ success: false, message: 'A megadott szerződés nem található' });
+      }
+      contractOwner = c.rows[0].contractor_id;
+    }
+    if (contractor_id) {
+      const c = await query('SELECT id FROM contractors WHERE id = $1', [contractor_id]);
+      if (c.rows.length === 0) {
+        return res.status(400).json({ success: false, message: 'A megadott partner nem található' });
+      }
+    }
+    if (accommodation_id) {
+      const a = await query('SELECT id FROM accommodations WHERE id = $1', [accommodation_id]);
+      if (a.rows.length === 0) {
+        return res.status(400).json({ success: false, message: 'A megadott szálláshely nem található' });
+      }
+    }
+
     const insertQuery = `
-      INSERT INTO documents (title, description, document_type, employee_id, uploaded_by, file_name, file_path, file_size, mime_type, tenant_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO documents (title, description, document_type, employee_id, uploaded_by,
+                             file_name, file_path, file_size, mime_type, tenant_id,
+                             contract_id, contractor_id, accommodation_id, lead_id,
+                             document_date, is_signed_copy)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
 
@@ -263,6 +324,12 @@ const createDocument = async (req, res) => {
       req.file.size,
       req.file.mimetype,
       tenantId,
+      contract_id || null,
+      contractor_id || contractOwner || null,
+      accommodation_id || null,
+      lead_id || null,
+      document_date || null,
+      is_signed_copy === true || is_signed_copy === 'true',
     ]);
 
     logger.info('Új dokumentum feltöltve', { documentId: result.rows[0].id });

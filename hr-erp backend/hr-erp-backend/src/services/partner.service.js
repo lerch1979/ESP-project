@@ -283,7 +283,16 @@ const CONTRACT_SELECT = `
            -- and can never be missed, so the UI must not colour it as a deadline.
            WHEN pc.is_open_ended AND pc.notice_days IS NOT NULL                       THEN 'rolling'
            WHEN pc.notice_deadline IS NOT NULL OR pc.end_date IS NOT NULL             THEN 'overdue'
-         END AS next_action_kind
+         END AS next_action_kind,
+
+         -- CSATOLMÁNYOK. Két külön szám, mert két külön kérdés: hány irat van egyáltalán,
+         -- és megvan-e az ALÁÍRT példány. Egy melléklet megléte nem helyettesíti az
+         -- aláírt szerződést, ezért a tábla az utóbbit jelzi, nem a puszta darabszámot.
+         (SELECT count(*)::int FROM documents d
+           WHERE d.contract_id = pc.id AND d.deleted_at IS NULL) AS document_count,
+         EXISTS (SELECT 1 FROM documents d
+                  WHERE d.contract_id = pc.id AND d.deleted_at IS NULL
+                    AND d.is_signed_copy) AS has_signed_copy
     FROM partner_contracts pc
     LEFT JOIN contractors    c ON c.id = pc.contractor_id
     LEFT JOIN accommodations a ON a.id = pc.accommodation_id
@@ -365,7 +374,7 @@ async function saveContract(req, id, body) {
     body.start_date || null, body.end_date || null, !!body.is_open_ended,
     body.notice_days ?? null,
     body.renewal_type || 'none', body.renewal_term_months ?? null,
-    body.parent_contract_id || null, body.signed_at || null, body.document_id || null,
+    body.parent_contract_id || null, body.signed_at || null,
     body.currency || 'HUF', body.indexation_note ?? null, body.notes ?? null,
     body.financial_exit ?? null,
   ];
@@ -376,9 +385,9 @@ async function saveContract(req, id, body) {
          contractor_id=$1, accommodation_id=$2, contract_role=$3, contract_no=$4, title=$5,
          status=$6, start_date=$7, end_date=$8, is_open_ended=$9, notice_days=$10,
          renewal_type=$11, renewal_term_months=$12, parent_contract_id=$13, signed_at=$14,
-         document_id=$15, currency=$16, indexation_note=$17, notes=$18,
-         financial_exit=$19, updated_at=now()
-       WHERE id=$20 RETURNING *`,
+         currency=$15, indexation_note=$16, notes=$17,
+         financial_exit=$18, updated_at=now()
+       WHERE id=$19 RETURNING *`,
       [...vals, id],
     );
     if (r.rows.length === 0) throw new PartnerError('Szerződés nem található', 404);
@@ -389,9 +398,9 @@ async function saveContract(req, id, body) {
     `INSERT INTO partner_contracts
        (contractor_id, accommodation_id, contract_role, contract_no, title, status,
         start_date, end_date, is_open_ended, notice_days, renewal_type, renewal_term_months,
-        parent_contract_id, signed_at, document_id, currency, indexation_note, notes,
+        parent_contract_id, signed_at, currency, indexation_note, notes,
         financial_exit, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      RETURNING *`,
     [...vals, req.user?.id || null],
   );

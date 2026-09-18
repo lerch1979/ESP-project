@@ -3,9 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Chip, ToggleButton, ToggleButtonGroup, CircularProgress, Alert, Tooltip,
-  TextField, MenuItem, Stack,
+  TextField, MenuItem, Stack, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import DocumentPanel from '../components/partners/DocumentPanel';
 import api from '../services/api';
 
 /**
@@ -63,6 +66,9 @@ function urgency(days, kind) {
 export default function PartnerContracts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
+  // Az iratok egy dialógusban nyílnak: a tábla a döntési határidőkről szól,
+  // a csatolmányok kezelése ne tolja szét a sorokat.
+  const [docsFor, setDocsFor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -179,6 +185,7 @@ export default function PartnerContracts() {
                 <TableCell>Lejárat</TableCell>
                 <TableCell>Kilépés</TableCell>
                 <TableCell>Állapot</TableCell>
+                <TableCell>Aláírt példány</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -232,6 +239,28 @@ export default function PartnerContracts() {
                     </TableCell>
                     <TableCell><ExitCell row={r} urgency={u} /></TableCell>
                     <TableCell>{STATUS_LABEL[r.status] || r.status}</TableCell>
+                    {/* Nem a fájlok SZÁMÁT mutatjuk, hanem azt, hogy megvan-e az ALÁÍRT
+                        példány: egy melléklet megléte nem helyettesíti a szerződést. */}
+                    <TableCell>
+                      <Tooltip title="Iratok megnyitása">
+                        <IconButton size="small" sx={{ mr: 0.5 }} onClick={() => setDocsFor(r)}>
+                          <AttachFileIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {r.has_signed_copy ? (
+                        <Tooltip title={`${r.document_count} csatolt irat`}>
+                          <Chip size="small" color="success" label="megvan"
+                            icon={<CheckCircleIcon fontSize="small" />} />
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title={r.document_count > 0
+                          ? `${r.document_count} irat van csatolva, de egyik sincs aláírt példánynak jelölve`
+                          : 'nincs csatolt irat'}>
+                          <Chip size="small" color="warning" variant="outlined"
+                            label={r.document_count > 0 ? `hiányzik (${r.document_count} irat)` : 'hiányzik'} />
+                        </Tooltip>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -239,6 +268,28 @@ export default function PartnerContracts() {
           </Table>
         </TableContainer>
       )}
+
+      <Dialog open={!!docsFor} onClose={() => setDocsFor(null)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Iratok — {docsFor?.title || docsFor?.contract_no || 'szerződés'}
+          <Typography variant="body2" color="text.secondary">
+            {[docsFor?.contractor_name, docsFor?.accommodation_name].filter(Boolean).join(' · ')}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          {docsFor && (
+            <DocumentPanel
+              partyType="contract"
+              partyId={docsFor.id}
+              cim="Ehhez a szerződéshez tartozó iratok"
+              onChanged={load}
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDocsFor(null)}>Bezárás</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
