@@ -12,6 +12,12 @@
  * A második lap a MÁR besorolt számlákat mutatja. Nem dísz: csak így látszik, hogy a
  * lista teljes, és hogy egy meglévő besorolás is felülvizsgálható.
  *
+ * MEGERŐSÍTETT CÉGSZINTŰEK: amelyik allokáció jegyzete a "[CÉGSZINTŰ — MEGERŐSÍTVE"
+ * előtaggal kezdődik, az KIKERÜL a döntendők közül. Enélkül a munkafüzet minden körben
+ * újra felkínálná ugyanazt a hét számlát, mert a rendszer nem tud különbséget tenni
+ * "még nem néztük meg" és "átnéztük, cégszintű" között. (Szöveges jelölő, nem mező —
+ * ha tartós marad, rendes oszlopot érdemel.)
+ *
  *   node scripts/unassigned-invoices-workbook.js [kimenet.xlsx]
  */
 require('dotenv').config();
@@ -37,14 +43,18 @@ const SZAMLAK = `
          i.payment_status,
          (SELECT string_agg(coalesce(a.name,'ÁLTALÁNOS'),', ')
             FROM invoice_allocations al LEFT JOIN accommodations a ON a.id=al.accommodation_id
-           WHERE al.invoice_id=i.id) AS allokacio
+           WHERE al.invoice_id=i.id) AS allokacio,
+         EXISTS (SELECT 1 FROM invoice_allocations al2
+                  WHERE al2.invoice_id=i.id AND al2.accommodation_id IS NULL
+                    AND coalesce(al2.note,'') LIKE '[CÉGSZINTŰ — MEGERŐSÍTVE%') AS megerositett
     FROM invoices i LEFT JOIN invoice_categories ic ON ic.id=i.category_id
    WHERE i.deleted_at IS NULL
    ORDER BY i.invoice_date, i.invoice_number`;
 
 (async () => {
   const rows = (await query(SZAMLAK)).rows;
-  const nincsHaz = rows.filter((r) => !r.allokacio || r.allokacio.split(', ').every((x) => x === 'ÁLTALÁNOS'));
+  const nincsHaz = rows.filter((r) => !r.megerositett
+    && (!r.allokacio || r.allokacio.split(', ').every((x) => x === 'ÁLTALÁNOS')));
   const vanHaz = rows.filter((r) => !nincsHaz.includes(r));
 
   const FEJ = ['Dátum', 'Számlaszám', 'Szállító', 'Összeg (Ft)', 'Kategória', 'Leírás',
@@ -71,7 +81,9 @@ const SZAMLAK = `
     ['vagy azt, hogy: cégszintű'], [],
     ['SZÁLLÁSHELYEK'], ...szallasok.map((n) => ['', n]), [],
     ['MEGJEGYZÉS'],
-    ['"ÁLTALÁNOS" = van allokációs sor, de szállás nincs rajta (ma cégszintűként kezeljük).'],
+    ['"ÁLTALÁNOS" = van allokációs sor, de szállás nincs rajta (cégszintű).'],
+    ['A megerősített cégszintű számlák NEM szerepelnek a "Besorolandó" lapon — azokról'],
+    ['már született döntés. A "Már besorolt" lapon viszont ott vannak.'],
     ['"NINCS ALLOKÁCIÓ" = egyáltalán nincs allokációs sora — ez nyitott ügy, nem döntés.'],
   ];
   const sg = XLSX.utils.aoa_to_sheet(seged);
