@@ -221,6 +221,28 @@ and gets dearer every month.
 **Status:** open — a clean single path is being proposed (2026-09-15). Do NOT add another
 field to either table before it is decided.
 
+### ⚠️ TEST ACCOUNT IN OCCUPANCY — remove before closing any month
+
+`MOBIL-TESZT-ESZTI` (Teszt (mobil) Eszti, `eszti.teszt@housingsolutions.hu`) is assigned
+to **Fertőd** so the mobile app's "Saját szállásom" screen has something to show. She is
+NOT a real resident.
+
+**Before finalising a month, take her out of occupancy** — otherwise a person who does not
+exist appears in the settlement sheets and the occupant-night counts. The August round
+already had to purge a fabricated person-day for exactly this reason.
+
+Why the damage is limited in the meantime: `billing_client_id` and `workplace_id` are
+deliberately NULL, so no rate row matches her and she generates **zero revenue**; Fertőd is
+owner-occupied (`sajat_tulajdon`), so she generates **zero cost** too. What she does affect
+is the headcount and occupant-night statistics.
+
+The `workplace` field reads "TESZTFIÓK — NEM VALÓS LAKÓ" and the employee note says the
+same, so anyone opening the record sees it.
+
+Verified 2026-09-18: filing a ticket does NOT require an accommodation (the `tickets` table
+has no accommodation column). The assignment is needed **only** for the "Saját szállásom"
+screen — so she can be un-housed at any time without breaking ticket testing.
+
 ### Deduction line items on resident/client settlement sheets — OPEN QUESTION
 
 Deferred deliberately on 2026-09-15. The incoming-invoice line-item work (supplier deducts
