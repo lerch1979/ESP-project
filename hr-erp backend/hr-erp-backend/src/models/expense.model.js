@@ -8,7 +8,10 @@
 const crypto = require('crypto');
 
 const VALID_CATEGORIES = ['rezsi', 'karbantartas', 'takaritas', 'egyeb'];
-const VALID_SOURCES = ['manual', 'ai', 'email_ocr', 'import'];
+// 'invoice' szándékosan nincs itt: olyan sort csak a számla-szinkron képezhet, kézzel
+// nem. A 'landlord_utility_notice' viszont KÉZI rögzítés — a magánszemély bérbeadó
+// jelzi az összeget, szállítói számla a mi nevünkre nem keletkezik (mig 169).
+const VALID_SOURCES = ['manual', 'ai', 'email_ocr', 'import', 'landlord_utility_notice'];
 const VALID_STATUSES = ['pending_review', 'confirmed', 'rejected'];
 const VALID_PAYMENT_STATUSES = ['unpaid', 'paid', 'partial'];
 
@@ -331,6 +334,8 @@ function validateUpdate(data) {
     'approved_by', 'approved_at', 'payment_date', 'payment_status',
     // VAT fields (migration 114):
     'net_amount', 'vat_rate', 'vat_amount', 'vat_exemption_reason', 'is_reverse_vat',
+    // mig 169 — kinek utaljuk, ha nem a számlát kiállítónak
+    'payable_to_contractor_id',
   ];
   const hasValidField = Object.keys(data).some((key) => validFields.includes(key));
   if (!hasValidField) {

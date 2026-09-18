@@ -348,6 +348,12 @@ async function landlordSheet({ month, landlordId }) {
   // LEVONÁSOK: amit a szállásadó helyett fizettünk ki és visszajár tőle. A lista a hónap
   // végéig keletkezett NYITOTT követeléseket hozza — a korábbi hónapokból származókat
   // "áthozott" jelöléssel, hogy látszódjon, ha egy tétel hónapok óta görög.
+  // TOVÁBBHÁRÍTOTT REZSI — amit a bérbeadó fizetett a szolgáltatónak, és neki utalunk.
+  // Külön blokk a bérleti díj és a levonások között: a lap így mondja el a teljes
+  // egyenleget egyetlen dokumentumban, ahelyett hogy a rezsi külön csatornán mozogna.
+  const payables = await prepaid.payablesFor(landlordId, month);
+  const payableTotal = round2(payables.reduce((s2, x) => s2 + Number(x.amount), 0));
+
   const deductionRows = await prepaid.deductionsFor(landlordId, month);
   // A FELIRATOT itt állítjuk elő, nem a képernyőn: ugyanez a lap megy PDF-be, Excelbe és
   // a megosztott linkre is, és mindháromnak ugyanazt kell mondania. Az "áthozott" jelölés
@@ -369,17 +375,20 @@ async function landlordSheet({ month, landlordId }) {
     partner: ll.rows[0],
     accommodations,
     grid,
+    payables,
     deductions,
     totals: {
       bed_nights: accommodations.reduce((s, a) => s + a.bed_nights, 0),
       // What we owe. The landlord side has no VAT here: what we pay is driven by the
       // cost terms, and the landlord invoices us — their VAT is on THEIR document.
       cost_total: grossTotal,
-      // A bruttó és a fizetendő KÜLÖN szerepel, nem egyetlen csökkentett összegként:
-      // enélkül nem látszana, mi az eredeti díj és mi a korrekció.
+      // A HÁROM tétel KÜLÖN szerepel, nem egyetlen összevont összegként: enélkül nem
+      // látszana, mi az eredeti díj, mit hárított tovább a bérbeadó, és mi a korrekció.
+      // A Gede-eset pont ezen bukott el: a −6 123 Ft egyetlen soron állt, levezetés nélkül.
       gross_total: grossTotal,
+      payables_total: payableTotal,
       deductions_total: deductionTotal,
-      net_payable: Math.round((grossTotal - deductionTotal) * 100) / 100,
+      net_payable: round2(grossTotal + payableTotal - deductionTotal),
     },
   };
 }

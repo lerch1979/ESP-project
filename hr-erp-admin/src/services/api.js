@@ -333,6 +333,11 @@ export const settlementAPI = {
 
 // Számlakorrekció: az előre kiszámlázott ágyszám visszavezetése a tényleges foglaltságra.
 // A jóváhagyás külön hívás, nem a javaslat mellékhatása — a levonás valódi pénz.
+// Bizonylat nélküli költségek — a könyvelőnek átadható lista (mig 169).
+export const noDocumentAPI = {
+  list: async (params = {}) => (await api.get('/expenses/no-document', { params })).data,
+};
+
 export const billingCorrectionAPI = {
   open: async (contractor_id) =>
     (await api.get('/billing-corrections/open', { params: contractor_id ? { contractor_id } : {} })).data,

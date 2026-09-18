@@ -249,6 +249,45 @@ export default function Settlements() {
             </Table>
           </TableContainer>
 
+          {/* TOVÁBBHÁRÍTOTT REZSI — amit a bérbeadó fizetett a szolgáltatónak, és neki
+              utalunk. Külön blokk, mert a Gede-eset pont azon bukott el, hogy a végső
+              −6 123 Ft egyetlen soron állt: nem látszott, mi a bérleti díj, mi a rezsi
+              és mi a levonás. */}
+          {(sheet.payables || []).length > 0 && (
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell colSpan={2} sx={{ fontWeight: 700 }}>
+                      Továbbhárított rezsi — a bérbeadó fizette a szolgáltatónak, neki utaljuk
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sheet.payables.map((pl) => (
+                    <TableRow key={pl.expense_id}>
+                      <TableCell>
+                        {pl.label}
+                        {!pl.van_csatolmany && (
+                          <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
+                            nincs csatolt szolgáltatói számla
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>{fmtMoney(pl.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>továbbhárított rezsi összesen</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>
+                      {fmtMoney(sheet.totals.payables_total)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
           {/* KORREKCIÓS TÉTELSOROK — külön soron a díj alatt, hogy látszódjon, mi az eredeti
               díj és mi a levonás. Egy kézzel csökkentett végösszegből fél év múlva senki
               nem tudja visszafejteni, mi történt. */}

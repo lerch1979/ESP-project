@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { toast } from 'react-toastify';
 import RecoverableClaimsTab from '../components/finance/RecoverableClaimsTab';
+import NoDocumentTab from '../components/finance/NoDocumentTab';
 import CostCenterSelector from '../components/invoices/CostCenterSelector';
 import VendorAutocomplete from '../components/VendorAutocomplete';
 import { expensesAPI, profitAPI, operatingCostsAPI, accommodationsAPI, costCentersAPI, invoiceDraftsAPI, accountantSharesAPI, billingAPI } from '../services/api';
@@ -43,7 +44,7 @@ const TABS = ['expenses', 'drafts', 'runs', 'billings', 'shares', 'profit', 'ope
 const TAB_LABELS = [
   'Költségek', 'Beérkezett számlák', 'Számlázási futások',
   'Számlázások', 'Könyvelői hozzáférés', 'Profit dashboard', 'Üzemeltetési költségek',
-  'Megelőlegezett tételek',
+  'Megelőlegezett tételek', 'Bizonylat nélküli',
 ];
 
 // ────────────────────────────────────────────────────────────────────────
@@ -167,6 +168,8 @@ const EMPTY_FORM = {
   // Megelőlegezett tétel (mig 163): a szállásadó helyett fizettük ki, visszajár tőle.
   // Ilyenkor a tétel KÖVETELÉS, nem ráfordítás — a kimutatásokból kimarad.
   cost_bearer: 'sajat',
+  source: 'manual',
+  payable_to_contractor_id: '',
   recoverable_from_contractor_id: '',
   recovery_note: '',
 };
@@ -313,6 +316,8 @@ function ExpensesTab() {
       invoice_date: fmtDateInput(row.invoice_date),
       category: row.category || 'rezsi',
       cost_bearer: row.cost_bearer || 'sajat',
+      source: row.source || 'manual',
+      payable_to_contractor_id: row.payable_to_contractor_id || '',
       recoverable_from_contractor_id: row.recoverable_from_contractor_id || '',
       recovery_note: row.recovery_note || '',
       amount: row.amount != null ? String(row.amount) : '',
@@ -333,7 +338,8 @@ function ExpensesTab() {
     setVatAmountsManual(true);  // ditto for net/vat
     setStagedFiles([]);
     setExistingFiles(row.file_attachments || []);
-    setShowAdvanced(!!row.cost_center_id || !!row.is_reverse_vat || row.cost_bearer === 'megelolegezett');
+    setShowAdvanced(!!row.cost_center_id || !!row.is_reverse_vat || row.cost_bearer === 'megelolegezett'
+      || row.source === 'landlord_utility_notice');
     setDedupWarning(null);
     setOverrideNote('');
     setFormError('');
@@ -569,6 +575,9 @@ function ExpensesTab() {
       recoverable_from_contractor_id:
         form.cost_bearer === 'megelolegezett' ? (form.recoverable_from_contractor_id || null) : null,
       recovery_note: form.cost_bearer === 'megelolegezett' ? (form.recovery_note?.trim() || null) : null,
+      source: form.source === 'landlord_utility_notice' ? 'landlord_utility_notice' : undefined,
+      payable_to_contractor_id:
+        form.source === 'landlord_utility_notice' ? (form.payable_to_contractor_id || null) : null,
       ...extra,
     };
   };
@@ -1159,9 +1168,57 @@ function ExpensesTab() {
                     A "kitől jár vissza" nem külön választás: a kiválasztott ház
                     szállásadója az, és a gyakorlatban mindig ő. Egy második partner-lista
                     csak lehetőséget adna arra, hogy a követelés rossz partnerhez kerüljön. */}
+                {/* BÉRBEADÓI REZSI-JELZÉS — a magánszemélytől bérelt lakásoknál (Győr,
+                    Ungvár u., Szigetszentmiklós) a közüzemi szerződés a BÉRBEADÓ nevén
+                    van: ő fizeti a szolgáltatót, jelzi nekünk az összeget, és mi neki
+                    utaljuk. A mi nevünkre számla sosem keletkezik, ezért nincs levonható
+                    áfa sem — a szerver vissza is utasítja, ha valaki áfát ír rá. */}
                 <FormControlLabel
                   control={
                     <Checkbox
+                      checked={form.source === 'landlord_utility_notice'}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        const acc = accommodations.find((a) => a.id === form.accommodation_id);
+                        setForm((f) => ({
+                          ...f,
+                          source: on ? 'landlord_utility_notice' : 'manual',
+                          payable_to_contractor_id: on ? (acc?.current_contractor_id || '') : '',
+                          // áfa nem értelmezhető: nincs a nevünkre szóló számla
+                          vat_rate: on ? '' : f.vat_rate,
+                          vat_amount: on ? '' : f.vat_amount,
+                          net_amount: on ? '' : f.net_amount,
+                          // a kettő kizárja egymást: vagy MI tartozunk neki, vagy ő nekünk
+                          cost_bearer: on ? 'sajat' : f.cost_bearer,
+                        }));
+                      }}
+                    />
+                  }
+                  label="Bérbeadói rezsi-jelzés — nincs szállítói számla, a bérbeadó jelezte az összeget"
+                />
+                {form.source === 'landlord_utility_notice' && (() => {
+                  const acc = accommodations.find((a) => a.id === form.accommodation_id);
+                  const nev = acc?.current_contractor_name;
+                  return nev ? (
+                    <Alert severity="info" sx={{ py: 0.5 }}>
+                      A teljes összeget <strong>{nev}</strong> felé fizetjük, és a szállásadói
+                      elszámoló lapon a bérleti díj mellett jelenik meg.{' '}
+                      <strong>Áfabontás nélkül</strong> — nevünkre szóló számla híján nincs mit
+                      levonni. A tétel felkerül a könyvelőnek átadható „bizonylat nélküli" listára;
+                      ha van a szolgáltatói számláról fotó vagy PDF, csatold a rögzítés után.
+                    </Alert>
+                  ) : (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                      Ehhez a szálláshoz nincs szállásadó rögzítve, így nincs kinek utalni.
+                      Előbb állítsd be a szálláshely szállásadóját.
+                    </Alert>
+                  );
+                })()}
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      disabled={form.source === 'landlord_utility_notice'}
                       checked={form.cost_bearer === 'megelolegezett'}
                       onChange={(e) => {
                         const on = e.target.checked;
@@ -2704,6 +2761,7 @@ export default function Billing() {
       {tabIdx === 5 && <ProfitTab />}
       {tabIdx === 6 && <OperatingCostsTab />}
       {tabIdx === 7 && <RecoverableClaimsTab />}
+      {tabIdx === 8 && <NoDocumentTab />}
     </Box>
   );
 }

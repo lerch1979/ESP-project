@@ -80,6 +80,42 @@ async function deductionsFor(contractorId, month) {
 }
 
 /**
+ * TOVÁBBHÁRÍTOTT REZSI — amit a bérbeadó fizetett ki a szolgáltatónak, és mi neki utalunk.
+ *
+ * Nem levonás és nem követelés: FIZETENDŐ. A bérleti díj mellé jön, mert ugyanannak a
+ * partnernek megy ugyanabban az utalásban. Enélkül a szállásadói lap csak a bérleti díjat
+ * mutatná, a rezsi pedig egy külön csatornán, egyeztetés nélkül mozogna.
+ *
+ * Csak a `landlord_utility_notice` forrású tételeket hozza: egy sima szállítói számla
+ * akkor sem tartozik ide, ha véletlenül ki van töltve rajta a payable_to.
+ */
+async function payablesFor(landlordId, month) {
+  const r = await query(`
+    SELECT e.id, e.amount, e.category, e.utility_line, e.vendor_name, e.notes,
+           e.performance_date, e.billing_month,
+           a.name AS accommodation_name,
+           COALESCE(jsonb_array_length(e.file_attachments), 0) > 0 AS van_csatolmany
+      FROM accommodation_expenses e
+      JOIN accommodations a ON a.id = e.accommodation_id
+     WHERE e.payable_to_contractor_id = $1
+       AND e.source = 'landlord_utility_notice'
+       AND e.billing_month = $2
+       AND e.deleted_at IS NULL
+     ORDER BY a.name, e.performance_date`, [landlordId, month]);
+
+  return r.rows.map((x) => ({
+    expense_id: x.id,
+    accommodation_name: x.accommodation_name,
+    amount: Number(x.amount),
+    label: `${x.vendor_name || x.category} — ${x.accommodation_name}`,
+    // Enélkül nem látszik, mi támasztja alá: a bérbeadó puszta közlése, vagy a
+    // szolgáltatói számla fotója. A könyvelőnek ez a különbség számít.
+    van_csatolmany: x.van_csatolmany,
+    note: x.notes || null,
+  }));
+}
+
+/**
  * Levonás rögzítése: a követelés (részben vagy egészben) beszámítva egy havi elszámolásba.
  *
  * Részleges levonás azért lehetséges, mert a havi fizetendő kevesebb is lehet a
@@ -124,4 +160,4 @@ async function recordRecovery({ expenseId, month, amount, note = null, userId = 
   return { recovered: levon, remaining: Number(e.amount) - ujTotal, status_after: kesz ? 'levonva' : 'nyitott' };
 }
 
-module.exports = { openClaims, deductionsFor, recordRecovery };
+module.exports = { openClaims, deductionsFor, payablesFor, recordRecovery };

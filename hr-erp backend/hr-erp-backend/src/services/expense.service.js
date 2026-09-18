@@ -227,6 +227,29 @@ class ExpenseService {
       performance_date: data.performance_date,
     });
 
+    // BÉRBEADÓI REZSI-JELZÉSNÉL NINCS LEVONHATÓ ÁFA. A számla a bérbeadó nevén van, a
+    // 27% nem igényelhető vissza — egy áfabontás itt azt állítaná, hogy igen. Ezért nem
+    // csendben nullázzuk (az elfedné a hibát), hanem visszautasítjuk: aki áfát ír egy
+    // jelzésre, félreérti a tételt, és jobb, ha ezt most tudja meg, nem a könyvelésnél.
+    if (data.source === 'landlord_utility_notice') {
+      const vanAfa = (data.vat_rate != null && data.vat_rate !== '' && Number(data.vat_rate) > 0)
+        || (data.vat_amount != null && data.vat_amount !== '' && Number(data.vat_amount) > 0);
+      if (vanAfa) {
+        return {
+          error: 'Bérbeadói rezsi-jelzésnél nincs levonható áfa (a számla a bérbeadó nevén van). '
+               + 'A jelzett összeg a teljes költség — áfabontás nélkül rögzítendő.',
+          status: 400,
+        };
+      }
+      if (!data.payable_to_contractor_id) {
+        return {
+          error: 'Bérbeadói rezsi-jelzésnél meg kell adni, KINEK utaljuk az összeget '
+               + '(payable_to_contractor_id) — enélkül a tétel egyetlen elszámoló lapra sem kerül fel.',
+          status: 400,
+        };
+      }
+    }
+
     // VAT auto-fill — only when vat_rate provided AND net/vat omitted.
     const vatSplit = deriveVatSplit({
       amount: data.amount,
@@ -245,7 +268,8 @@ class ExpenseService {
         net_amount, vat_rate, vat_amount, vat_exemption_reason, is_reverse_vat,
         original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status,
         vendor_contractor_id,
-        cost_bearer, recoverable_from_contractor_id, recovery_status, recovery_note
+        cost_bearer, recoverable_from_contractor_id, recovery_status, recovery_note,
+        payable_to_contractor_id
        ) VALUES (
         $1, $2, $3, $4, COALESCE($5, 'HUF'),
         $6, $7, $8, $9,
@@ -254,7 +278,8 @@ class ExpenseService {
         COALESCE($17, 'manual'), $18, COALESCE($19, 'confirmed'), $20, COALESCE($21, 'unpaid'),
         $22, $23, $24, $25, COALESCE($26, FALSE),
         $27, $28, $29, $30, $31, $32,
-        COALESCE($33, 'sajat'), $34, $35, $36
+        COALESCE($33, 'sajat'), $34, $35, $36,
+        $37
        ) RETURNING *`,
       [
         data.accommodation_id,
@@ -294,6 +319,12 @@ class ExpenseService {
         data.cost_bearer === 'megelolegezett' ? (data.recoverable_from_contractor_id || null) : null,
         data.cost_bearer === 'megelolegezett' ? 'nyitott' : null,
         data.cost_bearer === 'megelolegezett' ? (data.recovery_note || null) : null,
+        // BÉRBEADÓI REZSI-JELZÉS: nincs szállítói számla a mi nevünkön, az összeget a
+        // bérbeadó jelzi, és NEKI utaljuk. A mező a recoverable_from párja — az "ő
+        // tartozik nekünk", ez a "mi tartozunk neki" —, és ettől kerül rá a tétel a
+        // szállásadói elszámoló lapra. A migráció CHECK-je kötelezővé is teszi ennél a
+        // forrásnál: enélkül a költség egyetlen lapra sem kerülne fel, és némán eltűnne.
+        data.payable_to_contractor_id || null,
       ],
     );
 

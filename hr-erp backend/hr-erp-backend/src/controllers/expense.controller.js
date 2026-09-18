@@ -440,6 +440,62 @@ const deleteFile = async (req, res) => {
  * előtt egy követelést, az látszódjon. Egy sima nyitott-lista ezt elrejtené — ugyanúgy
  * nézne ki a 23 000 Ft az első és a hatodik hónapban.
  */
+/**
+ * BIZONYLAT NÉLKÜLI KÖLTSÉGEK — a könyvelőnek egy körben átadható lista.
+ *
+ * Tulajdonosi döntés 2026-09-18: ez NEM blokkol semmit, csak látszódjon és legyen
+ * lekérdezhető. Két dolgot gyűjt, mert a könyvelő szempontjából mindkettő ugyanaz a
+ * kérdés — "mi támasztja alá?":
+ *   • bérbeadói rezsi-jelzés (soha nem is lesz hozzá a mi nevünkre szóló számla),
+ *   • minden más olyan tétel, amihez se számla, se csatolmány nem tartozik.
+ *
+ * A `van_csatolmany` mező azért külön áll, mert egy jelzés a szolgáltatói számla
+ * fotójával egészen más súlyú, mint egy puszta közlés — de egyik sem a mi számlánk.
+ */
+const noDocument = async (req, res) => {
+  try {
+    const params = [];
+    let where = `e.deleted_at IS NULL AND (
+        e.source = 'landlord_utility_notice'
+        OR (e.invoice_id IS NULL AND COALESCE(jsonb_array_length(e.file_attachments), 0) = 0)
+      )`;
+    if (/^\d{4}-\d{2}$/.test(req.query.month || '')) {
+      params.push(req.query.month); where += ` AND e.billing_month = $${params.length}`;
+    }
+    if (req.query.from && req.query.to) {
+      params.push(req.query.from, req.query.to);
+      where += ` AND e.billing_month BETWEEN $${params.length - 1} AND $${params.length}`;
+    }
+
+    const r = await query(`
+      SELECT e.id, e.billing_month, e.category, e.amount, e.net_amount, e.vat_amount,
+             e.source, e.vendor_name, e.performance_date, e.notes,
+             a.name AS accommodation_name,
+             p.name AS payable_to_name,
+             COALESCE(jsonb_array_length(e.file_attachments), 0) > 0 AS van_csatolmany
+        FROM accommodation_expenses e
+        JOIN accommodations a ON a.id = e.accommodation_id
+        LEFT JOIN contractors p ON p.id = e.payable_to_contractor_id
+       WHERE ${where}
+       ORDER BY e.billing_month DESC, a.name`, params);
+
+    const osszeg = r.rows.reduce((s, x) => s + Number(x.amount || 0), 0);
+    res.json({
+      success: true,
+      data: {
+        rows: r.rows,
+        osszesen: Math.round(osszeg * 100) / 100,
+        db: r.rows.length,
+        jelzes: r.rows.filter((x) => x.source === 'landlord_utility_notice').length,
+        csatolmannyal: r.rows.filter((x) => x.van_csatolmany).length,
+      },
+    });
+  } catch (e) {
+    logger.error('[expense.noDocument]', e.message);
+    res.status(500).json({ success: false, message: 'Lekérdezési hiba' });
+  }
+};
+
 const recoverable = async (req, res) => {
   try {
     const out = await prepaid.openClaims({
@@ -491,6 +547,7 @@ const recover = async (req, res) => {
 };
 
 module.exports = {
+  noDocument,
   getAll, getById, create, update, remove, checkDuplicates,
   uploadFile, downloadFile, deleteFile,
   uploadWithErrorHandling,

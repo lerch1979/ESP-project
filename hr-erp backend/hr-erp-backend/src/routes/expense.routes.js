@@ -14,6 +14,8 @@ router.post('/check-duplicates', checkPermission('finance.view'), expenseControl
 // A fix útvonal a '/:id' ELŐTT — különben a paraméteres nyeli el (a /employees/completeness
 // éles 500-asa pont ezen múlt).
 router.get('/recoverable', checkPermission('finance.view'), expenseController.recoverable);
+// Bizonylat nélküli tételek — a könyvelőnek átadható lista. Fix útvonal a '/:id' ELŐTT.
+router.get('/no-document', checkPermission('finance.view'), expenseController.noDocument);
 router.get('/:id',  checkPermission('finance.view'), expenseController.getById);
 router.post('/',    checkPermission('finance.edit'), expenseController.create);
 router.put('/:id',  checkPermission('finance.edit'), expenseController.update);

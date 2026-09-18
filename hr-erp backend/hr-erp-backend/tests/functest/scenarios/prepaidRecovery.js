@@ -162,5 +162,87 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'PRE-09',
+      name: 'BÉRBEADÓI REZSI-JELZÉS: költség szállítói számla nélkül, a bérbeadónak fizetendő',
+      expected: { created: 201, forras: 'landlord_utility_notice', kinek_fizetjuk: true, nincs_szamla: true },
+      hint: 'a közüzemi szerződés a bérbeadó nevén van — a mi nevünkre számla sosem keletkezik',
+      run: async (ctx, s) => {
+        const r = await http.post('/expenses', { token: s.t, body: {
+          accommodation_id: s.acc.id, billing_month: '2026-10', category: 'rezsi',
+          amount: 12420, vendor_name: 'PRE Távhő Zrt (bérbeadó jelzése)',
+          performance_date: '2026-10-05',
+          source: 'landlord_utility_notice', payable_to_contractor_id: s.landlord,
+          notes: 'Távhő 2026.08.01.–09.30., a bérbeadó jelezte' } });
+        s.jelzes = r.body?.data?.id || r.body?.data?.expense?.id;
+        const e = (await query(
+          `SELECT source, payable_to_contractor_id, invoice_id, cost_bearer
+             FROM accommodation_expenses WHERE id=$1`, [s.jelzes])).rows[0];
+        return {
+          created: r.status, forras: e?.source,
+          kinek_fizetjuk: e?.payable_to_contractor_id === s.landlord,
+          nincs_szamla: e?.invoice_id === null,
+        };
+      },
+    },
+    {
+      id: 'PRE-10',
+      name: 'a jelzésre NEM tehető áfa — nevünkre szóló számla híján nincs mit levonni',
+      expected: { elutasitva: 400, says_why: true, kell_kinek: 400 },
+      hint: 'egy áfabontás itt azt állítaná, hogy a 27% visszaigényelhető',
+      run: async (ctx, s) => {
+        const afas = await http.post('/expenses', { token: s.t, body: {
+          accommodation_id: s.acc.id, billing_month: '2026-10', category: 'rezsi',
+          amount: 5000, vendor_name: 'PRE Áfás Jelzés', performance_date: '2026-10-06',
+          source: 'landlord_utility_notice', payable_to_contractor_id: s.landlord,
+          vat_rate: 0.27 } });
+        const nincsKinek = await http.post('/expenses', { token: s.t, body: {
+          accommodation_id: s.acc.id, billing_month: '2026-10', category: 'rezsi',
+          amount: 5001, vendor_name: 'PRE Címzett Nélkül', performance_date: '2026-10-06',
+          source: 'landlord_utility_notice' } });
+        return {
+          elutasitva: afas.status,
+          says_why: /levonható áfa/i.test(afas.body?.message || ''),
+          kell_kinek: nincsKinek.status,
+        };
+      },
+    },
+    {
+      id: 'PRE-11',
+      name: 'a szállásadói lapon HÁROM blokk: bérleti díj + továbbhárított rezsi − levonások',
+      expected: { ok: 200, van_fizetendo_blokk: true, egyenleg_stimmel: true },
+      hint: 'a Gede-eset azon bukott el, hogy a −6 123 Ft egyetlen soron állt, levezetés nélkül',
+      run: async (ctx, s) => {
+        const lap = await http.get('/settlements/landlord/preview', {
+          token: s.t, query: { partner_id: s.landlord, month: '2026-10' } });
+        const t = lap.body?.data?.totals || {};
+        const payables = lap.body?.data?.payables || [];
+        return {
+          ok: lap.status,
+          van_fizetendo_blokk: payables.length > 0 && payables.some((x) => Number(x.amount) === 12420),
+          // bérleti díj + továbbhárított rezsi − levonások
+          egyenleg_stimmel: Math.abs(
+            Number(t.net_payable) - (Number(t.gross_total) + Number(t.payables_total) - Number(t.deductions_total))
+          ) < 1,
+        };
+      },
+    },
+    {
+      id: 'PRE-12',
+      name: 'a BIZONYLAT NÉLKÜLI tételek egy lekérdezéssel átadhatók a könyvelőnek',
+      expected: { ok: 200, tartalmazza: true, jelzes_szamlalva: true, csatolmany_jelolve: true },
+      hint: 'nem blokkol semmit — csak legyen látható és lekérdezhető',
+      run: async (ctx, s) => {
+        const r = await http.get('/expenses/no-document', { token: s.t, query: { month: '2026-10' } });
+        const d = r.body?.data || {};
+        return {
+          ok: r.status,
+          tartalmazza: (d.rows || []).some((x) => x.id === s.jelzes),
+          jelzes_szamlalva: Number(d.jelzes) >= 1,
+          // a csatolmány megléte külön mezőben — egy fotóval alátámasztott jelzés más súlyú
+          csatolmany_jelolve: (d.rows || []).every((x) => typeof x.van_csatolmany === 'boolean'),
+        };
+      },
+    },
   ],
 };
