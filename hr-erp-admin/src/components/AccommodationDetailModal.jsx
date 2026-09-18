@@ -46,18 +46,12 @@ import {
 import { accommodationsAPI, contractorsAPI, roomsAPI, employeesAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import CreateContractorModal from './CreateContractorModal';
+import {
+  ACCOMMODATION_STATUS_LABELS, ACCOMMODATION_STATUS_COLORS, ACCOMMODATION_STATUS_OPTIONS,
+} from '../constants/accommodationStatus';
 
-const STATUS_LABELS = {
-  available: 'Szabad',
-  occupied: 'Foglalt',
-  maintenance: 'Karbantartás',
-};
-
-const STATUS_COLORS = {
-  available: 'success',
-  occupied: 'warning',
-  maintenance: 'error',
-};
+const STATUS_LABELS = ACCOMMODATION_STATUS_LABELS;
+const STATUS_COLORS = ACCOMMODATION_STATUS_COLORS;
 
 const TYPE_LABELS = {
   studio: 'Stúdió',
@@ -615,9 +609,9 @@ function AccommodationDetailModal({ open, onClose, accommodationId, onSuccess })
                     onChange={(e) => handleChange('status', e.target.value)}
                     label="Státusz"
                   >
-                    <MenuItem value="available">Szabad</MenuItem>
-                    <MenuItem value="occupied">Foglalt</MenuItem>
-                    <MenuItem value="maintenance">Karbantartás</MenuItem>
+                    {ACCOMMODATION_STATUS_OPTIONS.map((o) => (
+                      <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>

@@ -243,6 +243,63 @@ Verified 2026-09-18: filing a ticket does NOT require an accommodation (the `tic
 has no accommodation column). The assignment is needed **only** for the "Saját szállásom"
 screen — so she can be un-housed at any time without breaking ticket testing.
 
+### ⚠️ BUDAPEST OFFICE — 3 houses live, 12 people NOT YET IMPORTED (2026-09-18)
+
+The MiniCRM contract export was reconciled. The four disputed rates were **confirmed as
+already correct in the system** (Röjtökmuzsaj flat 4 950 000, Beled 2 200, Bük/Csécsenyi
+2 400, Fertőrákos 1 727 230 net = 2 193 583 gross) — MiniCRM holds the stale values, not us.
+
+**The megbízó was split in two, deliberately.** `Man At Work` → **`Man At Work Győr`**
+(338 employees, unchanged — they link by id); **`Man At Work Budapest`** is new. Same
+company, two sites, separate invoicing. The pair is registered in `vendor_keep_separate`
+so the duplicate-merge tooling refuses to join them even with `--force`.
+
+⚠️ **Any import file that still says plain "Man At Work" will now fail** with
+`Ismeretlen megbízó`. The name must be `Man At Work Győr` or `Man At Work Budapest`.
+
+**Three houses carry cost with no residents — on purpose.** The 12 people of the Budapest
+office (Ungvár 5, Szigetszentmiklós 3, Győr 4) are **not in the system yet**; this is known,
+not a data fault. Revenue rates (3 500 Ft/fő/éj, Man At Work Budapest) are **already
+recorded on all three**, so billing starts by itself the moment the people land.
+
+| Ház | Bérbeadó | Bérleti díj | Rezsi | Fő |
+|---|---|---|---|---|
+| Budapest, Ungvár u. 2. | Lovászné Hideghéthy Rita | 200 000 Ft/hó, ÁFAMENTES | mi fizetjük, eseti | 5 |
+| Győr | Gede László | 200 000 Ft/hó | **külön, utólagos elszámolással** | 4 |
+| Szigetszentmiklós, Komp u. | Bihari Ildikó | 150 000 Ft/hó, ÁFAMENTES | mi fizetjük, eseti | 3 |
+| Kapuvár, Szent László u. 12. | Ré-Levu Kft. | 3 000 Ft/fő/éj | — | tartalék, 11 férőhely |
+
+**⚠️ That 550 000 Ft/hó is not "showing as a loss" — it is showing NOWHERE.** The billing
+engine drives off `occupancy_snapshots` (billingEngine.service.js:456-463), so a house with
+no assigned residents produces no billing row, and the rent on `accommodations.rent_amount`
+never becomes a cost. The profit view unions billing rows with `accommodation_expenses`
+(profit.service.js:157), so such a house appears **only** if an invoice was classified to it
+— today that is just Győr, with a single 14 560 Ft utility row. The rent lands either when
+the people are imported, or when the landlords' rent invoices are uploaded and classified.
+
+**⚠️ OPEN — the 52–62% margin on these three flats is OVERSTATED.** Full-occupancy
+projection: Ungvár 525 000 − 200 000 = **61,9%**, Győr 420 000 − 200 000 = **52,4%**,
+Szigetszentmiklós 315 000 − 150 000 = **52,4%**. Every one of those figures counts **rent
+only**. The utilities on all three are ours — eseti (alkalmankénti) at Ungvár and
+Szigetszentmiklós, separately invoiced in arrears at Győr — and **not one of them is on the
+cost side yet**. The margin will drop as the utility invoices arrive and get classified to
+these accommodations; the number is not wrong, it is incomplete. Do not quote it as final,
+and do not treat the later drop as a regression. Nothing to fix in code — this resolves
+itself through normal invoice intake.
+
+**Still missing, by house** — nothing here may be guessed:
+
+| Hiány | Szállások |
+|---|---|
+| bérleti szerződés a rendszerben | mind, Beled / Fertőszéplak / Sarród I. kivételével |
+| ÁFA-kezelés (`rent_vat_treatment`) | **Győr**, **Kapuvár**, Petőháza, Sarród I., Sarród II. |
+| bevételi díj (`client_night_rates`) | **Kapuvár** |
+| lakók | Budapest Ungvár (5), Szigetszentmiklós (3), Győr (4) — kitöltő Excel kiadva |
+| pontos cím | Szigetszentmiklós (házszám) |
+
+**Röjtökmuzsaj: planned switch to per-person/night.** Officially flat 4 950 000 Ft/hó today.
+When the switch happens, `rent_basis` moves to `per_bed_night` with the agreed rate.
+
 ### Deduction line items on resident/client settlement sheets — OPEN QUESTION
 
 Deferred deliberately on 2026-09-15. The incoming-invoice line-item work (supplier deducts
@@ -274,6 +331,7 @@ solution cannot express.
 | **⚠️ Cost-side minimums are recorded but NOT billed** | medium | mig 147 added `accommodation_rent_rates.min_bed_nights` / `min_monthly_amount` so the board can tell a per-use contract with a floor from one without. They are **classification only** — `billingEngine.computeRentCost` does not floor the monthly cost at the minimum. No current contract has one, so nothing is mispriced today, but setting a minimum records a contractual fact that is not enforced in money. Enforcing it changes billing output and deserves its own round with its own tests. |
 | **🔒 No month-close: `finalized` is read as a guard but nothing ever sets it** | **medium** | `billingEngine.calculateMonthlyBilling` refuses to re-bill a run whose status is `finalized` ("cancel via controller before re-billing") — but **no code path anywhere sets that status**, and there is no finalize endpoint. Every run therefore stays `calculated`/`draft` forever and is silently cancelled-and-replaced by the next re-bill. Found 2026-09-02 while entering the real Sarród I. rate change: August 2026 was `calculated`, so nothing protected it from a re-computation. Effective-dated cost rates (mig 146) remove the *rate* restatement risk, but a re-bill still re-derives a closed month from current occupancy, expenses and client rates. **Wanted: a proper month-close** — an explicit action that sets `finalized`, with an auditable un-close. Until then no month is genuinely locked. |
 | **🧹 A re-bill leaves the previous run's `accommodation_billings` rows behind** | low | `calculateMonthlyBilling` cancels the old `billing_runs` row and INSERTs a fresh set of billings, but never deletes the superseded ones. Reads that filter only on `(accommodation_id, billing_month)` can therefore pick up a stale row — this produced a **false PASS** in a test of mine before it was caught (the re-bill looked like a no-op because the query returned the pre-change row). Correct pattern, used by the profit dashboard and now by the cost tests: `JOIN billing_runs … WHERE br.status <> 'cancelled'`. Consider either deleting superseded rows on re-bill or adding a view that only exposes live ones. |
+| **Budapest flats: utilities missing from the cost side** | low | Ungvár / Győr / Szigetszentmiklós show a 52–62% rent-only margin. Utilities are ours on all three (eseti at two, invoiced in arrears at Győr) and none has reached `accommodation_expenses`, so the margin overstates. Self-resolving as the invoices arrive and get classified — see the Budapest office section above. |
 | **Prod SMTP not configured** | **medium** | `SMTP_USER`/`SMTP_PASS` (or `EMAIL_USER`/`EMAIL_PASSWORD`) are unset on prod — only GMAIL OAuth is set. So scheduled-report **emails don't deliver** (`Missing credentials for "PLAIN"`). Mitigated 2026-07-05: report outputs are now stored + **downloadable in the admin** (Ütemezett riportok → Előzmények → Letöltés) regardless of email. To restore email delivery, set SMTP creds in the prod `.env` (Gmail app-password or a real SMTP). Ties to the "personal-gmail sender" open item. |
 | **`OPS_ALERT_WEBHOOK` unset on prod** | low | Backend `alertOps()` + the shell disk-alert both post to a Slack webhook in `OPS_ALERT_WEBHOOK` (in `~/hr-erp/backup.env`). Until set, alerts **log loudly** (error log) but don't reach Slack. Add a Slack incoming-webhook URL to `backup.env` to activate push alerts for cron failures + disk/backup. |
 | ~~`uploads/expenses/` not in backup cron~~ ✅ RESOLVED (verified 2026-07-04) | — | STALE. The nightly `backup.sh` (line 20) already tars all of `/app/uploads` → `uploads-$STAMP.tgz` with the same rotation/retention as the DB dump. Verified on prod: a manual backup produced an archive containing real files under `uploads/expenses/2026/06/<id>/…pdf`, `uploads/tickets/…`, `uploads/documents/…`, `uploads/employees/…`. **Offsite (P0-1) — 2026-07-06:** `backup.sh` now produces **AES-256-encrypted** offsite copies (`backups/offsite/*.enc`), pushes **only** encrypted artifacts via rsync (`--delete` mirror, 30-day retention), and **alerts on any failure** via `OPS_ALERT_WEBHOOK`. Encrypt→decrypt→`pg_restore`→data-intact + uploads-extract **verified** from the encrypted copy (see `docs/BACKUP_RESTORE.md`). **Remaining owner action:** provision a Hetzner Storage Box + add the backup pubkey + fill `STORAGEBOX_HOST/USER` in `backup.env` (steps in the doc) — until then offsite is "SKIPPED, local only". `BACKUP_ENCRYPTION_KEY` is on the VM; **store it off-server (password manager)** for DR. S3 migration remains a future decision (`storage.service.js` is the pluggable seam). |

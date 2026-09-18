@@ -27,6 +27,9 @@ import CreateAccommodationModal from '../components/CreateAccommodationModal';
 import AccommodationDetailModal from '../components/AccommodationDetailModal';
 import FilterBuilder from '../components/FilterBuilder';
 import ResponsiveTable from '../components/ResponsiveTable';
+import {
+  ACCOMMODATION_STATUS_LABELS, ACCOMMODATION_STATUS_COLORS, ACCOMMODATION_STATUS_OPTIONS,
+} from '../constants/accommodationStatus';
 
 const ACCOMMODATION_FILTER_FIELDS = [
   { key: 'status', label: 'Állapot', type: 'preset' },
@@ -35,11 +38,7 @@ const ACCOMMODATION_FILTER_FIELDS = [
 ];
 
 const ACCOMMODATION_PRESET_VALUES = {
-  status: [
-    { value: 'available', label: 'Szabad' },
-    { value: 'occupied', label: 'Foglalt' },
-    { value: 'maintenance', label: 'Karbantartás' },
-  ],
+  status: ACCOMMODATION_STATUS_OPTIONS,
   type: [
     { value: 'studio', label: 'Stúdió' },
     { value: '1br', label: '1 szobás' },
@@ -49,17 +48,8 @@ const ACCOMMODATION_PRESET_VALUES = {
   ],
 };
 
-const STATUS_LABELS = {
-  available: 'Szabad',
-  occupied: 'Foglalt',
-  maintenance: 'Karbantartás',
-};
-
-const STATUS_COLORS = {
-  available: 'success',
-  occupied: 'warning',
-  maintenance: 'error',
-};
+const STATUS_LABELS = ACCOMMODATION_STATUS_LABELS;
+const STATUS_COLORS = ACCOMMODATION_STATUS_COLORS;
 
 const TYPE_LABELS = {
   studio: 'Stúdió',

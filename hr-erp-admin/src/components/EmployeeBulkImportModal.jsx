@@ -34,22 +34,28 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
   const fileInputRef = useRef(null);
 
   const downloadTemplate = () => {
+    // A 'Megbízó', 'Nemzetiség' és 'Nyelv' oszlop hiányzott innen, pedig az import
+    // MINDHÁRMAT felismeri (employee.controller.js COLUMN_MAP). A Megbízó hiánya a
+    // súlyos: enélkül a billing_client_id üres marad, és az ember bekerül a rendszerbe
+    // úgy, hogy EGYETLEN SZÁMLÁRA SEM kerül rá — pontosan ez okozott 15,2%-os
+    // bevételkiesést a kiléptetetteknél.
     const headers = [
       'Vezetéknév', 'Keresztnév', 'Nem', 'Születési dátum', 'Születési hely',
-      'Anyja neve', 'Családi állapot', 'Adóazonosító', 'Útlevélszám', 'TAJ szám',
-      'Email', 'Telefon', 'Munkakör', 'Törzsszám', 'Munkahely',
-      'Érkezés dátuma', 'Vízum lejárat', 'Szálláshely', 'Szobaszám',
-      'Bankszámlaszám', 'Irányítószám', 'Ország', 'Megye', 'Város',
-      'Utca', 'Házszám', 'Cégnév', 'Céges email', 'Céges telefon',
+      'Anyja neve', 'Nemzetiség', 'Nyelv', 'Családi állapot', 'Adóazonosító',
+      'Útlevélszám', 'TAJ szám', 'Email', 'Telefon', 'Munkakör',
+      'Törzsszám', 'Munkahely', 'Megbízó', 'Érkezés dátuma', 'Vízum lejárat',
+      'Szálláshely', 'Szobaszám', 'Bankszámlaszám', 'Irányítószám', 'Ország',
+      'Megye', 'Város', 'Utca', 'Házszám', 'Cégnév', 'Céges email', 'Céges telefon',
     ];
 
     const exampleRow = [
       'Kovács', 'János', 'Férfi', '1990-05-15', 'Budapest',
-      'Nagy Mária', 'Nős', '8461234567', 'BA1234567', '123 456 789',
-      'kovacs.janos@example.com', '+36301234567', 'Villanyszerelő', 'EMP-0001', 'Budapest központ',
-      '2026-01-15', '2027-01-15', 'Fő utca szálló', '101',
-      'HU12 1234 5678 9012 3456 7890 1234', '1011', 'Magyarország', 'Pest', 'Budapest',
-      'Fő utca', '12/A', 'Housing Solutions Kft', 'kovacs@housingsolutions.hu', '+3612345678',
+      'Nagy Mária', 'HU', 'hu', 'Nős', '8461234567',
+      'BA1234567', '123 456 789', 'kovacs.janos@example.com', '+36301234567', 'Villanyszerelő',
+      'EMP-0001', 'Budapest központ', 'Man At Work Budapest', '2026-01-15', '2027-01-15',
+      'Fő utca szálló', '101', 'HU12 1234 5678 9012 3456 7890 1234', '1011', 'Magyarország',
+      'Pest', 'Budapest', 'Fő utca', '12/A', 'Housing Solutions Kft',
+      'kovacs@housingsolutions.hu', '+3612345678',
     ];
 
     // Data sheet
@@ -77,6 +83,8 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
       ['Születési dátum', 'Formátum: ÉÉÉÉ-HH-NN'],
       ['Születési hely', 'Település neve'],
       ['Anyja neve', 'Teljes név'],
+      ['Nemzetiség', 'Kétbetűs kód: HU, UA, PH, RO, RS…'],
+      ['Nyelv', 'hu / en / uk / tl / de — a lakói app és a kiküldött üzenetek nyelve'],
       ['Családi állapot', 'Pl. Egyedülálló, Házas, Nős, Elvált'],
       ['Adóazonosító', '10 számjegyű adóazonosító jel'],
       ['Útlevélszám', 'Útlevél száma'],
@@ -86,6 +94,7 @@ function EmployeeBulkImportModal({ open, onClose, onSuccess }) {
       ['Munkakör', 'Betöltött pozíció/munkakör'],
       ['Törzsszám', 'Alkalmazotti azonosító (ha üres, automatikusan generálódik)'],
       ['Munkahely', 'Munkavégzés helye'],
+      ['Megbízó', 'A rendszerben létező megbízó NEVE. Enélkül az ember nem kerül számlára!'],
       ['Érkezés dátuma', 'Munkába állás dátuma (ÉÉÉÉ-HH-NN)'],
       ['Vízum lejárat', 'Vízum lejárati dátuma (ÉÉÉÉ-HH-NN)'],
       ['Szálláshely', 'A rendszerben létező szálláshely neve'],

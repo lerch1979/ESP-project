@@ -27,3 +27,9 @@ scripts/*.secret.json
 
 # Tesseract OCR language models (~10 MB each, auto-downloaded at runtime)
 *.traineddata
+
+# Sandbox futtató segédfájljai (logok, pid-ek) — futásidejű szemét
+.sandbox-run/
+
+# Generált kitöltő munkafüzetek a repó gyökerében — a scriptjükből bármikor újraképezhetők
+/*.xlsx
