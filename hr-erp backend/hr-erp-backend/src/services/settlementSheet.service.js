@@ -29,6 +29,7 @@
  */
 const { query } = require('../database/connection');
 const prepaid = require('./prepaidRecovery.service');
+const corrections = require('./billingCorrection.service');
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
@@ -37,6 +38,7 @@ class SettlementError extends Error {
 }
 
 const num = (v) => (v === null || v === undefined ? 0 : Number(v));
+const round2 = (v) => Math.round(Number(v) * 100) / 100;
 
 /**
  * Munkahely (workplace) is FREE TEXT on employees, which is where "Ikea" vs "IKEA"
@@ -433,6 +435,11 @@ async function clientSheet({ month, clientId }) {
   });
 
   const grid = await personDayGrid(month, sites.map((s) => s.accommodation_id));
+
+  // Jóváhagyott, még be nem számított korrekciók korábbi hónapokról. A szolgáltatás
+  // negatív előjellel adja vissza őket — a lapon levonásként jelennek meg.
+  const correctionLines = await corrections.linesFor(clientId, month);
+  const correctionTotal = round2(correctionLines.reduce((s, x) => s + Number(x.amount), 0));
   // The grid is per accommodation, so at a shared site it would show other clients'
   // people too. Restrict it to the employees this client was actually billed for.
   //
@@ -470,6 +477,11 @@ async function clientSheet({ month, clientId }) {
     partner: cl.rows[0],
     sites,
     grid,
+    // KORREKCIÓS TÉTELSOROK: korábbi hónapok túlszámlázásának visszavezetése, negatív
+    // előjellel, külön soron. Csak JÓVÁHAGYOTT korrekció kerül ide — a javaslat még nem
+    // pénz. A bruttó és a levonás külön marad, hogy látszódjon, mi az eredeti díj és mi a
+    // korrekció; egy összevont végösszegből ezt nem lehetne visszafejteni.
+    correction_lines: correctionLines,
     empty_rows: emptyRows,
     empty_reconciles: reconstructed === billedReduced,
     empty_reconciliation: { reconstructed, billed: billedReduced },
@@ -482,6 +494,11 @@ async function clientSheet({ month, clientId }) {
       gross: sites.reduce((s, x) => s + x.gross, 0),
       compensation: sites.reduce((s, x) => s + x.compensation_amount, 0),
       passthrough: sites.reduce((s, x) => s + x.utility_passthrough_net, 0),
+      corrections: correctionTotal,
+      // Amit ténylegesen fizetnie kell: a bruttó mínusz a visszavezetett korrekciók.
+      net_payable: round2(sites.reduce((s, x) => s + x.gross, 0)
+                          + sites.reduce((s, x) => s + x.compensation_amount, 0)
+                          + correctionTotal),
     },
   };
 }

@@ -59,6 +59,7 @@ const MODULES = [
   './scenarios/prepaidRecovery',
   './scenarios/workplaceRates',
   './scenarios/contractDocuments',
+  './scenarios/billingCorrections',
   './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',

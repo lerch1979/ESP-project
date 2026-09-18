@@ -48,6 +48,7 @@ const Invoices = lazy(() => import('./pages/Invoices'));
 const InvoiceReports = lazy(() => import('./pages/invoices/InvoiceReports'));
 const InvoiceListPage = lazy(() => import('./pages/invoices/InvoiceListPage'));
 const Billing = lazy(() => import('./pages/Billing'));
+const BillingCorrections = lazy(() => import('./pages/BillingCorrections'));
 const MyTasks = lazy(() => import('./pages/MyTasks'));
 const UnifiedTasks = lazy(() => import('./pages/Tasks/UnifiedTasks'));
 const TaskContexts = lazy(() => import('./pages/Tasks/Contexts'));
@@ -173,6 +174,7 @@ function App() {
                   literal path wins over the param route. */}
               <Route path="partners/contracts" element={<PermissionGuard permission="settings.view"><PartnerContracts /></PermissionGuard>} />
               <Route path="settlements" element={<PermissionGuard permission="finance.edit"><Settlements /></PermissionGuard>} />
+              <Route path="billing-corrections" element={<PermissionGuard permission="finance.edit"><BillingCorrections /></PermissionGuard>} />
               <Route path="sales" element={<PermissionGuard permission="sales.view"><Sales /></PermissionGuard>} />
               <Route path="partners/:id" element={<PermissionGuard permission="employees.view"><PartnerDetail /></PermissionGuard>} />
               <Route path="accommodations" element={<PermissionGuard permission="accommodations.view"><Accommodations /></PermissionGuard>} />

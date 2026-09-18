@@ -249,6 +249,46 @@ export default function Settlements() {
             </Table>
           </TableContainer>
 
+          {/* KORREKCIÓS TÉTELSOROK — külön soron a díj alatt, hogy látszódjon, mi az eredeti
+              díj és mi a levonás. Egy kézzel csökkentett végösszegből fél év múlva senki
+              nem tudja visszafejteni, mi történt. */}
+          {(sheet.correction_lines || []).length > 0 && (
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell colSpan={2} sx={{ fontWeight: 700 }}>
+                      Korrekciós tételek — korábbi hónapok túlszámlázásának visszavezetése
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sheet.correction_lines.map((l) => (
+                    <TableRow key={l.correction_id}>
+                      <TableCell>
+                        {l.label}
+                        {l.note && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {l.note}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: 'error.main', fontWeight: 600 }}>
+                        {fmtMoney(l.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>FIZETENDŐ (nettó, korrekciók után)</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>
+                      {fmtMoney(sheet.totals.net_payable)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
           <Typography variant="caption" color="text.secondary">
             {sheet.grid?.people?.length || 0} fő a napi jelenléti íven
             {(sheet.empty_rows || []).length > 0 && ` · ${sheet.empty_rows.length} "Üres" sor`}

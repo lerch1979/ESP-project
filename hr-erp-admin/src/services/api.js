@@ -331,6 +331,17 @@ export const settlementAPI = {
   revokeLink: async (id) => (await api.delete(`/settlements/links/${id}`)).data,
 };
 
+// Számlakorrekció: az előre kiszámlázott ágyszám visszavezetése a tényleges foglaltságra.
+// A jóváhagyás külön hívás, nem a javaslat mellékhatása — a levonás valódi pénz.
+export const billingCorrectionAPI = {
+  open: async (contractor_id) =>
+    (await api.get('/billing-corrections/open', { params: contractor_id ? { contractor_id } : {} })).data,
+  propose: async (body) => (await api.post('/billing-corrections', body)).data,
+  approve: async (id) => (await api.post(`/billing-corrections/${id}/approve`)).data,
+  reject: async (id, note) => (await api.post(`/billing-corrections/${id}/reject`, { note })).data,
+  settle: async (id, body) => (await api.post(`/billing-corrections/${id}/settle`, body)).data,
+};
+
 // GDPR anonymization (right-to-be-forgotten) — superadmin-gated (consent = admin).
 export const anonymizationAPI = {
   getConfig: async () => (await api.get('/anonymization/config')).data,

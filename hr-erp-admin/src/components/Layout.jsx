@@ -171,6 +171,9 @@ const buildMenuSections = (t) => [
           { text: t('nav.invoiceReports'), icon: <BarChartIcon />, path: '/invoice-reports', permission: 'settings.edit' },
           { text: 'Számlázási díjak', icon: <MonetizationOnIcon />, path: '/billing-rates', permission: 'settings.edit' },
           { text: 'Szállás könyvelés', icon: <BarChartIcon />, path: '/admin/billing', permission: 'settings.edit' },
+          // Az előre kiszámlázott ágyszám visszavezetése a tényleges foglaltságra. Külön
+          // képernyő, mert a beszámítás emberi jóváhagyáshoz kötött.
+          { text: 'Számlakorrekciók', icon: <MonetizationOnIcon />, path: '/billing-corrections', permission: 'settings.edit' },
           { text: t('nav.salaryTransparency'), icon: <MonetizationOnIcon />, path: '/salary-transparency', permission: 'settings.view' },
         ],
       },
