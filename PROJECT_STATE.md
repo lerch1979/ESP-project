@@ -265,7 +265,7 @@ recorded on all three**, so billing starts by itself the moment the people land.
 | Ház | Bérbeadó | Bérleti díj | Rezsi | Fő |
 |---|---|---|---|---|
 | Budapest, Ungvár u. 2. | Lovászné Hideghéthy Rita | 200 000 Ft/hó, ÁFAMENTES | mi fizetjük, eseti | 5 |
-| Győr | Gede László | 200 000 Ft/hó | **külön, utólagos elszámolással** | 4 |
+| Győr | Gede László | 200 000 Ft/hó | **külön, utólagos elszámolással** | 4 (kapacitás 4) |
 | Szigetszentmiklós, Komp u. | Bihari Ildikó | 150 000 Ft/hó, ÁFAMENTES | mi fizetjük, eseti | 3 |
 | Kapuvár, Szent László u. 12. | Ré-Levu Kft. | 3 000 Ft/fő/éj | — | tartalék, 11 férőhely |
 
@@ -277,7 +277,12 @@ never becomes a cost. The profit view unions billing rows with `accommodation_ex
 — today that is just Győr, with a single 14 560 Ft utility row. The rent lands either when
 the people are imported, or when the landlords' rent invoices are uploaded and classified.
 
-**⚠️ OPEN — the 52–62% margin on these three flats is OVERSTATED.** Full-occupancy
+**⚠️ OPEN — utilities are NOT to be estimated, and the margin is OVERSTATED until they land.**
+Owner decision 2026-09-18: the utility figures stay **empty** until the actual invoices
+arrive. No placeholder, no average, no "roughly what the other houses pay" — a guessed
+utility cost would be indistinguishable from a measured one a month later. Consequence,
+to be stated wherever these numbers are quoted: **every margin figure on these three flats
+is rent-only.** Full-occupancy
 projection: Ungvár 525 000 − 200 000 = **61,9%**, Győr 420 000 − 200 000 = **52,4%**,
 Szigetszentmiklós 315 000 − 150 000 = **52,4%**. Every one of those figures counts **rent
 only**. The utilities on all three are ours — eseti (alkalmankénti) at Ungvár and
@@ -285,7 +290,9 @@ Szigetszentmiklós, separately invoiced in arrears at Győr — and **not one of
 cost side yet**. The margin will drop as the utility invoices arrive and get classified to
 these accommodations; the number is not wrong, it is incomplete. Do not quote it as final,
 and do not treat the later drop as a regression. Nothing to fix in code — this resolves
-itself through normal invoice intake.
+itself through normal invoice intake, **provided each utility invoice actually gets an
+accommodation on its allocation**. An unclassified utility invoice leaves the margin
+permanently flattering.
 
 **Still missing, by house** — nothing here may be guessed:
 
