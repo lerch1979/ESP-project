@@ -36,7 +36,7 @@ const ft = (n) => `${Math.round(Number(n || 0)).toLocaleString('hu-HU')} Ft`;
      WHERE a.name='Győr' AND e.cost_bearer='megelolegezett' AND e.deleted_at IS NULL`)).rows;
   console.log(`\n  ── megelőlegezett, ezért NEM költség ──`);
   for (const x of claim) {
-    console.log(`     ${ft(x.amount)} (nettó ${ft(x.net_amount)}) — követelés: ${x.kitol}, ${x.recovery_status}`);
+    console.log(`     ${ft(x.amount)} — követelés: ${x.kitol}, ${x.recovery_status}`);
   }
 
   // ── 3. GEDE LÁSZLÓ ELSZÁMOLÓ LAPJA ────────────────────────────────────────
@@ -46,7 +46,13 @@ const ft = (n) => `${Math.round(Number(n || 0)).toLocaleString('hu-HU')} Ft`;
   for (const a of lap.accommodations || []) {
     console.log(`  ${a.accommodation_name.padEnd(24)} ${String(a.rent_basis || '-').padEnd(14)} ${ft(a.cost_total)}`);
   }
-  console.log(`  ${'BRUTTÓ BÉRLETI DÍJ'.padEnd(39)} ${ft(lap.totals?.gross_total)}`);
+  console.log(`  ${'BÉRLETI DÍJ'.padEnd(39)} ${ft(lap.totals?.gross_total)}`);
+  console.log(`\n  TOVÁBBHÁRÍTOTT REZSI (a bérbeadó fizette, neki utaljuk):`);
+  for (const q of lap.payables || []) {
+    console.log(`     ${String(q.label).padEnd(55)} +${ft(q.amount)}`
+      + (q.van_csatolmany ? '  [bizonylat csatolva]' : '  [nincs csatolmány]'));
+  }
+  console.log(`  ${'továbbhárított rezsi összesen'.padEnd(39)} +${ft(lap.totals?.payables_total)}`);
   console.log(`\n  LEVONÁSOK:`);
   for (const d of lap.deductions || []) {
     console.log(`     ${String(d.label || d.vendor_name).padEnd(55)} −${ft(d.amount)}`);

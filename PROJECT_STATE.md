@@ -243,6 +243,29 @@ Verified 2026-09-18: filing a ticket does NOT require an accommodation (the `tic
 has no accommodation column). The assignment is needed **only** for the "Saját szállásom"
 screen — so she can be un-housed at any time without breaking ticket testing.
 
+### 🚨 JULY + AUGUST ARE BILLED AT ~11% OF REALITY — blocks any correction there
+
+Found 2026-09-18 while checking what the correction module (mig 168) sees in prod:
+
+| Hónap | fő-éj a pillanatképekben | fő-éj a számlázásban | tényleges összeg |
+|---|---|---|---|
+| 2026-07 | 8 742 | **558** | 3 261 200 Ft |
+| 2026-08 | 8 766 | **558** | 3 261 200 Ft |
+| 2026-09 | 4 751 (17 nap) | 4 745 | 17 497 552 Ft |
+
+Cause: **every live `client_night_rates` row starts `valid_from = 2026-09-01`.** For July and
+August almost no rate resolves, so the engine bills next to nothing — the 558 person-nights
+that do come through are the one legacy Sarród I. row (valid 2026-01-01 … 2026-08-31).
+
+⚠️ **Do not propose a correction for July or August.** The "actual" side is roughly a tenth
+of reality, so the module would compute a ~27M Ft phantom over-billing and offer to hand it
+back. The module is not wrong — it is faithfully comparing against occupancy data that has
+no rate behind it.
+
+The fix is the pending owner decision on **retroactive July–August rate rows** (~60.4M Ft,
+open since 2026-09-16): which rates applied in those months. Until that lands, corrections
+are usable for September onward only.
+
 ### ⚠️ BUDAPEST OFFICE — 3 houses live, 12 people NOT YET IMPORTED (2026-09-18)
 
 The MiniCRM contract export was reconciled. The four disputed rates were **confirmed as
