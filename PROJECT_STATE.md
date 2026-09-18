@@ -294,20 +294,20 @@ itself through normal invoice intake, **provided each utility invoice actually g
 accommodation on its allocation**. An unclassified utility invoice leaves the margin
 permanently flattering.
 
-**⚠️ OPEN — "Bük_Ifjúság 54." is on the MaW invoice but has never existed in this system.**
-The owner reports it billed on the August Man At Work invoice at 3 beds × 21 nights (63
-bed-nights). A full scan of every text/varchar/jsonb column in the prod schema (2026-09-18)
-returns **zero** hits for it — no accommodation row (active or not), no invoice, no
-occupancy, no contract, no workplace. Nor is it in the dev database. Our August occupancy
-for Bük is **Bük_Barki Apartman only** (961 person-nights); Ifjúság 88., Kossuth 89. and
-Petőfi 16. were first recorded on 2026-09-03 and have **zero** August occupancy. So either
-the invoice names a house under a label we never used, or it bills something we did not
-provide. Resolve against the paper invoice before the August figures are treated as settled.
+**✅ RESOLVED — "Bük_Ifjúság 54." is the Bük_Barki Apartman under another name.** Owner
+confirmation 2026-09-18: not a separate house; the Man At Work invoices label Barki Csabáné's
+property that way. The alias is now on the accommodation's `notes`, so the next invoice
+reconciliation recognises it. A full scan of every text/varchar/jsonb column in the prod
+schema found the name nowhere else, so nothing needed re-filing.
+⚠️ **Still to check against the paper invoice:** if one invoice carries BOTH "Bük_Barki
+Apartman" and "Bük_Ifjúság 54." as separate lines for the same month, the same house is
+billed twice. Our August occupancy for Bük is Barki only — 961 person-nights, 31 people.
 
-**⚠️ OPEN — Fertőszéplak landlord unconfirmed.** Recorded as `ZÖLD-LAK BT.`; the owner is
-checking whether the contracting party is actually **Hetényi Judit as a private individual**.
-Left untouched pending that answer — it changes the VAT treatment (a private landlord is
-ÁFAMENTES) and therefore the cost figure.
+**✅ RESOLVED — Fertőszéplak landlord.** The contracting party is **ZÖLD-LAK BT.** (already
+recorded); **Hetényi Judit** is its owner and our contact person, now filed as a
+`partner_contacts` row on Zöld-Lak — deliberately NOT as a separate private-individual
+landlord partner, which would have changed the VAT treatment. She had never been entered as
+a partner, so nothing had to be unwound.
 
 **Still missing, by house** — nothing here may be guessed:
 
