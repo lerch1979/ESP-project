@@ -167,6 +167,15 @@ async function main() {
       if (row.result === 'FAIL' && row.diffs?.length) for (const d of row.diffs.slice(0, 4)) console.log(`         ${c.r}↳${c.x} ${d}`);
       if (row.result === 'FAIL' && row.error) console.log(`         ${c.r}↳${c.x} ${row.error.split('\n')[0]}`);
     }
+
+    // A terület visszaállíthatja, amit a közös fixture-ön elrontott. Enélkül egy
+    // AUTH-eset által átírt jelszó vagy bekapcsolt kötelező-csere jelző a KÉSŐBBI
+    // területeket buktatná el — véletlenszerűen, a futási sorrendtől függően, ami a
+    // legnehezebben megfogható hibafajta.
+    if (mod.teardown && !setupError) {
+      try { await mod.teardown(ctx, state); }
+      catch (e) { console.log(`  ${c.r}teardown failed:${c.x} ${e.message}`); }
+    }
   }
 
   // ── 6. Report ──

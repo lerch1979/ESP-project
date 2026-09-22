@@ -144,6 +144,11 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
+  // Saját jelszóváltás. A válasz ÚJ token-párt hoz: a szerver a jelszóváltáskor minden
+  // korábbi tokent érvénytelenít, tehát enélkül a saját eszközünk is kiesne.
+  changePassword: (currentPassword, newPassword) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }).then((r) => r.data),
+
   login: async (email, password) => {
     console.log('[API] Login request to:', `${API_BASE_URL}/auth/login`);
     try {

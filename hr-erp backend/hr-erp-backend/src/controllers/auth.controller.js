@@ -5,6 +5,7 @@ const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('../middleware/permission');
 const { sanitizeString } = require('../utils/validation');
 const { isTokenStale } = require('../utils/tokenFreshness');
+const passwordRule = require('../utils/passwordRule');
 
 /**
  * Felhasználó bejelentkezés
@@ -139,7 +140,11 @@ const login = async (req, res) => {
           roles: roleNames,
           roleSlugs: roles,
           permissions: roles.includes('superadmin') ? ['*'] : permissions,
-          preferred_language: user.preferred_language || 'hu'
+          preferred_language: user.preferred_language || 'hu',
+          // A kliens ebből tudja, hogy a belépés után AZONNAL a jelszócsere-képernyőt
+          // kell mutatnia. A tényleges korlát a szerveren van (mustChangePassword),
+          // ez csak azért kell, hogy a felhasználó ne 403-akba fusson bele.
+          must_change_password: user.must_change_password === true
         }
       }
     });
@@ -177,17 +182,12 @@ const changeOwnPassword = async (req, res) => {
         message: 'A jelenlegi és az új jelszó is szükséges',
       });
     }
-    if (String(newPassword).length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'Az új jelszó legalább 8 karakter legyen',
-      });
-    }
-    if (currentPassword === newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Az új jelszó nem egyezhet meg a jelenlegivel',
-      });
+    // A szabály EGY helyen van (utils/passwordRule.js). A "ne egyezzen a jelenlegivel"
+    // ág a kötelező cserénél a lényeg: ott a jelenlegi jelszó AZ ideiglenes, amit a lakó
+    // papíron kapott — ha azt meg lehetne tartani, a kötelező csere nem csinálna semmit.
+    const szabaly = passwordRule.ellenoriz(newPassword, { jelenlegi: currentPassword });
+    if (!szabaly.valid) {
+      return res.status(400).json({ success: false, message: szabaly.message });
     }
 
     const r = await query(
@@ -210,7 +210,7 @@ const changeOwnPassword = async (req, res) => {
     const hash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
     await query(
       `UPDATE users SET password_hash = $1, password_changed_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP
+              must_change_password = false, updated_at = CURRENT_TIMESTAMP
         WHERE id = $2`,
       [hash, user.id]
     );

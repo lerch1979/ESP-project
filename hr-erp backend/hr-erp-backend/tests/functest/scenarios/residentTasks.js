@@ -15,6 +15,7 @@
  */
 const http = require('../lib/http');
 const { query } = require('../../../src/database/connection');
+const { varj } = require('../lib/wait');
 
 const BELSO_CIM = 'RESTASK BELSŐ — beszélni kell vele a rendetlenség miatt';
 const LAKOI_CIM = 'RESTASK Hozd le a szerződésedet aláírásra';
@@ -83,10 +84,15 @@ module.exports = {
       expected: { van_ertesites: true },
       hint: 'enélkül a visszajelzés egy mezőben ülne, és senki nem nézné meg',
       run: async (ctx, s) => {
-        const n = (await query(
-          `SELECT count(*)::int AS db FROM notifications
-            WHERE type='task_assigned' AND title ILIKE '%Lakói visszajelzés%'`)).rows[0];
-        return { van_ertesites: n.db > 0 };
+        // Az értesítés a válasz UTÁN íródik (az `inApp.notify` nincs await-elve), ezért
+        // megvárjuk. Lásd lib/wait.js — enélkül a teszt az időzítést mérte, nem a
+        // viselkedést, és nagyjából minden tizedik futásban elbukott.
+        const db = await varj(
+          async () => (await query(
+            `SELECT count(*)::int AS db FROM notifications
+              WHERE type='task_assigned' AND title ILIKE '%Lakói visszajelzés%'`)).rows[0].db,
+          (v) => v > 0);
+        return { van_ertesites: db > 0 };
       },
     },
     {

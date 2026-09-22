@@ -124,6 +124,13 @@ export const authAPI = {
     const response = await api.post('/auth/logout');
     return response.data;
   },
+
+  // Saját jelszóváltás. A válasz ÚJ token-párt hoz: a szerver a jelszóváltáskor minden
+  // korábbi tokent érvénytelenít, tehát enélkül ez a böngésző is kiesne.
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.post('/auth/change-password', { currentPassword, newPassword });
+    return response.data;
+  },
   
   getMe: async () => {
     const response = await api.get('/auth/me');

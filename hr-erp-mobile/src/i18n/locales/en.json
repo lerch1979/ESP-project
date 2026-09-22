@@ -128,7 +128,8 @@
     "chatbot": "Chatbot",
     "chatbotHistory": "Past conversations",
     "faq": "FAQ",
-    "videos": "Videos"
+    "videos": "Videos",
+    "changePassword": "Change password"
   },
   "attach": {
     "photos": "Photos",
@@ -426,5 +427,18 @@
     "inProgress": "In progress",
     "done": "Done",
     "saveFailed": "Your response was not saved"
+  },
+  "password": {
+    "title": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "newAgain": "New password again",
+    "submit": "Change password",
+    "rule": "The new password must be at least {{min}} characters and different from the current one.",
+    "tooShort": "The new password must be at least {{min}} characters.",
+    "sameAsCurrent": "The new password must differ from the current one.",
+    "mismatch": "The two new passwords do not match.",
+    "failed": "Changing the password failed. Please try again.",
+    "firstLoginBody": "You signed in with a temporary password you received on paper. Set your own password before continuing — nobody but you will know it."
   }
 }

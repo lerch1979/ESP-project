@@ -133,6 +133,23 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
+  // Saját jelszóváltás. A HÁROM SecureStore-kulcs frissítése itt nem formalitás: a
+  // szerver a váltással minden korábbi tokent érvénytelenít, tehát ha a válaszban kapott
+  // újat nem tárolnánk el, a felhasználó a saját jelszóváltásától esne ki — és egyben a
+  // biometrikus belépés is halott adatot nyitna ki.
+  const changePassword = async (currentPassword, newPassword) => {
+    const valasz = await authAPI.changePassword(currentPassword, newPassword);
+    const { token, refreshToken } = valasz?.data || {};
+    if (token) await setItem('token', token);
+    if (refreshToken) await setItem('refreshToken', refreshToken);
+
+    const frissUser = { ...(user || {}), must_change_password: false };
+    await setItem('user', JSON.stringify(frissUser));
+    setUser(frissUser);
+    setSessionExpired(false);
+    return true;
+  };
+
   const logout = async () => {
     await unregisterPushToken();
     try {
@@ -202,6 +219,7 @@ export function AuthProvider({ children }) {
         enableBiometric,
         disableBiometric,
         unlockWithBiometric,
+        changePassword,
         sessionExpired,
         sessionExpiredReason,
       }}

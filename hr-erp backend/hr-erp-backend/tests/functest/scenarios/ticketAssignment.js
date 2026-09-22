@@ -12,6 +12,7 @@
  */
 const http = require('../lib/http');
 const { query } = require('../../../src/database/connection');
+const { varj } = require('../lib/wait');
 const svc = require('../../../src/services/ticketAssignment.service');
 
 module.exports = {
@@ -156,9 +157,19 @@ module.exports = {
       run: async (ctx, s) => {
         const r = await http.raw('post', `/public/ticket/${s.token}/response`, { body: { status: 'folyamatban' } });
         const t3 = (await query('SELECT landlord_status FROM tickets WHERE id=$1', [s.t3])).rows[0];
-        const ert = (await query(
-          `SELECT count(*)::int AS db FROM notifications WHERE title ILIKE '%Szállásadói visszajelzés%'`)).rows[0];
-        return { ok: r.status, allapot: t3?.landlord_status, ertesult_a_felelos: ert.db > 0 };
+
+        // AZ ÉRTESÍTÉS NEM A VÁLASZ ELŐTT SZÜLETIK, és ez szándékos: a szállásadó
+        // visszajelzése nem bukhat el azon, hogy a MI belső értesítésünk hibázik
+        // (`inApp.notify` nincs await-elve a publicTicket útvonalon). A teszt viszont
+        // eddig azonnal olvasott, és versenyt futott vele — ettől bukott el nagyjából
+        // minden tizedik futásban, mindig másutt. Amit állítani akarunk, az nem az,
+        // hogy az értesítés a HTTP-válasz ELŐTT kész, hanem hogy MEGSZÜLETIK.
+        const db = await varj(
+          async () => (await query(
+            `SELECT count(*)::int AS db FROM notifications
+              WHERE title ILIKE '%Szállásadói visszajelzés%'`)).rows[0].db,
+          (v) => v > 0);
+        return { ok: r.status, allapot: t3?.landlord_status, ertesult_a_felelos: db > 0 };
       },
     },
     {

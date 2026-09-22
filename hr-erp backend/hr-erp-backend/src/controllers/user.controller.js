@@ -190,8 +190,10 @@ const createUser = async (req, res) => {
     const effectiveContractorId = contractorId || req.user.contractorId;
 
     const userResult = await pool.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone, contractor_id, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, true)
+      // must_change_password = true: az adminisztrátor által adott jelszó IDEIGLENES.
+      // A lakók papíron kapják meg, tehát addig közös tulajdon, amíg le nem cserélik.
+      `INSERT INTO users (email, password_hash, first_name, last_name, phone, contractor_id, is_active, must_change_password)
+       VALUES ($1, $2, $3, $4, $5, $6, true, true)
        RETURNING id, email, first_name, last_name, phone, contractor_id, is_active, created_at`,
       [email.toLowerCase(), passwordHash, firstName, lastName, phone || null, effectiveContractorId]
     );
@@ -319,6 +321,9 @@ const updateUser = async (req, res) => {
       // A saját jelszóváltás (`POST /auth/change-password`) ettől KÜLÖNBÖZIK: ott a hívó
       // friss token-párt kap, tehát bent marad. A két út eltérése maga a szabály.
       updates.push(`password_changed_at = CURRENT_TIMESTAMP`);
+      // A visszaállított jelszó is IDEIGLENES: az adminisztrátor ismeri, tehát a
+      // felhasználónak le kell cserélnie, mielőtt bármit megnézhetne.
+      updates.push(`must_change_password = true`);
       jelszoVisszaallitas = true;
     }
 

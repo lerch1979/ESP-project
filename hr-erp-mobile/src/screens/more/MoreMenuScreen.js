@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 // NOT surfaced yet: documents (permission-gated → would 403 for residents),
 // wellbeing/CarePath (GDPR Art 9 health data — needs compliance review),
 // projects/tasks/invoices (relevance/scope review).
-const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile', 'chatbot', 'chatbotHistory', 'faq', 'videos'];
+const RESIDENT_MENU_KEYS = ['accommodations', 'notifications', 'profile', 'changePassword', 'chatbot', 'chatbotHistory', 'faq', 'videos'];
 
 const menuSections = [
   {
@@ -78,6 +78,7 @@ const menuSections = [
       { key: 'calendar', icon: 'calendar-outline', label: 'Naptar', screen: 'Calendar' },
       { key: 'googleCalendar', icon: 'logo-google', label: 'Google Naptar', screen: 'GoogleCalendar' },
       { key: 'profile', icon: 'person-circle-outline', label: 'Profil', screen: 'Profile' },
+      { key: 'changePassword', icon: 'key-outline', label: 'Jelszó módosítása', screen: 'ChangePassword' },
     ],
   },
 ];

@@ -59,6 +59,24 @@ export function AuthProvider({ children }) {
     setLanguageFromProfile('hu'); // Reset to default on logout
   }, []);
 
+  // Saját jelszóváltás. A kapott token elmentése NEM formalitás: a szerver a váltással
+  // minden korábbi tokent érvénytelenít, tehát ha nem cserélnénk le, a felhasználó a
+  // SAJÁT jelszóváltásától esne ki. A `must_change_password` jelző levétele zárja be a
+  // kötelező párbeszédet.
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    const valasz = await authAPI.changePassword(currentPassword, newPassword);
+    const { token, refreshToken } = valasz?.data || {};
+    if (token) localStorage.setItem('token', token);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+
+    setUser((elozo) => {
+      const friss = { ...(elozo || {}), must_change_password: false };
+      localStorage.setItem('user', JSON.stringify(friss));
+      return friss;
+    });
+    return true;
+  }, []);
+
   const updateUser = useCallback((userData) => {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -98,6 +116,7 @@ export function AuthProvider({ children }) {
     loading,
     login,
     logout,
+    changePassword,
     updateUser,
     hasPermission,
     hasAnyPermission,

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { isTokenStale } = require('../utils/tokenFreshness');
+const { mustChangePassword } = require('./mustChangePassword');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('./permission');
@@ -87,8 +88,17 @@ const authenticateToken = async (req, res, next) => {
       // Resident-facing content (videos, notifications, chatbot, FAQ) is served in the
       // caller's own language; carrying it on req.user saves a lookup per request.
       preferredLanguage: user.preferred_language || 'hu',
-      permissions: permissions
+      permissions: permissions,
+      // Ideiglenes jelszó: a kapu közvetlenül alább zárja el a többi végpontot.
+      must_change_password: user.must_change_password === true,
     };
+
+    // KÖTELEZŐ JELSZÓCSERE. Ugyanazon okból van itt, mint a modul-korlát: ha a kapu a
+    // route-oknál lenne, egy újonnan felvett végpont csendben kimaradna belőle. Így
+    // viszont MINDEN hitelesített kérés áthalad rajta, kivételt csak a saját listája ad.
+    let csereKapu = null;
+    mustChangePassword(req, res, () => { csereKapu = 'ok'; });
+    if (csereKapu !== 'ok') return; // a middleware már válaszolt (403)
 
     // Module confinement (fail-closed allow-list). Runs here, after req.user carries
     // roles and before ANY route handler, so a role that is confined to one module can

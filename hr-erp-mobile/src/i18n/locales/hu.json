@@ -128,7 +128,8 @@
     "chatbot": "Chatbot",
     "chatbotHistory": "Korábbi beszélgetések",
     "faq": "GYIK",
-    "videos": "Videók"
+    "videos": "Videók",
+    "changePassword": "Jelszó módosítása"
   },
   "attach": {
     "photos": "Fotók",
@@ -426,5 +427,18 @@
     "inProgress": "Folyamatban",
     "done": "Kész",
     "saveFailed": "A visszajelzés nem mentődött"
+  },
+  "password": {
+    "title": "Jelszó módosítása",
+    "current": "Jelenlegi jelszó",
+    "new": "Új jelszó",
+    "newAgain": "Új jelszó még egyszer",
+    "submit": "Jelszó módosítása",
+    "rule": "Az új jelszó legalább {{min}} karakter legyen, és nem lehet ugyanaz, mint a jelenlegi.",
+    "tooShort": "Az új jelszó legalább {{min}} karakter legyen.",
+    "sameAsCurrent": "Az új jelszó nem egyezhet meg a jelenlegivel.",
+    "mismatch": "A két új jelszó nem egyezik.",
+    "failed": "A jelszó módosítása nem sikerült. Próbáld újra.",
+    "firstLoginBody": "Ideiglenes jelszóval léptél be, amit papíron kaptál meg. Adj meg egy saját jelszót, mielőtt folytatod — ezt rajtad kívül senki nem fogja ismerni."
   }
 }

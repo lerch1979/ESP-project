@@ -13,6 +13,7 @@
  */
 const http = require('../lib/http');
 const { query } = require('../../../src/database/connection');
+const { varj } = require('../lib/wait');
 
 module.exports = {
   area: 'RESTICK',
@@ -107,8 +108,12 @@ module.exports = {
       expected: { van_ertesitese: true, nem_ertesult_sajatrol: true },
       hint: 'a saját bejelentésről értesíteni fölösleges zaj',
       run: async (ctx, s) => {
-        const ert = (await query(
-          `SELECT data FROM notifications WHERE user_id=$1 AND type='ticket_created'`, [s.lakoId])).rows;
+        // Az értesítés a válasz UTÁN íródik — lásd lib/wait.js.
+        const ert = await varj(
+          async () => (await query(
+            `SELECT data FROM notifications WHERE user_id=$1 AND type='ticket_created'`,
+            [s.lakoId])).rows,
+          (sorok) => sorok.some((x) => x.data?.ticket_id === s.irodai));
         const irodairol = ert.some((x) => x.data?.ticket_id === s.irodai);
         const sajatrol = ert.some((x) => x.data?.ticket_id === s.sajat);
         return { van_ertesitese: irodairol, nem_ertesult_sajatrol: !sajatrol };
@@ -145,10 +150,12 @@ module.exports = {
           assigned_to: ctx.ids.user.superadmin, linked_employee_id: s.emp.id } });
         const jegy = r.body?.data?.ticket?.id;
         const t = (await query('SELECT assigned_to FROM tickets WHERE id=$1', [jegy])).rows[0];
-        const ert = (await query(
-          `SELECT count(*)::int AS db FROM notifications
-            WHERE user_id=$1 AND type='ticket_created' AND data->>'ticket_id' = $2`,
-          [s.lakoId, jegy])).rows[0];
+        const ert = { db: await varj(
+          async () => (await query(
+            `SELECT count(*)::int AS db FROM notifications
+              WHERE user_id=$1 AND type='ticket_created' AND data->>'ticket_id' = $2`,
+            [s.lakoId, jegy])).rows[0].db,
+          (v) => v > 0) };
         return {
           created: r.status,
           van_felelos: t?.assigned_to === ctx.ids.user.superadmin,
@@ -177,9 +184,11 @@ module.exports = {
 
         const a = await http.get('/tickets/my', { token: s.lako });
         const b = await http.get('/tickets/my', { token: masikToken });
-        const ert = (await query(
-          `SELECT count(DISTINCT user_id)::int AS db FROM notifications
-            WHERE type='ticket_created' AND data->>'ticket_id' = $1`, [jegy])).rows[0];
+        const ert = { db: await varj(
+          async () => (await query(
+            `SELECT count(DISTINCT user_id)::int AS db FROM notifications
+              WHERE type='ticket_created' AND data->>'ticket_id' = $1`, [jegy])).rows[0].db,
+          (v) => v >= 2) };
         return {
           created: r.status,
           mindketto_latja: (a.body?.data?.tickets || []).some((x) => x.id === jegy)

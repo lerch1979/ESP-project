@@ -33,6 +33,7 @@ import {
   TrendingUp as TrendingUpIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  VpnKey as VpnKeyIcon,
   AccountCircle,
   Apartment as ApartmentIcon,
   Assessment as AssessmentIcon,
@@ -87,6 +88,7 @@ import { tasksAPI } from '../services/api';
 import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
 import UserAvatar from './common/UserAvatar';
+import ChangePasswordDialog from './ChangePasswordDialog';
 import OfflineDetector from './common/OfflineDetector';
 import TranslationStatusBanner from './TranslationStatusBanner';
 
@@ -284,6 +286,7 @@ function Layout({ children }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [jelszoNyitva, setJelszoNyitva] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState({});
   const { user, logout, hasPermission } = useAuth();
 
@@ -764,6 +767,12 @@ function Layout({ children }) {
               )}
             </Box>
             <Divider />
+            <MenuItem onClick={() => { handleClose(); setJelszoNyitva(true); }}>
+              <ListItemIcon>
+                <VpnKeyIcon fontSize="small" />
+              </ListItemIcon>
+              Jelszó módosítása
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
@@ -771,6 +780,16 @@ function Layout({ children }) {
               {t('logout')}
             </MenuItem>
           </Menu>
+
+          {/* A KÖTELEZŐ csere nem bezárható, és a `open` közvetlenül a felhasználó
+              jelzőjén múlik — így a párbeszéd MAGÁTÓL eltűnik, amint a csere megtörtént.
+              A tényleges korlát a szerveren van: enélkül a háttérben lévő oldal
+              lekérdezései amúgy is 403-at kapnának. */}
+          <ChangePasswordDialog
+            open={jelszoNyitva || user?.must_change_password === true}
+            kotelezo={user?.must_change_password === true}
+            onClose={() => setJelszoNyitva(false)}
+          />
         </Toolbar>
       </AppBar>
 

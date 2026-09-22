@@ -128,7 +128,8 @@
     "chatbot": "Chatbot",
     "chatbotHistory": "Mga nakaraang usapan",
     "faq": "FAQ",
-    "videos": "Mga Video"
+    "videos": "Mga Video",
+    "changePassword": "Palitan ang password"
   },
   "attach": {
     "photos": "Mga larawan",
@@ -426,5 +427,18 @@
     "inProgress": "Ginagawa",
     "done": "Tapos na",
     "saveFailed": "Hindi naligtas ang sagot mo"
+  },
+  "password": {
+    "title": "Palitan ang password",
+    "current": "Kasalukuyang password",
+    "new": "Bagong password",
+    "newAgain": "Ulitin ang bagong password",
+    "submit": "Palitan ang password",
+    "rule": "Ang bagong password ay dapat hindi bababa sa {{min}} karakter at iba sa kasalukuyan.",
+    "tooShort": "Ang bagong password ay dapat hindi bababa sa {{min}} karakter.",
+    "sameAsCurrent": "Ang bagong password ay dapat iba sa kasalukuyan.",
+    "mismatch": "Hindi magkatugma ang dalawang bagong password.",
+    "failed": "Hindi naipalit ang password. Subukan ulit.",
+    "firstLoginBody": "Nag-sign in ka gamit ang pansamantalang password na natanggap mo sa papel. Gumawa ng sarili mong password bago magpatuloy — ikaw lang ang makakaalam nito."
   }
 }

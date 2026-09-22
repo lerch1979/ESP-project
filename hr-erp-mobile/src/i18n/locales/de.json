@@ -128,7 +128,8 @@
     "chatbot": "Chatbot",
     "chatbotHistory": "Frühere Unterhaltungen",
     "faq": "FAQ",
-    "videos": "Videos"
+    "videos": "Videos",
+    "changePassword": "Passwort ändern"
   },
   "attach": {
     "photos": "Fotos",
@@ -426,5 +427,18 @@
     "inProgress": "In Arbeit",
     "done": "Erledigt",
     "saveFailed": "Antwort nicht gespeichert"
+  },
+  "password": {
+    "title": "Passwort ändern",
+    "current": "Aktuelles Passwort",
+    "new": "Neues Passwort",
+    "newAgain": "Neues Passwort wiederholen",
+    "submit": "Passwort ändern",
+    "rule": "Das neue Passwort muss mindestens {{min}} Zeichen haben und sich vom aktuellen unterscheiden.",
+    "tooShort": "Das neue Passwort muss mindestens {{min}} Zeichen haben.",
+    "sameAsCurrent": "Das neue Passwort muss sich vom aktuellen unterscheiden.",
+    "mismatch": "Die beiden neuen Passwörter stimmen nicht überein.",
+    "failed": "Das Ändern des Passworts ist fehlgeschlagen. Bitte erneut versuchen.",
+    "firstLoginBody": "Du hast dich mit einem vorläufigen Passwort angemeldet, das du auf Papier erhalten hast. Lege ein eigenes Passwort fest, bevor du fortfährst — niemand außer dir wird es kennen."
   }
 }

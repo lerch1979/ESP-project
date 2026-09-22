@@ -59,6 +59,11 @@ const RESIDENT_FILES = [
   // vonatkozik rá: nem maradhat benne beégetett magyar szöveg.
   'src/screens/tasks/ResidentTasksScreen.js',
   'src/components/ResidentTicketRow.js',
+  // Jelszóváltás. Lakói képernyő, méghozzá a LEGELSŐ, amit egy új lakó lát: az
+  // ideiglenes jelszóval belépve ez fogadja, mielőtt bármi mást megmutatnánk. Ha itt
+  // beégetett magyar szöveg maradna, az ukrán vagy filippínó lakó egy érthetetlen
+  // képernyőn ragadna be, kiút nélkül.
+  'src/screens/more/ChangePasswordScreen.js',
 ];
 
 const HU_RE = /['"`][^'"`]*[áéíóöőúüűÁÉÍÓÖŐÚÜŰ][^'"`]*['"`]/;

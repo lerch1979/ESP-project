@@ -40,7 +40,24 @@ module.exports = {
 
   async setup(ctx) {
     const userId = ctx.ids.user.accommodated_employee;
-    return { userId };
+    // Az EREDETI állapot elmentése. Ez a terület a KÖZÖS fixture-lakó jelszavát írja át
+    // és a kötelező-csere jelzőjét kapcsolgatja — ha így hagynánk, a később futó
+    // területek (RESTICK, RESTASK) 403-at kapnának, és a bukás a futási sorrendtől
+    // függene. A visszaállítást a teardown végzi.
+    const r = await query(
+      `SELECT password_hash, password_changed_at, must_change_password
+         FROM users WHERE id = $1`, [userId]);
+    return { userId, eredeti: r.rows[0] };
+  },
+
+  async teardown(ctx, s) {
+    if (!s?.eredeti) return;
+    await query(
+      `UPDATE users SET password_hash = $1, password_changed_at = $2,
+              must_change_password = $3
+        WHERE id = $4`,
+      [s.eredeti.password_hash, s.eredeti.password_changed_at,
+       s.eredeti.must_change_password, s.userId]);
   },
 
   cases: [
@@ -138,6 +155,9 @@ module.exports = {
         });
 
         const utana = await http.get('/auth/me', { token });
+        // A visszaállítás bekapcsolja a kötelező cserét is — itt nem azt mérjük
+        // (azt az AUTH-15 teszi), és bent hagyva a következő eseteket zárná el.
+        await query('UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
         return { elotte: elotte.status, utana: utana.status };
       },
     },
@@ -155,6 +175,93 @@ module.exports = {
           [s.userId]);
         const r = await http.post('/auth/refresh', { body: { refreshToken: regiRefresh } });
         return { status: r.status, kod: r.body?.code };
+      },
+    },
+    {
+      id: 'AUTH-11',
+      name: 'ideiglenes jelszóval a felhasználó SEMMIT nem lát a cseréig',
+      expected: { sajat_jegyek: 403, kod: 'MUST_CHANGE_PASSWORD', me_atmegy: 200 },
+      hint: 'a korlát a szerveren van; egy kliensoldali terelés böngészőből megkerülhető',
+      run: async (ctx, s) => {
+        await query('UPDATE users SET must_change_password = true WHERE id = $1', [s.userId]);
+        const token = http.tokenFor(s.userId);
+        const jegyek = await http.get('/tickets/my', { token });
+        const me = await http.get('/auth/me', { token });
+        await query('UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
+        return { sajat_jegyek: jegyek.status, kod: jegyek.body?.code, me_atmegy: me.status };
+      },
+    },
+    {
+      id: 'AUTH-12',
+      name: 'a csere LEVESZI a kötelezettséget, és onnantól minden megnyílik',
+      expected: { csere: 200, jelzo_utana: false, jegyek_utana: 200 },
+      hint: 'ha a jelző fent maradna, a felhasználó a csere után is ki lenne zárva',
+      run: async (ctx, s) => {
+        const hash = await bcrypt.hash('IdeiglenesAB12', await bcrypt.genSalt(10));
+        await query(
+          `UPDATE users SET password_hash = $1, must_change_password = true,
+                  password_changed_at = CURRENT_TIMESTAMP - interval '1 hour'
+            WHERE id = $2`, [hash, s.userId]);
+
+        const token = jwt.sign({ userId: s.userId, iat: Math.floor(Date.now() / 1000) - 60 },
+          SECRET(), { expiresIn: '8h' });
+        const csere = await http.post('/auth/change-password', {
+          token, body: { currentPassword: 'IdeiglenesAB12', newPassword: 'SajatJelszo77' },
+        });
+        const jelzo = (await query(
+          'SELECT must_change_password FROM users WHERE id = $1', [s.userId]))
+          .rows[0].must_change_password;
+        const uj = csere.body?.data?.token;
+        const jegyek = uj ? await http.get('/tickets/my', { token: uj }) : { status: 0 };
+        return { csere: csere.status, jelzo_utana: jelzo, jegyek_utana: jegyek.status };
+      },
+    },
+    {
+      id: 'AUTH-13',
+      name: 'az IDEIGLENES jelszó nem tartható meg új jelszóként',
+      expected: { status: 400 },
+      hint: 'enélkül a kötelező csere teljesíthető lenne a papírra írt jelszó megtartásával',
+      run: async (ctx, s) => {
+        const hash = await bcrypt.hash('PapironKapott9', await bcrypt.genSalt(10));
+        await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, s.userId]);
+        const token = http.tokenFor(s.userId);
+        const r = await http.post('/auth/change-password', {
+          token, body: { currentPassword: 'PapironKapott9', newPassword: 'PapironKapott9' },
+        });
+        return { status: r.status };
+      },
+    },
+    {
+      id: 'AUTH-14',
+      name: 'a túl rövid új jelszót elutasítja',
+      expected: { status: 400 },
+      hint: 'a minimum 8 karakter — papírról, telefonon gépelő lakóra szabva',
+      run: async (ctx, s) => {
+        const hash = await bcrypt.hash('MegfeleloJelszo1', await bcrypt.genSalt(10));
+        await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, s.userId]);
+        const token = http.tokenFor(s.userId);
+        const r = await http.post('/auth/change-password', {
+          token, body: { currentPassword: 'MegfeleloJelszo1', newPassword: 'rovid1' },
+        });
+        return { status: r.status };
+      },
+    },
+    {
+      id: 'AUTH-15',
+      name: 'admin jelszó-visszaállítás UTÁN kötelező a csere',
+      expected: { jelzo: true },
+      hint: 'a visszaállított jelszót az adminisztrátor ismeri — nem maradhat élesben',
+      run: async (ctx, s) => {
+        await query('UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
+        const admin = http.tokenFor(ctx.ids.user.superadmin);
+        await http.put(`/users/${s.userId}`, {
+          token: admin, body: { password: 'AdminAltalAdott42' },
+        });
+        const jelzo = (await query(
+          'SELECT must_change_password FROM users WHERE id = $1', [s.userId]))
+          .rows[0].must_change_password;
+        await query('UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
+        return { jelzo };
       },
     },
     {

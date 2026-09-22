@@ -8,6 +8,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import MainTabNavigator from './MainTabNavigator';
+import ChangePasswordScreen from '../screens/more/ChangePasswordScreen';
 import { routeForNotification } from '../services/push';
 
 const ONBOARDING_FLAG = 'hasSeenOnboarding';
@@ -71,6 +72,19 @@ export default function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           <Stack.Screen name="Login" component={LoginScreen} />
+        ) : user.must_change_password ? (
+          /* KÖTELEZŐ JELSZÓCSERE — az ONBOARDING ELŐTT is. A lakó a belépését papíron
+             kapta; amíg le nem cserélte, a fiók nem az övé, tehát még egy köszöntő
+             képernyőt sem mutatunk. A navigátorból nincs más ág: a "kiút" a
+             jelszóváltás vagy a kilépés, mindkettő a képernyőn van. A tényleges
+             korlát a szerveren van (middleware/mustChangePassword.js) — ez itt csak
+             azért kell, hogy a felhasználó ne 403-akba fusson bele. */
+          <Stack.Screen
+            name="ChangePasswordRequired"
+            component={ChangePasswordScreen}
+            initialParams={{ kotelezo: true }}
+            options={{ headerShown: true, title: '', headerBackVisible: false, gestureEnabled: false }}
+          />
         ) : needsOnboarding ? (
           <Stack.Screen name="Onboarding">
             {(props) => <OnboardingScreen {...props} onDone={finishOnboarding} />}
