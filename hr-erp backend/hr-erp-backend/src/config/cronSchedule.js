@@ -42,6 +42,7 @@ function initializeVideoCommunicationJobs() {
         + `${r.delivered} kézbesítve, ${r.failed} hibás`);
     }
   }), { timezone: TZ });
+  logger.info('📬 Push receipt check scheduled (every 10 min — accepted ≠ delivered)');
 
   cron.schedule('30 9 * * *', wrap('videoSequences', async () => {
     const r = await videoSequences.runDaily({});
