@@ -11,6 +11,7 @@
 const crypto = require('crypto');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const shareLinks = require('../services/shareLink.service');
 const svc = require('../services/settlementSheet.service');
 const render = require('../services/settlementRender.service');
 
@@ -85,9 +86,14 @@ const createLink = async (req, res) => {
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + days * 86400 * 1000);
     const r = await query(
-      `INSERT INTO settlement_share_links (token, kind, partner_id, billing_month, expires_at, created_by, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, token, expires_at`,
-      [token, kind, partner_id, month, expiresAt, req.user?.id || null, notes || null]);
+      // Az EGYESÍTETT share_links táblába (mig 170). A régi settlement_share_links
+      // megmarad, de már nem ír és nem olvas belőle senki — így egy elrontott átállás
+      // visszagördíthető anélkül, hogy a kiküldött linkek elvesznének.
+      `INSERT INTO share_links (token, target_type, target_id, context, expires_at, created_by, notes)
+       VALUES ($1,'settlement',$2, jsonb_build_object('kind',$3::text,'billing_month',$4::text),
+               $5,$6,$7)
+       RETURNING id, token, expires_at`,
+      [token, partner_id, kind, month, expiresAt, req.user?.id || null, notes || null]);
 
     logger.info(`[settlement] link ${kind}/${month} ${tokenTail(token)} expires=${expiresAt.toISOString()} (user=${req.user?.id})`);
     res.status(201).json({ success: true, data: { ...r.rows[0], url: `/public/settlement/${token}` } });
@@ -97,13 +103,15 @@ const createLink = async (req, res) => {
 const listLinks = async (req, res) => {
   try {
     const r = await query(
-      `SELECT l.id, l.kind, l.billing_month, l.partner_id, c.name AS partner_name,
+      `SELECT l.id, l.context->>'kind' AS kind, l.context->>'billing_month' AS billing_month,
+              l.target_id AS partner_id, c.name AS partner_name,
               l.expires_at, l.revoked_at, l.view_count, l.last_viewed_at, l.notes, l.created_at,
               (l.revoked_at IS NULL AND l.expires_at > now()) AS active,
               RIGHT(l.token, 6) AS token_tail
-         FROM settlement_share_links l
-         LEFT JOIN contractors c ON c.id = l.partner_id
-        ${req.query.month ? 'WHERE l.billing_month = $1' : ''}
+         FROM share_links l
+         LEFT JOIN contractors c ON c.id = l.target_id
+        WHERE l.target_type = 'settlement'
+        ${req.query.month ? "AND l.context->>'billing_month' = $1" : ''}
         ORDER BY l.created_at DESC LIMIT 100`,
       req.query.month ? [req.query.month] : []);
     res.json({ success: true, data: r.rows });
@@ -113,8 +121,9 @@ const listLinks = async (req, res) => {
 const revokeLink = async (req, res) => {
   try {
     const r = await query(
-      `UPDATE settlement_share_links SET revoked_at = now()
-        WHERE id = $1 AND revoked_at IS NULL RETURNING id, token`, [req.params.id]);
+      `UPDATE share_links SET revoked_at = now()
+        WHERE id = $1 AND target_type = 'settlement' AND revoked_at IS NULL
+        RETURNING id, token`, [req.params.id]);
     if (r.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Megosztás nem található vagy már visszavont' });
     }
@@ -125,16 +134,28 @@ const revokeLink = async (req, res) => {
 
 // ── public (token only, NO auth) ────────────────────────────────────────────
 
-/** Resolve a token to its link, or null. Expiry and revocation are both checked here. */
+/**
+ * Resolve a token to its link, or null.
+ *
+ * A lejárat és a visszavonás ELLENŐRZÉSE mostantól nem itt van, hanem az egyesített
+ * `shareLink.resolve()`-ban (mig 170) — ugyanaz a függvény szolgálja ki a könyvelői, az
+ * elszámoló-lapi, az árajánlat- és a hibajegy-linkeket. Három külön másolat azt
+ * jelentette, hogy egy itt talált hiba nem ért el a másik kettőhöz.
+ *
+ * A visszatérési alak SZÁNDÉKOSAN változatlan (kind, partner_id, billing_month), hogy a
+ * hívók ne változzanak — a típusonkénti mezők a `context` JSONB-ből jönnek vissza.
+ */
 async function resolveToken(token) {
-  const r = await query(
-    `SELECT id, token, kind, partner_id, billing_month, expires_at, revoked_at
-       FROM settlement_share_links WHERE token = $1`, [token]);
-  if (r.rows.length === 0) return null;
-  const l = r.rows[0];
-  if (l.revoked_at) return null;
-  if (new Date(l.expires_at) <= new Date()) return null;
-  return l;
+  const r = await shareLinks.resolve(token, { targetType: 'settlement' });
+  if (r.error) return null;
+  const l = r.data;
+  return {
+    id: l.id, token: l.token,
+    kind: l.context?.kind || null,
+    partner_id: l.target_id,
+    billing_month: l.context?.billing_month || null,
+    expires_at: l.expires_at, revoked_at: l.revoked_at,
+  };
 }
 
 const publicView = async (req, res) => {
@@ -145,7 +166,7 @@ const publicView = async (req, res) => {
       return res.status(404).json({ success: false, message: 'A megosztás lejárt vagy visszavonásra került.' });
     }
     await query(
-      `UPDATE settlement_share_links
+      `UPDATE share_links
           SET view_count = view_count + 1, last_viewed_at = now(), last_viewed_ip = $2
         WHERE id = $1`, [link.id, (req.ip || '').slice(0, 45)]);
 

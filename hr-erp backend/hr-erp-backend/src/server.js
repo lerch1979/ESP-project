@@ -397,6 +397,9 @@ app.use(`${API_PREFIX}/scheduled-reports`, scheduledReportRoutes);
 app.use(`${API_PREFIX}/consolidation`, consolidationRoutes);
 app.use(`${API_PREFIX}/partners`, partnerRoutes);
 app.use(`${API_PREFIX}/settlements`, settlementRoutes.admin);
+// Szállásadói hibajegy-nézet — belépés nélkül, lejáró linken (mig 170). Az EGYESÍTETT
+// share_links táblán old fel, ugyanazon a resolve()-on, mint a másik három publikus link.
+app.use('/public/ticket', require('./routes/publicTicket.routes'));
 app.use('/public/settlement', settlementRoutes.publicRouter);
 app.use(`${API_PREFIX}/sales`, salesRoutes.admin);
 app.use('/public/quote', salesRoutes.publicRouter);

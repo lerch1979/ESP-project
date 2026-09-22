@@ -120,10 +120,12 @@ class AccountantShareService {
     const expiresAt = new Date(Date.now() + days * 86400 * 1000);
 
     const result = await query(
-      `INSERT INTO accountant_share_links
-         (year, month, token, expires_at, created_by, notes)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
+      // Az EGYESÍTETT share_links táblába (mig 170) — a year/month a context JSONB-ben.
+      `INSERT INTO share_links
+         (token, target_type, target_id, context, expires_at, created_by, notes)
+       VALUES ($3, 'accountant', NULL, jsonb_build_object('year',$1::int,'month',$2::int),
+               $4, $5, $6)
+       RETURNING *, (context->>'year')::int AS year, (context->>'month')::int AS month`,
       [year, month, token, expiresAt, userId || null, notes || null],
     );
 
@@ -142,11 +144,12 @@ class AccountantShareService {
     if (!include_revoked) where.push('revoked_at IS NULL');
     if (!include_expired) where.push('expires_at > NOW()');
     const result = await query(
-      `SELECT s.*, u.first_name AS created_by_first_name, u.last_name AS created_by_last_name
-         FROM accountant_share_links s
+      `SELECT s.*, (s.context->>'year')::int AS year, (s.context->>'month')::int AS month,
+              u.first_name AS created_by_first_name, u.last_name AS created_by_last_name
+         FROM share_links s
          LEFT JOIN users u ON s.created_by = u.id
-        WHERE ${where.join(' AND ')}
-        ORDER BY s.year DESC, s.month DESC, s.created_at DESC
+        WHERE s.target_type = 'accountant' AND ${where.join(' AND ')}
+        ORDER BY (s.context->>'year')::int DESC, (s.context->>'month')::int DESC, s.created_at DESC
         LIMIT 200`,
     );
     return { links: result.rows };
@@ -154,9 +157,9 @@ class AccountantShareService {
 
   async revoke({ id, userId }) {
     const result = await query(
-      `UPDATE accountant_share_links
+      `UPDATE share_links
           SET revoked_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND revoked_at IS NULL
+        WHERE id = $1 AND target_type = 'accountant' AND revoked_at IS NULL
         RETURNING *`,
       [id],
     );
@@ -182,14 +185,18 @@ class AccountantShareService {
     // Atomic update: only succeeds if not revoked and not expired.
     // Returns the row only when valid; otherwise empty rowset.
     const result = await query(
-      `UPDATE accountant_share_links
-          SET accessed_count   = accessed_count + 1,
-              last_accessed_at = CURRENT_TIMESTAMP,
-              last_accessed_ip = $2
+      // Az EGYESÍTETT share_links táblán (mig 170). Az atomi UPDATE ... RETURNING
+      // megmarad: a lejárat/visszavonás ellenőrzése és a számláló növelése EGY
+      // műveletben történik, így két egyidejű kérés sem csúszhat át egy lejárt linken.
+      `UPDATE share_links
+          SET view_count     = view_count + 1,
+              last_viewed_at = CURRENT_TIMESTAMP,
+              last_viewed_ip = $2
         WHERE token = $1
+          AND target_type = 'accountant'
           AND revoked_at IS NULL
           AND expires_at > CURRENT_TIMESTAMP
-       RETURNING *`,
+       RETURNING *, (context->>'year')::int AS year, (context->>'month')::int AS month`,
       [token, ip || null],
     );
     if (result.rows.length === 0) {

@@ -2,6 +2,9 @@ const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { parseFiltersParam, buildFilterWhere } = require('../utils/filterBuilder');
 const autoAssignService = require('../services/autoAssign.service');
+const ticketAssignment = require('../services/ticketAssignment.service');
+const landlordNotice = require('../services/ticketLandlordNotice.service');
+const inApp = require('../services/inAppNotification.service');
 const workerAssignmentService = require('../services/workerAssignment.service');
 const slaService = require('../services/sla.service');
 const translation = require('../services/translation.service');
@@ -511,21 +514,82 @@ const createTicket = async (req, res) => {
     const { ticket: createdTicket, prioritySlug } = ticketData;
 
     if (!assigned_to) {
-      // Try the new specialization-based assignment first (uses
-      // worker_specializations + ticket_categories.default_specialization).
-      // If no spec match exists in this contractor's data, fall back to the
-      // legacy assignment_rules path so existing setups keep working.
+      // ── SZIGNÁLÁSI LÁNC ────────────────────────────────────────────────
+      // Eszti két mobilos jegye (#19, #20) azért maradt gazdátlan, mert MINDEN
+      // korábbi ág feltételes volt: a szabályok üres szerepkörökre mutattak, a
+      // prioritás-szótár nem egyezett, a végfogás pedig azonos contractor_id-jú
+      // admint keresett, amilyen a lakó bérlőjén nem volt. Ezért a lánc utolsó
+      // eleme mostantól FELTÉTEL NÉLKÜLI: a beállított alapértelmezett felelős.
+      //
+      //   1. szakértelem szerinti szakember   (worker_specializations)
+      //   2. a jegyhez kötött lakó szállásának felelőse
+      //   3. szabály szerinti szerepkör       (assignment_rules)
+      //   4. ALAPÉRTELMEZETT FELELŐS          (ticket_assignment_config) — sosem üres
       let autoAssigned = null;
+      let assignReason = null;
       const specWorker = await workerAssignmentService.autoAssignTicket(createdTicket.id);
       if (specWorker) {
-        // Re-read so we get the assigned_to + updated_at from the latest row
         const reread = await query('SELECT * FROM tickets WHERE id = $1', [createdTicket.id]);
         autoAssigned = reread.rows[0] || null;
+        assignReason = 'szakértelem szerinti szakember';
       } else {
         autoAssigned = await autoAssignService.assignTicket(createdTicket.id);
+        if (autoAssigned?.assigned_to) assignReason = 'szabály szerinti szerepkör';
       }
-      if (autoAssigned) {
-        ticketData = { ...ticketData, ticket: autoAssigned };
+
+      // Ha egyik korábbi ág sem talált senkit, itt zárul a lánc — ez az a pont,
+      // ahol korábban a jegy gazdátlan maradt.
+      if (!autoAssigned?.assigned_to) {
+        const d = await ticketAssignment.assign(createdTicket.id);
+        if (d?.userId) {
+          const reread = await query('SELECT * FROM tickets WHERE id = $1', [createdTicket.id]);
+          autoAssigned = reread.rows[0] || null;
+          assignReason = d.reason;
+        }
+      }
+      if (autoAssigned) ticketData = { ...ticketData, ticket: autoAssigned };
+
+      // ── ÉRTESÍTÉS ──────────────────────────────────────────────────────
+      // Korábban NEM létezett 'ticket_created' értesítés: egy új jegyről senki nem
+      // kapott hírt, csak a szignálásról. Ha a szignálás elbukott, a jegy némán ült.
+      if (autoAssigned?.assigned_to) {
+        inApp.notify({
+          userId: autoAssigned.assigned_to,
+          contractorId: createdTicket.contractor_id,
+          type: 'ticket_created',
+          title: 'Új hibajegy érkezett',
+          message: `${createdTicket.ticket_number} — ${createdTicket.title}`,
+          link: `/tickets/${createdTicket.id}`,
+          data: { ticket_id: createdTicket.id, reason: assignReason },
+        }).catch((e) => logger.error('[ticket.create] értesítés:', e.message));
+      }
+
+      // ── SZÁLLÁSADÓI TOVÁBBÍTÁS ─────────────────────────────────────────
+      // Nem helyettesíti a szignálást: a jegy nálunk is felelősnél marad, aki követi,
+      // hogy a szállásadó megcsinálja-e.
+      const hely = await ticketAssignment.accommodationOfTicket(createdTicket.id);
+      if (hely?.accommodation_id) {
+        const fwd = await landlordNotice.forwardIfNeeded(createdTicket.id, {
+          accommodationId: hely.accommodation_id,
+          categoryId: category_id || null,
+          userId: req.user.id,
+        });
+        if (fwd?.handled_by === 'szallasado') {
+          ticketData = { ...ticketData, landlord_notice: fwd };
+          // Ha a továbbítás előfeltétele hiányzik, a FELELŐS tudja meg — nem a napló.
+          if (!fwd.forwarded && autoAssigned?.assigned_to) {
+            inApp.notify({
+              userId: autoAssigned.assigned_to,
+              contractorId: createdTicket.contractor_id,
+              type: 'ticket_created',
+              title: 'Szállásadói jegy — a levél NEM ment ki',
+              message: `${createdTicket.ticket_number}: ${fwd.reason}. A link elkészült, `
+                + 'de értesítsd a szállásadót más csatornán.',
+              link: `/tickets/${createdTicket.id}`,
+              data: { ticket_id: createdTicket.id, landlord_notice: fwd },
+            }).catch((e) => logger.error('[ticket.create] szállásadói értesítés:', e.message));
+          }
+        }
       }
     }
 
@@ -555,7 +619,10 @@ const createTicket = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Ticket sikeresen létrehozva',
-      data: { ticket: responseTicket }
+      // A szállásadói továbbítás eredménye a VÁLASZBAN is benne van, nem csak a naplóban:
+      // ha a levél nem tudott kimenni (nincs e-mail cím vagy nincs SMTP), azt a rögzítő
+      // ember azonnal lássa, ne egy logfájlban derüljön ki napokkal később.
+      data: { ticket: responseTicket, landlord_notice: ticketData.landlord_notice || null },
     });
 
   } catch (error) {

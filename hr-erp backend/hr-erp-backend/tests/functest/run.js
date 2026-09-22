@@ -60,6 +60,7 @@ const MODULES = [
   './scenarios/workplaceRates',
   './scenarios/contractDocuments',
   './scenarios/billingCorrections',
+  './scenarios/ticketAssignment',
   './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',

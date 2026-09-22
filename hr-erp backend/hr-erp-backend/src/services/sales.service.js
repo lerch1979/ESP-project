@@ -22,6 +22,7 @@
  */
 const { query, transaction } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const shareLinks = require('./shareLink.service');
 
 class SalesError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -570,6 +571,13 @@ async function shareQuote(req, id, body = {}) {
   }
   const days = Math.max(1, Math.min(parseInt(body.expires_in_days, 10) || DEFAULT_QUOTE_SHARE_DAYS, 365));
   const token = crypto.randomUUID();
+  // Az EGYESÍTETT share_links táblába (mig 170). A quotes.share_token oszlopok
+  // MEGMARADNAK és együtt mozognak vele, hogy a meglévő listák és a visszagördítés
+  // működjön — de a token feloldása mostantól egyetlen közös helyen dől el.
+  await query(
+    `INSERT INTO share_links (token, target_type, target_id, expires_at, created_by)
+     VALUES ($1,'quote',$2, now() + ($3 || ' days')::interval, $4)`,
+    [token, id, String(days), req.user?.id || null]);
   const r = await query(
     `UPDATE quotes SET share_token=$2, share_expires_at=now() + ($3 || ' days')::interval,
             share_revoked_at=NULL, updated_at=now()
@@ -582,6 +590,11 @@ async function revokeQuoteShare(req, id) {
   const q = await fetchScoped(req, 'quotes', 'q', 'quote', id);
   if (!q) throw new SalesError('Ajánlat nem található', 404);
   await query(`UPDATE quotes SET share_revoked_at=now(), updated_at=now() WHERE id=$1`, [id]);
+  // A visszavonásnak az EGYESÍTETT táblán is érvényesülnie kell — különben a régi oszlop
+  // visszavontnak mutatná, a feloldó viszont továbbra is kiadná a tartalmat.
+  await query(
+    `UPDATE share_links SET revoked_at = now()
+      WHERE target_type='quote' AND target_id=$1 AND revoked_at IS NULL`, [id]);
   return { revoked: true };
 }
 
@@ -606,8 +619,11 @@ async function publicQuoteByToken(token) {
       WHERE q.share_token = $1`, [token]);
   const q = r.rows[0];
   if (!q) return null;
-  if (q.share_revoked_at) return null;
-  if (!q.share_expires_at || new Date(q.share_expires_at) <= new Date()) return null;
+  // A lejárat és a visszavonás ELLENŐRZÉSE az egyesített feloldóban (mig 170) — ugyanaz
+  // a függvény, ami a könyvelői, az elszámoló-lapi és a hibajegy-linkeket is kiszolgálja.
+  // Három külön másolat azt jelentette, hogy egy itt talált hiba nem ért el a többihez.
+  const link = await shareLinks.resolve(token, { targetType: 'quote' });
+  if (link.error) return null;
 
   const lines = await query(
     `SELECT ql.line_no, ql.description, ql.billing_basis, ql.rate_per_night, ql.flat_amount,
