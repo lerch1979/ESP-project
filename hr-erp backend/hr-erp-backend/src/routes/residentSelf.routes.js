@@ -86,4 +86,18 @@ router.post('/tickets/my/:ticketId/messages', authenticateToken, residentSelf.re
 router.post('/tickets/my/:ticketId/attachments', authenticateToken, residentSelf.requireOwnTicket, ticketAttachments.uploadPhoto, ticketAttachments.uploadMine);
 router.get('/tickets/my/:ticketId/attachments/:attId', authenticateToken, residentSelf.requireOwnTicket, ticketAttachments.streamMine);
 
+// ── LAKÓNAK SZÓLÓ FELADATOK ──────────────────────────────────────────────
+// Önhatáskörű végpontok, a `/tickets/my` mintájára (Path B, 2026-06-09): NEM a
+// `tasks.view` jogra épülnek — az minden feladatot megnyitna a lakónak, köztük a RÓLA
+// szóló belsőket is. A szűrés a kontrollerben, kizárólag `assigned_to_employee_id`-ra.
+//
+// ⚠️ MIÉRT `/mine` ÉS NEM `/my`, a többi lakói végponttól eltérően:
+// a `/tasks/my` MÁR LÉTEZIK az irodai routerben (taskDirect.routes.js, `tasks.view`
+// joggal). Ez a router KORÁBBAN van mountolva (server.js:374 vs 413), tehát egy itteni
+// `/tasks/my` ELFEDNÉ az irodai változatot — a kollégák saját teendő-listája pedig
+// néma módon kiürülne, hiszen nekik nincs employee-soruk. Egy betűnyi névválasztás
+// olcsóbb, mint egy elfedett, működésképtelen belső nézet.
+router.get('/tasks/mine', authenticateToken, residentSelf.getMyTasks);
+router.patch('/tasks/mine/:id/status', authenticateToken, residentSelf.setMyTaskStatus);
+
 module.exports = router;

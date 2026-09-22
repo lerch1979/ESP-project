@@ -16,6 +16,7 @@
  */
 
 const path = require('path');
+const inApp = require('../services/inAppNotification.service');
 const fs = require('fs');
 const sharp = require('sharp');
 const { query } = require('../database/connection');
@@ -139,6 +140,93 @@ const getMyAccommodation = async (req, res) => {
 // existence isn't revealed. This is the ONLY ownership scope — the reused
 // ticketMessages.list/send do NOT self-scope (their _detectSenderRole returns
 // a role for any existing ticket), so this guard must run before them.
+/**
+ * A LAKÓNAK SZÓLÓ feladatai — és KIZÁRÓLAG azok.
+ *
+ * ⚠️ A SZŰRÉS SZÁNDÉKOSAN SZŰK: csak `assigned_to_employee_id`. A `related_employee_id`
+ * a lakóRÓL szóló BELSŐ feladatot jelöli ("beszélni kell vele a rendetlenség miatt") —
+ * annak a lakó telefonján semmi keresnivalója. Ez nem szépséghiba, hanem bizalmi kérdés:
+ * egy ilyen szivárgás után a lakó joggal nem hinné el, hogy bármi más privát maradt.
+ *
+ * A VÁLASZ MEZŐI IS SZŰKÍTETTEK. A `tasks` tábla tele van belső munkaszervezési adattal
+ * (gtd_status, energy_level, waiting_for, estimated_hours, belső leírás), és egy
+ * `SELECT t.*` ezeket mind kiadná. Ezért tételes mezőlista megy ki, nem csillag.
+ */
+const getMyTasks = async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT
+         t.id, t.title, t.description, t.due_date, t.priority,
+         t.resident_status, t.resident_status_at, t.resident_note, t.created_at
+       FROM tasks t
+       JOIN employees e ON e.id = t.assigned_to_employee_id
+       WHERE e.user_id = $1
+       ORDER BY (t.resident_status = 'kesz'), t.due_date NULLS LAST, t.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ success: true, data: { tasks: result.rows } });
+  } catch (err) {
+    logger.error(`[residentSelf.getMyTasks] ${err.message}`);
+    res.status(500).json({ success: false, message: 'Hiba a feladatok betöltésekor' });
+  }
+};
+
+/**
+ * A lakó visszajelzése: láttam / folyamatban / kész.
+ *
+ * NEM a `status` mezőt írja. Az az IRODA munkafolyamata (todo / review / done); ez azt
+ * rögzíti, mit üzent vissza a lakó. A kettő elcsúszhat — a lakó jelezheti, hogy kész, az
+ * iroda meg még ellenőrizni akarja —, és ez így helyes. Ha a lakó közvetlenül a `status`-t
+ * állítaná, egy "kész" gombnyomással kikerülne az iroda ellenőrzése alól.
+ */
+const setMyTaskStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!UUID_RE.test(id)) {
+      return res.status(404).json({ success: false, message: 'Feladat nem található' });
+    }
+    const allapot = req.body?.status;
+    if (!['lattam', 'folyamatban', 'kesz'].includes(allapot)) {
+      return res.status(400).json({ success: false, message: 'Érvénytelen állapot' });
+    }
+
+    // A WHERE ugyanazt a szűkítést ismétli, mint a lista — egy feladatot, ami nem NEKI
+    // szól, nem lehet "megjelölni" sem. A 404 szándékos: nem áruljuk el, hogy létezik.
+    const r = await query(
+      `UPDATE tasks t
+          SET resident_status = $3, resident_status_at = NOW(),
+              resident_note = COALESCE($4, t.resident_note), updated_at = NOW()
+         FROM employees e
+        WHERE e.id = t.assigned_to_employee_id AND e.user_id = $2 AND t.id = $1
+        RETURNING t.id, t.title, t.resident_status, t.resident_status_at`,
+      [id, req.user.id, allapot, req.body?.note || null]
+    );
+    if (r.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Feladat nem található' });
+    }
+
+    // Az IRODA tudjon róla, hogy a lakó mozdult — enélkül a visszajelzés egy mezőben ülne.
+    const felelos = await query('SELECT assigned_to, created_by FROM tasks WHERE id = $1', [id]);
+    const cimzett = felelos.rows[0]?.assigned_to || felelos.rows[0]?.created_by || null;
+    if (cimzett) {
+      const CIMKE = { lattam: 'Látta', folyamatban: 'Folyamatban', kesz: 'Kész' };
+      inApp.notify({
+        userId: cimzett,
+        type: 'task_assigned',
+        title: `Lakói visszajelzés: ${CIMKE[allapot]}`,
+        message: r.rows[0].title,
+        link: `/tasks/${id}`,
+        data: { task_id: id, resident_status: allapot },
+      }).catch((e) => logger.warn(`[residentSelf.setMyTaskStatus] értesítés: ${e.message}`));
+    }
+
+    res.json({ success: true, message: 'Köszönjük a visszajelzést', data: r.rows[0] });
+  } catch (err) {
+    logger.error(`[residentSelf.setMyTaskStatus] ${err.message}`);
+    res.status(500).json({ success: false, message: 'Hiba a visszajelzés rögzítésekor' });
+  }
+};
+
 const requireOwnTicket = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
@@ -337,4 +425,6 @@ const deleteMyPhoto = async (req, res) => {
   }
 };
 
-module.exports = { getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories, suggestMyCategory, getMyEmployee, uploadMyPhoto, deleteMyPhoto };
+module.exports = {
+  getMyTasks,
+  setMyTaskStatus, getMyTickets, getMyTicketById, getMyAccommodation, requireOwnTicket, getMyCategories, suggestMyCategory, getMyEmployee, uploadMyPhoto, deleteMyPhoto };

@@ -64,6 +64,7 @@ const MODULES = [
   './scenarios/translation',
   './scenarios/dateOnly',
   './scenarios/residentTickets',
+  './scenarios/residentTasks',
   './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',

@@ -55,6 +55,15 @@ const TEMPLATES = {
     de: (v) => ({ title: `Neues Ticket — ${v.ticketNumber || ''}`.trim(),
                   body: v.title ? `${v.title}` : 'Für dich wurde ein Ticket angelegt' }),
   },
+  // TEENDŐ A LAKÓNAK (mig 172). Csak a NEKI szóló feladatról megy ki — a lakóRÓL szóló
+  // belső teendő soha nem érinti a telefonját.
+  task_assigned: {
+    hu: (v) => ({ title: 'Új teendőd van', body: v.dueDate ? `${v.title} — határidő: ${v.dueDate}` : v.title }),
+    en: (v) => ({ title: 'You have a new task', body: v.dueDate ? `${v.title} — due: ${v.dueDate}` : v.title }),
+    uk: (v) => ({ title: 'У вас нове завдання', body: v.dueDate ? `${v.title} — до: ${v.dueDate}` : v.title }),
+    tl: (v) => ({ title: 'May bago kang gawain', body: v.dueDate ? `${v.title} — hanggang: ${v.dueDate}` : v.title }),
+    de: (v) => ({ title: 'Du hast eine neue Aufgabe', body: v.dueDate ? `${v.title} — Frist: ${v.dueDate}` : v.title }),
+  },
   expiry_alert: {
     hu: (v) => ({ title: v.field === 'visa' ? 'Vízum lejárat' : 'Szerződés lejárat', body: expiryBody(v, { soon: (n) => `A ${who(v, 'hu')} ${n} nap múlva lejár.`, today: () => `A ${who(v, 'hu')} ma lejár.`, past: (n) => `A ${who(v, 'hu')} ${n} napja lejárt.` }) }),
     en: (v) => ({ title: v.field === 'visa' ? 'Visa expiry' : 'Contract expiry', body: expiryBody(v, { soon: (n) => `Your ${who(v, 'en')} expires in ${n} days.`, today: () => `Your ${who(v, 'en')} expires today.`, past: (n) => `Your ${who(v, 'en')} expired ${n} days ago.` }) }),

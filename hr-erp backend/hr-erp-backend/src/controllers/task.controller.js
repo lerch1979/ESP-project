@@ -243,7 +243,10 @@ const create = async (req, res) => {
     const {
       title, description, status, priority, assigned_to,
       start_date, due_date, estimated_hours, tags,
-      parent_task_id, contractor_id
+      parent_task_id, contractor_id,
+      // A LAKÓNAK szóló feladat címzettje (mig 172). Külön a `related_employee_id`-tól,
+      // ami a lakóRÓL szóló BELSŐ feladatot jelöli — azt a lakó soha nem látja.
+      assigned_to_employee_id,
     } = req.body;
 
     if (!title) {
@@ -279,13 +282,14 @@ const create = async (req, res) => {
     const effectiveContractorId = contractor_id || project.rows[0].contractor_id;
 
     const result = await query(
-      `INSERT INTO tasks (project_id, parent_task_id, title, description, status, priority, assigned_to, start_date, due_date, estimated_hours, tags, contractor_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO tasks (project_id, parent_task_id, title, description, status, priority, assigned_to, start_date, due_date, estimated_hours, tags, contractor_id, created_by, assigned_to_employee_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [projectId, parent_task_id || null, title, description || null,
        status || 'todo', priority || 'medium', assigned_to || null,
        start_date || null, due_date || null, estimated_hours || null,
-       tags || null, effectiveContractorId, req.user.id]
+       tags || null, effectiveContractorId, req.user.id,
+       assigned_to_employee_id || null]
     );
 
     await logActivity({
@@ -302,6 +306,29 @@ const create = async (req, res) => {
       const autoAssigned = await autoAssignService.assignTask(result.rows[0].id);
       if (autoAssigned) {
         taskData = autoAssigned;
+      }
+    }
+
+    // ── A LAKÓ ÉRTESÍTÉSE ─────────────────────────────────────────────────
+    // Csak akkor, ha a feladat NEKI szól. A `related_employee_id` szándékosan NEM vált
+    // ki értesítést: az a lakóRÓL szóló belső teendő, és a puszta létezéséről sem kell
+    // tudnia. A push a saját nyelvén megy (a sablon öt nyelvű).
+    if (assigned_to_employee_id) {
+      const lako = await query(
+        'SELECT user_id FROM employees WHERE id = $1 AND user_id IS NOT NULL',
+        [assigned_to_employee_id]);
+      const lakoUserId = lako.rows[0]?.user_id || null;
+      if (lakoUserId) {
+        inApp.notify({
+          userId: lakoUserId,
+          contractorId: effectiveContractorId,
+          type: 'task_assigned',
+          title: 'Új teendőd van',
+          message: title,
+          link: `/tasks/${taskData.id}`,
+          data: { task_id: taskData.id, for_resident: true },
+          push: { vars: { title, dueDate: due_date || null } },
+        }).catch((e) => logger.warn(`[task.create] lakói értesítés: ${e.message}`));
       }
     }
 
