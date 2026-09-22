@@ -3,8 +3,9 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, FormControl, InputLabel, Select, MenuItem,
   Grid, CircularProgress, Autocomplete,
+  Chip, Divider, Typography, ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
-import { ticketsAPI, employeesAPI } from '../services/api';
+import { ticketsAPI, employeesAPI, accommodationsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
@@ -23,6 +24,11 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
   // priority_id / assigned_to to a Select before its MenuItem children exist
   // (which would trigger MUI's "out-of-range value" warning).
   const [optionsReady, setOptionsReady] = useState(false);
+  const [accommodations, setAccommodations] = useState([]);
+  // Ugyanaz a két, egymást kizáró mód, mint a létrehozásnál — lásd CreateTicketModal.
+  const [mod, setMod] = useState('emberek');
+  const [erintettek, setErintettek] = useState([]);
+  const [hatokorSzallas, setHatokorSzallas] = useState(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -47,6 +53,9 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
           api.get('/users'),
           ticketsAPI.getCategories(),
           ticketsAPI.getPriorities(),
+          accommodationsAPI.getAll({ limit: 500 })
+            .then((r) => setAccommodations(r.data?.accommodations || r.data || []))
+            .catch(() => setAccommodations([])),
         ]);
         if (cancelled) return;
         if (usersRes.status === 'fulfilled' && usersRes.value.data.success) {
@@ -88,6 +97,14 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
       assigned_to: ticket.assigned_to || '',
       linked_employee_id: ticket.linked_employee?.id || ticket.linked_employee_id || '',
     });
+    // A JELENLEGI állapot betöltése. Enélkül az űrlap üres listát mutatna, és egy
+    // mentés NÉMÁN levenné az összes eddigi érintettet a jegyről.
+    const hazHatokor = ticket.scope === 'accommodation' && ticket.scope_accommodation_id;
+    setMod(hazHatokor ? 'szallas' : 'emberek');
+    setErintettek(ticket.affected_employees || []);
+    setHatokorSzallas(hazHatokor
+      ? { id: ticket.scope_accommodation_id, name: ticket.scope_accommodation_name || '' }
+      : null);
   }, [optionsReady, ticket]);
 
   const submit = async () => {
@@ -107,6 +124,22 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
       for (const k of Object.keys(form)) {
         if ((form[k] || '') !== (src[k] || '')) patch[k] = form[k];
       }
+      // Az érintettek a `patch`-en kívül utaznak: nem a tickets tábla oszlopai.
+      // Csak akkor küldjük, ha TÉNYLEG változott — különben minden mentés fölöslegesen
+      // újraírná a kapcsolótáblát és tele szemetelné a jegy történetét.
+      const eredetiIdk = (ticket.affected_employees || []).map((e) => e.id).sort();
+      const mostaniIdk = erintettek.map((e) => e.id).sort();
+      const eredetiHazHatokor = ticket.scope === 'accommodation'
+        ? (ticket.scope_accommodation_id || null) : null;
+      const mostaniHazHatokor = mod === 'szallas' ? (hatokorSzallas?.id || null) : null;
+
+      if (mostaniHazHatokor !== eredetiHazHatokor) {
+        patch.scope_accommodation_id = mostaniHazHatokor;
+      }
+      if (mod === 'emberek' && JSON.stringify(eredetiIdk) !== JSON.stringify(mostaniIdk)) {
+        patch.affected_employee_ids = mostaniIdk;
+      }
+
       if (Object.keys(patch).length === 0) {
         toast.info('Nincs változás');
         return onClose();
@@ -230,6 +263,77 @@ export default function EditTicketModal({ open, ticket, onClose, onSuccess }) {
               noOptionsText="Nincs találat"
               clearText="Törlés"
             />
+          </Grid>
+
+          {/* ─── KIT ÉRINT MÉG — utólag is módosítható ─────────────────────────
+              A valóságban gyakran a bejelentés UTÁN derül ki, hogy a szomszéd szobát
+              is érinti. Eddig ilyenkor új jegyet kellett nyitni. */}
+          <Grid item xs={12}>
+            <Divider sx={{ mb: 2 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Kit érint még?</Typography>
+            <ToggleButtonGroup
+              value={mod}
+              exclusive
+              size="small"
+              onChange={(_, v) => { if (v) setMod(v); }}
+              sx={{ mb: 2 }}
+            >
+              <ToggleButton value="emberek">Kiválasztott lakók</ToggleButton>
+              <ToggleButton value="szallas">Egész szállás</ToggleButton>
+            </ToggleButtonGroup>
+
+            {mod === 'emberek' ? (
+              <Autocomplete
+                multiple
+                options={employees}
+                loading={employeesLoading}
+                value={erintettek}
+                onChange={(_, val) => setErintettek(val)}
+                getOptionLabel={(e) => {
+                  const name = [e.first_name, e.last_name].filter(Boolean).join(' ');
+                  const room = e.room_number ? `${e.room_number}. szoba` : null;
+                  const where = [e.accommodation_name, room].filter(Boolean).join(', ');
+                  return where ? `${name} (${where})` : name;
+                }}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderTags={(value, getTagProps) =>
+                  value.map((e, i) => (
+                    <Chip
+                      {...getTagProps({ index: i })}
+                      key={e.id}
+                      size="small"
+                      label={[e.first_name, e.last_name].filter(Boolean).join(' ')}
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Érintett lakók"
+                    placeholder="Keress név vagy szállás alapján"
+                    helperText="Az újonnan felvettek értesítést kapnak; aki eddig is rajta volt, nem kap újat."
+                  />
+                )}
+                noOptionsText="Nincs találat"
+              />
+            ) : (
+              <Autocomplete
+                options={accommodations}
+                value={hatokorSzallas}
+                onChange={(_, val) => setHatokorSzallas(val)}
+                getOptionLabel={(a) => a.name || ''}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Szállás"
+                    placeholder="Melyik házat érinti?"
+                    helperText="A ház minden lakója látja. A névsor törlődik — vegyes szálláson így nem szivárog más megbízó dolgozójának neve."
+                  />
+                )}
+                noOptionsText="Nincs találat"
+              />
+            )}
           </Grid>
         </Grid>
       </DialogContent>

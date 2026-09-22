@@ -256,5 +256,72 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'RESTICK-12',
+      name: 'az érintettek UTÓLAG is módosíthatók — a levett lakó el is tűnik',
+      expected: { hozzaadas: 200, ket_fo: 2, levetel_utan: 1, marad_a_jo: true },
+      hint: 'a lista CSERE, nem hozzáfűzés — különben a tévedésből felvett lakó bent ragad',
+      run: async (ctx, s) => {
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK utólagos érintett', description: 'x', category_id: s.kat.id } });
+        const jegy = r.body?.data?.ticket?.id;
+
+        const ket = await http.patch(`/tickets/${jegy}`, { token: s.admin,
+          body: { affected_employee_ids: [s.emp.id, s.masikEmp.id] } });
+        const utana2 = (await query(
+          'SELECT count(*)::int AS db FROM ticket_affected_employees WHERE ticket_id=$1',
+          [jegy])).rows[0].db;
+
+        await http.patch(`/tickets/${jegy}`, { token: s.admin,
+          body: { affected_employee_ids: [s.masikEmp.id] } });
+        const sorok = (await query(
+          'SELECT employee_id FROM ticket_affected_employees WHERE ticket_id=$1', [jegy])).rows;
+
+        return {
+          hozzaadas: ket.status,
+          ket_fo: utana2,
+          levetel_utan: sorok.length,
+          marad_a_jo: sorok[0]?.employee_id === s.masikEmp.id,
+        };
+      },
+    },
+    {
+      id: 'RESTICK-13',
+      name: '⚠️ ház-hatókörre váltáskor a NÉVSOR TÖRLŐDIK',
+      expected: { scope: 'accommodation', nevsor: 0 },
+      hint: 'vegyes szálláson egy bent felejtett névsor más megbízó dolgozóját szivárogtatná',
+      run: async (ctx, s) => {
+        const acc = (await query(
+          'SELECT accommodation_id FROM employees WHERE id=$1', [s.emp.id])).rows[0];
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK hatókörváltás', description: 'x', category_id: s.kat.id,
+          affected_employee_ids: [s.emp.id, s.masikEmp.id] } });
+        const jegy = r.body?.data?.ticket?.id;
+
+        await http.patch(`/tickets/${jegy}`, { token: s.admin,
+          body: { scope_accommodation_id: acc.accommodation_id } });
+
+        const t = (await query('SELECT scope FROM tickets WHERE id=$1', [jegy])).rows[0];
+        const n = (await query(
+          'SELECT count(*)::int AS db FROM ticket_affected_employees WHERE ticket_id=$1',
+          [jegy])).rows[0].db;
+        return { scope: t.scope, nevsor: n };
+      },
+    },
+    {
+      id: 'RESTICK-14',
+      name: 'a jegy részletei MEGMONDJÁK, kiket érint — enélkül a szerkesztő űrlap kitörölné őket',
+      expected: { erintett_db: 2, van_nev: true },
+      hint: 'üres listát visszaküldve a mentés "vedd le mindenkit"-ként értelmeződne',
+      run: async (ctx, s) => {
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK részletek', description: 'x', category_id: s.kat.id,
+          affected_employee_ids: [s.emp.id, s.masikEmp.id] } });
+        const jegy = r.body?.data?.ticket?.id;
+        const d = await http.get(`/tickets/${jegy}`, { token: s.admin });
+        const lista = d.body?.data?.ticket?.affected_employees || [];
+        return { erintett_db: lista.length, van_nev: Boolean(lista[0]?.first_name) };
+      },
+    },
   ],
 };

@@ -337,6 +337,22 @@ const getTicketById = async (req, res) => {
 
     const historyResult = await query(historyQuery, [id]);
 
+    // ÉRINTETT LAKÓK + a ház-hatókör neve. Enélkül a szerkesztő űrlap nem tudná
+    // megmutatni, kik vannak MA a jegyen — és egy szerkesztés némán kitörölné őket,
+    // mert az üres listát "vedd le mindenkit"-ként küldené vissza.
+    const erintettekResult = await query(
+      `SELECT e.id, e.first_name, e.last_name, e.room_number, a.name AS accommodation_name
+         FROM ticket_affected_employees tae
+         JOIN employees e ON e.id = tae.employee_id
+         LEFT JOIN accommodations a ON a.id = e.accommodation_id
+        WHERE tae.ticket_id = $1
+        ORDER BY e.last_name, e.first_name`, [id]);
+
+    const hatokorNev = ticket.scope_accommodation_id
+      ? (await query('SELECT name FROM accommodations WHERE id = $1',
+          [ticket.scope_accommodation_id])).rows[0]?.name || null
+      : null;
+
     const translatedTicket = await translateForViewer(req, ticket);
     const viewerLang = translatedTicket._targetLang || (await translation.getUserLanguage(req.user.id));
     const translatedComments = await translation.translateArray(
@@ -406,7 +422,10 @@ const getTicketById = async (req, res) => {
           accommodation,
           comments: translatedComments,
           attachments: attachmentsResult.rows,
-          history: historyResult.rows
+          history: historyResult.rows,
+          // Kiket érint MÉG a jegy, és ha ház-hatókörű, melyik házat.
+          affected_employees: erintettekResult.rows,
+          scope_accommodation_name: hatokorNev,
         }
       }
     });
@@ -777,7 +796,17 @@ const updateTicket = async (req, res) => {
     for (const k of allowed) {
       if (req.body[k] !== undefined) patch[k] = req.body[k] === '' ? null : req.body[k];
     }
-    if (Object.keys(patch).length === 0) {
+
+    // AZ ÉRINTETTEK UTÓLAG IS MÓDOSÍTHATÓK. Enélkül a lista csak a jegy létrehozásakor
+    // volt megadható — pedig a valóságban utólag derül ki, hogy a szomszéd szobát is
+    // érinti. A két mező a `patch`-en KÍVÜL utazik, mert nem a `tickets` tábla oszlopai:
+    // az egyik kapcsolótáblát ír, a másik a hatókört váltja.
+    const ujErintettek = Array.isArray(req.body.affected_employee_ids)
+      ? req.body.affected_employee_ids : null;
+    const ujHatokorSzallas = req.body.scope_accommodation_id !== undefined
+      ? (req.body.scope_accommodation_id || null) : undefined;
+
+    if (Object.keys(patch).length === 0 && ujErintettek === null && ujHatokorSzallas === undefined) {
       return res.status(400).json({ success: false, message: 'Nincs módosítandó mező' });
     }
     if (patch.title !== undefined && (!patch.title || !String(patch.title).trim())) {
@@ -858,9 +887,80 @@ const updateTicket = async (req, res) => {
         );
       }
 
+      // ── HATÓKÖR-VÁLTÁS ───────────────────────────────────────────────────────
+      // A ház-hatókörre váltás TÖRLI a névsort, nem csak mellérakja a hatókört. Egy
+      // vegyes (két megbízós) szálláson egy bent felejtett névsor más cég dolgozójának
+      // nevét mutatná meg a megbízói oldalon — ez a kikötés a funkció feltétele volt.
+      if (ujHatokorSzallas !== undefined) {
+        if (ujHatokorSzallas) {
+          await client.query(
+            `UPDATE tickets SET scope = 'accommodation', scope_accommodation_id = $2 WHERE id = $1`,
+            [id, ujHatokorSzallas]);
+          await client.query('DELETE FROM ticket_affected_employees WHERE ticket_id = $1', [id]);
+        } else {
+          await client.query(
+            `UPDATE tickets SET scope = 'employee', scope_accommodation_id = NULL WHERE id = $1`,
+            [id]);
+        }
+        await client.query(
+          `INSERT INTO ticket_history (ticket_id, user_id, action, field_name, old_value, new_value)
+           VALUES ($1, $2, 'updated', 'scope', $3, $4)`,
+          [id, req.user.id, current.scope || 'employee',
+           ujHatokorSzallas ? 'accommodation' : 'employee']);
+      }
+
+      // ── ÉRINTETTEK CSERÉJE ───────────────────────────────────────────────────
+      // A lista CSERE, nem hozzáfűzés: a felület a teljes névsort küldi, tehát a
+      // levett embernek el kell tűnnie. Ha hozzáfűznénk, egy tévedésből felvett lakót
+      // soha nem lehetne levenni a jegyről.
+      let ujraErtesitendo = [];
+      if (ujErintettek !== null && !ujHatokorSzallas) {
+        const regiek = (await client.query(
+          'SELECT employee_id FROM ticket_affected_employees WHERE ticket_id = $1', [id]
+        )).rows.map((r) => r.employee_id);
+
+        await client.query('DELETE FROM ticket_affected_employees WHERE ticket_id = $1', [id]);
+        for (const empId of [...new Set(ujErintettek)].filter(Boolean)) {
+          await client.query(
+            `INSERT INTO ticket_affected_employees (ticket_id, employee_id)
+             VALUES ($1, $2) ON CONFLICT DO NOTHING`, [id, empId]);
+        }
+        // Csak az ÚJAKAT értesítjük. Aki eddig is rajta volt, már kapott értesítést —
+        // egy szerkesztéstől ne kapja meg újra.
+        ujraErtesitendo = [...new Set(ujErintettek)].filter((x) => x && !regiek.includes(x));
+
+        await client.query(
+          `INSERT INTO ticket_history (ticket_id, user_id, action, field_name, old_value, new_value)
+           VALUES ($1, $2, 'updated', 'affected_employees', $3, $4)`,
+          [id, req.user.id, String(regiek.length), String(ujErintettek.length)]);
+      }
+
       const finalResult = await client.query('SELECT * FROM tickets WHERE id = $1', [id]);
-      return finalResult.rows[0];
+      return { ...finalResult.rows[0], _ujraErtesitendo: ujraErtesitendo };
     });
+
+    // Az újonnan felvett érintettek értesítése — a tranzakción KÍVÜL, hogy egy
+    // értesítési hiba ne görgessen vissza egy sikeres szerkesztést.
+    for (const empId of result._ujraErtesitendo || []) {
+      try {
+        const u = await query(
+          'SELECT user_id FROM employees WHERE id = $1 AND user_id IS NOT NULL', [empId]);
+        if (!u.rows[0]) continue;
+        await inApp.notify({
+          userId: u.rows[0].user_id,
+          contractorId: result.contractor_id,
+          type: 'ticket_created',
+          title: 'Hibajegy — téged is érint',
+          message: `${result.ticket_number} — ${result.title}`,
+          link: `/tickets/${result.id}`,
+          data: { ticket_id: result.id },
+          push: true,
+        });
+      } catch (e) {
+        logger.warn(`[ticket.update] értesítés nem ment (employee=${empId}): ${e.message}`);
+      }
+    }
+    delete result._ujraErtesitendo;
 
     res.json({ success: true, data: { ticket: result } });
   } catch (error) {

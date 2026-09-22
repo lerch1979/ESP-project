@@ -13,8 +13,13 @@ import {
   Grid,
   CircularProgress,
   Autocomplete,
+  Chip,
+  Divider,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
-import { ticketsAPI, employeesAPI } from '../services/api';
+import { ticketsAPI, employeesAPI, accommodationsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
@@ -25,6 +30,15 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
   const [priorities, setPriorities] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [accommodations, setAccommodations] = useState([]);
+  // KI ÉRINTETT. Két, egymást KIZÁRÓ mód — nem véletlenül:
+  //   'emberek'  → névre szóló érintettség (közös fürdő, két szobatárs);
+  //   'szallas'  → az EGÉSZ ház, névsor NÉLKÜL. Vegyes (két megbízós) szálláson egy
+  //                névsor más cég dolgozóinak nevét szivárogtatná a megbízói oldalra,
+  //                ezért ebben a módban szándékosan nem keletkezik névsor.
+  const [mod, setMod] = useState('emberek');
+  const [erintettek, setErintettek] = useState([]);
+  const [hatokorSzallas, setHatokorSzallas] = useState(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -68,6 +82,9 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
       // we pull a bounded page; the Autocomplete does client-side search.
       setEmployeesLoading(true);
       try {
+        accommodationsAPI.getAll({ limit: 500 })
+          .then((r) => setAccommodations(r.data?.accommodations || r.data || []))
+          .catch(() => setAccommodations([]));
         const empRes = await employeesAPI.getAll({ limit: 1000 });
         if (empRes?.success) {
           setEmployees(empRes.data?.employees || []);
@@ -102,6 +119,14 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
       if (formData.assigned_to)       payload.assigned_to = formData.assigned_to;
       if (formData.linked_employee_id) payload.linked_employee_id = formData.linked_employee_id;
 
+      // A két mód KIZÁRJA egymást: ha mindkettőt elküldenénk, a szerveren a
+      // ház-hatókör nyerne, és a gondosan kiválasztott nevek némán elvesznének.
+      if (mod === 'szallas' && hatokorSzallas) {
+        payload.scope_accommodation_id = hatokorSzallas.id;
+      } else if (mod === 'emberek' && erintettek.length > 0) {
+        payload.affected_employee_ids = erintettek.map((e) => e.id);
+      }
+
       const response = await ticketsAPI.create(payload);
 
       if (response.success) {
@@ -126,6 +151,9 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
       assigned_to: '',
       linked_employee_id: '',
     });
+    setMod('emberek');
+    setErintettek([]);
+    setHatokorSzallas(null);
     onClose();
   };
 
@@ -280,6 +308,79 @@ function CreateTicketModal({ open, onClose, onSuccess }) {
               noOptionsText="Nincs találat"
               clearText="Törlés"
             />
+          </Grid>
+
+          {/* ─── KIT ÉRINT MÉG ────────────────────────────────────────────────
+              A "Kapcsolódó dolgozó" EGY embert jelöl. Egy eldugult közös lefolyó
+              viszont mindenkit érint a folyosón — eddig ilyenkor annyi külön jegyet
+              kellett nyitni, ahány lakó. Itt lehet egyszerre többet megadni, vagy az
+              egész házat. */}
+          <Grid item xs={12}>
+            <Divider sx={{ mb: 2 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Kit érint még? (opcionális)</Typography>
+            <ToggleButtonGroup
+              value={mod}
+              exclusive
+              size="small"
+              onChange={(_, v) => { if (v) setMod(v); }}
+              sx={{ mb: 2 }}
+            >
+              <ToggleButton value="emberek">Kiválasztott lakók</ToggleButton>
+              <ToggleButton value="szallas">Egész szállás</ToggleButton>
+            </ToggleButtonGroup>
+
+            {mod === 'emberek' ? (
+              <Autocomplete
+                multiple
+                options={employees}
+                loading={employeesLoading}
+                value={erintettek}
+                onChange={(_, val) => setErintettek(val)}
+                getOptionLabel={(e) => {
+                  const name = [e.first_name, e.last_name].filter(Boolean).join(' ');
+                  const room = e.room_number ? `${e.room_number}. szoba` : null;
+                  const where = [e.accommodation_name, room].filter(Boolean).join(', ');
+                  return where ? `${name} (${where})` : name;
+                }}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderTags={(value, getTagProps) =>
+                  value.map((e, i) => (
+                    <Chip
+                      {...getTagProps({ index: i })}
+                      key={e.id}
+                      size="small"
+                      label={[e.first_name, e.last_name].filter(Boolean).join(' ')}
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Érintett lakók"
+                    placeholder="Keress név vagy szállás alapján"
+                    helperText="Mindegyikük látja a jegyet a telefonján, és értesítést kap róla."
+                  />
+                )}
+                noOptionsText="Nincs találat"
+              />
+            ) : (
+              <Autocomplete
+                options={accommodations}
+                value={hatokorSzallas}
+                onChange={(_, val) => setHatokorSzallas(val)}
+                getOptionLabel={(a) => a.name || ''}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Szállás"
+                    placeholder="Melyik házat érinti?"
+                    helperText="A ház minden lakója látja. Névsor NEM készül — vegyes szálláson így nem szivárog más megbízó dolgozójának neve."
+                  />
+                )}
+                noOptionsText="Nincs találat"
+              />
+            )}
           </Grid>
         </Grid>
       </DialogContent>
