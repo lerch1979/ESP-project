@@ -209,7 +209,9 @@
     "title": "Tickets",
     "create": "Neues Ticket",
     "myTickets": "Meine Tickets",
-    "detail": "Details"
+    "detail": "Details",
+    "sharedHouse": "Gemeinsam — betrifft die ganze Unterkunft",
+    "affectsYou": "Betrifft auch dich"
   },
   "housing": {
     "title": "Unterkunft Feedback",

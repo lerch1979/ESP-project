@@ -81,11 +81,23 @@ const getMyTickets = async (req, res) => {
          t.created_at, t.updated_at, t.due_date, t.resolved_at, t.closed_at,
          ts.name as status_name, ts.slug as status_slug, ts.color as status_color, ts.is_final,
          tc.name as category_name, tc.slug as category_slug, tc.color as category_color, tc.icon as category_icon,
-         p.name as priority_name, p.slug as priority_slug, p.level as priority_level, p.color as priority_color
+         p.name as priority_name, p.slug as priority_slug, p.level as priority_level, p.color as priority_color,
+         -- MIÉRT LÁTJA: a lakó enélkül nem értené, miért van a listájában egy jegy,
+         -- amit nem ő jelentett be. A közös helyiségek miatt ez mostantól gyakori.
+         --   'sajat'  → ő jelentette be
+         --   'kozos'  → az egész szállásra szól (folyosó, konyha, mosókonyha)
+         --   'erintett' → név szerint őt is érinti, de más jelentette be
+         CASE
+           WHEN t.created_by = $1 THEN 'sajat'
+           WHEN t.scope = 'accommodation' THEN 'kozos'
+           ELSE 'erintett'
+         END AS lathatosag_oka,
+         a.name AS scope_accommodation_name
        FROM tickets t
        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
        LEFT JOIN priorities p ON t.priority_id = p.id
+       LEFT JOIN accommodations a ON a.id = t.scope_accommodation_id
        WHERE ${sajatJegy(1)}
        ORDER BY t.created_at DESC`,
       [req.user.id]

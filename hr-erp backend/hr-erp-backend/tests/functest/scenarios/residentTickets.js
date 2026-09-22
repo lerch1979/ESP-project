@@ -231,5 +231,21 @@ module.exports = {
         return { nem_latja: !(lista.body?.data?.tickets || []).some((x) => x.id === jegy) };
       },
     },
+    {
+      id: 'RESTICK-11',
+      name: 'a lakó MEGTUDJA, miért látja a jegyet: saját / közös / téged is érint',
+      expected: { sajat: 'sajat', kozos: 'kozos', erintett: 'erintett' },
+      hint: 'jelölés nélkül azt hinné, valaki az ő nevében írt, vagy elrontottunk valamit',
+      run: async (ctx, s) => {
+        const lista = await http.get('/tickets/my', { token: s.lako });
+        const sorok = lista.body?.data?.tickets || [];
+        const okok = new Set(sorok.map((x) => x.lathatosag_oka));
+        return {
+          sajat: okok.has('sajat') ? 'sajat' : '—',
+          kozos: okok.has('kozos') ? 'kozos' : '—',
+          erintett: okok.has('erintett') ? 'erintett' : '—',
+        };
+      },
+    },
   ],
 };

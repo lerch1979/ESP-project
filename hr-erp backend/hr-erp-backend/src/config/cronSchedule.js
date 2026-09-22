@@ -26,6 +26,23 @@ const TZ = 'Europe/Budapest';
  * renag_sent_at stamp), so a restart or a manual re-run cannot double-send.
  */
 function initializeVideoCommunicationJobs() {
+  // ── PUSH-NYUGTÁK — 10 percenként ─────────────────────────────────────────
+  // Nem a küldés útjában fut: egy szinkron várakozás a jegy-létrehozást lassítaná, egy
+  // késve lekérdezett nyugta viszont csak késve derít fényt a hibára. A kettő közül az
+  // utóbbi a jó irány. Az Expo korlátozott ideig őrzi a nyugtákat, ezért nem ritkábban.
+  //
+  // Enélkül a rendszer "elküldve"-t jelentene olyan értesítésre is, amit az APNs/FCM
+  // elutasított — és a felhasználó számára ez NÉMA: semmi nem jelzi, hogy nem kap
+  // értesítést.
+  cron.schedule('*/10 * * * *', wrap('pushReceipts', async () => {
+    const push = require('../services/pushNotification.service');
+    const r = await push.checkReceipts();
+    if (r.checked > 0) {
+      logger.info(`[cron.pushReceipts] ${r.checked} ellenőrizve — `
+        + `${r.delivered} kézbesítve, ${r.failed} hibás`);
+    }
+  }), { timezone: TZ });
+
   cron.schedule('30 9 * * *', wrap('videoSequences', async () => {
     const r = await videoSequences.runDaily({});
     logger.info(`[cron:videoSequences] ${JSON.stringify(r)}`);

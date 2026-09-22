@@ -21,6 +21,18 @@ export default function ResidentTicketRow({ ticket, onPress, dimmed }) {
       </View>
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2}>{ticket.title}</Text>
+        {/* MIÉRT LÁTJA EZT A JEGYET. A közös helyiségek miatt a listájában megjelennek
+            olyan bejelentések is, amiket nem ő tett. Jelölés nélkül ez zavarba ejtő —
+            a lakó azt hinné, valaki az ő nevében írt, vagy hogy elrontottunk valamit. */}
+        {ticket.lathatosag_oka === 'kozos' ? (
+          <Text style={styles.reason} numberOfLines={1}>
+            🏠 {t('tickets.sharedHouse', { defaultValue: 'Közös — az egész szállásra vonatkozik' })}
+          </Text>
+        ) : ticket.lathatosag_oka === 'erintett' ? (
+          <Text style={styles.reason} numberOfLines={1}>
+            👥 {t('tickets.affectsYou', { defaultValue: 'Téged is érint' })}
+          </Text>
+        ) : null}
         <Text style={styles.date}>{formatDate(ticket.created_at)}</Text>
       </View>
       <StatusBadge label={t(`status.${ticket.status_slug}`, { defaultValue: ticket.status_name })} slug={ticket.status_slug} color={ticket.status_color} />
@@ -55,5 +67,6 @@ const styles = StyleSheet.create({
   icon: { fontSize: 22 },
   body: { flex: 1, marginRight: 8 },
   title: { fontSize: 15, fontWeight: '600', color: colors.text },
+  reason: { fontSize: 12, color: colors.primary, marginTop: 2 },
   date: { fontSize: 12, color: colors.textLight, marginTop: 3 },
 });

@@ -209,7 +209,9 @@
     "title": "Hibajegyek",
     "create": "Új hibajegy",
     "myTickets": "Jegyeim",
-    "detail": "Részletek"
+    "detail": "Részletek",
+    "sharedHouse": "Közös — az egész szállásra vonatkozik",
+    "affectsYou": "Téged is érint"
   },
   "housing": {
     "title": "Szállás visszajelzés",

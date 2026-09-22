@@ -209,7 +209,9 @@
     "title": "Mga Ticket",
     "create": "Bagong Ticket",
     "myTickets": "Mga Ticket Ko",
-    "detail": "Mga Detalye"
+    "detail": "Mga Detalye",
+    "sharedHouse": "Shared — para sa buong tirahan",
+    "affectsYou": "Apektado ka rin"
   },
   "housing": {
     "title": "Feedback sa Tirahan",

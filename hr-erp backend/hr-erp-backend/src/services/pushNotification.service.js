@@ -159,8 +159,107 @@ async function sendToUser(userId, { type, vars = {}, fallbackTitle = '', fallbac
     }
   }
 
+  // ── A KÜLDÉS NYOMA (mig 175) ─────────────────────────────────────────────
+  // Minden üzenetről sor keletkezik, mert enélkül a receipt később nem kérdezhető le:
+  // a ticket-azonosító csak itt, a válaszban létezik, és sehol máshol nem őrződik meg.
+  // Az írás best-effort: ha elszáll, a push attól még elment.
+  await Promise.all(tickets.map((tk, i) => {
+    if (!tk) return Promise.resolve();
+    const hibas = tk.status === 'error';
+    return query(
+      `INSERT INTO push_deliveries
+         (user_id, expo_push_token, ticket_id, notification_type, status, error_code, error_message, checked_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [userId, messages[i].to, hibas ? null : (tk.id || null), type || null,
+       hibas ? 'hibas' : 'atveve',
+       hibas ? (tk.details && tk.details.error) || null : null,
+       hibas ? tk.message || null : null,
+       hibas ? new Date() : null]
+    ).catch((e) => logger.warn(`[push] kézbesítési nyom nem íródott: ${e.message}`));
+  }));
+
   const ok = tickets.filter((tk) => tk && tk.status === 'ok').length;
-  return { sent: ok };
+  // ⚠️ `accepted`, NEM `sent`. Az Expo átvette — a telefon még nem feltétlenül kapta meg.
+  // A régi `sent` kulcs megmarad, hogy a meglévő hívók ne törjenek el, de a jelentése
+  // ugyanez: átvétel, nem kézbesítés.
+  return { sent: ok, accepted: ok, rejected: tickets.filter((tk) => tk && tk.status === 'error').length };
 }
 
-module.exports = { sendToUser };
+/**
+ * NYUGTA-LEKÉRDEZÉS — itt derül ki, hogy a push TÉNYLEGESEN megérkezett-e.
+ *
+ * Az Expo a receipteket a küldés után néhány másodperccel kezdi kiadni, és korlátozott
+ * ideig őrzi. Ezért ez rendszeresen fut, nem a küldés útjában: egy szinkron várakozás a
+ * jegy-létrehozást lassítaná el, egy elmaradt lekérdezés viszont csak késve derít fényt
+ * a hibára — a kettő közül az utóbbi a jó irány.
+ *
+ * `DeviceNotRegistered` esetén a tokent töröljük: az eszköz leiratkozott vagy törölte az
+ * appot, és a további küldés oda csak zajt termel.
+ */
+async function checkReceipts({ limit = 200, minAgeSeconds = 15 } = {}) {
+  const { rows } = await query(
+    `SELECT id, ticket_id, expo_push_token FROM push_deliveries
+      WHERE status = 'atveve' AND ticket_id IS NOT NULL
+        AND created_at < NOW() - ($2 || ' seconds')::interval
+      ORDER BY created_at LIMIT $1`, [limit, String(minAgeSeconds)]);
+  if (rows.length === 0) return { checked: 0, delivered: 0, failed: 0 };
+
+  const byTicket = new Map(rows.map((r) => [r.ticket_id, r]));
+  const receipts = {};
+  for (const chunk of expo.chunkPushNotificationReceiptIds([...byTicket.keys()])) {
+    try { Object.assign(receipts, await expo.getPushNotificationReceiptsAsync(chunk)); }
+    catch (e) { logger.warn(`[push.receipts] lekérdezés: ${e.message}`); }
+  }
+
+  let delivered = 0; let failed = 0; const dead = [];
+  for (const [ticketId, r] of Object.entries(receipts)) {
+    const sor = byTicket.get(ticketId);
+    if (!sor) continue;
+    const hibas = r.status === 'error';
+    const kod = hibas ? (r.details && r.details.error) || null : null;
+    if (hibas) { failed++; if (kod === 'DeviceNotRegistered') dead.push(sor.expo_push_token); }
+    else delivered++;
+    await query(
+      `UPDATE push_deliveries SET status=$2, error_code=$3, error_message=$4, checked_at=NOW()
+        WHERE id=$1`,
+      [sor.id, hibas ? 'hibas' : 'kezbesitve', kod, hibas ? r.message || null : null]
+    ).catch(() => {});
+  }
+
+  if (dead.length) {
+    await query('DELETE FROM user_push_tokens WHERE expo_push_token = ANY($1)', [dead])
+      .catch((e) => logger.warn(`[push.receipts] halott token törlése: ${e.message}`));
+    logger.info(`[push.receipts] ${dead.length} halott token törölve`);
+  }
+
+  if (failed > 0) {
+    // HANGOSAN: egy sorozatos kézbesítési hiba rendszerint konfigurációs ok (hiányzó
+    // APNs/FCM hitelesítés), és a felhasználók számára NÉMA — semmi nem jelzi nekik,
+    // hogy nem kapnak értesítést.
+    logger.error(`[push.receipts] ${failed} push NEM ért célba (${delivered} igen)`);
+    try {
+      const { alertOps } = require('../utils/opsAlert');
+      alertOps(`[PUSH] ${failed} értesítés nem ért célba. `
+        + 'Nézd meg a push_deliveries tábla hibás sorait — sorozatos hiba esetén '
+        + 'rendszerint az APNs/FCM hitelesítés hiányzik az Expo-projektben.');
+    } catch { /* a riasztás hiánya nem állíthatja meg az ellenőrzést */ }
+  }
+  return { checked: rows.length, delivered, failed };
+}
+
+/** A kézbesítés állapota — a felület ebből tud visszajelezni. */
+async function deliveryStats({ days = 7 } = {}) {
+  const r = await query(
+    `SELECT status, count(*)::int AS db, count(DISTINCT user_id)::int AS erintett
+       FROM push_deliveries WHERE created_at > NOW() - ($1 || ' days')::interval
+      GROUP BY status`, [String(days)]);
+  const ki = { atveve: 0, kezbesitve: 0, hibas: 0 };
+  for (const x of r.rows) ki[x.status] = x.db;
+  const hibak = await query(
+    `SELECT error_code, count(*)::int AS db FROM push_deliveries
+      WHERE status='hibas' AND created_at > NOW() - ($1 || ' days')::interval
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 5`, [String(days)]);
+  return { ...ki, top_hibak: hibak.rows };
+}
+
+module.exports = { sendToUser, checkReceipts, deliveryStats };
