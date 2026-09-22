@@ -401,6 +401,17 @@ function TicketDetail() {
           </Button>
         </Alert>
       )}
+      {/* JEGY-SZINTŰ JELÖLÉS: a jegy IDEGEN nyelven íródott, de a fordítás nem futott le.
+          Enélkül az admin a nyers idegen szöveget fordításként olvassa — pontosan ez
+          történt 2026-09-22-én, amikor az API-kvóta kifutott, és a rendszer hallgatott. */}
+      {ticket._translation_failed && ticket._sourceLang && ticket._sourceLang !== ticket._targetLang && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>Ez a szöveg NINCS lefordítva.</strong> A bejelentés{' '}
+          <strong>{(NYELV[ticket._sourceLang] || ticket._sourceLang)}</strong> nyelven íródott,
+          és a gépi fordítás jelenleg nem működik — amit alább olvasol, az az eredeti szöveg.
+        </Alert>
+      )}
+
       {showOriginal && ticket.original_title && (
         <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1, mb: 2 }}>
           <Typography variant="caption" color="text.secondary">Eredeti cím:</Typography>

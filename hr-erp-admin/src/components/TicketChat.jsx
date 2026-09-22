@@ -105,10 +105,27 @@ function MessageBubble({ message, isOwn, currentUserId, onMarkRead, onDelete }) 
                 {showOriginal ? 'fordítás' : 'eredeti'}
               </Typography>
             )}
+            {/* A "nem sikerült lefordítani" NEM lábjegyzet. Korábban 10 pixeles, 70%-ban
+                átlátszó dőlt felirat volt — gyakorlatilag láthatatlan, miközben azt
+                jelenti, hogy amit az olvasó lát, az NEM az, aminek hiszi. Ezért kapott
+                figyelmeztető színt, keretet és teljes átlátszatlanságot. */}
             {message.translation_unavailable && (
-              <Typography component="span" variant="caption" sx={{ fontStyle: 'italic', opacity: 0.7, fontSize: 10 }}>
-                fordítás nem elérhető
-              </Typography>
+              <Box
+                sx={{
+                  mt: 0.5, px: 1, py: 0.25, display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                  border: '1px solid', borderColor: 'warning.main', borderRadius: 1,
+                  bgcolor: isOwn ? 'rgba(255,255,255,0.15)' : 'warning.light',
+                }}
+              >
+                <WarningAmberIcon sx={{ fontSize: 13, color: isOwn ? 'inherit' : 'warning.dark' }} />
+                <Typography
+                  component="span"
+                  variant="caption"
+                  sx={{ fontSize: 11, fontWeight: 600, color: isOwn ? 'inherit' : 'warning.dark' }}
+                >
+                  NEM lefordítva — ez az eredeti szöveg
+                </Typography>
+              </Box>
             )}
           </Box>
         )}

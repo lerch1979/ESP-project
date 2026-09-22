@@ -140,5 +140,29 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'TRANS-06',
+      name: 'a FIGYELMEZTETŐ SÁV adata: kvóta-hibánál a visszaállás időpontja is kiolvasható',
+      expected: { degraded: true, van_indok: true, kiolvashato_idopont: true },
+      hint: 'a sáv ebből tudja megmondani, mikor áll helyre — enélkül csak annyi, hogy "nem megy"',
+      run: async (ctx, s) => {
+        const eredeti = translation.lastError;
+        // Az éles hibaüzenet szó szerinti alakja — a sáv ebből bányássza az időpontot.
+        translation.lastError = {
+          at: new Date(), status: 400,
+          message: '400 {"type":"error","error":{"type":"invalid_request_error","message":'
+            + '"You have reached your specified API usage limits. You will regain access on '
+            + '2026-10-01 at 00:00 UTC."}}',
+        };
+        const h = translation.health();
+        translation.lastError = eredeti;
+        const mikor = (h.last_error.message.match(/regain access on ([0-9-]+ at [0-9:]+ UTC)/) || [])[1];
+        return {
+          degraded: h.degraded === true,
+          van_indok: typeof h.reason === 'string' && h.reason.length > 0,
+          kiolvashato_idopont: mikor === '2026-10-01 at 00:00 UTC',
+        };
+      },
+    },
   ],
 };

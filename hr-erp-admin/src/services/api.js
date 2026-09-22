@@ -334,6 +334,13 @@ export const settlementAPI = {
 // Számlakorrekció: az előre kiszámlázott ágyszám visszavezetése a tényleges foglaltságra.
 // A jóváhagyás külön hívás, nem a javaslat mellékhatása — a levonás valódi pénz.
 // Bizonylat nélküli költségek — a könyvelőnek átadható lista (mig 169).
+// A gépi fordítás állapota. Azért van külön végpont rá, mert a fordítás kiesése
+// 2026-09-22-ig NÉMA volt: a felületen a le nem fordított szöveg ugyanúgy nézett ki,
+// mintha fordítás történt volna.
+export const translationAPI = {
+  health: async () => (await api.get('/translation/health')).data,
+};
+
 export const noDocumentAPI = {
   list: async (params = {}) => (await api.get('/expenses/no-document', { params })).data,
 };

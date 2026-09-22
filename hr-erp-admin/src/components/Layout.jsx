@@ -88,6 +88,7 @@ import GlobalSearchBar from './GlobalSearchBar';
 import NotificationBell from './NotificationBell';
 import UserAvatar from './common/UserAvatar';
 import OfflineDetector from './common/OfflineDetector';
+import TranslationStatusBanner from './TranslationStatusBanner';
 
 const DRAWER_OPEN_WIDTH = 260;
 const DRAWER_COLLAPSED_WIDTH = 68;
@@ -827,6 +828,10 @@ function Layout({ children }) {
           transition: TRANSITION,
         }}
       >
+        {/* A fordítás kiesése MINDEN képernyőn látszódjon, ne csak a jegyeken: egy
+            elszámoló lapon vagy egy riporton ugyanúgy félrevezet, ha a lakói szöveg
+            fordítatlan. A komponens magától eltűnik, amint a fordítás helyreáll. */}
+        <TranslationStatusBanner />
         {children}
       </Box>
 
