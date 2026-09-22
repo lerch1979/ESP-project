@@ -476,6 +476,22 @@ export const projectAPI = {
 
 // Tasks API
 export const taskAPI = {
+  // ── A LAKÓNAK szóló teendők ────────────────────────────────────────────
+  // A végpont `/tasks/mine`, NEM `/tasks/my`: az utóbbi az IRODA saját listája, és a
+  // lakói router korábban van mountolva a szerveren — azonos néven elfedte volna a
+  // kollégák teendő-listáját.
+  //
+  // A szerver KIZÁRÓLAG az `assigned_to_employee_id`-ra szűr: a lakóRÓL szóló belső
+  // teendő soha nem kerül ide (FUNCTEST RESTASK-05).
+  getMine: async () => {
+    const response = await api.get('/tasks/mine');
+    return response.data;
+  },
+  setMineStatus: async (id, status, note) => {
+    const response = await api.patch(`/tasks/mine/${id}/status`, { status, note });
+    return response.data;
+  },
+
   getAll: async (params = {}) => {
     const response = await api.get('/tasks', { params });
     return response.data;

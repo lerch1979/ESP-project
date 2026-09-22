@@ -55,6 +55,9 @@ const RESIDENT_FILES = [
   'src/screens/tickets/ResidentTicketList.js',
   'src/screens/tickets/ResidentTicketDetail.js',
   'src/screens/tickets/CreateTicketScreen.js',
+  // A lakónak szóló teendők listája (mig 172). Lakói képernyő, tehát ugyanaz a szabály
+  // vonatkozik rá: nem maradhat benne beégetett magyar szöveg.
+  'src/screens/tasks/ResidentTasksScreen.js',
   'src/components/ResidentTicketRow.js',
 ];
 
@@ -111,6 +114,13 @@ function main() {
       if (!HU_RE.test(line)) return;
       const trimmed = line.trim();
       if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+      // JSX-KOMMENT: `{/* … */}`. Az őr eddig csak a `//` és a `*` kezdetű sorokat
+      // hagyta ki, a JSX-kommentet viszont felhasználói szövegnek látta — pedig az
+      // sosem jelenik meg a képernyőn. Ez a repóban valódi akadály: a CLAUDE.md
+      // magyar kommentelést ír elő, tehát MINDEN magyarul kommentelt lakói képernyő
+      // elbukott volna ezen. A megjelenő szöveget ez nem engedi át: a JSX-kommentet a
+      // fordító eldobja, a `{'szöveg'}` alakot pedig nem érinti ez az ág.
+      if (trimmed.startsWith('{/*') || trimmed.startsWith('{ /*')) return;
       if (trimmed.startsWith('import ')) return;
       if (line.includes('i18n-ignore')) return;
       if (/\bt\(/.test(line) || line.includes('defaultValue')) return; // translated

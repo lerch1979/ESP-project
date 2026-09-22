@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
+  FormControlLabel,
+  Switch,
+  Alert,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Grid, FormControl, InputLabel, Select, MenuItem,
   CircularProgress, Autocomplete, Chip,
@@ -27,6 +30,9 @@ const CATEGORY_OPTIONS = [
 
 const emptyForm = {
   assigned_to: '',         // single — main responsible (Felelős)
+  // A LAKÓNAK szóló feladat (mig 172). Külön a `related_employee_id`-tól, ami a
+  // lakóRÓL szóló BELSŐ teendőt jelöli — azt a lakó soha nem látja.
+  lakonak: false,
   helper_ids: [],          // array of user_ids — additional assignees
   title: '',
   description: '',
@@ -106,6 +112,10 @@ export default function TaskCreationModal({
         deadline,
         tags: [form.category],
         related_employee_id: relatedEmployeeId || null,
+        // Csak akkor megy ki, ha a felhasználó KIFEJEZETTEN bekapcsolta. Egy
+        // alapértelmezésben bekapcsolt "a lakó is látja" kapcsoló előbb-utóbb belső
+        // feljegyzést tenne a lakó telefonjára.
+        assigned_to_employee_id: form.lakonak ? (relatedEmployeeId || null) : null,
         linked_ticket_id: linkedTicketId || null,
         assignees: helpers,
       });
@@ -127,11 +137,40 @@ export default function TaskCreationModal({
     onClose();
   };
 
+  // A kapcsoló csak akkor van értelmezve, ha tudjuk, MELYIK lakóról van szó, és annak
+  // van app-belépése. Enélkül a bekapcsolás néma kudarc lenne: a feladat elkészülne,
+  // de soha nem jelenne meg senkinél.
+  const lakoValaszthato = Boolean(relatedEmployeeId);
+
   return (
     <Dialog open={open} onClose={close} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>Új feladat</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          {/* A LAKÓNAK SZÓLÓ FELADAT KAPCSOLÓJA.
+              Alapból KI van kapcsolva, és ez szándékos: a feladatok túlnyomó többsége
+              belső teendő. Egy alapértelmezésben bekapcsolt kapcsoló előbb-utóbb egy
+              bizalmas feljegyzést tenne a lakó telefonjára — az pedig nem szépséghiba,
+              hanem bizalmi kérdés. */}
+          {lakoValaszthato && (
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.lakonak}
+                    onChange={(e) => setField('lakonak', e.target.checked)}
+                  />
+                }
+                label="A LAKÓNAK szól — látja az appban, push-t kap, visszajelezhet"
+              />
+              <Alert severity={form.lakonak ? 'warning' : 'info'} sx={{ mt: 0.5, py: 0.25 }}>
+                {form.lakonak
+                  ? 'A lakó EZT A CÍMET ÉS LEÍRÁST fogja látni a telefonján — fogalmazz neki szólóan.'
+                  : 'Belső teendő: a lakó nem látja. Kapcsold be, ha NEKI szóló feladatot adsz.'}
+              </Alert>
+            </Grid>
+          )}
+
           <Grid item xs={12}>
             <FormControl fullWidth size="small" disabled={loadingUsers}>
               <InputLabel>Felelős *</InputLabel>

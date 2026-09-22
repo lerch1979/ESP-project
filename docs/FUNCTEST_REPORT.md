@@ -1,8 +1,8 @@
 # FUNCTEST REPORT — automated end-to-end functional suite
 
-**299 passed / 0 failed / 6 known-gap / 5 fixed**  ·  310 scenarios  ·  11387ms
+**299 passed / 0 failed / 6 known-gap / 5 fixed**  ·  310 scenarios  ·  11670ms
 
-- Generated: 2026-09-22T11:27:21.315Z
+- Generated: 2026-09-22T11:53:52.556Z
 - Database: `hr_erp_sandbox` (sandbox-only — the guard refuses anything else)
 - Command: `npm run functest`
 - Fixture month: `1903-06` · fixture tag: `FT`

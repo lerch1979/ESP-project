@@ -12,6 +12,7 @@ import MoreStackNavigator from './MoreStackNavigator';
 import { colors } from '../constants/colors';
 import { useAuth } from '../contexts/AuthContext';
 import { isResident } from '../utils/roles';
+import ResidentTasksScreen from '../screens/tasks/ResidentTasksScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -20,6 +21,7 @@ const tabIcons = {
   Dashboard: 'home',
   Calendar: 'calendar',
   Tickets: 'ticket',
+  Tasks: 'checkbox',
   Employees: 'people',
   Wellbeing: 'heart',
   More: 'ellipsis-horizontal',
@@ -78,6 +80,15 @@ export default function MainTabNavigator() {
         component={TicketStackNavigator}
         options={{ headerShown: false, title: t('nav.tickets') }}
       />
+      {/* A lakó NEKI SZÓLÓ teendői. Csak a lakónak jelenik meg: az irodai kollégák
+          teendő-listája külön képernyőn él, más végponton és más jogosultsággal. */}
+      {resident && (
+        <Tab.Screen
+          name="Tasks"
+          component={ResidentTasksScreen}
+          options={{ title: t('nav.tasks', { defaultValue: 'Teendőim' }) }}
+        />
+      )}
       {!resident && (
         <Tab.Screen
           name="Wellbeing"

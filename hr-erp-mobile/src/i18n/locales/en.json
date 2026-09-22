@@ -5,7 +5,8 @@
     "wellbeing": "Wellbeing",
     "employees": "Employees",
     "more": "More",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "tasks": "My tasks"
   },
   "resident": {
     "reportIssue": "Report an issue",
@@ -411,5 +412,13 @@
   "ticket": {
     "newTicket": "New ticket",
     "detail": "Ticket"
+  },
+  "tasks": {
+    "empty": "You have no tasks right now.",
+    "due": "Due",
+    "seen": "Seen",
+    "inProgress": "In progress",
+    "done": "Done",
+    "saveFailed": "Your response was not saved"
   }
 }

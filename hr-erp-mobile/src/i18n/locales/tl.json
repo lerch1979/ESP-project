@@ -5,7 +5,8 @@
     "wellbeing": "Kalusugan",
     "employees": "Mga Empleyado",
     "more": "Iba pa",
-    "calendar": "Kalendaryo"
+    "calendar": "Kalendaryo",
+    "tasks": "Mga gawain ko"
   },
   "resident": {
     "reportIssue": "Mag-ulat ng problema",
@@ -411,5 +412,13 @@
   "ticket": {
     "newTicket": "Bagong ticket",
     "detail": "Ticket"
+  },
+  "tasks": {
+    "empty": "Wala kang gawain sa ngayon.",
+    "due": "Deadline",
+    "seen": "Nakita",
+    "inProgress": "Ginagawa",
+    "done": "Tapos na",
+    "saveFailed": "Hindi naligtas ang sagot mo"
   }
 }

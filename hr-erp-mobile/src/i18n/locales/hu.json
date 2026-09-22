@@ -5,7 +5,8 @@
     "wellbeing": "Jóllét",
     "employees": "Munkavállalók",
     "more": "Továbbiak",
-    "calendar": "Naptár"
+    "calendar": "Naptár",
+    "tasks": "Teendőim"
   },
   "resident": {
     "reportIssue": "Hibát jelentek",
@@ -411,5 +412,13 @@
   "ticket": {
     "newTicket": "Új hibajegy",
     "detail": "Hibajegy"
+  },
+  "tasks": {
+    "empty": "Jelenleg nincs teendőd.",
+    "due": "Határidő",
+    "seen": "Láttam",
+    "inProgress": "Folyamatban",
+    "done": "Kész",
+    "saveFailed": "A visszajelzés nem mentődött"
   }
 }
