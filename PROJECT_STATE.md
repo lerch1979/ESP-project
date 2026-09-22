@@ -363,6 +363,9 @@ solution cannot express.
 
 ## TECHNICAL DEBT
 
+| ⚠️ **A gépi fordítás KIESETT — API-kvóta, 2026-10-01 00:00 UTC-ig** | **medium** | Az Anthropic API használati korlát elérve: minden hívás `400 "You have reached your specified API usage limits"`. A `translateText` elkapja és az EREDETI szöveget adja vissza — helyesen, hogy a jegy ne maradjon üresen. 2026-09-22 óta ez már **nem néma**: a fordított objektum `_translation_failed` mezőt visz, ops-riasztás megy (óránként max. egyszer), és a `GET /translation/health` kimondja az állapotot. **Feloldás a tulajdonos oldalán:** limit emelése az Anthropic konzolban (Settings → Limits), vagy kivárás 2026-10-01-ig. Kód-változtatás NEM kell — a mechanizmus ép, csak nem kap választ. |
+
+
 | Item | Severity | Notes |
 |---|---|---|
 | **📱 Android push delivery needs FCM credentials in the Expo project — UNVERIFIED** | **high before video go-live** | `pushNotification.service.js`'s own header states that without FCM configured in the Expo project, Android standalone builds have their sends ACCEPTED by Expo but never delivered — a silent failure. Prod has only **2 push tokens** and none has been tested on a real Android device. **Launch prerequisite for the video-communication feature**: verify FCM credentials + send a test push to a real Android handset before residents are told to rely on it. iOS needs the equivalent APNs check. Until then, treat `push_ok = true` as "handed to Expo", not "delivered". |

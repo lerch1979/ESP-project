@@ -17,6 +17,17 @@ const inApp = require('../src/services/inAppNotification.service');
 
 const APPLY = process.argv.includes('--apply');
 const log = (...a) => console.log(...a);
+/**
+ * Dátum HELYI dátumrészekből. A pg a DATE-et Date objektumként adja vissza, aminek a
+ * String()-je "Tue Sep 22 2026 00:00:00 GMT+0000" — a toISOString() pedig Budapest
+ * zónában egy nappal visszatol. Ez a repó ötödik előfordulása ugyanennek a hibának.
+ */
+const ymd = (d) => {
+  if (!d) return '—';
+  const x = d instanceof Date ? d : new Date(d);
+  return Number.isNaN(x.getTime()) ? String(d)
+    : `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+};
 
 (async () => {
   log(`\n${APPLY ? '⚠️  ÉLES FUTÁS (--apply)' : '🔍 SZÁRAZ FUTÁS — semmi nem íródik. Írás: --apply'}\n`);
@@ -41,7 +52,7 @@ const log = (...a) => console.log(...a);
   log(`\n── ${arvak.length} gazdátlan, nyitott jegy\n`);
   for (const j of arvak) {
     const d = await svc.resolveAssignee(j.id);
-    log(`   ${j.ticket_number.padEnd(6)} ${String(j.title).slice(0, 34).padEnd(36)} ${j.nap}  `
+    log(`   ${j.ticket_number.padEnd(6)} ${String(j.title).slice(0, 34).padEnd(36)} ${ymd(j.nap)}  `
       + `→ ${d.reason}`);
     if (!APPLY) continue;
 
@@ -52,7 +63,7 @@ const log = (...a) => console.log(...a);
       userId: d.userId,
       type: 'ticket_created',
       title: 'Korábbi, szignálatlan hibajegy',
-      message: `${j.ticket_number} — ${j.title} (${j.nap} óta gazdátlan volt)`,
+      message: `${j.ticket_number} — ${j.title} (${ymd(j.nap)} óta gazdátlan volt)`,
       link: `/tickets/${j.id}`,
       data: { ticket_id: j.id, backfill: true },
     }).catch(() => {});
