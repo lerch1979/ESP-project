@@ -325,7 +325,9 @@
     "toggleLabel": "Biometrische Anmeldung",
     "toggleHint": "Mit Fingerabdruck oder Gesicht ohne Passwort anmelden.",
     "unavailable": "Auf diesem Gerät ist keine Biometrie eingerichtet.",
-    "failed": "Biometrische Authentifizierung fehlgeschlagen."
+    "failed": "Biometrische Authentifizierung fehlgeschlagen.",
+    "sessionExpiredTitle": "Gespeicherte Anmeldung abgelaufen",
+    "sessionExpiredBody": "Gesichts-/Fingerabdruckerkennung hat funktioniert — abgelaufen ist die auf dem Telefon gespeicherte Anmeldung. Bitte mit Passwort anmelden; danach funktioniert die Biometrie wieder."
   },
   "time": {
     "justNow": "gerade eben",

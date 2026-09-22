@@ -26,7 +26,7 @@ const LANGS = [
 export default function LoginScreen() {
   const {
     login, biometricAvailable, biometricEnabled, shouldOfferBiometric,
-    enableBiometric, disableBiometric, unlockWithBiometric,
+    enableBiometric, disableBiometric, unlockWithBiometric, sessionExpired,
   } = useAuth();
   const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
@@ -48,8 +48,18 @@ export default function LoginScreen() {
   };
 
   const handleBiometricUnlock = async () => {
-    const ok = await unlockWithBiometric();
-    if (!ok) Alert.alert(t('biometric.enableTitle'), t('biometric.failed'));
+    const { ok, reason } = await unlockWithBiometric();
+    if (ok) return;
+    // A KÉT KUDARC NEM UGYANAZ, és eddig ugyanazt a mondatot kapták.
+    // 'biometric'       → tényleg az arc/ujjlenyomat nem ment; van értelme újrapróbálni.
+    // 'session_expired' → a Face ID SIKERÜLT, a telefonon tárolt belépés járt le.
+    //                     Újrapróbálni értelmetlen, jelszó kell. Ha ezt nem mondjuk ki,
+    //                     a felhasználó a végtelenségig nyomkodja a Face ID-t.
+    if (reason === 'session_expired') {
+      Alert.alert(t('biometric.sessionExpiredTitle'), t('biometric.sessionExpiredBody'));
+      return;
+    }
+    Alert.alert(t('biometric.enableTitle'), t('biometric.failed'));
   };
 
   const handleLogin = async () => {
@@ -154,6 +164,15 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Állandó sáv, nem csak egy eltűnő felugró: a felhasználó a belépő
+            képernyőt nézi, és látnia kell, MIÉRT került ide. */}
+        {sessionExpired && (
+          <View style={styles.expiredBox}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.expiredText}>{t('biometric.sessionExpiredBody')}</Text>
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
@@ -186,6 +205,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  expiredBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    // A primaryLight a logó telített aranya — háttérnek olvashatatlan. Halvány
+    // alap + arany bal szegély: feltűnik, de nem kiabál.
+    backgroundColor: '#FBF6EE',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primaryLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 14,
+  },
+  expiredText: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.text },
   container: {
     flex: 1,
     backgroundColor: colors.background,

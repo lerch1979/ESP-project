@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getItem, setItem, deleteItem } from '../services/storage';
-import { authAPI } from '../services/api';
+import { authAPI, setSessionExpiredHandler } from '../services/api';
 import i18n, { setLanguageFromProfile } from '../i18n';
 import { registerPushToken, unregisterPushToken } from '../services/push';
 import { isBiometricAvailable, authenticate } from '../services/biometric';
@@ -15,16 +15,42 @@ export function AuthProvider({ children }) {
   // 100% on-device; no biometric data ever reaches the backend.
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricFlag, setBiometricFlag] = useState(null); // raw stored value
+  // Igaz, ha a telefonon tárolt belépés érvénytelennek bizonyult. NEM hiba-állapot:
+  // ez az, amit a belépő képernyőnek ki kell mondania, hogy a felhasználó tudja,
+  // miért nem jutott be, pedig a Face ID sikerült.
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const biometricEnabled = biometricFlag === 'true';
   // Offer the opt-in only when the device supports it AND we've never asked.
   const shouldOfferBiometric = biometricAvailable && biometricFlag == null;
 
   useEffect(() => {
+    // A 401-es ág a tárolt belépést eldobja; innen tudjuk meg, hogy megtörtént.
+    setSessionExpiredHandler(() => {
+      setSessionExpired(true);
+      setUser(null);
+    });
     loadStoredAuth();
+    return () => setSessionExpiredHandler(null);
   }, []);
 
-  // Set the in-memory session from a stored user, then revalidate via /me.
+  // A tárolt belépés eldobása — a biometrikus kapcsoló MARAD. A felhasználó nem
+  // kapcsolta ki; ha jelszóval belép, a Face ID-nak újra mennie kell.
+  const dropStoredSession = async () => {
+    await deleteItem('token');
+    await deleteItem('refreshToken');
+    await deleteItem('user');
+    setUser(null);
+    setSessionExpired(true);
+  };
+
+  // A tárolt belépésből felélesztjük a munkamenetet, majd a /me-vel ELLENŐRIZZÜK.
+  // Az ellenőrzés hibáját eddig egy üres catch nyelte le — így egy halott tokennel is
+  // „bent" voltunk, csak minden képernyő üresen jött vissza. Mostantól különbséget
+  // teszünk a két eset között:
+  //   • 401 / sikertelen frissítés → a tárolt belépés HALOTT, ezt ki kell mondani;
+  //   • hálózati hiba              → a belépés érvényes, csak nincs net — bent maradunk.
+  // Visszatérés: 'ok' | 'session_expired' | 'offline'
   const hydrateUser = async (parsed) => {
     setUser(parsed);
     if (parsed.preferred_language) setLanguageFromProfile(parsed.preferred_language);
@@ -35,8 +61,18 @@ export function AuthProvider({ children }) {
       await setItem('user', JSON.stringify(meUser));
       if (meUser.preferred_language) setLanguageFromProfile(meUser.preferred_language);
       registerPushToken();
-    } catch {
-      // Token might be expired; the refresh interceptor handles it.
+      setSessionExpired(false);
+      return 'ok';
+    } catch (err) {
+      const halott = err?.response?.status === 401 || err?.response?.status === 403
+        || /No refresh token/i.test(err?.message || '');
+      if (halott) {
+        await dropStoredSession();
+        return 'session_expired';
+      }
+      // Nincs net vagy időtúllépés: a tárolt belépést NEM dobjuk el — offline is
+      // működnie kell az appnak azzal, amit már tud.
+      return 'offline';
     }
   };
 
@@ -58,6 +94,11 @@ export function AuthProvider({ children }) {
           if (!ok) { setIsLoading(false); return; }
         }
         await hydrateUser(JSON.parse(storedUser));
+      } else if (flag === 'true') {
+        // A biometrikus kapcsoló be van kapcsolva, de nincs mit kinyitni vele.
+        // Ez ragadós állapot volt: a belépő képernyő felkínálta a Face ID-t, az
+        // sikerült, és semmi nem történt — a végtelenségig.
+        setSessionExpired(true);
       }
     } catch {
       // No stored auth
@@ -75,6 +116,10 @@ export function AuthProvider({ children }) {
     await setItem('user', JSON.stringify(userData));
 
     setUser(userData);
+    // A jelszavas belépés EGYBEN a biometrikus adat frissítése is: a fenti három
+    // setItem épp most írta felül azt, amit a Face ID kinyit. Ezért tűnik el a
+    // figyelmeztetés — nem „elrejtjük", hanem megszűnt az oka.
+    setSessionExpired(false);
     if (userData.preferred_language) setLanguageFromProfile(userData.preferred_language);
     registerPushToken();
     // Re-check capability so the LoginScreen can offer the biometric opt-in.
@@ -116,13 +161,26 @@ export function AuthProvider({ children }) {
   };
 
   // Retry unlock from the LoginScreen when the launch prompt was cancelled.
+  // Visszatérés OKKAL, nem puszta igaz/hamissal. A régi boolean volt a hiba másik
+  // fele: a hívó minden kudarcra ugyanazt írta ki („a biometrikus azonosítás nem
+  // sikerült"), pedig az ujjlenyomat/arc épp hogy sikerült — a tárolt belépés volt
+  // halott. Ez a mondat félrevezette a felhasználót, aki emiatt újra és újra a
+  // Face ID-t próbálta, ahelyett hogy jelszót írt volna.
+  // { ok: true } | { ok: false, reason: 'biometric' | 'session_expired' }
   const unlockWithBiometric = async () => {
     const ok = await authenticate(i18n.t('biometric.unlockPrompt'));
-    if (!ok) return false;
+    if (!ok) return { ok: false, reason: 'biometric' };
+
     const storedUser = await getItem('user');
-    if (!storedUser) return false;
-    await hydrateUser(JSON.parse(storedUser));
-    return true;
+    const storedToken = await getItem('token');
+    if (!storedUser || !storedToken) {
+      await dropStoredSession();
+      return { ok: false, reason: 'session_expired' };
+    }
+
+    const allapot = await hydrateUser(JSON.parse(storedUser));
+    if (allapot === 'session_expired') return { ok: false, reason: 'session_expired' };
+    return { ok: true };
   };
 
   return (
@@ -138,6 +196,7 @@ export function AuthProvider({ children }) {
         enableBiometric,
         disableBiometric,
         unlockWithBiometric,
+        sessionExpired,
       }}
     >
       {children}

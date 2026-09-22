@@ -325,7 +325,9 @@
     "toggleLabel": "Biometric login",
     "toggleHint": "Log in with fingerprint or face, no password.",
     "unavailable": "No biometrics are set up on this device.",
-    "failed": "Biometric authentication failed."
+    "failed": "Biometric authentication failed.",
+    "sessionExpiredTitle": "Saved sign-in has expired",
+    "sessionExpiredBody": "Face/fingerprint recognition worked — it is the sign-in stored on your phone that expired. Please sign in with your password; biometrics will work again afterwards."
   },
   "time": {
     "justNow": "just now",

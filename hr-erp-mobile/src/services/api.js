@@ -37,6 +37,15 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue = [];
 
+// A MUNKAMENET HALÁLÁNAK EGYETLEN HITELES HELYE.
+// Amikor a frissítés is elbukik, itt — és csak itt — dől el, hogy a telefonon
+// tárolt belépés halott. Eddig ez a hely NÉMÁN törölte a tárolt adatot, és az
+// AuthContext nem tudott róla: a felhasználó a biometrikus gombot nyomta, a Face ID
+// sikerült, aztán nem történt semmi. A kampó azért kell, hogy a belépő képernyő
+// KIMONDHASSA, mi történt.
+let sessionExpiredHandler = null;
+export function setSessionExpiredHandler(fn) { sessionExpiredHandler = fn; }
+
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
@@ -112,6 +121,10 @@ api.interceptors.response.use(
         await deleteItem('token');
         await deleteItem('refreshToken');
         await deleteItem('user');
+        // A biometrikus kapcsolót SZÁNDÉKOSAN nem töröljük: a felhasználó nem
+        // kapcsolta ki, csak lejárt a munkamenet. Jelszavas belépés után újra
+        // működnie kell, kérdés nélkül.
+        if (sessionExpiredHandler) sessionExpiredHandler();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

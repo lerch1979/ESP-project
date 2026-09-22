@@ -325,7 +325,9 @@
     "toggleLabel": "Biometrikus belépés",
     "toggleHint": "Ujjlenyomattal vagy arccal lépj be jelszó nélkül.",
     "unavailable": "Nincs beállítva biometrikus azonosító az eszközön.",
-    "failed": "A biometrikus azonosítás nem sikerült."
+    "failed": "A biometrikus azonosítás nem sikerült.",
+    "sessionExpiredTitle": "A mentett belépés lejárt",
+    "sessionExpiredBody": "Az arcfelismerés sikerült — a telefonon tárolt belépés járt le. Lépj be a jelszavaddal; utána a Face ID / ujjlenyomat újra működni fog."
   },
   "time": {
     "justNow": "most",
