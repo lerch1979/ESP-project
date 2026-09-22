@@ -206,9 +206,19 @@ export default function InvoiceFormModal({
           {/* --- Alapadatok --- */}
           <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>Alapadatok</Typography>
           <Stack direction="row" spacing={2}>
-            <TextField label="Számlaszám" value={form.invoice_number}
-              onChange={(e) => setForm({ ...form, invoice_number: e.target.value })}
-              size="small" sx={{ flex: 1 }} placeholder="pl. INV-2026-001" />
+            {/* A BESZÁLLÍTÓ számlaszáma — a jogi azonosító. Kötelező, kivéve a
+                bérbeadói rezsi-jelzést, ahol a közüzemi szerződés a bérbeadó nevén van,
+                és a mi nevünkre számla nem keletkezik. A belső sorszámot a rendszer adja,
+                azt nem itt írjuk. */}
+            <TextField label={form.is_landlord_notice ? 'Beszállítói számlaszám' : 'Beszállítói számlaszám *'}
+              value={form.supplier_invoice_number || ''}
+              onChange={(e) => setForm({ ...form, supplier_invoice_number: e.target.value })}
+              required={!form.is_landlord_notice}
+              error={!form.is_landlord_notice && !String(form.supplier_invoice_number || '').trim()}
+              helperText={form.is_landlord_notice
+                ? 'Bérbeadói jelzésnél nincs számlaszám'
+                : 'A szállító saját számlaszáma — ez a jogi azonosító'}
+              size="small" sx={{ flex: 1 }} placeholder="pl. 2026/RH00010" />
             <TextField label="Számla dátum *" type="date" value={form.invoice_date}
               onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
               size="small" InputLabelProps={{ shrink: true }} sx={{ flex: 1 }} />

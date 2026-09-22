@@ -31,6 +31,7 @@ module.exports = {
       hint: 'a teljes számla arra a házra kerül — ne kelljen összeget gépelni a 95%-os esethez',
       run: async (ctx, s) => {
         const r = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Egy Ház Kft', amount: 50000, total_amount: 50000,
           invoice_date: '2026-09-01', cost_center_id: s.cc,
           accommodation_id: s.a1.id } });
@@ -47,6 +48,7 @@ module.exports = {
       hint: 'a ritka eset: egy takarítási számla több szállóra',
       run: async (ctx, s) => {
         const r = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Ket Haz Kft', amount: 90000, total_amount: 90000,
           invoice_date: '2026-09-01', cost_center_id: s.cc,
           allocations: [
@@ -68,6 +70,7 @@ module.exports = {
       hint: 'a számla SEM jöhet létre: különben a javítás után két számla marad (élesben elő is fordult)',
       run: async (ctx, s) => {
         const r = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Nem Egyezik Kft', amount: 100000, total_amount: 100000,
           invoice_date: '2026-09-01', cost_center_id: s.cc,
           allocations: [
@@ -94,12 +97,15 @@ module.exports = {
       hint: 'a cég általános kiadásai és a saját részre történő kiadások is ide könyvelendők',
       run: async (ctx, s) => {
         const g = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Altalanos Kft', amount: 10000, total_amount: 10000,
           invoice_date: '2026-09-01', cost_center_id: s.cc, target_type: 'general' } });
         const c = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Kozponti Kft', amount: 20000, total_amount: 20000,
           invoice_date: '2026-09-01', cost_center_id: s.cc, target_type: 'central' } });
         const bad = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Rossz Kft', amount: 5000, total_amount: 5000,
           invoice_date: '2026-09-01', cost_center_id: s.cc,
           allocations: [{ target_type: 'general', accommodation_id: s.a1.id, amount: 5000 }] } });
@@ -132,6 +138,7 @@ module.exports = {
       run: async (ctx, s) => {
         // Egy szándékosan be nem sorolt számla.
         await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Besorolatlan Kft', amount: 7000, total_amount: 7000,
           invoice_date: '2026-09-01', cost_center_id: s.cc } });
         const r = await http.get('/invoices/summary', { token: s.t });
@@ -153,6 +160,7 @@ module.exports = {
       hint: 'a contractor_id már MOST is ott van (null) — a partner-törzs megjelenésekor a felület nem változik',
       run: async (ctx, s) => {
         await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Vízmű Zrt.', vendor_tax_number: '11611226-2-08',
           amount: 5000, total_amount: 5000, invoice_date: '2026-09-01',
           cost_center_id: s.cc, target_type: 'general' } });
@@ -204,6 +212,7 @@ module.exports = {
           [v.contractor_id])).rows[0].c : 0;
         // Új számla a törzsből választott beszállítóval.
         const inv = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: v.name, vendor_contractor_id: v.contractor_id,
           amount: 1000, total_amount: 1000, invoice_date: '2026-09-01',
           cost_center_id: s.cc, target_type: 'general' } });
@@ -273,6 +282,7 @@ module.exports = {
       hint: 'a képernyő a /cost-centers/invoices végpontot hívja — az a controller korábban nem is ismerte a besorolást, így a funkció kattintható felületről elérhetetlen volt',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Felület Kft', amount: 40000, total_amount: 40000,
           invoice_date: '2026-09-02', cost_center_id: s.cc,
           allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
@@ -313,6 +323,7 @@ module.exports = {
         // külön. Itt a tömeges átsorolás a tárgy, ezért nem osztozunk azon a hónapon.
         const mk = async (nev, osszeg, hova) => {
           const r = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
             vendor_name: nev, amount: osszeg, total_amount: osszeg,
             invoice_date: '2026-12-01', performance_date: '2026-12-01',
             cost_center_id: s.cc, ...(hova ? { allocations: [hova] } : {}) } });
@@ -362,6 +373,7 @@ module.exports = {
       hint: 'egy már kiszámlázott időszak kimutatását nem írjuk át észrevétlenül',
       run: async (ctx, s) => {
         const inv = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Lezárt Hónap Kft', amount: 10000, total_amount: 10000,
           invoice_date: '2026-01-15', performance_date: '2026-01-15', cost_center_id: s.cc } });
         const id = inv.body?.data?.invoice?.id;
@@ -398,6 +410,7 @@ module.exports = {
       run: async (ctx, s) => {
         // Felosztott számla NYITOTT hónapban — lásd az ALLOC-14 indoklását.
         const sp = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Felosztott Kft', amount: 90000, total_amount: 90000,
           invoice_date: '2026-12-02', performance_date: '2026-12-02', cost_center_id: s.cc,
           allocations: [
@@ -437,6 +450,7 @@ module.exports = {
           `INSERT INTO cost_centers (name, code, parent_id, is_active)
            VALUES ('ALLOC Gyerek','ALLOC-GY',$1,true) RETURNING id`, [s.cc2])).rows[0].id;
         const inv = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Gyerek Kft', amount: 5000, total_amount: 5000,
           invoice_date: '2026-09-03', cost_center_id: child, target_type: 'central' } });
         const list = await http.get('/cost-centers/invoices/list', { token: s.t,
@@ -456,6 +470,7 @@ module.exports = {
       hint: 'korábban a felület véglegesen törölt, és a számlaképet a lemezről is levette — egy téves kijelölés visszavonhatatlan volt',
       run: async (ctx, s) => {
         const inv = await http.post('/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Törlendő Kft', amount: 7000, total_amount: 7000,
           invoice_date: '2026-09-04', cost_center_id: s.cc, target_type: 'general' } });
         const id = inv.body?.data?.invoice?.id;
@@ -481,6 +496,7 @@ module.exports = {
       hint: 'a rögzítéskor megadott állapot érvényesül — korábban kötött draft jött létre, ahonnan a felületen csak a sztornó vezetett tovább',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Régi Számla Kft', amount: 12000, total_amount: 12000,
           invoice_date: '2026-12-03', cost_center_id: s.cc, payment_status: 'paid' } });
         const row = (await query(`SELECT payment_status FROM invoices WHERE id=$1`,
@@ -495,6 +511,7 @@ module.exports = {
       hint: 'a felület korábbi státuszkészletéből egyik lépés sem volt érvényes, a sztornót leszámítva',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Piszkozat Kft', amount: 8000, total_amount: 8000,
           invoice_date: '2026-12-03', cost_center_id: s.cc } });
         const id = r.body?.data?.invoice?.id;
@@ -515,9 +532,11 @@ module.exports = {
       hint: 'a felület négy képernyőn kínálta a pending-et, amit a szerver sosem fogadott el',
       run: async (ctx, s) => {
         const bad = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Pending Kft', amount: 3000, total_amount: 3000,
           invoice_date: '2026-12-03', cost_center_id: s.cc, payment_status: 'pending' } });
         const ok = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Pending2 Kft', amount: 3000, total_amount: 3000,
           invoice_date: '2026-12-03', cost_center_id: s.cc } });
         const id = ok.body?.data?.invoice?.id;
@@ -549,6 +568,7 @@ module.exports = {
       hint: 'a felület az invoices-ba írt, a költségriport az accommodation_expenses-t olvasta — júliustól nullát mutatott, miközben a számlák érkeztek',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Hídteszt Kft', amount: 40000, total_amount: 40000,
           invoice_date: '2026-12-05', performance_date: '2026-12-05', cost_center_id: s.cc,
           allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
@@ -597,6 +617,7 @@ module.exports = {
            ON CONFLICT DO NOTHING RETURNING id`)).rows[0]
           || (await query(`SELECT id FROM invoice_categories WHERE name='Bérleti díj' LIMIT 1`)).rows[0];
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Bérbeadó Kft', amount: 300000, total_amount: 300000,
           invoice_date: '2026-12-06', performance_date: '2026-12-06',
           cost_center_id: s.cc, category_id: cat.id,
@@ -616,6 +637,7 @@ module.exports = {
       hint: 'cégszintű kiadás — nincs mögötte ház, amire terhelni lehetne',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Általános Kft', amount: 5000, total_amount: 5000,
           invoice_date: '2026-12-06', performance_date: '2026-12-06', cost_center_id: s.cc,
           allocations: [{ target_type: 'general' }] } });
@@ -631,6 +653,7 @@ module.exports = {
       hint: 'a kimutatás nem őrizhet olyan tételt, aminek a bizonylata már nincs meg',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Törlendő Híd Kft', amount: 9000, total_amount: 9000,
           invoice_date: '2026-12-07', performance_date: '2026-12-07', cost_center_id: s.cc,
           allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
@@ -650,6 +673,7 @@ module.exports = {
       hint: 'a "Besorolás törlése" korábban némán nem csinált semmit: a szolgáltatás üres listánál azonnal visszatért',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Besorolás Törlés Kft', amount: 6000, total_amount: 6000,
           invoice_date: '2026-12-08', performance_date: '2026-12-08', cost_center_id: s.cc,
           allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
@@ -671,6 +695,7 @@ module.exports = {
       hint: 'egy takarítási számla két szállóra: mindkét ház a saját részét viseli',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Megosztott Híd Kft', amount: 90000, total_amount: 90000,
           invoice_date: '2026-12-09', performance_date: '2026-12-09', cost_center_id: s.cc,
           allocations: [
@@ -695,6 +720,7 @@ module.exports = {
                      VALUES ('2026-02','incoming','finalized', NOW())`);
         try {
           const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
             vendor_name: 'ALLOC Lezárt Híd Kft', amount: 11000, total_amount: 11000,
             invoice_date: '2026-02-10', performance_date: '2026-02-10', cost_center_id: s.cc,
             allocations: [{ target_type: 'accommodation', accommodation_id: s.a1.id }] } });
@@ -775,6 +801,7 @@ module.exports = {
 
         // rezsi számla erre a házra — költségsort KELL képeznie
         const inv = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Saját Rezsi Kft', amount: 20000, total_amount: 20000,
           invoice_date: '2026-12-10', performance_date: '2026-12-10', cost_center_id: s.cc,
           allocations: [{ target_type: 'accommodation', accommodation_id: acc.id,
@@ -798,6 +825,7 @@ module.exports = {
       hint: 'a besorolás a végösszegből oszt (bruttó), a kimutatás viszont nettóval számol — enélkül a ház 27%-kal többe kerül a papíron',
       run: async (ctx, s) => {
         const r = await http.post('/cost-centers/invoices', { token: s.t, body: {
+        supplier_invoice_number: `ALLOC-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
           vendor_name: 'ALLOC Nettó Teszt Kft', amount: 100000, vat_amount: 27000,
           total_amount: 127000, invoice_date: '2026-12-11', performance_date: '2026-12-11',
           cost_center_id: s.cc,

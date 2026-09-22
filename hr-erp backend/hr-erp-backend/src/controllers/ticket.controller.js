@@ -425,7 +425,15 @@ const getTicketById = async (req, res) => {
  */
 const createTicket = async (req, res) => {
   try {
-    const { title, description, category_id, priority_id, assigned_to, linked_employee_id } = req.body;
+    const {
+      title, description, category_id, priority_id, assigned_to, linked_employee_id,
+      // TÖBB ÉRINTETT LAKÓ (mig 173). Közös helyiségnél egy jegy több emberre szól.
+      affected_employee_ids,
+      // EGÉSZ SZÁLLÁS hatókör — névsor NÉLKÜL, hogy vegyes szálláson ne szivárogjon
+      // más megbízó dolgozóinak neve.
+      scope_accommodation_id,
+    } = req.body;
+    const hazHatokor = Boolean(scope_accommodation_id);
 
     // Validáció
     if (!title || (typeof title === 'string' && !title.trim())) {
@@ -477,8 +485,8 @@ const createTicket = async (req, res) => {
         INSERT INTO tickets (
           contractor_id, ticket_number, title, description, language,
           category_id, status_id, priority_id, created_by, assigned_to,
-          linked_employee_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          linked_employee_id, scope, scope_accommodation_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
 
@@ -493,7 +501,9 @@ const createTicket = async (req, res) => {
         priority_id || null,
         req.user.id,
         assigned_to || null,
-        erintett
+        erintett,
+        hazHatokor ? 'accommodation' : 'employee',
+        scope_accommodation_id || null,
       ]);
 
       const ticketId = result.rows[0].id;
@@ -528,6 +538,11 @@ const createTicket = async (req, res) => {
 
     // Post-transaction: auto-assign and SLA (these use pool queries, must run after COMMIT)
     const { ticket: createdTicket, prioritySlug, erintett } = ticketData;
+
+    // A jegy tényleges felelőse — a szignálási ág után innen olvassuk. Azért külső
+    // változó, mert az ÉRTESÍTÉSEK és a SZÁLLÁSADÓI TOVÁBBÍTÁS már NEM a szignálási ágon
+    // belül futnak: azok akkor is kellenek, ha az admin maga választott felelőst.
+    let felelosUserId = assigned_to || null;
 
     if (!assigned_to) {
       // ── SZIGNÁLÁSI LÁNC ────────────────────────────────────────────────
@@ -564,6 +579,7 @@ const createTicket = async (req, res) => {
         }
       }
       if (autoAssigned) ticketData = { ...ticketData, ticket: autoAssigned };
+      felelosUserId = autoAssigned?.assigned_to || null;
 
       // ── ÉRTESÍTÉS A FELELŐSNEK ─────────────────────────────────────────
       // Korábban NEM létezett 'ticket_created' értesítés: egy új jegyről senki nem
@@ -581,56 +597,87 @@ const createTicket = async (req, res) => {
         }).catch((e) => logger.error(`[ticket.create] értesítés: ${e.message}`));
       }
 
-      // ── ÉRTESÍTÉS AZ ÉRINTETT LAKÓNAK ──────────────────────────────────
-      // Ez volt a hiányzó darab: ha az IRODA nyit jegyet a lakó nevében, a lakó eddig
-      // semmit nem tudott róla — se az appban, se a telefonján. Most értesítést és
-      // push-t is kap, a SAJÁT nyelvén (a sablon öt nyelvű).
-      //
-      // Csak akkor, ha NEM ő maga jelentette be: egy saját bejelentésről értesíteni
-      // valakit fölösleges zaj, és rontja a bizalmat a többi értesítésben.
-      if (erintett) {
-        const lako = await query(
-          'SELECT user_id FROM employees WHERE id = $1 AND user_id IS NOT NULL', [erintett]);
-        const lakoUserId = lako.rows[0]?.user_id || null;
-        if (lakoUserId && lakoUserId !== req.user.id) {
+    }
+
+    // ── AZ ÉRINTETTEK RÖGZÍTÉSE ────────────────────────────────────────
+    // Ház-hatókörnél SZÁNDÉKOSAN nem írunk sorokat: a közös helyiség a házról szól, és
+    // egy személyenkénti névsor vegyes szálláson (Sarród I./II., Sopronhorpács) más
+    // megbízó dolgozóinak nevét adná ki. Ami nem létezik, azt nem lehet kiszivárogtatni.
+    const erintettek = hazHatokor
+      ? []
+      : [...new Set([erintett, ...(Array.isArray(affected_employee_ids) ? affected_employee_ids : [])]
+          .filter(Boolean))];
+    for (const empId of erintettek) {
+      await query(
+        `INSERT INTO ticket_affected_employees (ticket_id, employee_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`, [createdTicket.id, empId]
+      ).catch((e) => logger.warn(`[ticket.create] érintett rögzítése: ${e.message}`));
+    }
+
+    // ── ÉRTESÍTÉS AZ ÉRINTETT LAKÓKNAK ─────────────────────────────────
+    // Ez volt a hiányzó darab: ha az IRODA nyit jegyet a lakó nevében, a lakó eddig
+    // semmit nem tudott róla — se az appban, se a telefonján. Most értesítést és
+    // push-t is kap, a SAJÁT nyelvén (a sablon öt nyelvű).
+    //
+    // Csak akkor, ha NEM ő maga jelentette be: egy saját bejelentésről értesíteni
+    // valakit fölösleges zaj, és rontja a bizalmat a többi értesítésben.
+    // A címzettek KÉT forrásból: a felsorolt érintettekből, VAGY — ház-hatókörnél — a
+    // szállás MAI lakóiból. Az utóbbit lekérdezzük, de NEM tároljuk: a névsor csak az
+    // értesítés pillanatáig él, utána a láthatóság a hatókörből következik.
+    const cimzettek = await (async () => {
+      if (hazHatokor) {
+        const r = await query(
+          `SELECT DISTINCT u.id FROM employees e JOIN users u ON u.id = e.user_id
+            WHERE e.accommodation_id = $1 AND e.end_date IS NULL`, [scope_accommodation_id]);
+        return r.rows.map((x) => x.id);
+      }
+      if (erintettek.length === 0) return [];
+      const r = await query(
+        `SELECT DISTINCT user_id FROM employees
+          WHERE id = ANY($1::uuid[]) AND user_id IS NOT NULL`, [erintettek]);
+      return r.rows.map((x) => x.user_id);
+    })();
+
+    for (const lakoUserId of cimzettek) {
+      // A bejelentőt nem értesítjük a saját bejelentéséről — fölösleges zaj, ami rontja
+      // a bizalmat a többi értesítésben.
+      if (lakoUserId === req.user.id) continue;
+      inApp.notify({
+        userId: lakoUserId,
+        contractorId: createdTicket.contractor_id,
+        type: 'ticket_created',
+        title: hazHatokor ? 'Hibajegy a szállásodon' : 'Hibajegy készült az ügyedben',
+        message: `${createdTicket.ticket_number} — ${createdTicket.title}`,
+        link: `/tickets/${createdTicket.id}`,
+        data: { ticket_id: createdTicket.id, for_resident: true, whole_accommodation: hazHatokor },
+        push: { vars: { ticketNumber: createdTicket.ticket_number, title: createdTicket.title } },
+      }).catch((e) => logger.error(`[ticket.create] lakói értesítés: ${e.message}`));
+    }
+
+    // ── SZÁLLÁSADÓI TOVÁBBÍTÁS ─────────────────────────────────────────
+    // Nem helyettesíti a szignálást: a jegy nálunk is felelősnél marad, aki követi,
+    // hogy a szállásadó megcsinálja-e.
+    const hely = await ticketAssignment.accommodationOfTicket(createdTicket.id);
+    if (hely?.accommodation_id) {
+      const fwd = await landlordNotice.forwardIfNeeded(createdTicket.id, {
+        accommodationId: hely.accommodation_id,
+        categoryId: category_id || null,
+        userId: req.user.id,
+      });
+      if (fwd?.handled_by === 'szallasado') {
+        ticketData = { ...ticketData, landlord_notice: fwd };
+      // Ha a továbbítás előfeltétele hiányzik, a FELELŐS tudja meg — nem a napló.
+        if (!fwd.forwarded && felelosUserId) {
           inApp.notify({
-            userId: lakoUserId,
+            userId: felelosUserId,
             contractorId: createdTicket.contractor_id,
             type: 'ticket_created',
-            title: 'Hibajegy készült az ügyedben',
-            message: `${createdTicket.ticket_number} — ${createdTicket.title}`,
+            title: 'Szállásadói jegy — a levél NEM ment ki',
+            message: `${createdTicket.ticket_number}: ${fwd.reason}. A link elkészült, `
+              + 'de értesítsd a szállásadót más csatornán.',
             link: `/tickets/${createdTicket.id}`,
-            data: { ticket_id: createdTicket.id, for_resident: true },
-            push: { vars: { ticketNumber: createdTicket.ticket_number, title: createdTicket.title } },
-          }).catch((e) => logger.error(`[ticket.create] lakói értesítés: ${e.message}`));
-        }
-      }
-
-      // ── SZÁLLÁSADÓI TOVÁBBÍTÁS ─────────────────────────────────────────
-      // Nem helyettesíti a szignálást: a jegy nálunk is felelősnél marad, aki követi,
-      // hogy a szállásadó megcsinálja-e.
-      const hely = await ticketAssignment.accommodationOfTicket(createdTicket.id);
-      if (hely?.accommodation_id) {
-        const fwd = await landlordNotice.forwardIfNeeded(createdTicket.id, {
-          accommodationId: hely.accommodation_id,
-          categoryId: category_id || null,
-          userId: req.user.id,
-        });
-        if (fwd?.handled_by === 'szallasado') {
-          ticketData = { ...ticketData, landlord_notice: fwd };
-          // Ha a továbbítás előfeltétele hiányzik, a FELELŐS tudja meg — nem a napló.
-          if (!fwd.forwarded && autoAssigned?.assigned_to) {
-            inApp.notify({
-              userId: autoAssigned.assigned_to,
-              contractorId: createdTicket.contractor_id,
-              type: 'ticket_created',
-              title: 'Szállásadói jegy — a levél NEM ment ki',
-              message: `${createdTicket.ticket_number}: ${fwd.reason}. A link elkészült, `
-                + 'de értesítsd a szállásadót más csatornán.',
-              link: `/tickets/${createdTicket.id}`,
-              data: { ticket_id: createdTicket.id, landlord_notice: fwd },
-            }).catch((e) => logger.error('[ticket.create] szállásadói értesítés:', e.message));
-          }
+            data: { ticket_id: createdTicket.id, landlord_notice: fwd },
+          }).catch((e) => logger.error('[ticket.create] szállásadói értesítés:', e.message));
         }
       }
     }

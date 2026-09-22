@@ -132,5 +132,104 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'RESTICK-07',
+      name: '⚠️ az értesítés akkor is megy, ha az admin FELELŐST IS választott',
+      expected: { created: 201, van_felelos: true, lako_ertesult: true },
+      hint: 'ez bukott el élesben: az értesítés a szignálási ÁGON BELÜL volt',
+      run: async (ctx, s) => {
+        // Az admin EGYSZERRE ad felelőst és érintett lakót — ilyenkor a szignálási ág
+        // nem fut le, és korábban vele együtt az értesítés is kimaradt.
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK felelőssel együtt', description: 'x', category_id: s.kat.id,
+          assigned_to: ctx.ids.user.superadmin, linked_employee_id: s.emp.id } });
+        const jegy = r.body?.data?.ticket?.id;
+        const t = (await query('SELECT assigned_to FROM tickets WHERE id=$1', [jegy])).rows[0];
+        const ert = (await query(
+          `SELECT count(*)::int AS db FROM notifications
+            WHERE user_id=$1 AND type='ticket_created' AND data->>'ticket_id' = $2`,
+          [s.lakoId, jegy])).rows[0];
+        return {
+          created: r.status,
+          van_felelos: t?.assigned_to === ctx.ids.user.superadmin,
+          lako_ertesult: ert.db > 0,
+        };
+      },
+    },
+    {
+      id: 'RESTICK-08',
+      name: 'TÖBB érintett lakó egy jegyen — mindegyik látja és értesül',
+      expected: { created: 201, mindketto_latja: true, mindketto_ertesult: true },
+      hint: 'közös helyiség: egy hiba több emberre vonatkozik',
+      run: async (ctx, s) => {
+        // második lakói fiók, saját employee-sorral és app-belépéssel
+        const masik = (await query(
+          `INSERT INTO users (email, password_hash, first_name, last_name, is_active, preferred_language)
+           VALUES ('restick-masik@functest.local','x','Másik','Lakó',true,'hu') RETURNING id`)).rows[0];
+        await query('UPDATE employees SET user_id=$1 WHERE id=$2', [masik.id, s.masikEmp.id]);
+        const masikToken = http.tokenFor(masik.id);
+
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK közös konyha', description: 'Nem folyik le a víz',
+          category_id: s.kat.id,
+          affected_employee_ids: [s.emp.id, s.masikEmp.id] } });
+        const jegy = r.body?.data?.ticket?.id;
+
+        const a = await http.get('/tickets/my', { token: s.lako });
+        const b = await http.get('/tickets/my', { token: masikToken });
+        const ert = (await query(
+          `SELECT count(DISTINCT user_id)::int AS db FROM notifications
+            WHERE type='ticket_created' AND data->>'ticket_id' = $1`, [jegy])).rows[0];
+        return {
+          created: r.status,
+          mindketto_latja: (a.body?.data?.tickets || []).some((x) => x.id === jegy)
+            && (b.body?.data?.tickets || []).some((x) => x.id === jegy),
+          mindketto_ertesult: ert.db >= 2,
+        };
+      },
+    },
+    {
+      id: 'RESTICK-09',
+      name: 'EGÉSZ SZÁLLÁS hatókör: a ház lakói látják, DE névsor NEM keletkezik',
+      expected: { created: 201, lakok_latjak: true, nincs_nevsor: 0, ertesultek: true },
+      hint: 'vegyes szálláson egy névsor más megbízó dolgozóit adná ki',
+      run: async (ctx, s) => {
+        const acc = (await query('SELECT accommodation_id FROM employees WHERE id=$1', [s.emp.id])).rows[0];
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK folyosói lámpa', description: 'Nem ég',
+          category_id: s.kat.id, scope_accommodation_id: acc.accommodation_id } });
+        const jegy = r.body?.data?.ticket?.id;
+
+        const lista = await http.get('/tickets/my', { token: s.lako });
+        // A LÉNYEG: a kapcsolótáblában NINCS sor ehhez a jegyhez.
+        const nevsor = (await query(
+          'SELECT count(*)::int AS db FROM ticket_affected_employees WHERE ticket_id=$1', [jegy])).rows[0];
+        const ert = (await query(
+          `SELECT count(*)::int AS db FROM notifications WHERE data->>'ticket_id' = $1`, [jegy])).rows[0];
+        return {
+          created: r.status,
+          lakok_latjak: (lista.body?.data?.tickets || []).some((x) => x.id === jegy),
+          nincs_nevsor: nevsor.db,
+          ertesultek: ert.db > 0,
+        };
+      },
+    },
+    {
+      id: 'RESTICK-10',
+      name: 'a ház-hatókörű jegyet MÁS ház lakója NEM látja',
+      expected: { nem_latja: true },
+      hint: 'a hatókör nem ad általános láthatóságot',
+      run: async (ctx, s) => {
+        const masikAcc = (await query(
+          `INSERT INTO accommodations (name, type, capacity, status, utilities_billing)
+           VALUES ('RESTICK Másik Ház','dormitory',5,'available','we_pay') RETURNING id`)).rows[0];
+        const r = await http.post('/tickets', { token: s.admin, body: {
+          title: 'RESTICK másik ház folyosója', description: 'x',
+          category_id: s.kat.id, scope_accommodation_id: masikAcc.id } });
+        const jegy = r.body?.data?.ticket?.id;
+        const lista = await http.get('/tickets/my', { token: s.lako });
+        return { nem_latja: !(lista.body?.data?.tickets || []).some((x) => x.id === jegy) };
+      },
+    },
   ],
 };

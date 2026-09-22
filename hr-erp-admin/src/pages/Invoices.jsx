@@ -70,7 +70,7 @@ function StatCard({ title, value, subtitle, color, icon }) {
 function exportToCsv(invoices) {
   const headers = ['Számlaszám', 'Szállító', 'Nettó', 'ÁFA', 'Bruttó', 'Pénznem', 'Dátum', 'Határidő', 'Státusz', 'Költséghely', 'Kategória'];
   const rows = invoices.map((inv) => [
-    inv.invoice_number || '', inv.vendor_name || '',
+    inv.invoice_number || '', inv.supplier_invoice_number || '', inv.vendor_name || '',
     inv.amount || 0, inv.vat_amount || 0, inv.total_amount || 0, inv.currency || 'HUF',
     inv.invoice_date ? inv.invoice_date.substring(0, 10) : '', inv.due_date ? inv.due_date.substring(0, 10) : '',
     PAYMENT_STATUSES[inv.payment_status]?.label || inv.payment_status,
@@ -542,7 +542,22 @@ function Invoices() {
                           />
                         </TableCell>
                         <TableCell>{formatDate(inv.invoice_date)}</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>{inv.invoice_number || '-'}</TableCell>
+                        {/* A BESZÁLLÍTÓ számlaszáma az elsődleges: az a jogi azonosító,
+                            azt keresi a könyvelő és arra hivatkozik a szállító. A belső
+                            sorszám alatta, halványan — hivatkozási pontnak megmarad. */}
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {inv.supplier_invoice_number || (
+                              <Typography component="span" variant="body2"
+                                          sx={{ color: 'warning.main', fontWeight: 600 }}>
+                                hiányzik
+                              </Typography>
+                            )}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {inv.invoice_number || '-'}
+                          </Typography>
+                        </TableCell>
                         <TableCell>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>{inv.vendor_name || '-'}</Typography>
                           {inv.vendor_tax_number && (

@@ -238,7 +238,13 @@ const create = async (req, res) => {
       vendor_name, vendor_tax_number, amount, currency,
       vat_amount, total_amount, invoice_date, due_date,
       cost_center_id, category_id, description, notes,
-      line_items, client_name, client_id, contractor_id
+      line_items, client_name, client_id, contractor_id,
+      // A BESZÁLLÍTÓ számlaszáma — a jogi azonosító (mig 174). Az invoice_number a
+      // belső sorszám marad, hivatkozási pontnak.
+      supplier_invoice_number,
+      // Bérbeadói rezsi-jelzésnél nincs szállítói számla: a bérbeadó jelzi az összeget,
+      // a közüzemi szerződés az Ő nevén van. Csak ITT engedjük el a kötelezőséget.
+      is_landlord_notice,
     } = req.body;
 
     if (!amount || !invoice_date) {
@@ -246,6 +252,39 @@ const create = async (req, res) => {
         success: false,
         message: 'Összeg és számla dátum megadása kötelező'
       });
+    }
+
+    // ── A BESZÁLLÍTÓI SZÁMLASZÁM KÖTELEZŐ ───────────────────────────────────
+    // Enélkül a számla nem azonosítható: a könyvelő ezt keresi, a szállító erre
+    // hivatkozik, és ebből derül ki, ha ugyanazt kétszer vittük be. A belső sorszám
+    // erre nem alkalmas — azt mi adjuk, tehát két bevitelnél két különböző lesz.
+    const szallitoiSzam = String(supplier_invoice_number || '').trim();
+    if (!szallitoiSzam && !is_landlord_notice) {
+      return res.status(400).json({
+        success: false,
+        message: 'A beszállító számlaszáma kötelező. Ha bérbeadói rezsi-jelzésről van szó '
+          + '(nincs a nevünkre szóló számla), jelöld meg annak.',
+      });
+    }
+
+    // ── DUPLIKÁCIÓ-ELLENŐRZÉS ───────────────────────────────────────────────
+    // Az adatbázisban részleges egyedi index is véd (mig 174), de azt előbb elkapjuk,
+    // hogy a felhasználó HASZNÁLHATÓ üzenetet kapjon, ne egy constraint-hibát.
+    if (szallitoiSzam) {
+      const mar = await query(
+        `SELECT invoice_number, invoice_date FROM invoices
+          WHERE lower(btrim(vendor_name)) = lower(btrim($1))
+            AND btrim(supplier_invoice_number) = btrim($2)
+            AND deleted_at IS NULL LIMIT 1`,
+        [vendor_name || '', szallitoiSzam]);
+      if (mar.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: `Ez a számla már be van rögzítve: ${vendor_name} / ${szallitoiSzam} `
+            + `(belső sorszám: ${mar.rows[0].invoice_number}).`,
+          data: { existing: mar.rows[0] },
+        });
+      }
     }
 
     // Validate amount is positive
@@ -338,9 +377,13 @@ const create = async (req, res) => {
         line_items, client_name, client_id, contractor_id,
         payment_status, created_by,
         original_amount, original_currency, exchange_rate, exchange_rate_date, rate_status,
-        vendor_contractor_id
+        vendor_contractor_id,
+        -- ÚJ, a lista VÉGÉN (mig 174): a kézzel számozott helyőrzők közé szúrva minden
+        -- utána jövő paraméter elcsúszna. Ez a hiba kétszer is előfordult már ebben a
+        -- fájlcsaládban ("bind message supplies N parameters").
+        supplier_invoice_number
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $20, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-                $21, $22, $23, $24, $25, $26)
+                $21, $22, $23, $24, $25, $26, $27)
        RETURNING *`,
       [
         invoiceNumber, vendor_name || null, vendor_tax_number || null,
@@ -354,6 +397,7 @@ const create = async (req, res) => {
         fx.original_amount, fx.original_currency, fx.exchange_rate,
         fx.exchange_rate_date, fx.rate_status,
         req.body.vendor_contractor_id || null,
+        szallitoiSzam || null,
       ]
     );
 

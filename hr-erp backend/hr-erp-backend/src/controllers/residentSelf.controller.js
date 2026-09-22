@@ -50,8 +50,25 @@ const SUGGEST_CONFIDENCE_THRESHOLD = 70;
  * a veszélyes irány.
  */
 const SAJAT_JEGY_FELTETEL = `(
+  -- 1. ő jelentette be
   t.created_by = $USER
+  -- 2. ő az elsődleges érintett (visszafelé kompatibilitás, mig 173 előtti jegyek)
   OR t.linked_employee_id IN (SELECT id FROM employees WHERE user_id = $USER)
+  -- 3. a TÖBB érintett között szerepel (mig 173) — közös helyiség, több lakó
+  OR EXISTS (
+    SELECT 1 FROM ticket_affected_employees tae
+      JOIN employees e2 ON e2.id = tae.employee_id
+     WHERE tae.ticket_id = t.id AND e2.user_id = $USER
+  )
+  -- 4. EGÉSZ SZÁLLÁS hatókör: ő MOST ott lakik. Nem befagyasztott névsor alapján —
+  --    egy beköltöző ugyanazt a folyosót használja, egy kiköltöző már nem.
+  OR (
+    t.scope = 'accommodation'
+    AND t.scope_accommodation_id IN (
+      SELECT accommodation_id FROM employees
+       WHERE user_id = $USER AND accommodation_id IS NOT NULL
+    )
+  )
 )`;
 /** A $USER helyőrző cseréje a tényleges paraméter-sorszámra. */
 const sajatJegy = (paramIndex) => SAJAT_JEGY_FELTETEL.replace(/\$USER/g, `$${paramIndex}`);
