@@ -50,3 +50,51 @@ egyszer, amikor először előfordul az adott jelentésben. Például:
 őket, a jelentés már nem egyezik azzal, amit a rendszerben látsz, és egy `finalized`
 állapotot kereső ember nem találja meg a "lezárt" szót. A magyar szöveg neked szól, az
 angol azonosítók a rendszernek.
+
+---
+
+## 📄 JELENTÉSEK FORMÁTUMA — MINDEN JELENTÉSRE KÖTELEZŐ
+
+### 1. A teljes jelentés FÁJLBA megy
+
+Minden érdemi jelentést ments `.md` fájlba az asztalra:
+
+```
+~/Desktop/HR-ERP-PROJECT/JELENTES-<tema>-<ÉÉÉÉ-HH-NN>.md
+```
+
+(A `~/Desktop/HR-ERP-PROJECT` a repó gyökerére mutató symlink, tehát a fájl a repóban
+landol — ha nem akarod verziózni, a gyökér `*.xlsx`/`*.md` gitignore-mintáját bővítsd.)
+
+**Miért:** a terminálból a hosszú jelentés beillesztése nem működik, és egy fájl később
+is visszakereshető — a beszélgetés görgetősávja nem az.
+
+### 2. A beszélgetésben a jelentés VÉGÉN kötelező egy ÖSSZEFOGLALÓ blokk
+
+**Legfeljebb 5 sor, magyarul**, pontosan három dolgot mondjon el:
+
+1. **mi készült el** — tényszerűen, nem folyamat-leírásként,
+2. **mi a döntési pont** — amiben a tulajdonosnak választania kell,
+3. **mi kell tőle** — konkrét cselekvés (jóváhagyás, adat, hozzáférés).
+
+Sablon:
+
+```markdown
+## ÖSSZEFOGLALÓ
+**Elkészült:** …
+**Döntési pont:** …
+**Tőled kell:** …
+**Fájl:** ~/Desktop/HR-ERP-PROJECT/JELENTES-….md
+```
+
+**Miért 5 sor:** a részletes indoklás a fájlban van. Az összefoglaló arra való, hogy a
+képernyőre pillantva el lehessen dönteni, kell-e most foglalkozni vele. Ha nincs döntési
+pont vagy nem kell semmi, azt is **ki kell mondani** („Döntési pont: nincs") — egy üresen
+hagyott sor azt üzeni, hogy elfelejtetted, nem azt, hogy nincs.
+
+### 3. Amit az összefoglaló NEM tartalmazhat
+
+- Nem ismétli meg a részleteket, amik a fájlban vannak.
+- Nem szépíti az eredményt: ha valami félkész vagy nem sikerült, az az „Elkészült"
+  sorban tényként szerepel, nem hagyható ki.
+- Nem ígér olyan következő lépést, amit nem hagytak jóvá.
