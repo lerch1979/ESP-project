@@ -40,6 +40,21 @@ const TEMPLATES = {
     tl: (v) => ({ title: `Bagong mensahe — ${v.ticketNumber || 'ticket'}`, body: v.sender ? `${v.sender}: ${v.preview || ''}` : (v.preview || 'May bagong mensahe ka') }),
     de: (v) => ({ title: `Neue Nachricht — ${v.ticketNumber || 'Ticket'}`, body: v.sender ? `${v.sender}: ${v.preview || ''}` : (v.preview || 'Neue Nachricht erhalten') }),
   },
+  // ÚJ JEGY AZ ÉRINTETT LAKÓNAK. Akkor megy ki, ha az IRODA nyitott jegyet a lakó
+  // nevében — addig a lakó nem tudta, hogy az ügyével foglalkozunk. Öt nyelven, mert a
+  // lakók fele nem magyar, és egy magyar push ugyanannyit mond nekik, mint a semmi.
+  ticket_created: {
+    hu: (v) => ({ title: `Új hibajegy — ${v.ticketNumber || ''}`.trim(),
+                  body: v.title ? `${v.title}` : 'Hibajegy készült az ügyedben' }),
+    en: (v) => ({ title: `New ticket — ${v.ticketNumber || ''}`.trim(),
+                  body: v.title ? `${v.title}` : 'A ticket was opened for you' }),
+    uk: (v) => ({ title: `Нова заявка — ${v.ticketNumber || ''}`.trim(),
+                  body: v.title ? `${v.title}` : 'Для вас створено заявку' }),
+    tl: (v) => ({ title: `Bagong ticket — ${v.ticketNumber || ''}`.trim(),
+                  body: v.title ? `${v.title}` : 'May ticket na binuksan para sa iyo' }),
+    de: (v) => ({ title: `Neues Ticket — ${v.ticketNumber || ''}`.trim(),
+                  body: v.title ? `${v.title}` : 'Für dich wurde ein Ticket angelegt' }),
+  },
   expiry_alert: {
     hu: (v) => ({ title: v.field === 'visa' ? 'Vízum lejárat' : 'Szerződés lejárat', body: expiryBody(v, { soon: (n) => `A ${who(v, 'hu')} ${n} nap múlva lejár.`, today: () => `A ${who(v, 'hu')} ma lejár.`, past: (n) => `A ${who(v, 'hu')} ${n} napja lejárt.` }) }),
     en: (v) => ({ title: v.field === 'visa' ? 'Visa expiry' : 'Contract expiry', body: expiryBody(v, { soon: (n) => `Your ${who(v, 'en')} expires in ${n} days.`, today: () => `Your ${who(v, 'en')} expires today.`, past: (n) => `Your ${who(v, 'en')} expired ${n} days ago.` }) }),

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity, Image, Modal, ScrollView,
+  View, Text, FlatList, TextInput, TouchableOpacity, Image, Modal, ScrollView, Alert,
   KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
+import { pickAndCompress } from '../../utils/photo';
 import { getItem } from '../../services/storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../constants/colors';
@@ -121,6 +122,42 @@ export default function ResidentTicketDetail({ route, navigation }) {
     return () => { stop(); subF(); subB(); };
   }, [navigation, loadMessages]);
 
+  /**
+   * KÉP CSATOLÁSA A JEGY LÉTREHOZÁSA UTÁN IS.
+   *
+   * A backend ezt mindig is tudta (`POST /tickets/my/:id/attachments`, saját jegyre
+   * korlátozva), csak ez a képernyő nem kínálta fel — a lakó a bejelentés pillanatában
+   * tudott képet adni, utána már nem. Márpedig a hiba gyakran csak később válik
+   * fényképezhetővé: „küldj egy képet a zárról" pont ilyen kérés.
+   */
+  const [uploading, setUploading] = useState(false);
+
+  const addPhoto = async (fromCamera) => {
+    if (uploading) return;
+    try {
+      const { denied, uri } = await pickAndCompress(fromCamera);
+      if (denied) { Alert.alert(t('common.error'), t('attach.permission')); return; }
+      if (!uri) return;
+      setUploading(true);
+      await ticketsAPI.uploadMyAttachment(id, uri);
+      // Újratöltés, hogy a kép AZONNAL megjelenjen a fejlécben — enélkül a lakó nem
+      // tudná, sikerült-e, és kétszer küldené fel ugyanazt.
+      await loadAll();
+    } catch {
+      Alert.alert(t('common.error'), t('attach.uploadFailed', { defaultValue: 'A kép feltöltése nem sikerült' }));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const pickPhoto = () => {
+    Alert.alert(t('attach.add'), undefined, [
+      { text: t('attach.camera'), onPress: () => addPhoto(true) },
+      { text: t('attach.gallery'), onPress: () => addPhoto(false) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
   const onSend = async () => {
     const body = text.trim();
     if (!body || sending) return;
@@ -188,6 +225,17 @@ export default function ResidentTicketDetail({ route, navigation }) {
         ListEmptyComponent={<Text style={styles.empty}>{t('chat.empty')}</Text>}
       />
       <View style={styles.inputBar}>
+        {/* A fotó-gomb a szövegmező ELŐTT: a kép önálló üzenet, nem a szöveg kiegészítése. */}
+        <TouchableOpacity
+          style={styles.attachBtn}
+          onPress={pickPhoto}
+          disabled={uploading}
+          activeOpacity={0.8}
+        >
+          {uploading
+            ? <ActivityIndicator color={colors.primary} size="small" />
+            : <Ionicons name="camera" size={22} color={colors.primary} />}
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           value={text}
@@ -265,4 +313,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginLeft: 8,
   },
   sendBtnDisabled: { opacity: 0.5 },
+  attachBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center', marginRight: 6,
+  },
 });

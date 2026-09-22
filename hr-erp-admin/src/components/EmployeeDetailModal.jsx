@@ -64,6 +64,7 @@ import { employeesAPI, accommodationsAPI, roomsAPI, UPLOADS_BASE_URL } from '../
 import { toast } from 'react-toastify';
 import UserAvatar from './common/UserAvatar';
 import PdfViewer from './PdfViewer';
+import TaskDetailModal from './TaskDetailModal';
 import TaskCreationModal from './TaskCreationModal';
 import EmployeeDocumentsPanel from './EmployeeDocumentsPanel';
 import EmployeeGdprAction from './EmployeeGdprAction';
@@ -152,6 +153,10 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
   const [noteData, setNoteData] = useState({ note_type: 'general', title: '', content: '' });
   const [noteSubmitting, setNoteSubmitting] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  // Az idővonalról MEGNYITOTT feladat. A backend a task-eseményhez már ma is visszaadja a
+  // `metadata.task_id`-t — eddig csak senki nem használta: az elemek nem voltak
+  // kattinthatók, tehát egy idővonalra került feladatot utólag nem lehetett megnyitni.
+  const [openTaskId, setOpenTaskId] = useState(null);
   // Edit-note dialog state: null = closed; { noteId, note_type, title, content }
   const [editingNote, setEditingNote] = useState(null);
   const [editNoteSubmitting, setEditNoteSubmitting] = useState(false);
@@ -862,9 +867,16 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                         };
                         const IconComp = config.icon;
 
+                        // Csak a FELADAT nyitható meg: a többi esemény (check-in,
+                        // vízum-lejárat, műszak) származtatott adat, nincs mögötte
+                        // önálló, szerkeszthető rekord. Egy mindenre kattintható
+                        // idővonal azt ígérné, hogy van — és a felén nem történne semmi.
+                        const taskId = event.type === 'task' ? event.metadata?.task_id : null;
+
                         return (
                           <Box
                             key={`${event.type}-${idx}`}
+                            onClick={taskId ? () => setOpenTaskId(taskId) : undefined}
                             sx={{
                               display: 'flex',
                               alignItems: 'flex-start',
@@ -875,7 +887,13 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
                               bgcolor: `${config.color}08`,
                               border: `1px solid ${config.color}25`,
                               position: 'relative',
-                              '&:hover': { bgcolor: `${config.color}12` },
+                              cursor: taskId ? 'pointer' : 'default',
+                              '&:hover': {
+                                bgcolor: `${config.color}12`,
+                                // A megnyithatóságnak LÁTSZANIA kell, különben senki nem
+                                // próbálja meg rákattintani.
+                                ...(taskId ? { borderColor: config.color, boxShadow: 1 } : {}),
+                              },
                             }}
                           >
                             {/* Event icon */}
@@ -1083,6 +1101,16 @@ function EmployeeDetailModal({ open, onClose, employeeId, onSuccess }) {
           </>
         )}
       </DialogActions>
+
+      {/* Az idővonalról megnyitott feladat — ugyanaz a modál, amit a Teendők lista és a
+          "kapcsolódó feladatok" panel is használ. Nem külön szerkesztő: egy második
+          változat előbb-utóbb eltérne az elsőtől. */}
+      <TaskDetailModal
+        open={!!openTaskId}
+        taskId={openTaskId}
+        onClose={() => setOpenTaskId(null)}
+        onChange={loadTimeline}
+      />
 
       <TaskCreationModal
         open={taskModalOpen}

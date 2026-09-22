@@ -30,6 +30,31 @@ const EMP_UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'employees');
 const SUGGEST_CONFIDENCE_THRESHOLD = 70;
 
 // GET /tickets/my — only tickets the resident created.
+/**
+ * MIT LÁT A LAKÓ A SAJÁT JEGYEIBŐL — egy helyen, három használati hely helyett.
+ *
+ * Eddig `created_by = $1` volt, azaz KIZÁRÓLAG a bejelentő. Emiatt egy irodából, a lakó
+ * NEVÉBEN nyitott jegy (élesben a #21: az iroda nyitotta, az érintett Eszti volt) soha
+ * nem jelent meg a lakó appjában: dolgoztunk az ügyén, ő meg nem tudott róla.
+ *
+ * Mostantól VAGY-kapcsolat: a lakó látja azt is, amit ő jelentett be, ÉS azt is, ami RÁ
+ * vonatkozik. A kettő kizárólagossá tétele hibás lenne mindkét irányban:
+ *   • csak a bejelentőre szűrve az irodai jegyek maradnak láthatatlanok,
+ *   • csak az érintettre szűrve a lakó SAJÁT, korábbi jegyei (#19, #20) tűnnének el —
+ *     azoknál ugyanis a linked_employee_id üres, mert a lakói jegynyitás eddig nem
+ *     töltötte ki. (Ezentúl kitölti, de a meglévő sorok nem változnak visszamenőleg.)
+ *
+ * A feltétel SQL-töredékként él, nem másolt sorokként: ha háromfelé írnánk, egy jövőbeli
+ * szigorítás könnyen kimaradna az egyikből — és az adatszivárgás felé mindig a kimaradás
+ * a veszélyes irány.
+ */
+const SAJAT_JEGY_FELTETEL = `(
+  t.created_by = $USER
+  OR t.linked_employee_id IN (SELECT id FROM employees WHERE user_id = $USER)
+)`;
+/** A $USER helyőrző cseréje a tényleges paraméter-sorszámra. */
+const sajatJegy = (paramIndex) => SAJAT_JEGY_FELTETEL.replace(/\$USER/g, `$${paramIndex}`);
+
 const getMyTickets = async (req, res) => {
   try {
     const result = await query(
@@ -43,7 +68,7 @@ const getMyTickets = async (req, res) => {
        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
        LEFT JOIN priorities p ON t.priority_id = p.id
-       WHERE t.created_by = $1
+       WHERE ${sajatJegy(1)}
        ORDER BY t.created_at DESC`,
       [req.user.id]
     );
@@ -70,7 +95,7 @@ const getMyTicketById = async (req, res) => {
        LEFT JOIN ticket_statuses ts ON t.status_id = ts.id
        LEFT JOIN ticket_categories tc ON t.category_id = tc.id
        LEFT JOIN priorities p ON t.priority_id = p.id
-       WHERE t.id = $1 AND t.created_by = $2`,
+       WHERE t.id = $1 AND ${sajatJegy(2)}`,
       [id, req.user.id]
     );
     if (result.rows.length === 0) {
@@ -120,8 +145,13 @@ const requireOwnTicket = async (req, res, next) => {
     if (!UUID_RE.test(ticketId)) {
       return res.status(404).json({ success: false, message: 'Hibajegy nem található' });
     }
-    const r = await query('SELECT created_by FROM tickets WHERE id = $1', [ticketId]);
-    if (r.rowCount === 0 || r.rows[0].created_by !== req.user.id) {
+    // Ugyanaz a feltétel, mint a listánál és a részleteknél — az őr nem lehet szigorúbb
+    // vagy lazább, mint amit a lakó egyébként lát, különben az üzenetküldés és a
+    // képfeltöltés elválik a jegy láthatóságától.
+    const r = await query(
+      `SELECT t.id FROM tickets t WHERE t.id = $1 AND ${sajatJegy(2)}`,
+      [ticketId, req.user.id]);
+    if (r.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Hibajegy nem található' });
     }
     next();

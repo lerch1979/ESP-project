@@ -4,8 +4,7 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Image, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { pickAndCompress } from '../../utils/photo';
 import { useTranslation } from 'react-i18next';
 import { ticketsAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,15 +14,7 @@ import LoadingScreen from '../../components/LoadingScreen';
 
 const MAX_PHOTOS = 3;
 
-// Resize to 1600px wide + 0.8 JPEG — keeps uploads small on mobile data.
-async function compressPhoto(uri) {
-  const r = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width: 1600 } }],
-    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  return r.uri;
-}
+// A tömörítés a közös utils/photo.js-ben él — a jegy-részletek képernyő is ezt használja.
 
 export default function CreateTicketScreen({ navigation }) {
   const { t } = useTranslation();
@@ -83,18 +74,10 @@ export default function CreateTicketScreen({ navigation }) {
   const addPhoto = async (fromCamera) => {
     if (photos.length >= MAX_PHOTOS) return;
     try {
-      const perm = fromCamera
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { Alert.alert(t('common.error'), t('attach.permission')); return; }
-      const res = fromCamera
-        ? await ImagePicker.launchCameraAsync({ quality: 0.9 })
-        : await ImagePicker.launchImageLibraryAsync({ quality: 0.9 });
-      if (res.canceled) return;
-      const uri = res.assets?.[0]?.uri;
+      const { denied, uri } = await pickAndCompress(fromCamera);
+      if (denied) { Alert.alert(t('common.error'), t('attach.permission')); return; }
       if (!uri) return;
-      const compressed = await compressPhoto(uri);
-      setPhotos((p) => [...p, compressed].slice(0, MAX_PHOTOS));
+      setPhotos((p) => [...p, uri].slice(0, MAX_PHOTOS));
     } catch { /* ignore picker errors */ }
   };
 

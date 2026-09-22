@@ -459,6 +459,19 @@ const createTicket = async (req, res) => {
       );
       const creatorLang = creatorLangResult.rows[0]?.preferred_language || 'hu';
 
+      // HA A BEJELENTŐ MAGA LAKÓ, az érintett ŐMAGA — töltsük ki, ha a hívó nem adta meg.
+      //
+      // Eddig a lakói jegynyitás üresen hagyta a linked_employee_id-t (élesben a #19 és a
+      // #20 ilyen). Ez azért baj, mert a jegy így nem köthető emberhez: nem lehet
+      // megmondani, melyik szálláson keletkezett, melyik megbízóhoz tartozik, és a
+      // "rám vonatkozó jegyek" nézet sem találja meg.
+      let erintett = linked_employee_id || null;
+      if (!erintett) {
+        const sajat = await client.query(
+          'SELECT id FROM employees WHERE user_id = $1 LIMIT 1', [req.user.id]);
+        erintett = sajat.rows[0]?.id || null;
+      }
+
       // Ticket létrehozása
       const insertQuery = `
         INSERT INTO tickets (
@@ -480,7 +493,7 @@ const createTicket = async (req, res) => {
         priority_id || null,
         req.user.id,
         assigned_to || null,
-        linked_employee_id || null
+        erintett
       ]);
 
       const ticketId = result.rows[0].id;
@@ -507,11 +520,14 @@ const createTicket = async (req, res) => {
       return {
         ticket: result.rows[0],
         prioritySlug: priorityResult?.rows[0]?.slug || 'normal',
+        // Az érintett lakó a tranzakción BELÜL dől el (a bejelentő saját employee-sora),
+        // az értesítése viszont COMMIT UTÁN megy ki — ezért ki kell vezetni ide.
+        erintett,
       };
     });
 
     // Post-transaction: auto-assign and SLA (these use pool queries, must run after COMMIT)
-    const { ticket: createdTicket, prioritySlug } = ticketData;
+    const { ticket: createdTicket, prioritySlug, erintett } = ticketData;
 
     if (!assigned_to) {
       // ── SZIGNÁLÁSI LÁNC ────────────────────────────────────────────────
@@ -549,7 +565,7 @@ const createTicket = async (req, res) => {
       }
       if (autoAssigned) ticketData = { ...ticketData, ticket: autoAssigned };
 
-      // ── ÉRTESÍTÉS ──────────────────────────────────────────────────────
+      // ── ÉRTESÍTÉS A FELELŐSNEK ─────────────────────────────────────────
       // Korábban NEM létezett 'ticket_created' értesítés: egy új jegyről senki nem
       // kapott hírt, csak a szignálásról. Ha a szignálás elbukott, a jegy némán ült.
       if (autoAssigned?.assigned_to) {
@@ -561,7 +577,33 @@ const createTicket = async (req, res) => {
           message: `${createdTicket.ticket_number} — ${createdTicket.title}`,
           link: `/tickets/${createdTicket.id}`,
           data: { ticket_id: createdTicket.id, reason: assignReason },
-        }).catch((e) => logger.error('[ticket.create] értesítés:', e.message));
+          push: { vars: { ticketNumber: createdTicket.ticket_number, title: createdTicket.title } },
+        }).catch((e) => logger.error(`[ticket.create] értesítés: ${e.message}`));
+      }
+
+      // ── ÉRTESÍTÉS AZ ÉRINTETT LAKÓNAK ──────────────────────────────────
+      // Ez volt a hiányzó darab: ha az IRODA nyit jegyet a lakó nevében, a lakó eddig
+      // semmit nem tudott róla — se az appban, se a telefonján. Most értesítést és
+      // push-t is kap, a SAJÁT nyelvén (a sablon öt nyelvű).
+      //
+      // Csak akkor, ha NEM ő maga jelentette be: egy saját bejelentésről értesíteni
+      // valakit fölösleges zaj, és rontja a bizalmat a többi értesítésben.
+      if (erintett) {
+        const lako = await query(
+          'SELECT user_id FROM employees WHERE id = $1 AND user_id IS NOT NULL', [erintett]);
+        const lakoUserId = lako.rows[0]?.user_id || null;
+        if (lakoUserId && lakoUserId !== req.user.id) {
+          inApp.notify({
+            userId: lakoUserId,
+            contractorId: createdTicket.contractor_id,
+            type: 'ticket_created',
+            title: 'Hibajegy készült az ügyedben',
+            message: `${createdTicket.ticket_number} — ${createdTicket.title}`,
+            link: `/tickets/${createdTicket.id}`,
+            data: { ticket_id: createdTicket.id, for_resident: true },
+            push: { vars: { ticketNumber: createdTicket.ticket_number, title: createdTicket.title } },
+          }).catch((e) => logger.error(`[ticket.create] lakói értesítés: ${e.message}`));
+        }
       }
 
       // ── SZÁLLÁSADÓI TOVÁBBÍTÁS ─────────────────────────────────────────
