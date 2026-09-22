@@ -98,3 +98,48 @@ hagyott sor azt üzeni, hogy elfelejtetted, nem azt, hogy nincs.
 - Nem szépíti az eredményt: ha valami félkész vagy nem sikerült, az az „Elkészült"
   sorban tényként szerepel, nem hagyható ki.
 - Nem ígér olyan következő lépést, amit nem hagytak jóvá.
+
+---
+
+## ✅ MIKOR NEVEZHETŐ EGY FUNKCIÓ KÉSZNEK
+
+### A teljes lánc szabálya
+
+Egy funkció **csak akkor jelenthető késznek**, ha mind a négy lépés megvan:
+
+1. **adatbevitel** — van FELÜLET, ahol egy valódi felhasználó be tudja vinni az adatot,
+2. **tárolás** — a rendszer eltárolja (adatbázis, migráció),
+3. **megjelenítés** — a felhasználó vissza is látja,
+4. **éles próba** — élesben, VALÓS felhasználóként végigpróbálva.
+
+**Ha bármelyik hiányzik, az a jelentésben TÉNYKÉNT szerepel** — „a felület még nincs
+meg" —, nem pedig készként.
+
+### Az „Elkészült" sorban mindig ott a HELY
+
+Az összefoglaló „Elkészült" sora **mondja ki, hol lehet az adatot bevinni**, konkrét
+menüponttal:
+
+> **Elkészült:** … Megtalálod: **Hibajegyek → „Új hibajegy" → az űrlap alján
+> „Kit érint még?"**
+
+**Ha nincs ilyen hely, a funkció nem kész.** Ez a mondat nem díszítés: ha nem tudom
+leírni, hová kell kattintani, akkor a funkciót nem lehet használni.
+
+### Miért ez a szabály
+
+Mert pontosan ez történt a „több érintett lakó" funkcióval (2026-09-22): a backend tudta,
+a mobil megjelenítette, a migráció lefutott — és **élesítve**-ként jelentettem. Az admin
+felületen viszont sehol nem volt hol megadni, tehát a gyakorlatban a funkció nem
+létezett. A tesztelő vette észre, nem én.
+
+A tárolás és a megjelenítés megléte **nem** funkció. A funkció az, amit a felhasználó
+el tud végezni.
+
+### Ellenőrző kérdések, mielőtt bármit késznek jelentek
+
+- Hová kattint a felhasználó? (Ha nem tudom egy mondatban leírni → nem kész.)
+- **Mindkét** úton megvan? (Létrehozás ÉS szerkesztés — az egyik önmagában fél funkció.)
+- Kiment-e a felület frissítése, és a **deployolt** csomag tartalmazza-e? (A forráskód
+  nem bizonyíték — a `grep` a deployolt bundle-ön az.)
+- Végigpróbáltam-e élesben, **valódi felhasználóként**, nem csak a végpontot hívva?
