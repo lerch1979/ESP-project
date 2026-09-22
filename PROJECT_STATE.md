@@ -222,23 +222,44 @@ and gets dearer every month.
 **Status:** open — a clean single path is being proposed (2026-09-15). Do NOT add another
 field to either table before it is decided.
 
-### ⚠️ TEST ACCOUNT IN OCCUPANCY — remove before closing any month
+### ⚠️ TEST ACCOUNTS IN OCCUPANCY — remove before closing any month
 
-`MOBIL-TESZT-ESZTI` (Teszt (mobil) Eszti, `eszti.teszt@housingsolutions.hu`) is assigned
-to **Fertőd** so the mobile app's "Saját szállásom" screen has something to show. She is
-NOT a real resident.
+**TWO** test residents are housed at **Fertőd** so the mobile app's "Saját szállásom"
+screen has something to show. Neither is a real resident:
 
-**Before finalising a month, take her out of occupancy** — otherwise a person who does not
-exist appears in the settlement sheets and the occupant-night counts. The August round
-already had to purge a fabricated person-day for exactly this reason.
+| employee_number | name | login |
+|---|---|---|
+| `MOBIL-TESZT-ESZTI` | Teszt (mobil) Eszti | `eszti.teszt@housingsolutions.hu` |
+| `MOBIL-TESZT-TIMI` | Teszt (mobil) Timi | `timi.teszt@housingsolutions.hu` |
+
+`MOBIL-TESZT-TIMI` was added 2026-09-22, built the same way and for the same reason.
+
+⚠️ **Fertőd is now OVER CAPACITY because of them: capacity 4, occupants 5** (3 real + 2
+test). Occupancy percentages for this house are therefore meaningless until the test
+accounts are removed. Do not "fix" this by raising the capacity — the capacity is right;
+the two extra people are not real.
+
+**Before finalising a month, take BOTH of them out of occupancy** — otherwise people who
+do not exist appear in the settlement sheets and the occupant-night counts. The August
+round already had to purge a fabricated person-day for exactly this reason.
+
+```sql
+-- Mit kell kivenni a hónap zárása előtt:
+SELECT employee_number, first_name, last_name
+  FROM employees WHERE employee_number LIKE 'MOBIL-TESZT-%';
+```
 
 Why the damage is limited in the meantime: `billing_client_id` and `workplace_id` are
-deliberately NULL, so no rate row matches her and she generates **zero revenue**; Fertőd is
-owner-occupied (`sajat_tulajdon`), so she generates **zero cost** too. What she does affect
-is the headcount and occupant-night statistics.
+deliberately NULL on both records, so no rate row matches them and they generate **zero
+revenue**; Fertőd is owner-occupied (`sajat_tulajdon`), so they generate **zero cost**
+too. Verified 2026-09-22 on prod: Fertőd's September billing counts 65 occupant-nights
+over 21 days = 3.1 people, i.e. exactly the **three real** residents. What the test
+accounts DO affect is the headcount, the occupant-night statistics and the occupancy
+percentage.
 
-The `workplace` field reads "TESZTFIÓK — NEM VALÓS LAKÓ" and the employee note says the
-same, so anyone opening the record sees it.
+On both records the `workplace` field reads "TESZTFIÓK — NEM VALÓS LAKÓ" and the employee
+note says the same, so anyone opening the record sees it. The `employee_number` prefix
+`MOBIL-TESZT-` is the reliable way to find them in a query.
 
 Verified 2026-09-18: filing a ticket does NOT require an accommodation (the `tickets` table
 has no accommodation column). The assignment is needed **only** for the "Saját szállásom"
