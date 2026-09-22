@@ -124,7 +124,12 @@ class TranslationService {
       // fordítás történt volna. 2026-09-22-én emiatt úgy tűnt, hogy "a fordítás
       // elromlott", holott a kvóta futott ki — a rendszer viszont ezt sehol nem mondta.
       this.lastError = { at: new Date(), message: err.message, status: err.status || null };
-      logger.error('[Translation] Claude API error:', err.message);
+      // SABLONSZÖVEG, nem második argumentum. A winston a string 2. argumentumot
+      // KARAKTERENKÉNT szórja szét egy objektumba — az éles naplóban ez 218 kulcsos
+      // ({"0":"4","1":"0",…}) sorokat eredményezett, amiből az üzenet gyakorlatilag
+      // olvashatatlan. Ugyanez a minta a kódban további ~178 helyen él; ott külön
+      // körben érdemes végigmenni, itt azért javítom, mert ez szemetel élesben MOST.
+      logger.error(`[Translation] Claude API hiba: ${err.message}`);
       this._alertOnce(err);
       return normalized;
     }

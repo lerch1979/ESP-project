@@ -363,6 +363,8 @@ solution cannot express.
 
 ## TECHNICAL DEBT
 
+| **`logger.error('msg:', err.message)` — a winston KARAKTERENKÉNT szórja szét a 2. string argumentumot** | low | Az éles naplóban ez 218 kulcsos `{"0":"4","1":"0",…}` sorokat eredményez, amiből az üzenet olvashatatlan. 2026-09-22-én a fordítási kvótahiba így töltötte meg az error logot. A `translation.service.js`-ben javítva (sablonszöveg), de a minta **további ~178 helyen** él a kódban. Külön kör: végigmenni rajtuk, vagy a loggert javítani úgy, hogy a string 2. argumentumot ne spreadelje. |
+
 | ⚠️ **A gépi fordítás KIESETT — API-kvóta, 2026-10-01 00:00 UTC-ig** | **medium** | Az Anthropic API használati korlát elérve: minden hívás `400 "You have reached your specified API usage limits"`. A `translateText` elkapja és az EREDETI szöveget adja vissza — helyesen, hogy a jegy ne maradjon üresen. 2026-09-22 óta ez már **nem néma**: a fordított objektum `_translation_failed` mezőt visz, ops-riasztás megy (óránként max. egyszer), és a `GET /translation/health` kimondja az állapotot. **Feloldás a tulajdonos oldalán:** limit emelése az Anthropic konzolban (Settings → Limits), vagy kivárás 2026-10-01-ig. Kód-változtatás NEM kell — a mechanizmus ép, csak nem kap választ. |
 
 
