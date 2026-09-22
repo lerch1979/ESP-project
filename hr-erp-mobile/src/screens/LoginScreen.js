@@ -26,7 +26,7 @@ const LANGS = [
 export default function LoginScreen() {
   const {
     login, biometricAvailable, biometricEnabled, shouldOfferBiometric,
-    enableBiometric, disableBiometric, unlockWithBiometric, sessionExpired,
+    enableBiometric, disableBiometric, unlockWithBiometric, sessionExpired, sessionExpiredReason,
   } = useAuth();
   const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
@@ -47,6 +47,11 @@ export default function LoginScreen() {
     );
   };
 
+  // A jelszóváltás külön mondatot kap: a teendő ugyanaz, de a RÉGI jelszó már nem jó.
+  const jelszoValtozott = sessionExpiredReason === 'password_changed';
+  const ujraCim = jelszoValtozott ? 'passwordChangedTitle' : 'sessionExpiredTitle';
+  const ujraSzoveg = jelszoValtozott ? 'passwordChangedBody' : 'sessionExpiredBody';
+
   const handleBiometricUnlock = async () => {
     const { ok, reason } = await unlockWithBiometric();
     if (ok) return;
@@ -56,7 +61,7 @@ export default function LoginScreen() {
     //                     Újrapróbálni értelmetlen, jelszó kell. Ha ezt nem mondjuk ki,
     //                     a felhasználó a végtelenségig nyomkodja a Face ID-t.
     if (reason === 'session_expired') {
-      Alert.alert(t('biometric.sessionExpiredTitle'), t('biometric.sessionExpiredBody'));
+      Alert.alert(t(`biometric.${ujraCim}`), t(`biometric.${ujraSzoveg}`));
       return;
     }
     Alert.alert(t('biometric.enableTitle'), t('biometric.failed'));
@@ -169,7 +174,7 @@ export default function LoginScreen() {
         {sessionExpired && (
           <View style={styles.expiredBox}>
             <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.expiredText}>{t('biometric.sessionExpiredBody')}</Text>
+            <Text style={styles.expiredText}>{t(`biometric.${ujraSzoveg}`)}</Text>
           </View>
         )}
 

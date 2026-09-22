@@ -6,17 +6,33 @@
  * A hiba a kliensen volt, de a vizsgálat három szerveroldali feltevést is érintett,
  * amiket azóta sem őriz semmi. Ez a terület azokat rögzíti.
  *
- * A LEGFONTOSABB, AMIT ITT KIMONDUNK: a jelszó megváltoztatása MA NEM érvényteleníti a
- * korábban kiadott tokeneket. Ez tudatos döntés kérdése, nem véletlen — ezért teszt őrzi.
- * Ha valaki bevezeti az érvénytelenítést, ez a teszt fog elbukni, és akkor a döntést
- * KI KELL MONDANI, nem csendben meghozni: az érvénytelenítés minden eszközön kilépteti
- * a felhasználót, ami biztonságilag helyes, üzemeltetésileg viszont váratlan.
+ * 2026-09-22, DÖNTÉS UTÁN: a jelszóváltás mostantól MINDEN korábban kiadott tokent
+ * érvénytelenít. A szabály három ága külön esetet kapott, mert a kettő közti KÜLÖNBSÉG
+ * a lényeg, és az csúszik el legkönnyebben egy későbbi átíráskor:
+ *
+ *   • saját jelszóváltás      → a hívó eszköze BENT marad (friss token-párt kap),
+ *                               a többi eszköz kilép;
+ *   • admin-visszaállítás     → MINDEN munkamenet kilép, kivétel nélkül;
+ *   • a frissítési út (refresh) ugyanígy záródik — enélkül a 30 napos refresh tokennel
+ *     a váltás után is új belépési tokent lehetne váltani, és az egész díszlet lenne.
  */
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const http = require('../lib/http');
 const { query } = require('../../../src/database/connection');
 
 const SECRET = () => process.env.JWT_SECRET;
+
+// A fixture-felhasználó `password_changed_at`-je a LÉTREHOZÁS pillanata (az oszlop
+// alapértelmezése CURRENT_TIMESTAMP). Egy "egy órával korábbi" token ezért eleve
+// régebbi a fióknál — nem a szabály miatt, hanem mert a fiók percekkel ezelőtt
+// született. A kiindulást tehát a múltba kell tenni, különben a teszt a saját
+// beállítását méri, nem a viselkedést.
+async function jelszovaltasAMultba(userId, nap = 2) {
+  await query(
+    `UPDATE users SET password_changed_at = CURRENT_TIMESTAMP - ($2 || ' days')::interval
+      WHERE id = $1`, [userId, String(nap)]);
+}
 
 module.exports = {
   area: 'AUTH',
@@ -30,11 +46,14 @@ module.exports = {
   cases: [
     {
       id: 'AUTH-01',
-      name: 'a jelszóváltás ELŐTT kiadott token a váltás UTÁN is érvényes',
-      expected: { valtas_elott: 200, valtas_utan: 200 },
-      hint: 'ez a MAI viselkedés; ha megváltozik, tudatos döntésnek kell lennie',
+      name: 'a jelszóváltás ELŐTT kiadott token a váltás UTÁN ÉRVÉNYTELEN',
+      expected: { valtas_elott: 200, valtas_utan: 401, kod: 'PASSWORD_CHANGED' },
+      hint: 'enélkül egy ellopott eszköz a jelszóváltás után is dolgozna — 8 órán át',
       run: async (ctx, s) => {
-        const token = jwt.sign({ userId: s.userId }, SECRET(), { expiresIn: '2h' });
+        await jelszovaltasAMultba(s.userId);
+        // Egy órával korábbi kiadás: így a másodperc-kerekítés tűrése nem játszik bele.
+        const iat = Math.floor(Date.now() / 1000) - 3600;
+        const token = jwt.sign({ userId: s.userId, iat }, SECRET(), { expiresIn: '8h' });
         const elotte = await http.get('/auth/me', { token });
 
         await query(
@@ -42,7 +61,100 @@ module.exports = {
           [s.userId]);
 
         const utana = await http.get('/auth/me', { token });
-        return { valtas_elott: elotte.status, valtas_utan: utana.status };
+        return {
+          valtas_elott: elotte.status,
+          valtas_utan: utana.status,
+          kod: utana.body?.code,
+        };
+      },
+    },
+    {
+      id: 'AUTH-06',
+      name: 'a jelszóváltás UTÁN kiadott token érvényes marad',
+      expected: { status: 200 },
+      hint: 'a tűrés nélkül a frissen kiadott tokent dobnánk el — vagyis az ellenkezőjét',
+      run: async (ctx, s) => {
+        await query(
+          `UPDATE users SET password_changed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [s.userId]);
+        const token = jwt.sign({ userId: s.userId }, SECRET(), { expiresIn: '8h' });
+        const r = await http.get('/auth/me', { token });
+        return { status: r.status };
+      },
+    },
+    {
+      id: 'AUTH-07',
+      name: 'SAJÁT jelszóváltás: a hívó eszköze BENT marad, a régi token viszont kiesik',
+      expected: { valtas: 200, regi_token: 401, uj_token: 200 },
+      hint: 'a felhasználó a gép előtt ül és a régi jelszavával igazolta magát — ne dobjuk ki',
+      run: async (ctx, s) => {
+        const hash = await bcrypt.hash('RegiJelszo123', await bcrypt.genSalt(10));
+        await query(
+          `UPDATE users SET password_hash = $1, password_changed_at = CURRENT_TIMESTAMP - interval '1 hour'
+            WHERE id = $2`, [hash, s.userId]);
+
+        const iat = Math.floor(Date.now() / 1000) - 60;
+        const regi = jwt.sign({ userId: s.userId, iat }, SECRET(), { expiresIn: '8h' });
+
+        const valtas = await http.post('/auth/change-password', {
+          token: regi,
+          body: { currentPassword: 'RegiJelszo123', newPassword: 'UjJelszo456' },
+        });
+        const uj = valtas.body?.data?.token;
+
+        const regiUtan = await http.get('/auth/me', { token: regi });
+        const ujUtan = uj ? await http.get('/auth/me', { token: uj }) : { status: 0 };
+        return { valtas: valtas.status, regi_token: regiUtan.status, uj_token: ujUtan.status };
+      },
+    },
+    {
+      id: 'AUTH-08',
+      name: 'saját jelszóváltás ROSSZ jelenlegi jelszóval elbukik',
+      expected: { status: 401 },
+      hint: 'enélkül egy eltulajdonított munkamenet kizárná a tulajdonost a fiókjából',
+      run: async (ctx, s) => {
+        const token = jwt.sign({ userId: s.userId }, SECRET(), { expiresIn: '8h' });
+        const r = await http.post('/auth/change-password', {
+          token,
+          body: { currentPassword: 'ez-nem-a-jelszo', newPassword: 'BarmiMas789' },
+        });
+        return { status: r.status };
+      },
+    },
+    {
+      id: 'AUTH-09',
+      name: 'ADMIN jelszó-visszaállítás: MINDEN munkamenet kilép, kivétel nélkül',
+      expected: { elotte: 200, utana: 401 },
+      hint: 'ezt az utat épp akkor használjuk, amikor a fiókhoz más is hozzáférhetett',
+      run: async (ctx, s) => {
+        await jelszovaltasAMultba(s.userId);
+        const iat = Math.floor(Date.now() / 1000) - 3600;
+        const token = jwt.sign({ userId: s.userId, iat }, SECRET(), { expiresIn: '8h' });
+        const elotte = await http.get('/auth/me', { token });
+
+        const admin = http.tokenFor(ctx.ids.user.superadmin);
+        await http.put(`/users/${s.userId}`, {
+          token: admin, body: { password: 'AdminAltalAdott99' },
+        });
+
+        const utana = await http.get('/auth/me', { token });
+        return { elotte: elotte.status, utana: utana.status };
+      },
+    },
+    {
+      id: 'AUTH-10',
+      name: 'a RÉGI refresh token a jelszóváltás után nem vált új belépést',
+      expected: { status: 401, kod: 'PASSWORD_CHANGED' },
+      hint: 'a refresh 30 napig él; ha ezt nem zárjuk, az érvénytelenítés díszlet',
+      run: async (ctx, s) => {
+        await jelszovaltasAMultba(s.userId);
+        const iat = Math.floor(Date.now() / 1000) - 3600;
+        const regiRefresh = jwt.sign({ userId: s.userId, iat }, SECRET(), { expiresIn: '30d' });
+        await query(
+          `UPDATE users SET password_changed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [s.userId]);
+        const r = await http.post('/auth/refresh', { body: { refreshToken: regiRefresh } });
+        return { status: r.status, kod: r.body?.code };
       },
     },
     {

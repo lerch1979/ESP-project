@@ -19,6 +19,8 @@ export function AuthProvider({ children }) {
   // ez az, amit a belépő képernyőnek ki kell mondania, hogy a felhasználó tudja,
   // miért nem jutott be, pedig a Face ID sikerült.
   const [sessionExpired, setSessionExpired] = useState(false);
+  // 'expired' | 'password_changed' — a teendő ugyanaz (jelszavas belépés), az üzenet nem.
+  const [sessionExpiredReason, setSessionExpiredReason] = useState('expired');
 
   const biometricEnabled = biometricFlag === 'true';
   // Offer the opt-in only when the device supports it AND we've never asked.
@@ -26,7 +28,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // A 401-es ág a tárolt belépést eldobja; innen tudjuk meg, hogy megtörtént.
-    setSessionExpiredHandler(() => {
+    setSessionExpiredHandler((ok) => {
+      setSessionExpiredReason(ok === 'password_changed' ? 'password_changed' : 'expired');
       setSessionExpired(true);
       setUser(null);
     });
@@ -36,7 +39,8 @@ export function AuthProvider({ children }) {
 
   // A tárolt belépés eldobása — a biometrikus kapcsoló MARAD. A felhasználó nem
   // kapcsolta ki; ha jelszóval belép, a Face ID-nak újra mennie kell.
-  const dropStoredSession = async () => {
+  const dropStoredSession = async (ok = 'expired') => {
+    setSessionExpiredReason(ok);
     await deleteItem('token');
     await deleteItem('refreshToken');
     await deleteItem('user');
@@ -67,7 +71,9 @@ export function AuthProvider({ children }) {
       const halott = err?.response?.status === 401 || err?.response?.status === 403
         || /No refresh token/i.test(err?.message || '');
       if (halott) {
-        await dropStoredSession();
+        const kod = err?.response?.data?.code === 'PASSWORD_CHANGED'
+          ? 'password_changed' : 'expired';
+        await dropStoredSession(kod);
         return 'session_expired';
       }
       // Nincs net vagy időtúllépés: a tárolt belépést NEM dobjuk el — offline is
@@ -197,6 +203,7 @@ export function AuthProvider({ children }) {
         disableBiometric,
         unlockWithBiometric,
         sessionExpired,
+        sessionExpiredReason,
       }}
     >
       {children}

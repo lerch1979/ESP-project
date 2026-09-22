@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { isTokenStale } = require('../utils/tokenFreshness');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('./permission');
@@ -40,6 +41,19 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const user = userResult.rows[0];
+
+    // JELSZÓVÁLTÁS = MINDEN KORÁBBI TOKEN ÉRVÉNYTELEN.
+    // Enélkül a jelszóváltás csak az ÚJ belépéseket érinti: egy ellopott telefon vagy
+    // egy nyitva hagyott munkamenet a váltás után is dolgozott tovább, akár napokig
+    // (a belépési token 8 órán át, a refresh 30 napig). Márpedig a jelszót épp azért
+    // váltják, hogy ennek vége legyen.
+    if (isTokenStale(decoded, user.password_changed_at)) {
+      return res.status(401).json({
+        success: false,
+        message: 'A jelszó megváltozott, ezért ez a belépés érvénytelen. Lépj be újra.',
+        code: 'PASSWORD_CHANGED',
+      });
+    }
 
     // Felhasználó szerepköreinek lekérése
     const rolesResult = await query(

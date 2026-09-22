@@ -327,7 +327,9 @@
     "unavailable": "Walang naka-set up na biometrics sa device na ito.",
     "failed": "Nabigo ang biometric authentication.",
     "sessionExpiredTitle": "Nag-expire na ang naka-save na sign-in",
-    "sessionExpiredBody": "Gumana ang face/fingerprint — ang naka-save na sign-in sa telepono ang nag-expire. Mag-sign in gamit ang password; gagana ulit ang biometrics pagkatapos."
+    "sessionExpiredBody": "Gumana ang face/fingerprint — ang naka-save na sign-in sa telepono ang nag-expire. Mag-sign in gamit ang password; gagana ulit ang biometrics pagkatapos.",
+    "passwordChangedTitle": "Nabago ang password mo",
+    "passwordChangedBody": "Nabago ang password mo, kaya hindi na valid ang naka-save na sign-in sa telepono. Mag-sign in gamit ang BAGONG password — hindi na gagana ang luma. Gagana ulit ang biometrics pagkatapos."
   },
   "time": {
     "justNow": "ngayon lang",

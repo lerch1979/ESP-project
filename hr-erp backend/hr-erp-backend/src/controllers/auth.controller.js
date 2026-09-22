@@ -4,6 +4,7 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('../middleware/permission');
 const { sanitizeString } = require('../utils/validation');
+const { isTokenStale } = require('../utils/tokenFreshness');
 
 /**
  * Felhasználó bejelentkezés
@@ -124,6 +125,7 @@ const login = async (req, res) => {
       data: {
         token,
         refreshToken,
+  changeOwnPassword,
         user: {
           id: user.id,
           email: user.email,
@@ -152,6 +154,96 @@ const login = async (req, res) => {
 };
 
 /**
+ * Saját jelszó megváltoztatása.
+ *
+ * MIÉRT KELL EZ A VÉGPONT: a `password_changed_at` mostantól MINDEN korábbi tokent
+ * érvénytelenít. Ha a felhasználó a saját jelszavát váltja, ez őt magát is kidobná —
+ * pedig ő van a gép előtt, és épp most bizonyította a régi jelszavával, hogy ő az.
+ * Ezért a váltás UTÁN azonnal kap egy friss token-párt, és a saját munkamenete
+ * folytatódik. A TÖBBI eszköz viszont kilép, és pontosan ez a cél.
+ *
+ * Az adminisztrátori jelszó-visszaállítás (`PUT /users/:id`) szándékosan NEM ad új
+ * tokent senkinek: ott minden munkamenet kilép, a felhasználót is beleértve. Ez a
+ * különbség a két út között, és ez a lényeg — az admin-visszaállítást épp azért
+ * használjuk, mert a fiókhoz valaki más is hozzáférhetett.
+ */
+const changeOwnPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'A jelenlegi és az új jelszó is szükséges',
+      });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Az új jelszó legalább 8 karakter legyen',
+      });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Az új jelszó nem egyezhet meg a jelenlegivel',
+      });
+    }
+
+    const r = await query(
+      'SELECT id, email, password_hash, contractor_id FROM users WHERE id = $1 AND is_active = true',
+      [req.user.id]
+    );
+    if (r.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Érvénytelen felhasználó' });
+    }
+    const user = r.rows[0];
+
+    // A RÉGI JELSZÓ ELLENŐRZÉSE NEM FORMASÁG: enélkül egy eltulajdonított, még élő
+    // munkamenet át tudná írni a jelszót, és kizárná a tulajdonost a saját fiókjából.
+    const egyezik = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!egyezik) {
+      logger.warn(`[auth] sikertelen saját jelszóváltás (rossz jelenlegi jelszó): ${user.email}`);
+      return res.status(401).json({ success: false, message: 'A jelenlegi jelszó nem megfelelő' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+    await query(
+      `UPDATE users SET password_hash = $1, password_changed_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2`,
+      [hash, user.id]
+    );
+
+    const rolesResult = await query(
+      'SELECT r.slug FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1',
+      [user.id]
+    );
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      contractorId: user.contractor_id,
+      roles: rolesResult.rows.map((x) => x.slug),
+    };
+    const token = jwt.sign(payload, process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
+    const newRefreshToken = jwt.sign(payload, process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' });
+
+    logger.info(`[auth] saját jelszóváltás: ${user.email} — a többi eszköz kilépett`);
+
+    res.json({
+      success: true,
+      message: 'A jelszó megváltozott. A többi eszközödön újra be kell lépned.',
+      data: { token, refreshToken: newRefreshToken },
+    });
+  } catch (error) {
+    logger.error(`[auth] changeOwnPassword hiba: ${error.message}`);
+    res.status(500).json({ success: false, message: 'A jelszó megváltoztatása nem sikerült' });
+  }
+};
+
+/**
  * Token frissítés
  */
 const refreshToken = async (req, res) => {
@@ -170,7 +262,7 @@ const refreshToken = async (req, res) => {
 
     // Új access token generálás
     const userResult = await query(
-      'SELECT id, email, contractor_id, preferred_language FROM users WHERE id = $1 AND is_active = true',
+      'SELECT id, email, contractor_id, preferred_language, password_changed_at FROM users WHERE id = $1 AND is_active = true',
       [decoded.userId]
     );
 
@@ -182,6 +274,17 @@ const refreshToken = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+
+    // A FRISSÍTÉST IS ŐRIZNI KELL. Ha csak a belépési tokent néznénk, a jelszóváltás
+    // után a RÉGI refresh tokennel (30 nap!) bármikor új, érvényes belépési tokent
+    // lehetne váltani — az érvénytelenítés díszlet lenne.
+    if (isTokenStale(decoded, user.password_changed_at)) {
+      return res.status(401).json({
+        success: false,
+        message: 'A jelszó megváltozott, ezért ez a belépés érvénytelen. Lépj be újra.',
+        code: 'PASSWORD_CHANGED',
+      });
+    }
 
     // Szerepkörök lekérése
     const rolesResult = await query(
@@ -289,6 +392,7 @@ const logout = async (req, res) => {
 module.exports = {
   login,
   refreshToken,
+  changeOwnPassword,
   me,
   logout
 };

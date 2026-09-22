@@ -327,7 +327,9 @@
     "unavailable": "Auf diesem Gerät ist keine Biometrie eingerichtet.",
     "failed": "Biometrische Authentifizierung fehlgeschlagen.",
     "sessionExpiredTitle": "Gespeicherte Anmeldung abgelaufen",
-    "sessionExpiredBody": "Gesichts-/Fingerabdruckerkennung hat funktioniert — abgelaufen ist die auf dem Telefon gespeicherte Anmeldung. Bitte mit Passwort anmelden; danach funktioniert die Biometrie wieder."
+    "sessionExpiredBody": "Gesichts-/Fingerabdruckerkennung hat funktioniert — abgelaufen ist die auf dem Telefon gespeicherte Anmeldung. Bitte mit Passwort anmelden; danach funktioniert die Biometrie wieder.",
+    "passwordChangedTitle": "Dein Passwort wurde geändert",
+    "passwordChangedBody": "Dein Passwort wurde geändert, daher ist die auf dem Telefon gespeicherte Anmeldung nicht mehr gültig. Melde dich mit dem NEUEN Passwort an — das alte funktioniert nicht mehr. Danach funktioniert die Biometrie wieder."
   },
   "time": {
     "justNow": "gerade eben",

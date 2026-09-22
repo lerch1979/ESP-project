@@ -28,4 +28,9 @@ router.get('/me', authenticateToken, authController.me);
  */
 router.post('/logout', authenticateToken, authController.logout);
 
+// Saját jelszóváltás. A hívó a válaszban ÚJ token-párt kap — ez tartja bent a saját
+// eszközét, miközben a többi kilép. Az authLimiter azért kell ide is, mert a végpont a
+// jelenlegi jelszót ellenőrzi, tehát próbálgatható lenne.
+router.post('/change-password', authLimiter, authenticateToken, authController.changeOwnPassword);
+
 module.exports = router;

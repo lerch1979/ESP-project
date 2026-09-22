@@ -275,6 +275,7 @@ const updateUser = async (req, res) => {
 
     // Build update query dynamically
     const updates = [];
+    let jelszoVisszaallitas = false;
     const params = [];
     let paramIndex = 1;
 
@@ -309,6 +310,16 @@ const updateUser = async (req, res) => {
       updates.push(`password_hash = $${paramIndex}`);
       params.push(passwordHash);
       paramIndex++;
+      // ADMINISZTRÁTORI JELSZÓ-VISSZAÁLLÍTÁS → MINDEN MUNKAMENET KILÉP, a felhasználóét
+      // is beleértve. Nincs kivétel, és ez szándékos: ezt az utat épp akkor használjuk,
+      // amikor a fiókhoz valaki más is hozzáférhetett. Egy "de a telefonja maradjon
+      // bent" kivétel pont azt a munkamenetet hagyná életben, ami miatt a visszaállítás
+      // történik. Az időbélyeg a `tokenFreshness` viszonyítási pontja.
+      //
+      // A saját jelszóváltás (`POST /auth/change-password`) ettől KÜLÖNBÖZIK: ott a hívó
+      // friss token-párt kap, tehát bent marad. A két út eltérése maga a szabály.
+      updates.push(`password_changed_at = CURRENT_TIMESTAMP`);
+      jelszoVisszaallitas = true;
     }
 
     // Persist the profile change and the role swap atomically. The role swap is a
@@ -358,6 +369,13 @@ const updateUser = async (req, res) => {
        WHERE ur.user_id = $1`,
       [id]
     );
+
+    if (jelszoVisszaallitas) {
+      // Ennek NYOMOT kell hagynia: a felhasználó minden eszközén kilép, és ha nem
+      // tudja, miért, a hibajegy hozzánk jön vissza.
+      logger.warn(`[users] adminisztrátori jelszó-visszaállítás: ${user.email} `
+        + `— MINDEN munkamenete érvénytelen (visszaállította: ${req.user.email || req.user.id})`);
+    }
 
     logger.info('Felhasználó frissítve', {
       userId: id,

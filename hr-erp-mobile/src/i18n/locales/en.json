@@ -327,7 +327,9 @@
     "unavailable": "No biometrics are set up on this device.",
     "failed": "Biometric authentication failed.",
     "sessionExpiredTitle": "Saved sign-in has expired",
-    "sessionExpiredBody": "Face/fingerprint recognition worked — it is the sign-in stored on your phone that expired. Please sign in with your password; biometrics will work again afterwards."
+    "sessionExpiredBody": "Face/fingerprint recognition worked — it is the sign-in stored on your phone that expired. Please sign in with your password; biometrics will work again afterwards.",
+    "passwordChangedTitle": "Your password has changed",
+    "passwordChangedBody": "Your password has changed, so the sign-in stored on this phone is no longer valid. Sign in with your NEW password — the old one will not work. Biometrics will work again afterwards."
   },
   "time": {
     "justNow": "just now",

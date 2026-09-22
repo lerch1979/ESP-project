@@ -43,6 +43,9 @@ let failedQueue = [];
 // AuthContext nem tudott róla: a felhasználó a biometrikus gombot nyomta, a Face ID
 // sikerült, aztán nem történt semmi. A kampó azért kell, hogy a belépő képernyő
 // KIMONDHASSA, mi történt.
+// Az OKOT is átadjuk: a "lejárt" és a "megváltozott a jelszavad" nem ugyanaz a mondat.
+// Aki azt hiszi, csak lejárt, a RÉGI jelszavát próbálja újra és újra — és a fiókja
+// végül zárolódik. Ezért a szerver `PASSWORD_CHANGED` kódja idáig eljut.
 let sessionExpiredHandler = null;
 export function setSessionExpiredHandler(fn) { sessionExpiredHandler = fn; }
 
@@ -124,7 +127,11 @@ api.interceptors.response.use(
         // A biometrikus kapcsolót SZÁNDÉKOSAN nem töröljük: a felhasználó nem
         // kapcsolta ki, csak lejárt a munkamenet. Jelszavas belépés után újra
         // működnie kell, kérdés nélkül.
-        if (sessionExpiredHandler) sessionExpiredHandler();
+        const kod = refreshError?.response?.data?.code
+          || error.response?.data?.code || null;
+        if (sessionExpiredHandler) {
+          sessionExpiredHandler(kod === 'PASSWORD_CHANGED' ? 'password_changed' : 'expired');
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
