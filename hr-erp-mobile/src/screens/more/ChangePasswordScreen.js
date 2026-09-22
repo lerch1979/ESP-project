@@ -8,10 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
 import { useAuth } from '../../contexts/AuthContext';
 
-// A szerverrel MEGEGYEZŐ minimum (backend: src/utils/passwordRule.js). Ha a két érték
-// szétcsúszik, a felhasználó zöld visszajelzést kap egy jelszóra, amit a szerver aztán
-// elutasít — ez a fajta ellentmondás rombolja legjobban a bizalmat a felületben.
-const MIN_HOSSZ = 8;
+// Tartalék, ha a szerver (régi build, offline) nem küldte a szabályt. A MÉRVADÓ érték a
+// felhasználó `password_rule` mezőjéből jön: a személyzetre 12 karakter és karakterosztályok
+// vonatkoznak, a lakókra 8. Fix értékkel a személyzet zöld visszajelzést kapna egy
+// jelszóra, amit a szerver aztán elutasít — ez rombolja legjobban a bizalmat a felületben.
+const MIN_HOSSZ_TARTALEK = 8;
 
 /**
  * Jelszóváltás. KÉT helyzetet szolgál ki ugyanazzal a kóddal:
@@ -22,8 +23,10 @@ const MIN_HOSSZ = 8;
  */
 export default function ChangePasswordScreen({ navigation, route }) {
   const { t } = useTranslation();
-  const { changePassword, logout } = useAuth();
+  const { changePassword, logout, user } = useAuth();
   const kotelezo = route?.params?.kotelezo === true;
+  const szabaly = user?.password_rule || {};
+  const MIN_HOSSZ = szabaly.min || MIN_HOSSZ_TARTALEK;
 
   const [jelenlegi, setJelenlegi] = useState('');
   const [uj, setUj] = useState('');
@@ -91,7 +94,11 @@ export default function ChangePasswordScreen({ navigation, route }) {
         <Mezo cimke={t('password.new')} ertek={uj} allit={setUj} />
         <Mezo cimke={t('password.newAgain')} ertek={ujMegint} allit={setUjMegint} />
 
-        <Text style={styles.szabaly}>{t('password.rule', { min: MIN_HOSSZ })}</Text>
+        {/* A szerver saját mondata, ha küldte — különben a lakói alapszöveg. Így a
+            személyzet a NÉGY karakterosztályt is látja, nem csak a hosszt. */}
+        <Text style={styles.szabaly}>
+          {szabaly.hint || t('password.rule', { min: MIN_HOSSZ })}
+        </Text>
 
         {rovid && <Text style={styles.hiba}>{t('password.tooShort', { min: MIN_HOSSZ })}</Text>}
         {ugyanaz && <Text style={styles.hiba}>{t('password.sameAsCurrent')}</Text>}

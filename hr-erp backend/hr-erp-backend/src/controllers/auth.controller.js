@@ -6,6 +6,8 @@ const { getUserPermissions } = require('../middleware/permission');
 const { sanitizeString } = require('../utils/validation');
 const { isTokenStale } = require('../utils/tokenFreshness');
 const passwordRule = require('../utils/passwordRule');
+const { scopeFor } = require('../utils/passwordScope');
+const passwordPolicy = require('../middleware/passwordPolicy');
 
 /**
  * Felhasználó bejelentkezés
@@ -61,15 +63,53 @@ const login = async (req, res) => {
       });
     }
 
+    // ── ZÁROLÁS ELLENŐRZÉSE, a jelszó vizsgálata ELŐTT ────────────────────────
+    // Fontos a sorrend: ha előbb néznénk a jelszót, egy zárolt fiókon a helyes jelszó
+    // "sikertelen belépés"-t adna, és a felhasználó azt hinné, elfelejtette a jelszavát.
+    // Azt is meg kell mondani, MEDDIG tart — egy időtartam nélküli "zárolva" ugyanolyan
+    // tehetetlenné tesz, mintha végleges lenne, és az irodát fogja hívni.
+    const zar = await passwordPolicy.lockStatus(user.id);
+    if (zar.locked) {
+      logger.warn(`[auth] zárolt fiók belépési kísérlete: ${user.email} (${zar.percek} perc van hátra)`);
+      return res.status(423).json({
+        success: false,
+        code: 'ACCOUNT_LOCKED',
+        minutes: zar.percek,
+        message: `Túl sok sikertelen próbálkozás miatt a fiók ${zar.percek} percre zárolva. `
+          + 'Utána magától feloldódik — nem kell segítséget kérned.',
+      });
+    }
+
     // Jelszó ellenőrzés
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    
+
     if (!isPasswordValid) {
+      // A számlálás szerepkör szerint más küszöbhöz mér: a személyzet 5, a lakó 10
+      // próbát kap. A lakó papírról, telefonon, idegen nyelven gépel — nála a 10 próba
+      // valódi elgépeléseket nyel el.
+      const scope = await scopeFor(user.id);
+      const proba = await passwordPolicy.recordFailedLogin(user.id, scope);
+      if (proba.locked) {
+        return res.status(423).json({
+          success: false,
+          code: 'ACCOUNT_LOCKED',
+          minutes: proba.percek,
+          message: `Túl sok sikertelen próbálkozás miatt a fiók ${proba.percek} percre zárolva. `
+            + 'Utána magától feloldódik — nem kell segítséget kérned.',
+        });
+      }
       return res.status(401).json({
         success: false,
+        // A HÁTRALÉVŐ PRÓBÁK SZÁMÁT NEM ÍRJUK KI. Aki jelszót próbálgat, abból tudná,
+        // mikor kell megállnia, hogy elkerülje a zárlatot; a valódi felhasználónak
+        // pedig nem segít, mert ő nem próbálgat, hanem elgépelt.
         message: 'Hibás email vagy jelszó'
       });
     }
+
+    // Sikeres belépés → a számláló nullázódik. Enélkül a korábbi elgépelések
+    // összegyűlnének, és egy hét múlva két rossz próbálkozás zárolná a fiókot.
+    await passwordPolicy.resetFailedLogins(user.id);
 
     // Szerepkörök lekérése
     const rolesResult = await query(
@@ -144,7 +184,13 @@ const login = async (req, res) => {
           // A kliens ebből tudja, hogy a belépés után AZONNAL a jelszócsere-képernyőt
           // kell mutatnia. A tényleges korlát a szerveren van (mustChangePassword),
           // ez csak azért kell, hogy a felhasználó ne 403-akba fusson bele.
-          must_change_password: user.must_change_password === true
+          must_change_password: user.must_change_password === true,
+          // A rá vonatkozó jelszószabály — a felület ebből írja ki a követelményt,
+          // hogy ne mutasson mást, mint amit a szerver elfogad.
+          password_rule: passwordRule.szabalyLeiras(
+            roles.includes('superadmin') || roles.includes('admin')
+              || permissions.some((x) => String(x).startsWith('finance.'))
+              ? 'szemelyzet' : 'lako')
         }
       }
     });
@@ -185,7 +231,10 @@ const changeOwnPassword = async (req, res) => {
     // A szabály EGY helyen van (utils/passwordRule.js). A "ne egyezzen a jelenlegivel"
     // ág a kötelező cserénél a lényeg: ott a jelenlegi jelszó AZ ideiglenes, amit a lakó
     // papíron kapott — ha azt meg lehetne tartani, a kötelező csere nem csinálna semmit.
-    const szabaly = passwordRule.ellenoriz(newPassword, { jelenlegi: currentPassword });
+    // `req.user.id`, NEM `user.id`: a `user` csak lejjebb, az adatbázis-lekérdezés után
+    // jön létre. Ugyanarról a személyről van szó — a hívó a saját jelszavát váltja.
+    const scope = await scopeFor(req.user.id);
+    const szabaly = passwordRule.ellenorizScope(scope, newPassword, { jelenlegi: currentPassword });
     if (!szabaly.valid) {
       return res.status(400).json({ success: false, message: szabaly.message });
     }
@@ -354,7 +403,11 @@ const me = async (req, res) => {
     res.json({
       success: true,
       data: {
-        user: { ...req.user, preferred_language }
+        user: {
+          ...req.user,
+          preferred_language,
+          password_rule: passwordRule.szabalyLeiras(await scopeFor(req.user.id)),
+        }
       }
     });
   } catch (error) {

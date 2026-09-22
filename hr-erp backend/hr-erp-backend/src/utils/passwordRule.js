@@ -1,19 +1,21 @@
 /**
  * passwordRule — a jelszóra vonatkozó EGYETLEN szabály, amit a rendszer tényleg alkalmaz.
  *
- * MIÉRT ÚJ FÁJL, HOLOTT VAN passwordPolicy.js: mert azt SENKI NEM IMPORTÁLJA. A 12
- * karakteres hossz, a négyféle karakterosztály, a fiókzárolás és a jelszóelévülés mind
- * meg van írva benne, de egyetlen végpont sem hívja — vagyis ma semmilyen jelszószabály
- * nem él. Egy le nem futó szabály rosszabb a hiányzónál: azt hisszük, védve vagyunk.
+ * 2026-09-22, DÖNTÉS UTÁN: a szabály SZEREPKÖR SZERINT ágazik el, és mindkét ág innen
+ * indul — nincs két párhuzamos modul.
  *
- * MIÉRT NEM AZT KAPCSOLTAM BE: a lakók a belépésüket PAPÍRON kapják, telefonon gépelik
- * be, öt nyelven, és az első képernyőn találkoznak vele. Egy 12 karakteres, nagybetűt,
- * számot és speciális karaktert követelő szabály ott nem biztonságot ad, hanem
- * elakadást — és a leggyakoribb kimenetele az, hogy a jelszó felkerül egy papírra.
- * A követelmény ezért szándékosan szerény: HOSSZ és NE EGYEZZEN az ideiglenessel.
+ *   'szemelyzet' → a passwordPolicy.js szigorú szabálya: 12 karakter, négy
+ *        karakterosztály, gyakori jelszavak tiltása. Ők ~300 ember személyes és
+ *        pénzügyi adatához férnek hozzá; náluk a szigor ára elenyésző.
  *
- * A szigorúbb, személyzeti szintű szabály külön döntés kérdése; ha kell, ide kerül,
- * szerepkör szerint elágazva — nem egy másik, párhuzamos modulba.
+ *   'lako'       → 8 karakter, és ne egyezzen a jelenlegivel. Ők a belépésüket PAPÍRON
+ *        kapják, telefonon gépelik be, öt nyelven, az első képernyőn. Ott egy 12
+ *        karakteres, speciális karaktert követelő szabály nem biztonságot ad, hanem
+ *        elakadást — a leggyakoribb kimenetele pedig az, hogy a jelszó felkerül egy
+ *        papírra, vagyis pont az, ami ellen az egész védekezés szól.
+ *
+ * A "ne egyezzen a jelenlegivel" MINDKÉT ágra érvényes, és a kötelező cserénél ez a
+ * lényeg: ott a jelenlegi jelszó AZ ideiglenes, amit más is ismer.
  */
 
 // A minimum. Nem "biztonsági optimum", hanem az a határ, ami alatt a jelszó már
@@ -47,4 +49,52 @@ function ellenoriz(ujJelszo, { jelenlegi } = {}) {
   return { valid: true, message: null };
 }
 
-module.exports = { ellenoriz, MIN_HOSSZ };
+/**
+ * A szerepkörhöz tartozó szabály.
+ * @param {'szemelyzet'|'lako'} scope
+ * @param {string} ujJelszo
+ * @param {{jelenlegi?: string}} opts
+ * @returns {{valid: boolean, message: string|null}}
+ */
+function ellenorizScope(scope, ujJelszo, { jelenlegi } = {}) {
+  // A "ne egyezzen a jelenlegivel" ágat MINDIG a mi szabályunk adja — a
+  // passwordPolicy.validatePassword nem ismeri a jelenlegi jelszót.
+  const alap = ellenoriz(ujJelszo, { jelenlegi });
+  if (scope !== 'szemelyzet') return alap;
+  if (!alap.valid && /nem egyezhet/i.test(alap.message || '')) return alap;
+
+  // Személyzet: a szigorú szabály. Több hibát is visszaadhat; egy mondatban közöljük,
+  // mert egy listát a felhasználó úgysem olvas végig — de MINDET megmondjuk, hogy ne
+  // kelljen találgatva újrapróbálkoznia.
+  const { validatePassword } = require('../middleware/passwordPolicy');
+  const r = validatePassword(ujJelszo);
+  if (r.valid) return { valid: true, message: null };
+  return { valid: false, message: r.errors.join(' ') };
+}
+
+/**
+ * A szabály LEÍRÁSA a kliensnek.
+ *
+ * MIÉRT A SZERVER MONDJA MEG: a két felület eddig fix "legalább 8 karakter" szöveget
+ * mutatott — ami a személyzetnek egyszerűen nem igaz, és a felhasználó egy zöldnek
+ * látszó jelszóval futna bele egy szerveroldali elutasításba. Ez a fajta ellentmondás
+ * rombolja legjobban a bizalmat a felületben. Egy forrás van, és az a szerver.
+ */
+function szabalyLeiras(scope) {
+  if (scope === 'szemelyzet') {
+    const { PASSWORD_MIN_LENGTH } = require('../middleware/passwordPolicy');
+    return {
+      min: PASSWORD_MIN_LENGTH,
+      complexity: true,
+      hint: `Legalább ${PASSWORD_MIN_LENGTH} karakter, és tartalmazzon nagybetűt, `
+        + 'kisbetűt, számot és speciális karaktert.',
+    };
+  }
+  return {
+    min: MIN_HOSSZ,
+    complexity: false,
+    hint: `Legalább ${MIN_HOSSZ} karakter, és nem lehet ugyanaz, mint a jelenlegi.`,
+  };
+}
+
+module.exports = { ellenoriz, ellenorizScope, szabalyLeiras, MIN_HOSSZ };

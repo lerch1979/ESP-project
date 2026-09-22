@@ -46,7 +46,14 @@ function Login() {
       // Distinguish auth failure from network / rate-limit / generic failures.
       // Previously every error mapped to "Hibás email vagy jelszó", which hid
       // CORS and "backend down" issues behind a misleading credentials error.
-      if (err.response?.status === 401) {
+      // ZÁROLÁS (423). Külön ág, mert a 401-től gyökeresen más a teendő: ott újra kell
+      // próbálni, itt VÁRNI kell — és a felhasználónak tudnia kell, meddig, különben
+      // azt hiszi, végleg kizárták, és hívni fogja a rendszergazdát.
+      if (err.response?.status === 423) {
+        const perc = err.response?.data?.minutes || 30;
+        setError(`Túl sok sikertelen próbálkozás miatt a fiók ${perc} percre zárolva. `
+          + 'Ennyi idő után magától feloldódik — nem kell segítséget kérned.');
+      } else if (err.response?.status === 401) {
         setError(err.response?.data?.message || t('invalidCredentials'));
       } else if (err.response?.status === 429) {
         setError('Túl sok bejelentkezési kísérlet. Várj néhány percet, és próbáld újra.');

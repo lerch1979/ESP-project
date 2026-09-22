@@ -20,6 +20,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const http = require('../lib/http');
 const { query } = require('../../../src/database/connection');
+const rule = require('../../../src/utils/passwordRule');
+const policy = require('../../../src/middleware/passwordPolicy');
+const { scopeFor } = require('../../../src/utils/passwordScope');
 
 const SECRET = () => process.env.JWT_SECRET;
 
@@ -262,6 +265,164 @@ module.exports = {
           .rows[0].must_change_password;
         await query('UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
         return { jelzo };
+      },
+    },
+    {
+      id: 'AUTH-16',
+      name: 'SZEMÉLYZET: 12 karakter és négy karakterosztály kell',
+      expected: { rovid_de_osztalyos: false, hosszu_de_egyszeru: false, megfelelo: true },
+      hint: 'ők ~300 ember személyes és pénzügyi adatához férnek hozzá',
+      run: async () => {
+        const e = (pw) => rule.ellenorizScope('szemelyzet', pw, { jelenlegi: 'Masik99Jelszo!' }).valid;
+        return {
+          rovid_de_osztalyos: e('Rovid1!a'),
+          hosszu_de_egyszeru: e('csupakisbetusesosszu'),
+          megfelelo: e('Hosszu12Jelszo!'),
+        };
+      },
+    },
+    {
+      id: 'AUTH-17',
+      name: 'LAKÓ: 8 karakter elég, karakterosztály NEM kötelező',
+      expected: { rovid: false, nyolc_betu: true, ugyanaz: false },
+      hint: 'papírról, telefonon, idegen nyelven gépel — a szigor itt elakadást okoz',
+      run: async () => {
+        const e = (pw) => rule.ellenorizScope('lako', pw, { jelenlegi: 'ideiglenes1' }).valid;
+        return { rovid: e('rovid1'), nyolc_betu: e('sajatjelszo'), ugyanaz: e('ideiglenes1') };
+      },
+    },
+    {
+      id: 'AUTH-18',
+      name: 'a besorolás a PÉNZÜGYI JOGBÓL jön, nem a szerepkör nevéből',
+      expected: { lako: 'lako', admin: 'szemelyzet', superadmin: 'szemelyzet' },
+      hint: 'egy új, pénzügyi jogot kapó szerepkör magától a szigorú ágra kerül',
+      run: async (ctx) => ({
+        lako: await scopeFor(ctx.ids.user.accommodated_employee),
+        admin: await scopeFor(ctx.ids.user.admin || ctx.ids.user.superadmin),
+        superadmin: await scopeFor(ctx.ids.user.superadmin),
+      }),
+    },
+    {
+      id: 'AUTH-19',
+      name: 'a zárolás IDŐALAPÚ és megmondja, MEDDIG tart',
+      expected: { zarolt: true, van_percszam: true, ertelmes: true },
+      hint: 'egy időtartam nélküli "zárolva" ugyanolyan tehetetlen, mintha végleges lenne',
+      run: async (ctx, s) => {
+        await query(
+          `UPDATE users SET locked_until = NOW() + interval '15 minutes' WHERE id = $1`,
+          [s.userId]);
+        const st = await policy.lockStatus(s.userId);
+        await query('UPDATE users SET locked_until = NULL, failed_login_attempts = 0 WHERE id = $1',
+          [s.userId]);
+        return {
+          zarolt: st.locked,
+          van_percszam: typeof st.percek === 'number' && st.percek > 0,
+          ertelmes: st.percek >= 14 && st.percek <= 15,
+        };
+      },
+    },
+    {
+      id: 'AUTH-20',
+      name: 'a LEJÁRT zárolás magától feloldódik — nem kell az irodát hívni',
+      expected: { locked: false, percek: 0 },
+      hint: 'ez a különbség az időalapú és a végleges zárolás között',
+      run: async (ctx, s) => {
+        await query(
+          `UPDATE users SET locked_until = NOW() - interval '1 minute' WHERE id = $1`,
+          [s.userId]);
+        const st = await policy.lockStatus(s.userId);
+        await query('UPDATE users SET locked_until = NULL WHERE id = $1', [s.userId]);
+        return st;
+      },
+    },
+    {
+      id: 'AUTH-21',
+      name: 'a 90 napos kötelező csere NINCS bekötve',
+      expected: { sehol_nem_fut: true },
+      hint: 'tulajdonosi döntés: cserét gyanú esetén rendelünk el, nem naptár szerint',
+      run: async (ctx) => {
+        const fs = require('fs');
+        const path = require('path');
+        const src = path.join(ctx.ROOT, 'src');
+        let talalat = 0;
+        const bejar = (d) => {
+          for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+            const teljes = path.join(d, f.name);
+            if (f.isDirectory()) { bejar(teljes); continue; }
+            if (!f.name.endsWith('.js')) continue;
+            if (teljes.endsWith(path.join('middleware', 'passwordPolicy.js'))) continue;
+            if (/checkPasswordExpiry/.test(fs.readFileSync(teljes, 'utf8'))) talalat++;
+          }
+        };
+        bejar(src);
+        return { sehol_nem_fut: talalat === 0 };
+      },
+    },
+    {
+      id: 'AUTH-22',
+      name: 'VÉGPONT-SZINTŰ bizonyíték: 10 rossz próba után a lakói fiók zárolódik',
+      expected: { tizedik: 423, kod: 'ACCOUNT_LOCKED', van_perc: true, jo_jelszo_is_423: 423 },
+      hint: 'a zárolást a jelszó ELŐTT nézzük — különben a helyes jelszó is "hibás"-nak tűnne',
+      run: async (ctx, s) => {
+        const hash = await bcrypt.hash('LakoJelszo123', await bcrypt.genSalt(10));
+        await query(
+          `UPDATE users SET password_hash = $1, failed_login_attempts = 0, locked_until = NULL
+            WHERE id = $2`, [hash, s.userId]);
+        const email = (await query('SELECT email FROM users WHERE id = $1', [s.userId]))
+          .rows[0].email;
+
+        let utolso = null;
+        for (let i = 0; i < 10; i++) {
+          utolso = await http.post('/auth/login', { body: { email, password: 'rossz-jelszo' } });
+        }
+        // A HELYES jelszó sem enged be, amíg tart a zárlat — ez a lényeg.
+        const joJelszoval = await http.post('/auth/login',
+          { body: { email, password: 'LakoJelszo123' } });
+
+        await query(
+          'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
+          [s.userId]);
+
+        return {
+          tizedik: utolso.status,
+          kod: utolso.body?.code,
+          van_perc: typeof utolso.body?.minutes === 'number' && utolso.body.minutes > 0,
+          jo_jelszo_is_423: joJelszoval.status,
+        };
+      },
+    },
+    {
+      id: 'AUTH-23',
+      name: 'a hibaüzenet NEM árulja el, hány próba van hátra',
+      expected: { nincs_szamlalo: true },
+      hint: 'aki próbálgat, abból tudná, mikor álljon meg a zárlat elkerüléséhez',
+      run: async (ctx, s) => {
+        await query(
+          'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
+          [s.userId]);
+        const email = (await query('SELECT email FROM users WHERE id = $1', [s.userId]))
+          .rows[0].email;
+        const r = await http.post('/auth/login', { body: { email, password: 'rossz' } });
+        await query(
+          'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
+          [s.userId]);
+        const szoveg = JSON.stringify(r.body || {});
+        return { nincs_szamlalo: !/\d+\s*(próba|kísérlet|attempt)/i.test(szoveg) };
+      },
+    },
+    {
+      id: 'AUTH-24',
+      name: 'a szerver MEGMONDJA a kliensnek, milyen jelszót vár',
+      expected: { lako_min: 8, lako_komplex: false, szem_min: 12, szem_komplex: true, van_szoveg: true },
+      hint: 'fix kliensoldali szöveggel a személyzet zöld utat kapna egy elutasítandó jelszóra',
+      run: async () => {
+        const l = rule.szabalyLeiras('lako');
+        const sz = rule.szabalyLeiras('szemelyzet');
+        return {
+          lako_min: l.min, lako_komplex: l.complexity,
+          szem_min: sz.min, szem_komplex: sz.complexity,
+          van_szoveg: Boolean(l.hint) && Boolean(sz.hint) && l.hint !== sz.hint,
+        };
       },
     },
     {

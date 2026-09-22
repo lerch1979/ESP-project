@@ -80,7 +80,15 @@ export default function LoginScreen() {
     } catch (error) {
       console.error('[Login] Error:', error.message, error.code);
       let message;
-      if (error.response?.data?.message) {
+      let cim = t('common.error');
+      // ZÁROLÁS: a szerver magyar üzenete a lakónak nem segít, ezért a KÓDOT és a
+      // PERCEKET fordítjuk le a saját nyelvére. Azt is ki kell mondani, hogy magától
+      // feloldódik — enélkül a lakó az irodát hívja, pont amit el akarunk kerülni.
+      if (error.response?.data?.code === 'ACCOUNT_LOCKED') {
+        const perc = error.response.data.minutes || 15;
+        cim = t('login.lockedTitle');
+        message = t('login.lockedBody', { minutes: perc });
+      } else if (error.response?.data?.message) {
         // Server returned an error message (already localized server-side)
         message = error.response.data.message;
       } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
@@ -90,7 +98,7 @@ export default function LoginScreen() {
       } else {
         message = t('login.errorFailed');
       }
-      Alert.alert(t('common.error'), message);
+      Alert.alert(cim, message);
     } finally {
       setLoading(false);
     }

@@ -155,7 +155,9 @@
     "errorNetwork": "Nem sikerült csatlakozni a szerverhez. Ellenőrizze a hálózati kapcsolatot.",
     "errorTimeout": "A szerver nem válaszol (időtúllépés).",
     "errorFailed": "Bejelentkezés sikertelen. Próbálja újra.",
-    "selectLanguage": "Válasszon nyelvet"
+    "selectLanguage": "Válasszon nyelvet",
+    "lockedTitle": "A fiók átmenetileg zárolva",
+    "lockedBody": "Túl sok sikertelen próbálkozás miatt a fiók {{minutes}} percre zárolva. Várj ennyit, utána MAGÁTÓL feloldódik — nem kell segítséget kérned. Ha nem emlékszel a jelszavadra, szólj a szállásfelelősnek."
   },
   "dashboard": {
     "title": "Kezdőlap",

@@ -155,7 +155,9 @@
     "errorNetwork": "Couldn't connect to the server. Check your network connection.",
     "errorTimeout": "The server is not responding (timeout).",
     "errorFailed": "Login failed. Please try again.",
-    "selectLanguage": "Select your language"
+    "selectLanguage": "Select your language",
+    "lockedTitle": "Account temporarily locked",
+    "lockedBody": "Too many failed attempts, so the account is locked for {{minutes}} minutes. Wait that long and it unlocks BY ITSELF — you do not need to ask for help. If you cannot remember your password, tell your accommodation manager."
   },
   "dashboard": {
     "title": "Dashboard",

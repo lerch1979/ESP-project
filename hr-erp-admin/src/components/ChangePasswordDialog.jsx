@@ -6,9 +6,11 @@ import {
 import { Visibility, VisibilityOff, VpnKey } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
-// A szerverrel MEGEGYEZŐ minimum (backend: src/utils/passwordRule.js). Ha a kettő
-// szétcsúszik, a felület zöld utat mutat egy jelszóra, amit a szerver elutasít.
-const MIN_HOSSZ = 8;
+// Tartalék, ha a szerver nem küldte a szabályt (régi bundle). A MÉRVADÓ érték a
+// felhasználó `password_rule` mezőjéből jön: a személyzetre 12 karakter és négy
+// karakterosztály vonatkozik, a lakókra 8. Fix értékkel a felület zöld utat mutatna
+// egy jelszóra, amit a szerver elutasít.
+const MIN_HOSSZ_TARTALEK = 8;
 
 /**
  * Saját jelszóváltás.
@@ -20,7 +22,9 @@ const MIN_HOSSZ = 8;
  *     amit rajtuk kívül más is ismer.
  */
 export default function ChangePasswordDialog({ open, onClose, kotelezo = false }) {
-  const { changePassword, logout } = useAuth();
+  const { changePassword, logout, user } = useAuth();
+  const szabaly = user?.password_rule || {};
+  const MIN_HOSSZ = szabaly.min || MIN_HOSSZ_TARTALEK;
   const [jelenlegi, setJelenlegi] = useState('');
   const [uj, setUj] = useState('');
   const [ujMegint, setUjMegint] = useState('');
@@ -109,8 +113,11 @@ export default function ChangePasswordDialog({ open, onClose, kotelezo = false }
         })}
 
         <Typography variant="caption" color="text.secondary">
-          Az új jelszó legalább {MIN_HOSSZ} karakter legyen, és nem lehet ugyanaz, mint a
-          jelenlegi. A jelszóváltás a TÖBBI eszközödön kilépteti — ez a gép bent marad.
+          {/* A szerver saját mondata, ha küldte — így a személyzet a négy
+              karakterosztályt is látja, nem csak a hosszt. */}
+          {szabaly.hint
+            || `Az új jelszó legalább ${MIN_HOSSZ} karakter legyen, és nem lehet ugyanaz, mint a jelenlegi.`}
+          {' '}A jelszóváltás a TÖBBI eszközödön kilépteti — ez a gép bent marad.
         </Typography>
       </DialogContent>
 

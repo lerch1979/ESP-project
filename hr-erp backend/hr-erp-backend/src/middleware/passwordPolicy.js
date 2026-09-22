@@ -19,9 +19,32 @@ const { logger } = require('../utils/logger');
 
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_HISTORY_COUNT = 5;
+
+// A 90 NAPOS KÖTELEZŐ CSERE SZÁNDÉKOSAN NINCS BEKÖTVE (tulajdonosi döntés, 2026-09-22).
+// A `checkPasswordExpiry` middleware megmaradt, de sehol nem fut. Az indok: az időszakos
+// kényszercsere a gyakorlatban gyengébb jelszavakhoz vezet (jelszo1 → jelszo2 → …),
+// nem erősebbekhez. Cserét GYANÚ esetén rendelünk el, az admin-visszaállítással, ami a
+// must_change_password jelzőn keresztül úgyis kikényszeríti az új jelszót.
+// Ha valaki később be akarja kötni, előbb ezt a bekezdést olvassa el.
 const PASSWORD_EXPIRY_DAYS = 90;
-const MAX_FAILED_ATTEMPTS = 10;
-const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+// ─── ZÁROLÁS, SZEREPKÖR SZERINT ──────────────────────────────────────────────
+// Mindkét ág IDŐALAPÚ, egyik sem végleges. Egy véglegesen zárolt lakói fiók azt
+// jelentené, hogy a lakónak minden elgépelés után telefonálnia kell az irodába — este
+// tizenegykor, idegen nyelven. Az ilyen szabályt nem betartják, hanem megkerülik:
+// a jelszó felkerül egy papírra, vagy közösen használnak egy fiókot.
+const ZAROLAS = {
+  // Szigorúbb: kevesebb próba, hosszabb zárlat. Ők 300 ember adatához férnek hozzá,
+  // és van jelszókezelőjük — nekik az 5 próba nem akadály.
+  szemelyzet: { maxProba: 5,  percek: 30 },
+  // Elnézőbb: papírról, telefonon, idegen nyelven gépelnek. A 10 próba valódi
+  // elgépeléseket nyel el, a 15 perc pedig rövid ahhoz, hogy ne kelljen segítség.
+  lako:       { maxProba: 10, percek: 15 },
+};
+
+// Visszafelé kompatibilis alapértelmezés a régi hívóknak.
+const MAX_FAILED_ATTEMPTS = ZAROLAS.lako.maxProba;
+const LOCKOUT_DURATION_MS = ZAROLAS.lako.percek * 60 * 1000;
 
 const COMPLEXITY_RULES = [
   { regex: /[A-Z]/, name: 'nagybetű (A-Z)', nameEn: 'uppercase letter' },
@@ -183,7 +206,8 @@ function isPasswordExpired(passwordChangedAt) {
 /**
  * Record a failed login attempt.
  */
-async function recordFailedLogin(userId) {
+async function recordFailedLogin(userId, scope = 'lako') {
+  const hatar = ZAROLAS[scope] || ZAROLAS.lako;
   try {
     const result = await query(
       `UPDATE users
@@ -196,16 +220,20 @@ async function recordFailedLogin(userId) {
 
     const attempts = result.rows[0]?.failed_login_attempts || 0;
 
-    if (attempts >= MAX_FAILED_ATTEMPTS) {
+    if (attempts >= hatar.maxProba) {
+      // Az intervallum PARAMÉTERBŐL jön, nem szövegbe ragasztva: a `make_interval`
+      // megkíméli a `INTERVAL '...'` sztring-összefűzéstől, ami egy jövőbeli
+      // szerkesztésnél injektálható lenne.
       await query(
-        `UPDATE users SET locked_until = NOW() + INTERVAL '30 minutes' WHERE id = $1`,
-        [userId]
+        `UPDATE users SET locked_until = NOW() + make_interval(mins => $2) WHERE id = $1`,
+        [userId, hatar.percek]
       );
-      logger.warn('[PasswordPolicy] Account locked due to failed attempts', { userId, attempts });
-      return { locked: true, attempts };
+      logger.warn('[PasswordPolicy] fiók zárolva sikertelen próbálkozások miatt',
+        { userId, attempts, scope, percek: hatar.percek });
+      return { locked: true, attempts, percek: hatar.percek };
     }
 
-    return { locked: false, attempts };
+    return { locked: false, attempts, hatra: hatar.maxProba - attempts };
   } catch (err) {
     logger.error('[PasswordPolicy] Failed to record failed login:', { error: err.message });
     return { locked: false, attempts: 0 };
@@ -240,6 +268,31 @@ async function isAccountLocked(userId) {
     return new Date(lockedUntil) > new Date();
   } catch (err) {
     return false;
+  }
+}
+
+/**
+ * Zárolás állapota A HÁTRALÉVŐ IDŐVEL együtt.
+ *
+ * A puszta igaz/hamis nem elég: a felhasználónak meg kell tudnia, MEDDIG tart. Egy
+ * "a fiókja zárolva" üzenet, ami nem mondja meg, mennyi ideig, ugyanolyan tehetetlenné
+ * tesz, mintha végleges lenne — és az irodát fogja hívni, pont amit el akarunk kerülni.
+ *
+ * @returns {Promise<{locked: boolean, percek: number}>} percek: felfelé kerekítve,
+ *          legalább 1 — a "0 perc múlva" értelmetlen üzenet lenne.
+ */
+async function lockStatus(userId) {
+  try {
+    const r = await query('SELECT locked_until FROM users WHERE id = $1', [userId]);
+    const eddig = r.rows[0]?.locked_until;
+    if (!eddig) return { locked: false, percek: 0 };
+    const hatraMs = new Date(eddig).getTime() - Date.now();
+    if (hatraMs <= 0) return { locked: false, percek: 0 };
+    return { locked: true, percek: Math.max(1, Math.ceil(hatraMs / 60000)) };
+  } catch (err) {
+    // Nem tudjuk megállapítani → NEM zárunk ki senkit egy lekérdezési hiba miatt.
+    logger.warn(`[PasswordPolicy] lockStatus hiba: ${err.message}`);
+    return { locked: false, percek: 0 };
   }
 }
 
@@ -281,6 +334,8 @@ function checkPasswordExpiry(req, res, next) {
 // ─── Exports ────────────────────────────────────────────────────────────────
 
 module.exports = {
+  lockStatus,
+  ZAROLAS,
   validatePassword,
   checkBreached,
   checkPasswordHistory,
