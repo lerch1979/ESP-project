@@ -186,11 +186,10 @@ const login = async (req, res) => {
           // ez csak azért kell, hogy a felhasználó ne 403-akba fusson bele.
           must_change_password: user.must_change_password === true,
           // A rá vonatkozó jelszószabály — a felület ebből írja ki a követelményt,
-          // hogy ne mutasson mást, mint amit a szerver elfogad.
-          password_rule: passwordRule.szabalyLeiras(
-            roles.includes('superadmin') || roles.includes('admin')
-              || permissions.some((x) => String(x).startsWith('finance.'))
-              ? 'szemelyzet' : 'lako')
+          // hogy ne mutasson mást, mint amit a szerver elfogad. A besorolást a
+          // `scopeFor` adja, NEM egy itt megismételt feltétel: két másolat idővel
+          // szétcsúszik, és a felület akkor mást ígérne, mint amit a szerver elfogad.
+          password_rule: passwordRule.szabalyLeiras(await scopeFor(user.id))
         }
       }
     });

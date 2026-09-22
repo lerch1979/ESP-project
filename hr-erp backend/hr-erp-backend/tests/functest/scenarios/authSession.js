@@ -293,14 +293,89 @@ module.exports = {
     },
     {
       id: 'AUTH-18',
-      name: 'a besorolás a PÉNZÜGYI JOGBÓL jön, nem a szerepkör nevéből',
-      expected: { lako: 'lako', admin: 'szemelyzet', superadmin: 'szemelyzet' },
-      hint: 'egy új, pénzügyi jogot kapó szerepkör magától a szigorú ágra kerül',
-      run: async (ctx) => ({
-        lako: await scopeFor(ctx.ids.user.accommodated_employee),
-        admin: await scopeFor(ctx.ids.user.admin || ctx.ids.user.superadmin),
-        superadmin: await scopeFor(ctx.ids.user.superadmin),
-      }),
+      name: 'csak a LAKÓ megengedő — mindenki más, és a szerepkör nélküli is, szigorú',
+      expected: {
+        lako: 'lako', superadmin: 'szemelyzet',
+        karbantarto: 'szemelyzet', szerepkor_nelkul: 'szemelyzet',
+      },
+      hint: 'a lista fordítva működik: egy ÚJ szerepkör alapból a szigorú ágra esik',
+      run: async (ctx, s) => {
+        const lako = await scopeFor(ctx.ids.user.accommodated_employee);
+        const superadmin = await scopeFor(ctx.ids.user.superadmin);
+
+        // Ideiglenesen karbantartóvá tesszük a fixture-lakót, hogy a NEM-lakói ágat
+        // valódi adaton mérjük. A teardown a jelszót állítja vissza, a szerepkört itt
+        // kell — különben a későbbi RESTICK/RESTASK területek lakói jogait vinné el.
+        const eredeti = (await query(
+          'SELECT role_id FROM user_roles WHERE user_id = $1', [s.userId])).rows;
+        const karb = (await query(
+          "SELECT id FROM roles WHERE slug = 'maintenance_worker'")).rows[0];
+        let karbantarto = 'n/a';
+        if (karb) {
+          await query('UPDATE user_roles SET role_id = $2 WHERE user_id = $1',
+            [s.userId, karb.id]);
+          karbantarto = await scopeFor(s.userId);
+          for (const e of eredeti) {
+            await query('UPDATE user_roles SET role_id = $2 WHERE user_id = $1',
+              [s.userId, e.role_id]);
+          }
+        }
+
+        // Szerepkör nélküli fiók: nem tudjuk, mit érhet el → szigorú.
+        const arva = (await query(
+          `INSERT INTO users (email, password_hash, first_name, last_name, contractor_id)
+           VALUES ($1,'x','FT','Árva',$2) RETURNING id`,
+          [`ft-arva-${Date.now()}@teszt.local`, ctx.ids.contractor])).rows[0];
+        const szerepkorNelkul = await scopeFor(arva.id);
+        await query('DELETE FROM users WHERE id = $1', [arva.id]);
+
+        return { lako, superadmin, karbantarto, szerepkor_nelkul: szerepkorNelkul };
+      },
+    },
+    {
+      id: 'AUTH-25',
+      name: '⚠️ a SZIGORÍTÁS NEM ZÁRJA KI a meglévő fiókokat — a régi jelszóval be lehet lépni',
+      expected: { belepes: 200, szigoru_ag: 'szemelyzet', csereig_ervenyes: true },
+      hint: 'a szabály CSAK a jelszóváltásnál fut; a belépés nem méri a régi jelszót hozzá',
+      run: async (ctx, s) => {
+        // A fixture-felhasználónak adunk egy RÖVID, az új szabálynak NEM megfelelő
+        // jelszót, majd nem-lakói szerepkört. Így pont az a helyzet áll elő, amitől
+        // tartani kell: szigorú ág + szabálytalan meglévő jelszó.
+        const hash = await bcrypt.hash('rovid12', await bcrypt.genSalt(10));
+        await query(
+          `UPDATE users SET password_hash = $1, failed_login_attempts = 0,
+                  locked_until = NULL, password_changed_at = CURRENT_TIMESTAMP - interval '1 day'
+            WHERE id = $2`, [hash, s.userId]);
+        const eredeti = (await query(
+          'SELECT role_id FROM user_roles WHERE user_id = $1', [s.userId])).rows;
+        const karb = (await query(
+          "SELECT id FROM roles WHERE slug = 'maintenance_worker'")).rows[0];
+        if (karb) {
+          await query('UPDATE user_roles SET role_id = $2 WHERE user_id = $1',
+            [s.userId, karb.id]);
+        }
+
+        const scope = await scopeFor(s.userId);
+        const email = (await query('SELECT email FROM users WHERE id = $1', [s.userId]))
+          .rows[0].email;
+        const be = await http.post('/auth/login', { body: { email, password: 'rovid12' } });
+
+        // …és a KÖVETKEZŐ jelszóváltásnál már meg kell felelnie.
+        const csere = await http.post('/auth/change-password', {
+          token: http.tokenFor(s.userId),
+          body: { currentPassword: 'rovid12', newPassword: 'megmindigrovid' },
+        });
+
+        for (const e of eredeti) {
+          await query('UPDATE user_roles SET role_id = $2 WHERE user_id = $1',
+            [s.userId, e.role_id]);
+        }
+        return {
+          belepes: be.status,
+          szigoru_ag: scope,
+          csereig_ervenyes: be.status === 200 && csere.status === 400,
+        };
+      },
     },
     {
       id: 'AUTH-19',

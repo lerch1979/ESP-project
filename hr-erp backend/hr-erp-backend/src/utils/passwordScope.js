@@ -1,28 +1,35 @@
 /**
  * passwordScope — melyik jelszószabály vonatkozik erre a felhasználóra.
  *
- * KÉT SZINT VAN, mert a két csoport kockázata és helyzete is más:
+ * KÉT SZINT VAN, és a HATÁR a LAKÓKNÁL húzódik, nem a pénzügyi jognál (tulajdonosi
+ * döntés, 2026-09-22 — a korábbi, pénzügyi jogra épülő besorolás felváltva).
  *
- *   'szemelyzet' — szuperadmin, admin, vagy akinek BÁRMILYEN pénzügyi joga van.
- *       Ők ~300 ember személyes és pénzügyi adatához férnek hozzá. Náluk a szigorú
- *       szabály ára (hosszabb jelszó, jelszókezelő) elenyésző ahhoz képest, amit véd.
+ *   'lako'       — KIZÁRÓLAG az, akinek egyetlen szerepköre `accommodated_employee`.
+ *   'szemelyzet' — MINDENKI MÁS. Alapértelmezésben ide esik az is, akinek nincs
+ *                  szerepköre, és az is, akit nem tudunk besorolni.
  *
- *   'lako' — mindenki más. Ők a belépésüket PAPÍRON kapják, telefonon gépelik be, öt
- *       nyelven, és az első képernyőn találkoznak vele. Náluk egy 12 karakteres,
- *       speciális karaktert követelő szabály nem biztonságot ad, hanem elakadást — a
- *       leggyakoribb kimenetele pedig az, hogy a jelszó felkerül egy papírra, vagyis
- *       pont az, ami ellen az egész védekezés szól.
+ * MIÉRT ÍGY, ÉS MIÉRT NEM A PÉNZÜGYI JOG ALAPJÁN: a megengedő szabálynak (8 karakter,
+ * karakterosztály nélkül, 10 próba) EGYETLEN indoka van, és az a lakók helyzete — a
+ * belépésüket PAPÍRON kapják, telefonon gépelik be, öt nyelven, és az első képernyőn
+ * találkoznak vele. Akire ez nem áll, arra az indok sem áll.
  *
- * A BESOROLÁS A JOGOSULTSÁGBÓL JÖN, NEM A SZEREPKÖR NEVÉBŐL. Egy új szerepkör, ami
- * pénzügyi jogot kap, magától a szigorú ágra kerül — nem kell hozzá senkinek eszébe
- * jutnia, hogy ezt a fájlt is frissítse. Ez a fajta hallgatólagos kimaradás okozza a
- * legtöbb jogosultsági rést.
+ * A pénzügyi jogra épülő korábbi határ éppen a legfontosabb eseteket hagyta kint: a
+ * karbantartó, a feladat-felelős és a szállásfelelős ~300 ember nevéhez, szállásához és
+ * szobaszámához fér hozzá, pénzügyi joga viszont nincs — a szállásfelelősnek pedig
+ * SOHA nem is lesz (állandó kikötés), tehát magától sosem került volna át a szigorú ágra.
+ *
+ * A LISTA FORDÍTVA MŰKÖDIK, MINT ELŐTTE, ÉS EZ SZÁNDÉKOS. Nem azt soroljuk fel, ki
+ * szigorú (ott egy új szerepkör csendben kimaradna), hanem azt, ki NEM az. Egy később
+ * létrehozott szerepkör így alapértelmezésben a szigorú ágra kerül — a kimaradás iránya
+ * a biztonság felé mutat, nem attól el.
  */
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
-const { getUserPermissions } = require('../middleware/permission');
 
-const SZIGORU_SZEREPEK = ['superadmin', 'admin'];
+// Az EGYETLEN megengedő szerepkör. Akinek ezen kívül BÁRMI más szerepköre is van
+// (mondjuk lakó ÉS karbantartó egyszerre), az a szigorú ágra kerül: a szigorúbb
+// hozzáférés dönt, nem a kedvezőbb.
+const LAKOI_SZEREPEK = ['accommodated_employee'];
 
 /**
  * @param {string} userId
@@ -35,21 +42,17 @@ async function scopeFor(userId) {
         WHERE ur.user_id = $1`, [userId]);
     const szerepek = r.rows.map((x) => x.slug);
 
-    if (szerepek.some((s) => SZIGORU_SZEREPEK.includes(s))) return 'szemelyzet';
+    // Szerepkör nélküli fiók → szigorú. Nem tudjuk, mit érhet el, tehát nem
+    // feltételezünk róla a kedvezőbbet.
+    if (szerepek.length === 0) return 'szemelyzet';
 
-    // A szuperadminnak nincs külön jogosultság-sora (mindent megkap), de őt a fenti ág
-    // már elkapta — ide csak az jut el, akinek tételes joglistája van.
-    const jogok = await getUserPermissions(userId);
-    if (jogok.some((p) => String(p).startsWith('finance.'))) return 'szemelyzet';
-
-    return 'lako';
+    const csakLako = szerepek.every((sz) => LAKOI_SZEREPEK.includes(sz));
+    return csakLako ? 'lako' : 'szemelyzet';
   } catch (err) {
-    // HIBA ESETÉN A SZIGORÚBB ÁG. Ha nem tudjuk eldönteni, ki ez a felhasználó, akkor
-    // nem feltételezünk róla a kedvezőbbet — egy elérhetetlen jogosultság-lekérdezés
-    // nem lazíthat a szabályon.
+    // HIBA ESETÉN A SZIGORÚBB ÁG. Egy elérhetetlen lekérdezés nem lazíthat a szabályon.
     logger.warn(`[passwordScope] nem sikerült besorolni (${userId}): ${err.message} — szigorú ág`);
     return 'szemelyzet';
   }
 }
 
-module.exports = { scopeFor, SZIGORU_SZEREPEK };
+module.exports = { scopeFor, LAKOI_SZEREPEK };
