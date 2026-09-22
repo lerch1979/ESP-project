@@ -186,8 +186,16 @@ hiba napja.
 emeled a limitet az Anthropic konzolban (Settings → Limits). Amíg ez tart, az idegen nyelvű
 jegyek eredeti nyelven jelennek meg — de mostantól **láthatóan**, nem csendben.
 
-**2. Döntés:** kérsz-e a felületre is figyelmeztető sávot („a gépi fordítás átmenetileg nem
-érhető el")? A backend már adja hozzá az adatot, az admin UI-t még nem építettem meg.
+**2.** ✅ **A figyelmeztető sáv megépült és élesben fut** (2026-09-22, commit `f6eb6e95`).
+Három szinten látszik:
+
+- **általános sáv** minden admin képernyőn — a kvóta-hibából kiolvassa a visszaállás
+  időpontját, és tízpercenként újrakérdez, tehát helyreálláskor magától eltűnik;
+- **jegy-szintű** figyelmeztetés a jegy adatlapján, ha idegen nyelvű a bejelentés és a
+  fordítás nem futott le (a nyelv nevével, nem a kódjával);
+- **üzenet-szintű** jelzés a beszélgetésben. Ez korábban is létezett, de 10 pixeles, 70%-ban
+  átlátszó dőlt felirat volt — gyakorlatilag láthatatlan. Most keretes, figyelmeztető színű:
+  „NEM lefordítva — ez az eredeti szöveg".
 
 **3. Deploy.** ✅ Megtörtént 2026-09-22-én. A mig 170 és 171 lefutott, a health-végpont
 élesben válaszol, a szignálási kör is élesedett (nulla gazdátlan jegy maradt).
