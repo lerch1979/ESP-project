@@ -46,6 +46,8 @@ Rules — follow them exactly:
 class TranslationService {
   constructor() {
     this.enabled = !!process.env.ANTHROPIC_API_KEY;
+    this.lastError = null;
+    this._lastAlertAt = null;
     this.client = this.enabled
       ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       : null;
@@ -116,9 +118,51 @@ class TranslationService {
       this.recordStat(sourceLang, targetLang, 1, 0, normalized.length);
       return translated;
     } catch (err) {
+      // ⚠️ A VISSZATÉRÉS SZÁNDÉKOSAN AZ EREDETI SZÖVEG — egy hibás fordítás miatt nem
+      // hagyjuk üresen a jegyet. DE a hiba ettől még hiba, és korábban NYOM NÉLKÜL
+      // eltűnt: a felület ugyanúgy jelenítette meg a le NEM fordított szöveget, mintha
+      // fordítás történt volna. 2026-09-22-én emiatt úgy tűnt, hogy "a fordítás
+      // elromlott", holott a kvóta futott ki — a rendszer viszont ezt sehol nem mondta.
+      this.lastError = { at: new Date(), message: err.message, status: err.status || null };
       logger.error('[Translation] Claude API error:', err.message);
+      this._alertOnce(err);
       return normalized;
     }
+  }
+
+  /**
+   * Ops-riasztás a fordítás kiesésekor, óránként legfeljebb egyszer.
+   *
+   * A ritkítás nem kozmetika: egy kifogyott kvótánál MINDEN hívás elszáll, tehát egy
+   * jegyoldal megnyitása tucatnyi riasztást szórna — amitől a riasztás elveszti az
+   * értelmét, és a következő valódi hibát senki nem veszi észre.
+   */
+  _alertOnce(err) {
+    const most = Date.now();
+    if (this._lastAlertAt && most - this._lastAlertAt < 3600000) return;
+    this._lastAlertAt = most;
+    try {
+      const { alertOps } = require('../utils/opsAlert');
+      alertOps(`[FORDÍTÁS KIESETT] A gépi fordítás nem működik: ${err.message}. `
+        + 'A jegyek és üzenetek EREDETI nyelven jelennek meg, amíg ez tart.');
+    } catch { /* a riasztás hiánya nem állíthatja meg a fordítást */ }
+  }
+
+  /** A fordítás jelenlegi állapota — a felület ebből tud figyelmeztetést kitenni. */
+  health() {
+    const friss = this.lastError && (Date.now() - new Date(this.lastError.at).getTime()) < 3600000;
+    return {
+      enabled: this.enabled,
+      degraded: Boolean(friss),
+      last_error: this.lastError ? {
+        at: this.lastError.at, status: this.lastError.status,
+        message: this.lastError.message,
+      } : null,
+      // Ha nincs kulcs, az nem hiba, hanem beállítás — a kettőt külön kell látni.
+      reason: !this.enabled ? 'Nincs beállítva ANTHROPIC_API_KEY'
+        : friss ? 'A fordító szolgáltatás hibát ad — a szövegek eredeti nyelven jelennek meg'
+        : null,
+    };
   }
 
   async getCached(text, sourceLang, targetLang) {
@@ -180,15 +224,21 @@ class TranslationService {
     if (sourceLang === targetLang) return obj;
 
     const translated = { ...obj };
+    let valtozott = false;
     for (const field of fields) {
       if (obj[field]) {
         translated[`original_${field}`] = obj[field];
         translated[field] = await this.translateText(obj[field], sourceLang, targetLang);
+        if (translated[field] !== obj[field]) valtozott = true;
       }
     }
     translated._translated = true;
     translated._sourceLang = sourceLang;
     translated._targetLang = targetLang;
+    // ⚠️ A KÜLÖNBÖZŐ NYELV + VÁLTOZATLAN SZÖVEG azt jelenti, hogy a fordítás NEM futott le.
+    // Enélkül a felület ugyanúgy mutatta a nyers idegen szöveget, mintha fordítás lett
+    // volna — az olvasó pedig azt hitte, hogy ez a fordítás. Ez a mező mondja ki, hogy nem.
+    translated._translation_failed = !valtozott;
     return translated;
   }
 

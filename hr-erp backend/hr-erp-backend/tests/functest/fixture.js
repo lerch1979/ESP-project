@@ -540,6 +540,24 @@ async function build() {
   ids.user.t2_operator = (await mkUser('t2-operator', { contractorId: ids.client.T2, roleSlug: 'data_controller', last: TAG })).id;
   ids.user.t2_admin = (await mkUser('t2-admin', { contractorId: ids.client.T2, roleSlug: 'admin', last: TAG })).id;
 
+  // A LAKÓ HIBAJEGYET NYITHAT — élesben ez a jog megvan, a sandboxban eddig nem.
+  //
+  // 2026-09-22-én derült ki, egy fordítási hiba nyomozása közben: a lakói jegynyitást
+  // mérő teszt 403-mal elszállt, mert a sandboxban az `accommodated_employee` szerepkörnek
+  // NINCS `tickets.create` joga — élesben viszont van, kézzel megadva, migráció nélkül.
+  // Ennek az lett a következménye, hogy a functest SOHA nem tudta járni azt az utat,
+  // amiből a lakói mobilapp él.
+  //
+  // A mig 171 az éles/dev környezetekben pótolja a jogot, ide viszont azért kell, mert a
+  // migrációk a szerepkörök seedelése ELŐTT futnak — a 171 INSERT-je ott még nem talál
+  // sem szerepkört, sem jogosultságot, amihez kapcsolódhatna.
+  await query(
+    `INSERT INTO role_permissions (role_id, permission_id)
+     SELECT r.id, p.id FROM roles r, permissions p
+      WHERE r.slug = 'accommodated_employee' AND p.slug = 'tickets.create'
+        AND NOT EXISTS (SELECT 1 FROM role_permissions rp
+                         WHERE rp.role_id = r.id AND rp.permission_id = p.id)`);
+
   // the resident login must map to a real employee (self-scoped endpoints join on user_id)
   ids.acc.t1 = await mkAccommodation('TenantOneSite', { contractorId: ids.client.T1, capacity: 10 });
   const [t1emp] = await mkEmployees(ids.acc.t1, 1, { contractorId: ids.client.T1, prefix: 'T1' });

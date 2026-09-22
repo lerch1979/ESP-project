@@ -8,6 +8,19 @@ const MAX_TEXT_LEN = 5000;
 
 router.use(authenticateToken);
 
+/**
+ * A fordítás állapota — a felület ebből tud figyelmeztetést kitenni.
+ *
+ * MIÉRT KELL: 2026-09-22-én a fordítás úgy "romlott el", hogy a rendszer sehol nem
+ * mondta ki. Az API-kvóta kifutott, minden hívás 400-at adott, a szolgáltatás pedig
+ * visszaadta az eredeti szöveget — a felületen ez megkülönböztethetetlen volt attól,
+ * mintha a fordítás megtörtént volna. Egy nyitott végpont, ami kimondja, hogy épp nem
+ * megy, olcsóbb, mint egy fél nap nyomozás.
+ */
+router.get('/health', (req, res) => {
+  res.json({ success: true, data: translation.health() });
+});
+
 // GET /api/v1/translation/stats — translation usage (last N days)
 router.get('/stats', async (req, res) => {
   try {
