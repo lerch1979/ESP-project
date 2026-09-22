@@ -501,6 +501,101 @@ module.exports = {
       },
     },
     {
+      id: 'AUTH-26',
+      name: 'a generált ideiglenes jelszó papírról GÉPELHETŐ — nincs 0/O, 1/l/i, ékezet',
+      expected: { csak_ascii: true, nincs_kevert: true, eleg_hosszu: true, egyedi: true },
+      hint: 'a lakó papírról, telefonon, idegen billentyűzeten gépeli be',
+      run: async () => {
+        const minta = Array.from({ length: 3000 }, () => rule.generaljIdeiglenest());
+        const egyben = minta.join('');
+        return {
+          csak_ascii: /^[a-z0-9-]+$/.test(egyben),
+          nincs_kevert: !/[01ilo]/.test(egyben),
+          eleg_hosszu: minta.every((x) => rule.ellenorizIdeiglenes(x).valid),
+          egyedi: new Set(minta).size === minta.length,
+        };
+      },
+    },
+    {
+      id: 'AUTH-27',
+      name: 'az ADMIN nem adhat 8 karakternél rövidebb ideiglenes jelszót',
+      expected: { rovid: 400, eleg: 200 },
+      hint: 'eddig egy háromkarakteres is beállítható volt, és az papíron napokig élt',
+      run: async (ctx, s) => {
+        const admin = http.tokenFor(ctx.ids.user.superadmin);
+        const rovid = await http.put(`/users/${s.userId}`, {
+          token: admin, body: { password: 'rvd12' } });
+        const eleg = await http.put(`/users/${s.userId}`, {
+          token: admin, body: { password: rule.generaljIdeiglenest() } });
+        await query('UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
+        return { rovid: rovid.status, eleg: eleg.status };
+      },
+    },
+    {
+      id: 'AUTH-28',
+      name: '⚠️ a 30 napnál RÉGEBBI ideiglenes jelszóval nem lehet belépni',
+      expected: { lejart: 403, kod: 'TEMP_PASSWORD_EXPIRED', friss_meg_jo: 200 },
+      hint: 'a papír elveszhet, lefényképezhetik — ne éljen örökké, ha nem használják',
+      run: async (ctx, s) => {
+        const hash = await bcrypt.hash('papiros-jelszo-42', await bcrypt.genSalt(10));
+        const email = (await query('SELECT email FROM users WHERE id = $1', [s.userId]))
+          .rows[0].email;
+        const be = () => http.post('/auth/login',
+          { body: { email, password: 'papiros-jelszo-42' } });
+
+        // 31 napja kiadott ideiglenes jelszó
+        await query(
+          `UPDATE users SET password_hash = $1, must_change_password = true,
+                  failed_login_attempts = 0, locked_until = NULL,
+                  password_changed_at = CURRENT_TIMESTAMP - interval '31 days'
+            WHERE id = $2`, [hash, s.userId]);
+        const lejart = await be();
+
+        // ugyanaz, 5 naposan
+        await query(
+          `UPDATE users SET password_changed_at = CURRENT_TIMESTAMP - interval '5 days'
+            WHERE id = $1`, [s.userId]);
+        const friss = await be();
+
+        await query(
+          'UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
+        return { lejart: lejart.status, kod: lejart.body?.code, friss_meg_jo: friss.status };
+      },
+    },
+    {
+      id: 'AUTH-29',
+      name: 'a lejárt ideiglenes jelszóval szerzett KORÁBBI munkamenet sem él tovább',
+      expected: { status: 403, kod: 'TEMP_PASSWORD_EXPIRED' },
+      hint: 'a 29. napon szerzett refresh token 30 napig élne — a rés a munkameneten van',
+      run: async (ctx, s) => {
+        await query(
+          `UPDATE users SET must_change_password = true,
+                  password_changed_at = CURRENT_TIMESTAMP - interval '31 days'
+            WHERE id = $1`, [s.userId]);
+        const token = http.tokenFor(s.userId);
+        const r = await http.get('/auth/me', { token });
+        await query(
+          'UPDATE users SET must_change_password = false WHERE id = $1', [s.userId]);
+        return { status: r.status, kod: r.body?.code };
+      },
+    },
+    {
+      id: 'AUTH-30',
+      name: 'a javaslat-végpont működik, és a saját szabályának megfelelő jelszót ad',
+      expected: { status: 200, ervenyes: true, van_lejarat: 30 },
+      hint: 'a szabály egy helyen él — a böngészőben generálva idővel szétcsúszna',
+      run: async (ctx) => {
+        const admin = http.tokenFor(ctx.ids.user.superadmin);
+        const r = await http.get('/users/temp-password', { token: admin });
+        const pw = r.body?.data?.password;
+        return {
+          status: r.status,
+          ervenyes: Boolean(pw) && rule.ellenorizIdeiglenes(pw).valid,
+          van_lejarat: r.body?.data?.expires_days,
+        };
+      },
+    },
+    {
       id: 'AUTH-02',
       name: 'a LEJÁRT token 401-et kap — enélkül a kliens nem tudná, mikor frissítsen',
       expected: { status: 401 },

@@ -157,7 +157,9 @@
     "errorFailed": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
     "selectLanguage": "Sprache auswählen",
     "lockedTitle": "Konto vorübergehend gesperrt",
-    "lockedBody": "Zu viele Fehlversuche, daher ist das Konto für {{minutes}} Minuten gesperrt. Warte so lange — es entsperrt sich VON SELBST, du brauchst keine Hilfe. Wenn du dein Passwort nicht mehr weißt, sag der Unterkunftsverantwortlichen Bescheid."
+    "lockedBody": "Zu viele Fehlversuche, daher ist das Konto für {{minutes}} Minuten gesperrt. Warte so lange — es entsperrt sich VON SELBST, du brauchst keine Hilfe. Wenn du dein Passwort nicht mehr weißt, sag der Unterkunftsverantwortlichen Bescheid.",
+    "tempExpiredTitle": "Das vorläufige Passwort ist abgelaufen",
+    "tempExpiredBody": "Das Passwort, das du auf Papier bekommen hast, gilt nicht mehr — es läuft nach 30 Tagen ab. Bitte deine Unterkunftsverantwortliche oder das Büro um ein neues. Wirf das alte weg."
   },
   "dashboard": {
     "title": "Dashboard",

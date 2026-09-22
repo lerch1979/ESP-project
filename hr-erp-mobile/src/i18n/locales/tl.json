@@ -157,7 +157,9 @@
     "errorFailed": "Nabigo ang pag-login. Subukan muli.",
     "selectLanguage": "Pumili ng wika",
     "lockedTitle": "Pansamantalang naka-lock ang account",
-    "lockedBody": "Masyadong maraming maling subok, kaya naka-lock ang account nang {{minutes}} minuto. Maghintay lang — KUSA itong mabubuksan, hindi na kailangang humingi ng tulong. Kung hindi mo matandaan ang password, sabihin sa accommodation manager."
+    "lockedBody": "Masyadong maraming maling subok, kaya naka-lock ang account nang {{minutes}} minuto. Maghintay lang — KUSA itong mabubuksan, hindi na kailangang humingi ng tulong. Kung hindi mo matandaan ang password, sabihin sa accommodation manager.",
+    "tempExpiredTitle": "Nag-expire na ang pansamantalang password",
+    "tempExpiredBody": "Hindi na valid ang password na natanggap mo sa papel — nag-e-expire ito pagkatapos ng 30 araw. Humingi ng bago sa accommodation manager o sa opisina. Itapon na ang luma."
   },
   "dashboard": {
     "title": "Dashboard",

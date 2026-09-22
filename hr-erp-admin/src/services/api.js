@@ -1271,6 +1271,14 @@ export const chatbotAPI = {
 
 // Users API
 export const usersAPI = {
+  // Javasolt ideiglenes jelszó. A generálás a SZERVEREN történik, hogy a szabály
+  // (mely karakterek maradnak ki, milyen hosszú) egy helyen éljen — egy böngészőbeli
+  // másolat idővel olyan jelszót ajánlana, amit a mentés aztán elutasít.
+  suggestTempPassword: async () => {
+    const response = await api.get('/users/temp-password');
+    return response.data;
+  },
+
   getAll: async (params = {}) => {
     const response = await api.get('/users', { params });
     return response.data;

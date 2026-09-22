@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { isTokenStale } = require('../utils/tokenFreshness');
 const { mustChangePassword } = require('./mustChangePassword');
+const passwordRule = require('../utils/passwordRule');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { getUserPermissions } = require('./permission');
@@ -42,6 +43,23 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const user = userResult.rows[0];
+
+    // AZ IDEIGLENES JELSZÓ LEJÁRATA A MUNKAMENETRE IS ÁLL.
+    // Csak a bejelentkezést őrizni nem elég: aki a 29. napon belépett, a refresh
+    // tokenjével (30 nap) a lejárat UTÁN is dolgozhatna tovább — és pont az a jelszó
+    // tartaná életben, amit érvénytelennek nyilvánítottunk. A csere sem járható út
+    // ilyenkor: lejárt ideiglenes jelszóból nem lehet saját jelszót csinálni, mert
+    // nem tudjuk, ki tartja a papírt. Új jelszót az adminisztrátor ad.
+    const ideiglLejart = passwordRule.ideiglenesLejart(user);
+    if (ideiglLejart.lejart) {
+      return res.status(403).json({
+        success: false,
+        code: 'TEMP_PASSWORD_EXPIRED',
+        days: ideiglLejart.napok,
+        message: 'Az ideiglenes jelszó lejárt. Kérj újat a szállásfelelősödtől '
+          + 'vagy az irodától.',
+      });
+    }
 
     // JELSZÓVÁLTÁS = MINDEN KORÁBBI TOKEN ÉRVÉNYTELEN.
     // Enélkül a jelszóváltás csak az ÚJ belépéseket érinti: egy ellopott telefon vagy

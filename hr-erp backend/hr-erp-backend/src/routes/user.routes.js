@@ -15,6 +15,11 @@ router.patch('/me/language', langCtrl.updateMyLanguage);
 router.post('/bulk-language-assignment', langCtrl.bulkLanguageAssignment);
 router.patch('/:id/language', langCtrl.updateUserLanguage);
 
+// Javasolt ideiglenes jelszó. A `/:id` ELŐTT kell állnia, különben az
+// "temp-password" azonosítóként értelmeződne — ez a fájl már fel van készítve rá
+// (lásd a nyelvi útvonalakat a tetején), de a csapda ugyanaz.
+router.get('/temp-password', checkPermission('users.create'), userController.suggestTempPassword);
+
 // Felhasználók listája
 router.get('/', checkPermission('users.view'), userController.getUsers);
 

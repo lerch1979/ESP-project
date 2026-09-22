@@ -157,7 +157,9 @@
     "errorFailed": "Bejelentkezés sikertelen. Próbálja újra.",
     "selectLanguage": "Válasszon nyelvet",
     "lockedTitle": "A fiók átmenetileg zárolva",
-    "lockedBody": "Túl sok sikertelen próbálkozás miatt a fiók {{minutes}} percre zárolva. Várj ennyit, utána MAGÁTÓL feloldódik — nem kell segítséget kérned. Ha nem emlékszel a jelszavadra, szólj a szállásfelelősnek."
+    "lockedBody": "Túl sok sikertelen próbálkozás miatt a fiók {{minutes}} percre zárolva. Várj ennyit, utána MAGÁTÓL feloldódik — nem kell segítséget kérned. Ha nem emlékszel a jelszavadra, szólj a szállásfelelősnek.",
+    "tempExpiredTitle": "Az ideiglenes jelszó lejárt",
+    "tempExpiredBody": "A papíron kapott jelszó már nem érvényes — 30 nap után lejár. Kérj újat a szállásfelelősödtől vagy az irodától. A régi jelszót dobd ki."
   },
   "dashboard": {
     "title": "Kezdőlap",

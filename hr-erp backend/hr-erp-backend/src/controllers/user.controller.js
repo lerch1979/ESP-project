@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const passwordRule = require('../utils/passwordRule');
 const pool = require('../database/connection');
 const { logger } = require('../utils/logger');
 const { isValidUUID, sanitizeString, parsePagination, sanitizeSearch } = require('../utils/validation');
@@ -182,6 +183,14 @@ const createUser = async (req, res) => {
       });
     }
 
+    // Az ideiglenes jelszó MINIMUMA. Eddig semmi nem vonatkozott rá: egy háromkarakteres
+    // is beállítható volt, és az a papíron kiadott jelszó napokig élt, amíg a lakó be nem
+    // lépett. Csak a hossz — a valódi szabályt az első kötelező csere érvényesíti.
+    const ideigl = passwordRule.ellenorizIdeiglenes(password);
+    if (!ideigl.valid) {
+      return res.status(400).json({ success: false, message: ideigl.message });
+    }
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
@@ -245,6 +254,24 @@ const createUser = async (req, res) => {
 };
 
 // Felhasználó frissítése
+/**
+ * Javasolt ideiglenes jelszó az adminisztrátornak.
+ *
+ * MIÉRT VÉGPONT, ÉS NEM A BÖNGÉSZŐBEN GENERÁLJUK: a szabály (melyik karakterek
+ * maradnak ki, milyen hosszú) EGY helyen él, a `passwordRule`-ban. Egy böngészőbeli
+ * másolat idővel szétcsúszna attól, amit a szerver elfogad — és a felület olyan
+ * jelszót ajánlana, amit a mentés aztán elutasít.
+ */
+const suggestTempPassword = async (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      password: passwordRule.generaljIdeiglenest(),
+      expires_days: passwordRule.IDEIGLENES_ELET_NAP,
+    },
+  });
+};
+
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -307,6 +334,10 @@ const updateUser = async (req, res) => {
       paramIndex++;
     }
     if (password !== undefined && password !== null && password !== '') {
+      const ideigl = passwordRule.ellenorizIdeiglenes(password);
+      if (!ideigl.valid) {
+        return res.status(400).json({ success: false, message: ideigl.message });
+      }
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
       updates.push(`password_hash = $${paramIndex}`);
@@ -528,6 +559,7 @@ const updateUserRole = async (req, res) => {
 };
 
 module.exports = {
+  suggestTempPassword,
   getUsers,
   getUserById,
   createUser,

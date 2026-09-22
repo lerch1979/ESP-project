@@ -84,7 +84,13 @@ export default function LoginScreen() {
       // ZÁROLÁS: a szerver magyar üzenete a lakónak nem segít, ezért a KÓDOT és a
       // PERCEKET fordítjuk le a saját nyelvére. Azt is ki kell mondani, hogy magától
       // feloldódik — enélkül a lakó az irodát hívja, pont amit el akarunk kerülni.
-      if (error.response?.data?.code === 'ACCOUNT_LOCKED') {
+      // LEJÁRT IDEIGLENES JELSZÓ. Külön mondat, mert a teendő gyökeresen más: itt nem
+      // várni kell és nem is újrapróbálni, hanem ÚJ jelszót kérni. Ha ugyanazt az
+      // üzenetet kapná, mint a hibás jelszóra, a papírt kezdené újra silabizálni.
+      if (error.response?.data?.code === 'TEMP_PASSWORD_EXPIRED') {
+        cim = t('login.tempExpiredTitle');
+        message = t('login.tempExpiredBody');
+      } else if (error.response?.data?.code === 'ACCOUNT_LOCKED') {
         const perc = error.response.data.minutes || 15;
         cim = t('login.lockedTitle');
         message = t('login.lockedBody', { minutes: perc });

@@ -80,6 +80,28 @@ const login = async (req, res) => {
       });
     }
 
+    // ── AZ IDEIGLENES JELSZÓ LEJÁRATA ────────────────────────────────────────
+    // A papíron kiadott jelszó ne éljen örökké, ha a lakó sosem használja: a papír
+    // elveszhet, lefényképezhetik, ott maradhat a recepción — és amíg a fiókhoz
+    // tartozik, bárki beléphet vele.
+    //
+    // A jelszó ELLENŐRZÉSE ELŐTT nézzük, ugyanazért, amiért a zárolást: ha utána
+    // néznénk, a HELYES ideiglenes jelszó is "hibás email vagy jelszó"-t adna, és a
+    // lakó azt hinné, rosszul olvasta le a papírról. Így viszont pontosan azt kapja,
+    // ami történt, és azt is, hogy kitől kérjen újat.
+    const lejarat = passwordRule.ideiglenesLejart(user);
+    if (lejarat.lejart) {
+      logger.warn(`[auth] lejárt ideiglenes jelszóval próbált belépni: ${user.email} `
+        + `(${lejarat.napok} napja adták ki)`);
+      return res.status(403).json({
+        success: false,
+        code: 'TEMP_PASSWORD_EXPIRED',
+        days: lejarat.napok,
+        message: 'Az ideiglenes jelszó lejárt. Kérj újat a szállásfelelősödtől '
+          + 'vagy az irodától.',
+      });
+    }
+
     // Jelszó ellenőrzés
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 

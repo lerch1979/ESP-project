@@ -40,6 +40,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Autorenew as AutorenewIcon,
   Search as SearchIcon,
   Security as SecurityIcon,
   ExpandMore as ExpandMoreIcon,
@@ -88,6 +89,7 @@ function Users() {
     roleId: '',
   });
   const [formErrors, setFormErrors] = useState({});
+  const [javaslatBetolt, setJavaslatBetolt] = useState(false);
 
   // Permission override form
   const [userPermData, setUserPermData] = useState({
@@ -175,12 +177,36 @@ function Users() {
     setUserDialog(true);
   };
 
+  // A javaslatot a SZERVER adja — olvasható, gépelhető szótagokból, 0/O és 1/l/i
+  // nélkül, ékezet nélkül. A lakó papírról, telefonon, idegen billentyűzeten gépeli be.
+  const javaslatKeres = async () => {
+    setJavaslatBetolt(true);
+    try {
+      const r = await usersAPI.suggestTempPassword();
+      const pw = r?.data?.password;
+      if (pw) {
+        setFormData(p => ({ ...p, password: pw }));
+        setFormErrors(p => ({ ...p, password: undefined }));
+      }
+    } catch {
+      toast.error('A javaslat lekérése nem sikerült — írd be kézzel.');
+    } finally {
+      setJavaslatBetolt(false);
+    }
+  };
+
   const handleSaveUser = async () => {
     const errors = {};
     if (!formData.firstName.trim()) errors.firstName = 'Vezetéknév kötelező';
     if (!formData.lastName.trim()) errors.lastName = 'Keresztnév kötelező';
     if (!formData.email.trim()) errors.email = 'Email kötelező';
-    if (!selectedUser && !formData.password.trim()) errors.password = 'Jelszó kötelező új felhasználónál';
+    if (!selectedUser && !formData.password.trim()) {
+      errors.password = 'Jelszó kötelező új felhasználónál';
+    } else if (formData.password.trim() && formData.password.trim().length < 8) {
+      // Ugyanaz a minimum, mint a szerveren (utils/passwordRule.js). Itt csak azért
+      // van, hogy a hibát a mentés ELŐTT lássa — a kötelező érvényesítés a szerveren.
+      errors.password = 'Legalább 8 karakter. A „Javaslat" gomb ad egy megfelelőt.';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -497,16 +523,35 @@ function Users() {
               onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
               fullWidth
             />
-            <TextField
-              label={selectedUser ? 'Új jelszó (opcionális)' : 'Jelszó'}
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
-              error={!!formErrors.password}
-              helperText={formErrors.password}
-              fullWidth
-              required={!selectedUser}
-            />
+            {/* IDEIGLENES JELSZÓ.
+                A mező típusa szándékosan `text`, nem `password`: ezt a jelszót az
+                adminisztrátor PAPÍRRA ÍRJA és átadja. Ha csillagozva látja, nem tudja
+                leírni — és ilyenkor a gyakorlat az lesz, hogy "Jelszo123"-at gépel be,
+                mert azt legalább meg tudja jegyezni. A titkosság itt nem a képernyőn
+                múlik: a jelszó úgyis kézen-közön megy, ezért ideiglenes, ezért jár le
+                30 nap után, és ezért kötelező lecserélni az első belépéskor. */}
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+              <TextField
+                label={selectedUser ? 'Új ideiglenes jelszó (opcionális)' : 'Ideiglenes jelszó'}
+                value={formData.password}
+                onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
+                error={!!formErrors.password}
+                helperText={formErrors.password
+                  || 'A felhasználónak az első belépéskor kötelezően le kell cserélnie. 30 nap után lejár.'}
+                fullWidth
+                required={!selectedUser}
+                inputProps={{ style: { fontFamily: 'monospace', letterSpacing: '0.05em' } }}
+              />
+              <Button
+                onClick={javaslatKeres}
+                disabled={javaslatBetolt}
+                variant="outlined"
+                startIcon={javaslatBetolt ? <CircularProgress size={16} /> : <AutorenewIcon />}
+                sx={{ mt: 1, whiteSpace: 'nowrap' }}
+              >
+                Javaslat
+              </Button>
+            </Box>
             {canManagePermissions && (
               <FormControl fullWidth>
                 <InputLabel>Szerepkör</InputLabel>
