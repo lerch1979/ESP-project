@@ -30,6 +30,7 @@
  * day changes nothing.
  */
 const { query } = require('../database/connection');
+const { ymd } = require('../utils/dateOnly');
 const { logger } = require('../utils/logger');
 const announce = require('./videoAnnounce.service');
 const audienceSvc = require('./videoAudience.service');
@@ -37,9 +38,10 @@ const audienceSvc = require('./videoAudience.service');
 const ANCHOR_COLUMN = { move_in: 'arrival_date', employment_start: 'start_date' };
 
 /** Local YYYY-MM-DD — pg hands DATE back as local midnight; never toISOString(). */
-function localDateStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// A közös `ymd()` négy másolat helyett (utils/dateOnly.js). Mindkét bemenetet kezeli:
+// a DATE oszlopok mostantól 'YYYY-MM-DD' SZÖVEGKÉNT jönnek (connection.js,
+// setTypeParser 1082), a timestamp-ek viszont továbbra is Date objektumként.
+const localDateStr = (d = new Date()) => ymd(d);
 
 async function getConfig() {
   const r = await query(`SELECT * FROM video_delivery_config ORDER BY created_at LIMIT 1`);

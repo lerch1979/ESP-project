@@ -28,15 +28,14 @@
  *   (closing it at D would leave a zero-length row, harmless but noisy).
  */
 const { query: rootQuery } = require('../database/connection');
+const { ymd } = require('../utils/dateOnly');
 const { logger } = require('../utils/logger');
 
 /** YYYY-MM-DD in local time — pg hands DATE back as local midnight, never use toISOString(). */
-function localDateStr(d = new Date()) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
+// A közös `ymd()` négy másolat helyett (utils/dateOnly.js). Mindkét bemenetet kezeli:
+// a DATE oszlopok mostantól 'YYYY-MM-DD' SZÖVEGKÉNT jönnek (connection.js,
+// setTypeParser 1082), a timestamp-ek viszont továbbra is Date objektumként.
+const localDateStr = (d = new Date()) => ymd(d);
 
 // Accepts a pg client (inside a transaction) or falls back to the pool.
 const run = (exec, sql, params) => (exec ? exec.query(sql, params) : rootQuery(sql, params));

@@ -1,5 +1,27 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const { logger } = require('../utils/logger');
+
+// ─── DATE (OID 1082) SZÖVEGKÉNT, NEM Date OBJEKTUMKÉNT ──────────────────────
+//
+// A pg alapból JS `Date`-té alakítja a DATE oszlopokat, LOKÁLIS éjfélre. Ebből két
+// külön hiba fakad, és ebben a repóban ÖTSZÖR fordult elő 2026 tavasza és szeptembere
+// között:
+//
+//   1. `toISOString()` egy ilyen Date-en Budapesten EGY NAPPAL VISSZATOL
+//      (2026-09-22 00:00 CEST → "2026-09-21T22:00:00Z" → "2026-09-21"). Ez rontotta el
+//      209 születési dátumot az áprilisi importnál, és három saját szkriptem kimenetét.
+//   2. `String()`-je "Mon Sep 22 2026 00:00:00 GMT+0200" — emberi szemnek olvashatatlan,
+//      és a jelentésekben nyersen jelent meg.
+//
+// Az eddigi javítások mind HELYIEK voltak (kézi `getFullYear/getMonth/getDate`
+// formázás), tehát minden új hívási hely újra elkövethette ugyanazt. Ez a beállítás a
+// FORRÁSNÁL szünteti meg: a DATE pontosan az marad, ami a adatbázisban van — egy
+// 'YYYY-MM-DD' szöveg —, amibe az időzóna nem tud belenyúlni.
+//
+// ⚠️ MIT NEM ÉRINT: a `timestamp` (1114) és a `timestamptz` (1184) továbbra is Date
+// objektumként jön. Azoknál az időpont maga az adat, tehát a Date a helyes forma — a
+// DATE-nél viszont nincs is időpont, csak egy naptári nap.
+types.setTypeParser(types.builtins.DATE, (value) => value);
 
 // SSL configuration for production
 const sslConfig = process.env.DB_SSL === 'true'

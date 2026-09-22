@@ -44,6 +44,7 @@
  * finalized runs are protected (cancel via the controller to re-bill).
  */
 const { transaction, query } = require('../database/connection');
+const { ymd } = require('../utils/dateOnly');
 const { logger } = require('../utils/logger');
 
 function assertMonth(month) {
@@ -52,14 +53,10 @@ function assertMonth(month) {
   }
 }
 
-// pg returns DATE columns as local-midnight Date objects; read via local components
-// (never .toISOString(), which would shift the day under CEST).
-function localDateStr(d) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
+// A közös `ymd()` négy másolat helyett (utils/dateOnly.js). Mindkét bemenetet kezeli:
+// a DATE oszlopok mostantól 'YYYY-MM-DD' SZÖVEGKÉNT jönnek (connection.js,
+// setTypeParser 1082), a timestamp-ek viszont továbbra is Date objektumként.
+const localDateStr = (d = new Date()) => ymd(d);
 
 const round2 = (n) => Math.round(n * 100) / 100;
 

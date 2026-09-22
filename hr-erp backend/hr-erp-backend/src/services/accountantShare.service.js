@@ -19,6 +19,7 @@
  */
 
 const crypto = require('crypto');
+const { ymd } = require('../utils/dateOnly');
 const path = require('path');
 const archiver = require('archiver');
 const XLSX = require('xlsx');
@@ -43,13 +44,7 @@ function tokenTail(t) { return t ? `tok_…${String(t).slice(-6)}` : 'tok_…<no
 function fmtMoney(n) {
   return n == null ? '—' : `${Math.round(Number(n)).toLocaleString('hu-HU')} Ft`;
 }
-function localDateStr(d) {
-  if (!d) return '';
-  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return '';
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1, 2)}-${pad(dt.getDate(), 2)}`;
-}
+const localDateStr = (d) => ymd(d) || '';
 function slug(s) {
   return String(s || 'unknown')
     .toLowerCase()
