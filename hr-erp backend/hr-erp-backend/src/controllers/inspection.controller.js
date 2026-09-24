@@ -16,6 +16,8 @@ const { query, transaction } = require('../database/connection');
 const { byRoomNumber } = require('../utils/roomOrder');
 const { logger } = require('../utils/logger');
 const pdfService = require('../services/inspectionPDF.service');
+const inspHtmlPdf = require('../services/inspectionHtmlPdf.service');
+const signedArchive = require('../services/signedArchive.service');
 const notify = require('../services/inAppNotification.service');
 const notificationSvc = require('../services/inspectionNotification.service');
 const { scopeOf, ownsRow } = require('../utils/tenantScope');
@@ -735,20 +737,65 @@ async function streamPDF(res, generator, filename) {
   }
 }
 
-/** GET /api/v1/inspections/:id/pdf/legal — Jegyzőkönyv */
-const pdfLegal = (req, res) =>
-  streamPDF(res, () => pdfService.generateLegalProtocol(req.params.id),
-            `jegyzokonyv-${req.params.id}.pdf`);
+/**
+ * HTML-alapú PDF-letöltés, 5 nyelven, az ALÁÍRT példány elsőbbségével.
+ *
+ * A SORREND A LÉNYEG (tulajdonosi kikötés, 2026-09-24):
+ *   1. van MEGŐRZÖTT példány  → azt adjuk vissza, bájtra pontosan;
+ *   2. van aláírás, de nincs megőrzött példány (mig 178 előtti) → az aláírás
+ *      PILLANATKÉPÉBŐL renderelünk, tehát a TARTALOM hű;
+ *   3. nincs aláírás → friss renderelés az aktuális adatból.
+ *
+ * Aláírt dokumentumnál a NYELV sem a letöltő választása: amit ukránul írtak alá, az
+ * ukránul hiteles. Egy magyarul letöltött példány más szöveget mutatna, mint amit
+ * a lakó elolvasott.
+ */
+const htmlPdfLetoltes = (fajta, fajlNev) => async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dontes = await signedArchive.resolveForDownload('inspection', id, fajta,
+      req.query.language || req.query.lang);
+
+    if (dontes.mod === 'archivalt') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition',
+        `inline; filename="${fajlNev}-${id}-${dontes.language}.pdf"`);
+      // A fejlécben megmondjuk, hogy ez a megőrzött példány — a letöltő tudja, mit kapott.
+      res.setHeader('X-Document-Source', 'archived');
+      res.setHeader('X-Document-Sha256', dontes.sha256);
+      return res.send(dontes.pdf);
+    }
+
+    const { pdf } = await inspHtmlPdf.generateInspection(id, fajta, dontes.language, {
+      archivalt: dontes.mod === 'pillanatkepbol',
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `inline; filename="${fajlNev}-${id}-${dontes.language}.pdf"`);
+    res.setHeader('X-Document-Source', dontes.mod);
+    return res.send(pdf);
+  } catch (err) {
+    if (err.message === 'INSPECTION_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Ellenőrzés nem található' });
+    }
+    logger.error('[inspection.pdf]', err.message);
+    if (!res.headersSent) {
+      return res.status(err.status || 500).json({
+        success: false, message: err.status ? err.message : 'PDF generálási hiba',
+      });
+    }
+    return undefined;
+  }
+};
+
+/** GET /api/v1/inspections/:id/pdf/legal — Jegyzőkönyv (ezt írják alá) */
+const pdfLegal = htmlPdfLetoltes('legal', 'jegyzokonyv');
 
 /** GET /api/v1/inspections/:id/pdf/owner — Tulajdonosi riport */
-const pdfOwner = (req, res) =>
-  streamPDF(res, () => pdfService.generateOwnerReport(req.params.id),
-            `tulajdonosi-riport-${req.params.id}.pdf`);
+const pdfOwner = htmlPdfLetoltes('owner', 'tulajdonosi-riport');
 
 /** GET /api/v1/inspections/:id/pdf/report — Belső részletes riport */
-const pdfReport = (req, res) =>
-  streamPDF(res, () => pdfService.generateInspectionReport(req.params.id),
-            `ellenorzesi-riport-${req.params.id}.pdf`);
+const pdfReport = htmlPdfLetoltes('internal', 'ellenorzesi-riport');
 
 // ─── Email notifications (Part E follow-up) ─────────────────────────
 

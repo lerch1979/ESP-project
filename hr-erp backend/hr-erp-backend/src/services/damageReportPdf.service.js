@@ -270,7 +270,12 @@ async function generatePDF(report, lang = 'hu') {
     }
     if (!chrome) throw new Error('Chrome not found');
 
-    execSync(`"${chrome}" --headless --disable-gpu --no-sandbox --print-to-pdf="${tmpPdf}" --print-to-pdf-no-header "file://${tmpHtml}"`, { timeout: 15000, stdio: 'ignore' });
+    // UGYANAZ A HIBA ITT IS: a Chrome 153 a `--print-to-pdf-no-header` mellett is
+    // rányomtatta a szerver fájlútvonalát a kárjegyzőkönyvre. Ez eddig észrevétlen
+    // volt, mert a kódból nem látszik — csak a kinyomtatott lapon.
+    execSync(`"${chrome}" --headless --disable-gpu --no-sandbox --print-to-pdf="${tmpPdf}" `
+      + `--print-to-pdf-no-header --no-pdf-header-footer "file://${tmpHtml}"`,
+      { timeout: 15000, stdio: 'ignore' });
     return fs.readFileSync(tmpPdf);
   } finally {
     try { fs.unlinkSync(tmpHtml); } catch {}

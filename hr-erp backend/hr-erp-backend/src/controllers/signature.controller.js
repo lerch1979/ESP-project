@@ -8,6 +8,8 @@
 const signatures = require('../services/signature.service');
 const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
+const inspHtmlPdf = require('../services/inspectionHtmlPdf.service');
+const signedArchive = require('../services/signedArchive.service');
 
 /**
  * Az ellenőrzési nyilatkozat paraméterei — az ÉLŐ konfigurációból.
@@ -138,7 +140,14 @@ const create = async (req, res) => {
       req,
       operatorUserId: req.user.id,
     });
+    // AZ ALÁÍRT PÉLDÁNY MEGŐRZÉSE — a válasz UTÁN, a kérés útján KÍVÜL.
+    // A PDF-gyártás Chrome-ot indít: lassú, és elbukhat. A helyszínen álló lakó
+    // aláírása nem múlhat ezen, ezért előbb válaszolunk, és csak utána archiválunk.
+    // Ha nem sikerül, a letöltés a pillanatképből renderel — a tartalom akkor is hű.
     res.status(201).json({ success: true, data: r });
+    megorzes(subjectType, subjectId, language, r.id).catch((e) => {
+      logger.warn(`[signature] a megőrzés nem sikerült (${subjectType}/${subjectId}): ${e.message}`);
+    });
   } catch (e) {
     if (e.status) return res.status(e.status).json({ success: false, message: e.message });
     // Az egyedi index: egy szerep egyszer ír alá. Ez NEM technikai hiba, hanem
@@ -154,5 +163,32 @@ const create = async (req, res) => {
     res.status(500).json({ success: false, message: 'Az aláírás rögzítése nem sikerült' });
   }
 };
+
+/**
+ * Az aláírt dokumentum bájtazonos megőrzése.
+ *
+ * Csak az ELLENŐRZÉSI jegyzőkönyvre és a kárjegyzőkönyvre van értelme: azokból készül
+ * papír, amit a lakó kezébe adunk. A kárigénynél a felszólítás külön kerül ki.
+ */
+async function megorzes(subjectType, subjectId, language, signatureId) {
+  if (subjectType === 'inspection') {
+    const { pdf, templateVersion } =
+      await inspHtmlPdf.generateInspection(subjectId, 'legal', language);
+    await signedArchive.archive({
+      subjectType, subjectId, docKind: 'legal', language, signatureId,
+      pdfBuffer: pdf, templateVersion });
+    return;
+  }
+  if (subjectType === 'damage_report') {
+    const damage = require('../services/damageReport.service');
+    const drPdf = require('../services/damageReportPdf.service');
+    const report = await damage.getById(subjectId);
+    report.signatures = await signatures.listFor('damage_report', subjectId);
+    const pdf = await drPdf.generatePDF(report, language);
+    await signedArchive.archive({
+      subjectType, subjectId, docKind: 'legal', language, signatureId,
+      pdfBuffer: pdf, templateVersion: 'damageReport-html-1' });
+  }
+}
 
 module.exports = { getTexts, list, create };
