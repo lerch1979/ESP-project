@@ -13,8 +13,29 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install wget for healthcheck
-RUN apk add --no-cache wget tini
+# Install wget for healthcheck + CHROMIUM a PDF-ekhez.
+#
+# MIÉRT KELL: a jegyzőkönyvek (kárjegyzőkönyv, ellenőrzési jegyzőkönyv, tulajdonosi és
+# belső riport, fizetési felszólítás) HTML → Chrome headless úton készülnek, mert a
+# PDFKit pozicionált rajzolása öt nyelven nem tartható — egy hosszabb német mondat
+# átcsúszik a szomszéd cellába, és ez a kinyomtatott lapon derül ki.
+#
+# CHROME NÉLKÜL EGYETLEN JEGYZŐKÖNYV SEM ÁLL ELŐ. Ez eddig észrevétlen maradt, mert
+# élesben még senki nem töltött le kárjegyzőkönyv-PDF-et (4 jegyzőkönyv van, egyik sem
+# aláírt), tehát a hiba csak az első valódi aláíratásnál jelentkezett volna — a
+# helyszínen, a lakó előtt. Ugyanaz a hibaosztály, mint a fenti assets/ és migrations/
+# COPY sorok: a kód kész volt, a futtatókörnyezet nem.
+#
+# A `chromium` az Alpine csomagja (nem a Google Chrome); a `--no-sandbox` kapcsolóval
+# fut, amit a renderelő amúgy is megad. A betűkészletek a magyar/ukrán/német ékezetekhez
+# kellenek — nélkülük a PDF-en üres négyzetek jelennének meg.
+RUN apk add --no-cache wget tini \
+      chromium \
+      font-noto font-noto-cyrillic font-noto-extra \
+      ttf-dejavu
+
+# A renderelő ezen az úton keresi (lásd htmlPdf.service.js CHROME_UTAK).
+ENV CHROME_BIN=/usr/bin/chromium-browser
 
 # Copy from builder
 COPY --from=builder /app/node_modules ./node_modules

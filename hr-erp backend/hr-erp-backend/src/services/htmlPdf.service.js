@@ -22,12 +22,16 @@ const { logger } = require('../utils/logger');
 const TEMPLATE_VERSION = '2026-09-24.html-1';
 const NYELVEK = ['hu', 'en', 'uk', 'tl', 'de'];
 
+// A konténerben az Alpine `chromium` csomagja van (CHROME_BIN), fejlesztőgépen a
+// Google Chrome. A környezeti változó az ELSŐ: ha az üzemeltetés máshová telepíti,
+// ne kelljen kódot módosítani.
 const CHROME_UTAK = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/usr/bin/google-chrome',
+  process.env.CHROME_BIN,
   '/usr/bin/chromium-browser',
   '/usr/bin/chromium',
-];
+  '/usr/bin/google-chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].filter(Boolean);
 
 function chromeUt() {
   for (const p of CHROME_UTAK) if (fs.existsSync(p)) return p;

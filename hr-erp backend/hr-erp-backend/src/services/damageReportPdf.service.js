@@ -260,10 +260,15 @@ async function generatePDF(report, lang = 'hu') {
   try {
     fs.writeFileSync(tmpHtml, html, 'utf8');
 
+    // UGYANAZ AZ ÚTLISTA, mint a közös renderelőben — a CHROME_BIN elöl, mert a
+    // konténerben az Alpine chromium van. Enélkül a kárjegyzőkönyv élesben "Chrome
+    // not found"-dal bukott volna el az első aláíratásnál.
     const chromePaths = [
+      process.env.CHROME_BIN,
+      '/usr/bin/chromium-browser', '/usr/bin/chromium',
+      '/usr/bin/google-chrome',
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      '/usr/bin/google-chrome', '/usr/bin/chromium-browser',
-    ];
+    ].filter(Boolean);
     let chrome = null;
     for (const p of chromePaths) {
       if (fs.existsSync(p)) { chrome = p; break; }
