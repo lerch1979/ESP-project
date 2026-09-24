@@ -136,10 +136,52 @@ létezett. A tesztelő vette észre, nem én.
 A tárolás és a megjelenítés megléte **nem** funkció. A funkció az, amit a felhasználó
 el tud végezni.
 
-### Ellenőrző kérdések, mielőtt bármit késznek jelentek
+### A FUTTATÓKÖRNYEZET IS A LÁNC RÉSZE
+
+**Ha egy funkció külső futtatókörnyezetet vagy fájlt igényel — betűtípust, böngészőt,
+szkriptet, sablont, migrációt —, akkor a kész jelentéshez hozzátartozik annak
+ellenőrzése, hogy AZ ÉLES KONTÉNERBEN jelen van.** Nem elég, hogy a fejlesztői gépen
+működik.
+
+#### Miért kellett ezt külön kimondani
+
+Mert **négyszer** fordult már elő, hogy egy funkció azért nem működött volna élesben,
+mert valami kimaradt a Docker image-ből:
+
+| # | mi maradt ki | mikor derült volna ki |
+|---|---|---|
+| 1 | **betűkészletek** (`assets/`) | az első kárjegyzőkönyvnél — ENOENT, nem degradálás |
+| 2 | **migrációs fájlok** (`migrations/`) | a futtató „nothing to do"-t jelentett, a ledger 45 sorral csúszott |
+| 3 | **ops szkriptek** (`scripts/`) | minden művelethez kézzel kellett `docker cp` |
+| 4 | **Chrome** (2026-09-24) | az első valódi aláíratásnál — a helyszínen, a lakó előtt |
+
+Mind a négy **csak az első valódi használatnál** derült volna ki. Ez a legrosszabb
+időzítés: nem fejlesztés közben, hanem amikor valaki épp dolgozni akar vele.
+
+A negyedik ráadásul **visszamenőleg** is érintett egy régóta „kész" funkciót: a
+kárjegyzőkönyv PDF-je hónapok óta benne volt a kódban, és soha nem működött volna
+élesben — csak azért nem bukott ki, mert senki nem töltött le egyet sem.
+
+#### Hogyan ellenőrizd
+
+```bash
+# 1. A konténerben VAN-E, amire szükség van
+ssh deploy@… "docker exec hr-erp-backend-1 sh -c 'ls <út>; <parancs> --version'"
+
+# 2. Ha a Dockerfile-t módosítottad: HELYBEN fordítsd le, mielőtt pusholsz
+docker build -t proba . && docker run --rm proba <ellenőrző parancs>
+```
+
+A második lépés nem formalitás: a Chrome bevezetésekor a CI elsőre elbukott egy **nem
+létező csomagnéven** (`font-noto-cyrillic`). Helyi fordítással ez egy perc alatt kiderül,
+CI-n keresztül két teljes kör.
+
+#### Ellenőrző kérdések, mielőtt bármit késznek jelentek
 
 - Hová kattint a felhasználó? (Ha nem tudom egy mondatban leírni → nem kész.)
 - **Mindkét** úton megvan? (Létrehozás ÉS szerkesztés — az egyik önmagában fél funkció.)
 - Kiment-e a felület frissítése, és a **deployolt** csomag tartalmazza-e? (A forráskód
   nem bizonyíték — a `grep` a deployolt bundle-ön az.)
+- **Kell-e hozzá bármi, ami nem a kódban van?** (betűtípus, böngésző, szkript, sablon,
+  migráció, környezeti változó) — és ha igen, **megnéztem-e az éles konténerben?**
 - Végigpróbáltam-e élesben, **valódi felhasználóként**, nem csak a végpontot hívva?
