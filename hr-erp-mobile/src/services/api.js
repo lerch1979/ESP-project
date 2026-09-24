@@ -481,6 +481,22 @@ export const videosAPI = {
 // scoped library plus anything they were personally sent, with playback_url already
 // resolved to their own language.
 export const residentVideosAPI = {
+  // A KIKÜLDÖTT IRAT letöltése.
+  //
+  // A TOKENT NEM TESSZÜK URL-BE. Kézenfekvő lenne (`?access_token=…`), mert a
+  // böngésző-megnyitó nem viszi az axios fejléceit — de egy URL-ben utazó token
+  // bekerül a megosztás-előzményekbe, a vágólapra és bármelyik közbeeső naplóba.
+  // Helyette az axios tölti le (rendes fejléccel), fájlba írjuk, és a rendszer
+  // megjelenítője nyitja meg. `expo-file-system` és `expo-sharing` már benne van a
+  // projektben, tehát új natív függőség nem kell.
+  myDocument: async (id, filename = 'dokumentum.pdf') => {
+    const r = await api.get(`/videos/my/${id}/document`, { responseType: 'arraybuffer' });
+    const b64 = Buffer.from(r.data, 'binary').toString('base64');
+    const ut = `${FileSystem.cacheDirectory}${filename}`;
+    await FileSystem.writeAsStringAsync(ut, b64, { encoding: FileSystem.EncodingType.Base64 });
+    return ut;
+  },
+
   getAll: async (params = {}) => {
     const response = await api.get('/videos/my', { params });
     return response.data;

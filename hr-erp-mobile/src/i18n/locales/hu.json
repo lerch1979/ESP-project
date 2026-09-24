@@ -395,7 +395,8 @@
     "loadFailedList": "Videók betöltése sikertelen",
     "loadFailedOne": "Videó betöltése sikertelen",
     "notFound": "Videó nem található",
-    "watched": "Megtekintve"
+    "watched": "Megtekintve",
+    "documentFailed": "Az iratot nem sikerült megnyitni. Próbáld újra."
   },
   "calEvent": {
     "checkin": "Bejelentkezés",

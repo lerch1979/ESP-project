@@ -395,7 +395,8 @@
     "loadFailedList": "Videos konnten nicht geladen werden",
     "loadFailedOne": "Video konnte nicht geladen werden",
     "notFound": "Video nicht gefunden",
-    "watched": "Angesehen"
+    "watched": "Angesehen",
+    "documentFailed": "Das Dokument konnte nicht geöffnet werden. Bitte erneut versuchen."
   },
   "calEvent": {
     "checkin": "Check-in",

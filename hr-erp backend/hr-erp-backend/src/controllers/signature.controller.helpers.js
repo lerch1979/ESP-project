@@ -68,6 +68,19 @@ async function pillanatkep(subjectType, subjectId) {
          FROM inspections WHERE id = $1`, [subjectId]);
     return r.rows[0] || null;
   }
+  if (subjectType === 'sent_document') {
+    // A pillanatkép a CÍMZETT-sorból és a dokumentumból áll: mit kapott, milyen
+    // nyelven, és melyik kiküldésből — ez az, amit a lakó a képernyőn is látott.
+    const r = await query(
+      `SELECT v.title, v.description, r2.language, d.title AS document_title,
+              d.document_type, a.sent_at
+         FROM video_announcement_recipients r2
+         JOIN video_announcements a ON a.id = r2.announcement_id
+         JOIN videos v ON v.id = a.video_id
+         LEFT JOIN documents d ON d.id = v.document_id
+        WHERE r2.id = $1`, [subjectId]);
+    return r.rows[0] || null;
+  }
   if (subjectType === 'document') {
     const r = await query(
       'SELECT title, document_type, description FROM documents WHERE id = $1', [subjectId]);

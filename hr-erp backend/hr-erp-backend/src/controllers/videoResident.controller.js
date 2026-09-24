@@ -36,6 +36,11 @@ const VISIBLE_SQL = `
   )
   SELECT v.id, v.title, v.description, v.category, v.duration, v.thumbnail_url,
          v.base_language, v.created_at,
+         -- DOKUMENTUM-KIKULDES (mig 179): a lako ugyanazon a listan kapja a videot es
+         -- a hazirendet. A kind oszlop mondja meg, melyikrol van szo; a mobil ez alapjan
+         -- mutat lejatszot vagy irat-megnyitot. (Backtick nelkul: ez egy JS
+         -- sablon-sztring belseje, ott a backtick lezarna a literalt.)
+         v.kind, v.requires_signature, v.document_id,
          COALESCE(ver.playback_url, base.playback_url, v.url) AS playback_url,
          COALESCE(ver.language, base.language, v.base_language) AS playback_language,
          (ver.id IS NOT NULL) AS in_my_language,
@@ -142,4 +147,50 @@ const recordMyView = async (req, res) => {
   }
 };
 
-module.exports = { getMyVideos, getMyVideoById, recordMyView };
+/**
+ * GET /videos/my/:id/document — a KIKÜLDÖTT irat megnyitása a lakó telefonján.
+ *
+ * Enélkül a lánc félbemarad: a házirend megjelenne a listában, de nem lehetne
+ * elolvasni — és aláírni olyasmit, amit nem lehet megnyitni, nemcsak értelmetlen,
+ * hanem jogilag is értéktelen.
+ *
+ * A JOGOSULTSÁG a KIKÜLDÉSEN múlik, nem a dokumentum tulajdonosán: egy házirendnek
+ * nincs "tulajdonos lakója", de van címzettje. Aki nem kapta meg, annak "nem található".
+ */
+const getMyDocument = async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT d.file_path, d.file_name, d.mime_type
+         FROM video_announcement_recipients r2
+         JOIN video_announcements a ON a.id = r2.announcement_id
+         JOIN videos v ON v.id = a.video_id
+         JOIN documents d ON d.id = v.document_id
+        WHERE v.id = $1 AND r2.user_id = $2 AND v.kind = 'document'
+        LIMIT 1`, [req.params.id, req.user.id]);
+    const doc = r.rows[0];
+    if (!doc || !doc.file_path) {
+      return res.status(404).json({ success: false, message: 'A dokumentum nem található' });
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+    const gyoker = path.resolve(__dirname, '..', '..');
+    const teljes = path.resolve(
+      path.isAbsolute(doc.file_path) ? doc.file_path : path.join(gyoker, doc.file_path));
+    // ÚTVONAL-KITÖRÉS ELLEN: a feloldott útnak a projekten BELÜL kell maradnia.
+    // Egy adatbázisból jövő "../../etc/passwd" különben kiszolgálható lenne.
+    if (!teljes.startsWith(gyoker) || !fs.existsSync(teljes)) {
+      return res.status(404).json({ success: false, message: 'A dokumentum nem található' });
+    }
+
+    res.setHeader('Content-Type', doc.mime_type || 'application/pdf');
+    res.setHeader('Content-Disposition',
+      `inline; filename="${(doc.file_name || 'dokumentum.pdf').replace(/"/g, '')}"`);
+    fs.createReadStream(teljes).pipe(res);
+  } catch (e) {
+    logger.error(`[videoResident.getMyDocument] ${e.message}`);
+    res.status(500).json({ success: false, message: 'Hiba történt' });
+  }
+};
+
+module.exports = { getMyVideos, getMyVideoById, recordMyView, getMyDocument };

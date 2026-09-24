@@ -22,7 +22,8 @@ const helpers = require('./signature.controller.helpers');
 /** A bejelentkezett felhasználóhoz tartozó dolgozói sor. */
 async function sajatDolgozo(userId) {
   const r = await query(
-    'SELECT id, first_name, last_name, accommodation_id FROM employees WHERE user_id = $1',
+    `SELECT id, first_name, last_name, accommodation_id, user_id
+       FROM employees WHERE user_id = $1`,
     [userId]);
   return r.rows[0] || null;
 }
@@ -57,6 +58,17 @@ async function ravonatkozik(subjectType, subjectId, emp) {
     const r = await query(
       'SELECT 1 FROM inspections WHERE id = $1 AND accommodation_id = $2',
       [subjectId, emp.accommodation_id]);
+    return r.rows.length > 0;
+  }
+  if (subjectType === 'sent_document') {
+    // A kapocs a CÍMZETT-sor: neki küldték ki, és a dokumentum aláírást kér.
+    const r = await query(
+      `SELECT 1 FROM video_announcement_recipients r2
+         JOIN video_announcements a ON a.id = r2.announcement_id
+         JOIN videos v ON v.id = a.video_id
+        WHERE r2.id = $1 AND r2.user_id = $2
+          AND v.kind = 'document' AND v.requires_signature`,
+      [subjectId, emp.user_id]);
     return r.rows.length > 0;
   }
   if (subjectType === 'document') {
@@ -95,6 +107,13 @@ const pending = async (req, res) => {
          SELECT 'inspection', i.id, i.inspection_number, i.general_notes, i.created_at
            FROM inspections i
           WHERE i.accommodation_id = $2 AND i.status = 'completed'
+         UNION ALL
+         -- KIKÜLDÖTT DOKUMENTUM (házirend, tájékoztató), ha aláírást kér.
+         SELECT 'sent_document', r2.id, v.title, v.description, r2.created_at
+           FROM video_announcement_recipients r2
+           JOIN video_announcements a ON a.id = r2.announcement_id
+           JOIN videos v ON v.id = a.video_id
+          WHERE r2.user_id = $3 AND v.kind = 'document' AND v.requires_signature
        )
        SELECT s.* FROM sajat s
         WHERE NOT EXISTS (
@@ -102,7 +121,7 @@ const pending = async (req, res) => {
            WHERE ds.subject_type = s.t AND ds.subject_id = s.id
              AND ds.signer_role = 'resident')
         ORDER BY s.created_at DESC LIMIT 50`,
-      [emp.id, emp.accommodation_id]);
+      [emp.id, emp.accommodation_id, emp.user_id]);
 
     res.json({ success: true, data: { items: r.rows } });
   } catch (e) {

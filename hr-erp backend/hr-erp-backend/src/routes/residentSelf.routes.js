@@ -70,6 +70,8 @@ router.delete('/employees/my/photo', authenticateToken, residentSelf.deleteMyPho
 router.get('/videos/my', authenticateToken, videoResident.getMyVideos);
 router.get('/videos/my/:id', authenticateToken, videoResident.getMyVideoById);
 router.post('/videos/my/:id/view', authenticateToken, videoResident.recordMyView);
+// A kiküldött IRAT megnyitása (mig 179). A jogosultság a kiküldésen múlik.
+router.get('/videos/my/:id/document', authenticateToken, videoResident.getMyDocument);
 
 router.get('/calendar/my', authenticateToken, calendarController.getMyCalendarEvents);
 // Per-event .ics export — self-scoped (a resident can only export their OWN

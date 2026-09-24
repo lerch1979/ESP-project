@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Sharing from 'expo-sharing';
+import { View, FlatList, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/colors';
 import { videoApiFor } from '../../services/api';
@@ -78,7 +80,23 @@ export default function VideoListScreen({ navigation }) {
     }
   };
 
-  const handleVideoPress = (video) => {
+  const handleVideoPress = async (video) => {
+    // DOKUMENTUM vagy VIDEÓ (mig 179). A lista ugyanaz — a tartalom más, tehát a
+    // megnyitás is: a videót lejátszó képernyő viszi, az iratot a rendszer
+    // PDF-nézője. Egy videólejátszó egy PDF-fel üres képernyőt mutatna.
+    if (video.kind === 'document') {
+      try {
+        const ut = await api.myDocument(video.id, `${video.title || 'irat'}.pdf`);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(ut, { mimeType: 'application/pdf' });
+        } else {
+          await WebBrowser.openBrowserAsync(ut);
+        }
+      } catch {
+        Alert.alert(t('common.error'), t('video.documentFailed'));
+      }
+      return;
+    }
     navigation.navigate('VideoDetail', { videoId: video.id, title: video.title });
   };
 

@@ -171,25 +171,45 @@ const createVideo = async (req, res) => {
       title, description, url, thumbnail_url, category, duration,
       scope = 'global', workplace_id, contractor_id, base_language, is_featured,
       versions, subtitles,
+      // DOKUMENTUM-KIKÜLDÉS (mig 179). Ugyanaz a modul, ugyanaz a célzás, ugyanaz a
+      // nyelvenkénti kézbesítés és emlékeztető — csak a tartalom más.
+      kind = 'video', document_id, requires_signature = false,
     } = req.body;
 
     if (!title) return res.status(400).json({ success: false, message: 'Cím megadása kötelező' });
     if (category && !CATEGORY_LABELS[category]) return res.status(400).json({ success: false, message: 'Érvénytelen kategória' });
     const scopeErr = validateScopeBody(req.body);
     if (scopeErr) return res.status(400).json({ success: false, message: scopeErr });
-    // A video must have either a base url (fallback) or at least one language version.
-    if (!url && !(Array.isArray(versions) && versions.length)) {
+
+    if (!['video', 'document'].includes(kind)) {
+      return res.status(400).json({ success: false, message: 'A típus csak video vagy document lehet' });
+    }
+    if (kind === 'document') {
+      // Dokumentumnál FÁJL kell, nem URL. Enélkül a lakó egy kattinthatatlan tételt
+      // látna a listájában — a küldés "sikerülne", a tartalom viszont nem lenne sehol.
+      if (!document_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Dokumentum kiküldéséhez ki kell választani a feltöltött iratot.',
+        });
+      }
+    } else if (!url && !(Array.isArray(versions) && versions.length)) {
+      // A video must have either a base url (fallback) or at least one language version.
       return res.status(400).json({ success: false, message: 'URL vagy legalább egy nyelvi videóverzió megadása kötelező' });
     }
 
     const result = await query(
       `INSERT INTO videos (title, description, url, thumbnail_url, category, duration,
-                           scope, workplace_id, contractor_id, base_language, is_featured, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+                           scope, workplace_id, contractor_id, base_language, is_featured, created_by,
+                           kind, document_id, requires_signature)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
       [
         title, description || null, url || null, thumbnail_url || null, category || 'ceg_info', parseInt(duration) || 0,
         scope, scope === 'workplace' ? workplace_id : null, scope === 'contractor' ? contractor_id : null,
         LANGS.includes(base_language) ? base_language : 'hu', !!is_featured, req.user.id,
+        kind, kind === 'document' ? document_id : null,
+        // Aláírást csak DOKUMENTUM kérhet: egy videót megnézni kell, nem aláírni.
+        kind === 'document' ? !!requires_signature : false,
       ],
     );
     const video = result.rows[0];

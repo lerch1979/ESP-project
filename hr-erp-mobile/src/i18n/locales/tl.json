@@ -395,7 +395,8 @@
     "loadFailedList": "Nabigong i-load ang mga video",
     "loadFailedOne": "Nabigong i-load ang video",
     "notFound": "Hindi nakita ang video",
-    "watched": "Napanood na"
+    "watched": "Napanood na",
+    "documentFailed": "Hindi mabuksan ang dokumento. Subukan ulit."
   },
   "calEvent": {
     "checkin": "Check-in",

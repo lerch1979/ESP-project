@@ -50,6 +50,7 @@ const MODULES = [
   './scenarios/signatures',
   './scenarios/unknownField',
   './scenarios/inspectionPdf',
+  './scenarios/documentDistribution',
   './scenarios/reports',
   './scenarios/dataIntegrity',
   './scenarios/partners',

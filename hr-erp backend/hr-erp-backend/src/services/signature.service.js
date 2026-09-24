@@ -20,7 +20,10 @@ const { query } = require('../database/connection');
 const { logger } = require('../utils/logger');
 
 const NYELVEK = ['hu', 'en', 'uk', 'tl', 'de'];
-const TARGYAK = ['damage_report', 'inspection', 'compensation_resident', 'document'];
+// A `sent_document` az EGY SZEMÉLYNEK kiküldött példány (a címzett-sor), nem a
+// dokumentum maga — így minden címzett a SAJÁT példányát írja alá, egyszer.
+const TARGYAK = ['damage_report', 'inspection', 'compensation_resident',
+  'document', 'sent_document'];
 const SZEREPEK = ['resident', 'staff', 'witness'];
 
 // ─── A nyilatkozat szövege ───────────────────────────────────────────────────
@@ -42,7 +45,10 @@ function nyilatkozat(subjectType, signerRole, nyelv, params = {}) {
     throw Object.assign(new Error(`Ismeretlen nyelv: ${nyelv}`), { status: 400 });
   }
   const d = JSON.parse(fs.readFileSync(szovegFajl(nyelv), 'utf8'));
-  const kulcs = signerRole === 'resident' ? `${subjectType}.resident` : signerRole;
+  // A kiküldött dokumentum ugyanazt a nyilatkozatot kapja, mint az egyedi: a lakó
+  // szempontjából nincs különbség — elolvasta és megismerte.
+  const tipus = subjectType === 'sent_document' ? 'document' : subjectType;
+  const kulcs = signerRole === 'resident' ? `${tipus}.resident` : signerRole;
   const szoveg = d.texts[kulcs];
   if (!szoveg) {
     throw Object.assign(
