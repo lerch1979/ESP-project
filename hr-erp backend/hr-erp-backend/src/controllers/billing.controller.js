@@ -72,10 +72,44 @@ const createRate = async (req, res) => {
   } catch (e) { logger.error('[billing.createRate]', e.message); res.status(500).json({ success: false, message: 'Hiba' }); }
 };
 
+const BASIS_ERTEKEK = ['per_person', 'flat', 'per_bed_night'];
+
 const updateRate = async (req, res) => {
   try {
     const { rate_per_night, flat_amount, vat_rate, currency, valid_from, valid_to, notes,
-            rate_used, rate_empty, occupancy_floor_pct, contracted_beds } = req.body || {};
+            rate_used, rate_empty, occupancy_floor_pct, contracted_beds,
+            // EZ A KETTŐ EDDIG NÉMÁN ELVESZETT, és PÉNZT ÉRINT:
+            //   billing_basis — fő / ágyéjszaka / átalány: ez dönti el, HOGYAN számolunk;
+            //   vat_exempt    — ÁFA-mentes-e a sor.
+            // A díjszabás űrlapja mindkettőt küldi. Ma nincs szerkesztő képernyő, de
+            // szerződések változnak: amint megépül, az első mentés némán elrontaná a
+            // számlázást — és a hiba csak a hónap végén, a számlán derülne ki.
+            billing_basis, vat_exempt,
+            workplace_id,
+            // A megbízó és a szállás SZÁNDÉKOSAN nincs a listán — lásd alább.
+            contractor_id, accommodation_id } = req.body || {};
+
+    // AZONOSÍTÓ MEZŐ ÁTÍRÁSA NEM SZERKESZTÉS. Egy díjsort az (megbízó, szállás,
+    // munkahely, érvényesség) négyes azonosít; ha ezeket helyben átírnánk, az a MÁR
+    // KISZÁMLÁZOTT hónapokat írná át visszamenőleg. Ilyenkor új sort kell nyitni és a
+    // régit lezárni — ezért ezt kimondjuk, nem csendben eldobjuk.
+    for (const [nev, ertek] of Object.entries({ contractor_id, accommodation_id })) {
+      if (ertek !== undefined) {
+        return res.status(400).json({
+          success: false,
+          message: `A(z) "${nev}" meglévő díjsoron nem módosítható: az a díj AZONOSÍTÓJA, `
+            + 'nem tulajdonsága. Átírása a már kiszámlázott hónapokat változtatná meg. '
+            + 'Nyiss új díjsort, a régit pedig zárd le egy érvényességi véggel.',
+        });
+      }
+    }
+
+    if (billing_basis != null && !BASIS_ERTEKEK.includes(billing_basis)) {
+      return res.status(400).json({
+        success: false,
+        message: `Érvénytelen számlázási alap. Lehetséges: ${BASIS_ERTEKEK.join(', ')}`,
+      });
+    }
     if (vat_rate != null && !(Number(vat_rate) >= 0 && Number(vat_rate) <= 1)) {
       return res.status(400).json({ success: false, message: 'ÁFA 0 és 1 közötti tört' });
     }
@@ -98,16 +132,38 @@ const updateRate = async (req, res) => {
          rate_empty          = COALESCE($10, rate_empty),
          occupancy_floor_pct = COALESCE($11, occupancy_floor_pct),
          contracted_beds     = COALESCE($12, contracted_beds),
+         billing_basis       = COALESCE($13, billing_basis),
+         vat_exempt          = COALESCE($14, vat_exempt),
+         workplace_id        = COALESCE($15, workplace_id),
          updated_at          = now()
-       WHERE id = $1 RETURNING id`,
+       WHERE id = $1 RETURNING id, billing_basis, vat_exempt`,
       [req.params.id, rate_per_night ?? null, flat_amount ?? null, vat_rate ?? null,
        currency || null, valid_from || null, valid_to || null, notes || null,
        rate_used ?? null, rate_empty ?? null, occupancy_floor_pct ?? null,
-       (contracted_beds != null && contracted_beds !== '') ? Number(contracted_beds) : null]
+       (contracted_beds != null && contracted_beds !== '') ? Number(contracted_beds) : null,
+       billing_basis ?? null,
+       typeof vat_exempt === 'boolean' ? vat_exempt : null,
+       workplace_id ?? null]
     );
     if (!r.rows.length) return res.status(404).json({ success: false, message: 'Nem található' });
-    res.json({ success: true });
-  } catch (e) { logger.error('[billing.updateRate]', e.message); res.status(500).json({ success: false, message: 'Hiba' }); }
+    // A díjsor pénzt mozgat: a módosítás hagyjon nyomot.
+    logger.info(`[billing.updateRate] ${req.params.id} módosítva (${req.user?.email}) — `
+      + `alap=${r.rows[0].billing_basis}, ÁFA-mentes=${r.rows[0].vat_exempt}`);
+    res.json({ success: true, data: r.rows[0] });
+  } catch (e) {
+    // A CHECK-ek itt ÉRDEMI hibák: pl. per_bed_night alapra váltás rate_used nélkül,
+    // vagy munkahely + lekötött ágyszám együtt. Ezt meg kell mondani, nem "Hiba"-ként.
+    if (e.code === '23514') {
+      return res.status(400).json({
+        success: false,
+        message: 'A díjsor így ellentmondásos lenne: a választott számlázási alaphoz '
+          + 'tartozó összeg hiányzik, vagy munkahelyhez lekötött ágyszám van megadva. '
+          + `(${e.constraint || 'adatbázis-ellenőrzés'})`,
+      });
+    }
+    logger.error('[billing.updateRate]', e.message);
+    res.status(500).json({ success: false, message: 'Hiba' });
+  }
 };
 
 // ── per-CLIENT billing profile (invoicing on/off · legal type · VAT-exempt reason) ──

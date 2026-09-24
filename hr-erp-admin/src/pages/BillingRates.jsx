@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { halkHiba } from '../utils/nonFatal';
 import {
   Box, Paper, Typography, Grid, TextField, MenuItem, Button, IconButton,
   Table, TableHead, TableRow, TableCell, TableBody, Chip, Stack, Alert, CircularProgress, Switch, FormControlLabel,
@@ -31,8 +32,21 @@ export default function BillingRates() {
   const [runResult, setRunResult] = useState(null);
   const [coverage, setCoverage] = useState(null);
 
-  const loadRates = useCallback(async () => { try { setRates(arr(await billingAPI.listRates())); } catch { /* */ } }, []);
-  const loadProfiles = useCallback(async () => { try { setProfiles(arr(await billingAPI.listProfiles())); } catch { /* */ } }, []);
+  // ÜRES DÍJLISTA MAGYARÁZAT NÉLKÜL a legveszélyesebb: a felhasználó azt hinné, nincs
+  // díjsor, és újat rögzítene — miközben van, csak a lekérdezés hibázott.
+  const loadRates = useCallback(async () => {
+    try { setRates(arr(await billingAPI.listRates())); }
+    catch (e) {
+      halkHiba('BillingRates/díjsorok', e, {
+        felhasznaloiUzenet: 'A díjsorokat nem sikerült betölteni. A lista ÜRESEN látszik — '
+          + 'ne rögzíts újat, amíg nem töltötted újra az oldalt.',
+      });
+    }
+  }, []);
+  const loadProfiles = useCallback(async () => {
+    try { setProfiles(arr(await billingAPI.listProfiles())); }
+    catch (e) { halkHiba('BillingRates/profilok', e); }
+  }, []);
   const loadCoverage = useCallback(async (m) => { try { setCoverage((await billingAPI.rateCoverage(m)).data); } catch { setCoverage(null); } }, []);
 
   useEffect(() => {

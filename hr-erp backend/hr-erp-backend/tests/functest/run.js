@@ -48,6 +48,7 @@ const MODULES = [
   './scenarios/permissions',
   './scenarios/authSession',
   './scenarios/signatures',
+  './scenarios/unknownField',
   './scenarios/reports',
   './scenarios/dataIntegrity',
   './scenarios/partners',

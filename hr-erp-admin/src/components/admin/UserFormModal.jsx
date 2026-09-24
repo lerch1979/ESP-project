@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { halkHiba } from '../../utils/nonFatal';
 import {
   Dialog,
   DialogTitle,
@@ -82,8 +83,11 @@ function UserFormModal({ open, onClose, user, onSuccess }) {
       if (response.success) {
         setRoles(response.data.roles || response.data || []);
       }
-    } catch {
-      // Roles might not be accessible
+    } catch (e) {
+      // SZÁNDÉKOSAN NEM ZAVARJUK a felhasználót: a szerepkör-lista hiánya lehet
+      // jogosultsági kérdés is (nem minden admin láthatja). A konzolba viszont kell
+      // nyom, különben a támogatásnak sincs mit néznie.
+      halkHiba('UserFormModal/szerepkörök', e);
     }
   };
 

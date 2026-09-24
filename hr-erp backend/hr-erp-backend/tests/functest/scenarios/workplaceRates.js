@@ -193,5 +193,72 @@ module.exports = {
         };
       },
     },
+    {
+      id: 'WPRATE-90',
+      name: '⚠️ a díjsor SZERKESZTÉSE átveszi a billing_basis-t és a vat_exempt-et',
+      expected: { mentes: 200, alap: 'per_bed_night', afamentes: true },
+      hint: 'ez a kettő PÉNZT ÉRINT — némán elveszve a számlázás rosszul számolna',
+      run: async (ctx, s) => {
+        const t = http.tokenFor(ctx.ids.user.superadmin);
+        const sor = (await query(
+          `INSERT INTO client_night_rates
+             (contractor_id, accommodation_id, billing_basis, rate_per_night,
+              vat_rate, vat_exempt, valid_from)
+           VALUES ($1, $2, 'per_person', 3000, 0.27, false, '2026-01-01')
+           RETURNING id`, [ctx.ids.client.A, s.acc.id])).rows[0];
+
+        const r = await http.put(`/billing/rates/${sor.id}`, {
+          token: t,
+          body: { billing_basis: 'per_bed_night', vat_exempt: true, rate_used: 3500 },
+        });
+        const db = (await query(
+          'SELECT billing_basis, vat_exempt FROM client_night_rates WHERE id = $1',
+          [sor.id])).rows[0];
+        await query('DELETE FROM client_night_rates WHERE id = $1', [sor.id]);
+        return { mentes: r.status, alap: db.billing_basis, afamentes: db.vat_exempt };
+      },
+    },
+    {
+      id: 'WPRATE-91',
+      name: 'a megbízó/szállás ÁTÍRÁSÁT kimondottan elutasítja — nem csendben dobja el',
+      expected: { status: 400, megmondja_miert: true },
+      hint: 'az azonosító átírása a MÁR KISZÁMLÁZOTT hónapokat változtatná meg',
+      run: async (ctx, s) => {
+        const t = http.tokenFor(ctx.ids.user.superadmin);
+        const sor = (await query(
+          `INSERT INTO client_night_rates
+             (contractor_id, accommodation_id, billing_basis, rate_per_night, valid_from)
+           VALUES ($1, $2, 'per_person', 3000, '2026-01-01') RETURNING id`,
+          [ctx.ids.client.A, s.acc.id])).rows[0];
+        const r = await http.put(`/billing/rates/${sor.id}`, {
+          token: t, body: { contractor_id: ctx.ids.client.B } });
+        await query('DELETE FROM client_night_rates WHERE id = $1', [sor.id]);
+        return {
+          status: r.status,
+          megmondja_miert: /kiszámlázott|azonosító/i.test(r.body?.message || ''),
+        };
+      },
+    },
+    {
+      id: 'WPRATE-92',
+      name: 'ellentmondásos díjsor ÉRTHETŐ hibát kap, nem "Hiba"-t',
+      expected: { status: 400, ertelmes: true },
+      hint: 'per_bed_night alapra váltás rate_used nélkül — az adatbázis 23514-et dobna',
+      run: async (ctx, s) => {
+        const t = http.tokenFor(ctx.ids.user.superadmin);
+        const sor = (await query(
+          `INSERT INTO client_night_rates
+             (contractor_id, accommodation_id, billing_basis, rate_per_night, valid_from)
+           VALUES ($1, $2, 'per_person', 3000, '2026-01-01') RETURNING id`,
+          [ctx.ids.client.A, s.acc.id])).rows[0];
+        const r = await http.put(`/billing/rates/${sor.id}`, {
+          token: t, body: { billing_basis: 'per_bed_night' } });
+        await query('DELETE FROM client_night_rates WHERE id = $1', [sor.id]);
+        return {
+          status: r.status,
+          ertelmes: /ellentmondásos|összeg hiányzik/i.test(r.body?.message || ''),
+        };
+      },
+    },
   ],
 };

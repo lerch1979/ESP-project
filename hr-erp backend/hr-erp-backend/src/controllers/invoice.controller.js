@@ -3,6 +3,7 @@ const allocations = require('../services/invoiceAllocation.service');
 const expenseSync = require('../services/invoiceExpenseSync.service');
 const mnb = require('../services/mnbRates.service');
 const { logger } = require('../utils/logger');
+const ufGuard = require('../middleware/unknownFieldGuard');
 const { scopeOf, contractorPredicate, ownsRow } = require('../utils/tenantScope');
 const { logActivity, diffObjects } = require('../utils/activityLogger');
 const { monthStatus } = require('../utils/monthLock');
@@ -461,6 +462,22 @@ const update = async (req, res) => {
       // szerkesztendő adat.
       supplier_invoice_number, performance_date, vendor_contractor_id
     } = req.body;
+
+    // ISMERETLEN MEZŐ ŐRE — 1. fázis: csak NAPLÓZ, nem utasít el. A felület a teljes
+    // `form` objektumot küldi, benne szándékosan nem mentendő mezőkkel; azok a második
+    // listán vannak. Ami egyikben sincs, arról senki nem döntött — azt látni akarjuk.
+    ufGuard.ellenoriz(req.body, [
+      'vendor_name', 'vendor_tax_number', 'amount', 'currency', 'vat_amount',
+      'total_amount', 'invoice_date', 'due_date', 'payment_date', 'payment_status',
+      'cost_center_id', 'category_id', 'description', 'notes', 'line_items',
+      'client_name', 'client_id', 'contractor_id', 'supplier_invoice_number',
+      'performance_date', 'vendor_contractor_id',
+    ], [
+      // A felület küldi, de TUDATOSAN nem mentjük:
+      'invoice_number',       // a mi belső sorszámunk, nem szerkesztendő
+      'is_landlord_notice',   // csak rögzítéskori jelölő, nem adatbázis-oszlop
+      'allocations', 'accommodation_id', 'target_type',  // külön ágon kezeljük
+    ], req);
 
     // Üres sztring = "nem adtak meg", nem pedig "töröld". Egy üres számlaszám
     // elrontaná a "hiányzik" jelzést a listában és kiesne az egyediségi indexből is.

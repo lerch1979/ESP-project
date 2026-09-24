@@ -6,6 +6,7 @@ import {
   Autocomplete, Chip, InputAdornment,
 } from '@mui/material';
 import { toast } from 'react-toastify';
+import { halkHiba } from '../utils/nonFatal';
 import { damageReportsAPI, accommodationsAPI, employeesAPI } from '../services/api';
 
 // Status set mirrors STATUS_COLORS in DamageReportDetail. Only statuses
@@ -84,7 +85,13 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
           const res = await accommodationsAPI.getAll({ limit: 500 });
           const list = res?.data?.accommodations || res?.data || [];
           setAccommodations(Array.isArray(list) ? list : []);
-        } catch { /* non-fatal */ }
+        } catch (e) {
+          // ÜRES LEGÖRDÜLŐ MAGYARÁZAT NÉLKÜL: a felhasználó azt hinné, nincs szállás.
+          halkHiba('DamageReportEditModal/szállások', e, {
+            felhasznaloiUzenet: 'A szállások listáját nem sikerült betölteni — '
+              + 'a választó üres marad. Töltsd újra az oldalt.',
+          });
+        }
       })();
     }
     if (!employees.length) {
@@ -92,7 +99,12 @@ export default function DamageReportEditModal({ open, report, onClose, onSaved }
         try {
           const res = await employeesAPI.getAll({ limit: 1000 });
           if (res?.success) setEmployees(res.data?.employees || []);
-        } catch { /* non-fatal */ }
+        } catch (e) {
+          halkHiba('DamageReportEditModal/dolgozók', e, {
+            felhasznaloiUzenet: 'A dolgozók listáját nem sikerült betölteni — '
+              + 'a felelős nem választható ki. Töltsd újra az oldalt.',
+          });
+        }
       })();
     }
   }, [open, accommodations.length, employees.length]);

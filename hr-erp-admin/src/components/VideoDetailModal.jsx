@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { halkHiba } from '../utils/nonFatal';
 import {
   Dialog,
   DialogTitle,
@@ -117,8 +118,11 @@ function VideoDetailModal({ open, onClose, video, isAdmin }) {
     try {
       const result = await videosAPI.getById(currentVideo.id);
       setCurrentVideo(result.data);
-    } catch (error) {
-      // ignore
+    } catch (e) {
+      // SZÁNDÉKOSAN nem végzetes: a MENTÉS már sikerült (a szerkesztő ablak végezte),
+      // ez csak az újratöltés. A sikerüzenet ezért jogos — a képernyőn viszont a RÉGI
+      // adat maradhat, ezért a konzolba nyomot hagyunk.
+      halkHiba('VideoDetailModal/újratöltés szerkesztés után', e);
     }
     toast.success('Videó sikeresen frissítve');
   };
