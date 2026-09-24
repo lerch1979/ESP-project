@@ -29,9 +29,12 @@ WORKDIR /app
 # A `chromium` az Alpine csomagja (nem a Google Chrome); a `--no-sandbox` kapcsolóval
 # fut, amit a renderelő amúgy is megad. A betűkészletek a magyar/ukrán/német ékezetekhez
 # kellenek — nélkülük a PDF-en üres négyzetek jelennének meg.
+# A `font-noto-cyrillic` NEM LÉTEZŐ csomag ebben az Alpine-ban (a CI elbukott rajta) —
+# a cirill lefedettség magában a `font-noto`-ban van. A `font-noto-extra` a ritkább
+# jeleket hozza, a `ttf-dejavu` pedig a magyar ő/ű biztos megjelenítését.
 RUN apk add --no-cache wget tini \
       chromium \
-      font-noto font-noto-cyrillic font-noto-extra \
+      font-noto font-noto-extra \
       ttf-dejavu
 
 # A renderelő ezen az úton keresi (lásd htmlPdf.service.js CHROME_UTAK).
