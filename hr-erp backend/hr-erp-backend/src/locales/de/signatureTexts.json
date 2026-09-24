@@ -1,11 +1,20 @@
 {
-  "version": "2026-09-24.1",
+  "version": "2026-09-24.2",
   "texts": {
     "compensation_resident.resident": "Ich NEHME die obige Schadensforderung und deren Höhe ZUR KENNTNIS. Mir ist bekannt, dass Housing Solutions KEINEN ABZUG vornimmt: Das Protokoll wird an meinen Arbeitgeber / Auftraggeber weitergeleitet, und über einen etwaigen Abzug entscheidet dessen Lohnbuchhaltung nach den dort geltenden Regeln. Meine Unterschrift bestätigt die Kenntnisnahme der Forderung, NICHT die Zustimmung zu einem Abzug.",
     "damage_report.resident": "Ich habe das obige Schadensprotokoll gelesen und NEHME dessen Inhalt sowie den festgestellten Betrag ZUR KENNTNIS.",
     "document.resident": "Ich habe das obige Dokument gelesen und zur Kenntnis genommen.",
-    "inspection.resident": "Ich wurde über das Ergebnis der Kontrolle informiert. Mir ist bekannt, dass bei wiederholtem Mangel eine Vertragsstrafe nach der Hausordnung festgesetzt werden kann.",
+    "inspection.resident": "Ich wurde über das Ergebnis der Kontrolle informiert. Ergebnis: {{eredmeny}} (Hygienepunktzahl: {{pontszam}}). Mir ist bekannt, dass eine Punktzahl von {{kuszob}} oder darunter als NICHT BESTANDEN gilt und dass nach {{alkalom}} aufeinanderfolgenden nicht bestandenen Kontrollen eine Vertragsstrafe nach der Hausordnung — derzeit {{osszeg}} HUF pro Person — festgesetzt werden kann. Mir ist bekannt, dass meine Unterschrift die KENNTNISNAHME des Ergebnisses und dieser Folge bestätigt.",
     "staff": "Ich habe der anwesenden Person das Protokoll vorgelegt und dessen Inhalt gemeinsam mit ihr durchgesehen.",
     "witness": "Als Zeuge bestätige ich, dass der oben genannten Person das Protokoll vorgelegt wurde und sie es in meiner Anwesenheit unterschrieben bzw. die Unterschrift verweigert hat."
+  },
+  "grades": {
+    "excellent": "ausgezeichnet",
+    "good": "gut",
+    "acceptable": "akzeptabel",
+    "poor": "mangelhaft",
+    "bad": "schlecht",
+    "critical": "kritisch",
+    "ismeretlen": "nicht festgestellt"
   }
 }

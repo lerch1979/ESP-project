@@ -37,7 +37,7 @@ function szovegFajl(nyelv) {
  * egy ukrán lakónak magyar nyilatkozatot aláíratni pontosan az a helyzet, amit el
  * akarunk kerülni — a tulajdonos szavaival "jogilag értéktelen".
  */
-function nyilatkozat(subjectType, signerRole, nyelv) {
+function nyilatkozat(subjectType, signerRole, nyelv, params = {}) {
   if (!NYELVEK.includes(nyelv)) {
     throw Object.assign(new Error(`Ismeretlen nyelv: ${nyelv}`), { status: 400 });
   }
@@ -48,13 +48,42 @@ function nyilatkozat(subjectType, signerRole, nyelv) {
     throw Object.assign(
       new Error(`Hiányzik a nyilatkozat szövege: ${kulcs} (${nyelv})`), { status: 500 });
   }
-  return { text: szoveg, version: d.version };
+
+  // A MINŐSÍTÉS NYELVENKÉNT MÁS SZÓ. Ha a hívó a nyers kulcsot adja meg
+  // (`eredmeny_kulcs: 'poor'`), akkor minden nyelv a SAJÁT szavát kapja — enélkül az
+  // ukrán szövegben magyarul állna, hogy "gyenge", és a lakó pont azt nem értené meg,
+  // amiért az egészet a saját nyelvén mutatjuk.
+  const p2 = { ...params };
+  if (p2.eredmeny_kulcs) {
+    p2.eredmeny = (d.grades || {})[p2.eredmeny_kulcs]
+      || (d.grades || {}).ismeretlen || p2.eredmeny_kulcs;
+    delete p2.eredmeny_kulcs;
+  }
+  params = p2;
+
+  // BEHELYETTESÍTÉS. Az ellenőrzési nyilatkozatnak ki kell mondania a KONKRÉT eredményt
+  // és a KONKRÉT következményt (összeg, hányadik alkalom) — a lakó ebből tudja meg, mit
+  // ír alá. Az értékek az ÉLŐ konfigurációból jönnek, nem beégetve: ha az összeg
+  // változik, a szöveg is más lesz, és a tárolt példány azt őrzi, ami AKKOR élt.
+  const kitoltott = szoveg.replace(/\{\{(\w+)\}\}/g, (_, k) => (
+    params[k] !== undefined && params[k] !== null ? String(params[k]) : `{{${k}}}`));
+
+  // KITÖLTETLEN HELYŐRZŐVEL NEM ÍRUNK ALÁ. Egy "{{osszeg}} Ft bírság" szövegű
+  // nyilatkozat nemcsak zavaros — bizonyítékként értéktelen, mert nem derül ki belőle,
+  // mit közöltünk. Inkább hiba, mint egy félkész jogi szöveg aláíratása.
+  const maradek = kitoltott.match(/\{\{(\w+)\}\}/g);
+  if (maradek) {
+    throw Object.assign(
+      new Error(`A nyilatkozat hiányos: kitöltetlen helyőrző(k): ${maradek.join(', ')}. `
+        + 'Ilyen szöveget nem íratunk alá.'), { status: 500 });
+  }
+  return { text: kitoltott, version: d.version };
 }
 
 /** Mind az 5 nyelven — a felület ezt mutatja, hogy a lakó a sajátját válassza. */
-function nyilatkozatMind(subjectType, signerRole) {
+function nyilatkozatMind(subjectType, signerRole, params = {}) {
   const ki = {};
-  for (const ny of NYELVEK) ki[ny] = nyilatkozat(subjectType, signerRole, ny).text;
+  for (const ny of NYELVEK) ki[ny] = nyilatkozat(subjectType, signerRole, ny, params).text;
   return ki;
 }
 
@@ -128,7 +157,7 @@ async function sign(p) {
   }
 
   const nyelv = kotelezo(p.language, 'nyelv');
-  const { text, version } = nyilatkozat(p.subjectType, p.signerRole, nyelv);
+  const { text, version } = nyilatkozat(p.subjectType, p.signerRole, nyelv, p.textParams || {});
   const pillanatkep = p.snapshot || {};
   const hash = ujjlenyomat(text, pillanatkep);
 

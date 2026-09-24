@@ -1272,8 +1272,13 @@ export const chatbotAPI = {
 // Users API
 // Egységes aláírás-tár (mig 177) — mind a négy dokumentumtípusra ugyanez.
 export const signaturesAPI = {
-  texts: async (subjectType, signerRole) =>
-    (await api.get('/signatures/texts', { params: { subjectType, signerRole } })).data,
+  // A `subjectId` az ellenőrzésnél KELL: a nyilatkozat a KONKRÉT eredményt és a
+  // bírság konkrét összegét tartalmazza. Enélkül a felület más szöveget mutatna, mint
+  // amit a szerver eltárol — vagyis az aláírás nem arról szólna, amit elolvasott.
+  texts: async (subjectType, signerRole, subjectId) =>
+    (await api.get('/signatures/texts', {
+      params: { subjectType, signerRole, subjectId },
+    })).data,
   list: async (subjectType, subjectId) =>
     (await api.get(`/signatures/${subjectType}/${subjectId}`)).data,
   create: async (subjectType, subjectId, body) =>

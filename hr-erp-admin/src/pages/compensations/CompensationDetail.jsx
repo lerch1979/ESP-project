@@ -12,10 +12,12 @@ import {
   Send as IssueIcon, Email as EmailIcon, Groups as GroupsIcon,
   Gavel as DisputeIcon, AccountBalance as DeductionIcon, CheckCircle as ResolveIcon,
   Add as AddIcon, Delete as DeleteIcon, TouchApp as OnSiteIcon,
+  Draw as DrawIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { inspectionsAPI } from '../../services/api';
 import OnSitePaymentModal from './OnSitePaymentModal';
+import SignatureDialog from '../../components/signatures/SignatureDialog';
 
 const STATUS_CHIP = {
   draft:         { label: 'Piszkozat',         color: 'default' },
@@ -72,6 +74,7 @@ export default function CompensationDetail() {
   const [busy, setBusy] = useState(false);
   const [residents, setResidents] = useState([]);
   const [onSiteModal, setOnSiteModal] = useState({ open: false, resident: null });
+  const [alairAblak, setAlairAblak] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -492,6 +495,15 @@ export default function CompensationDetail() {
                           <TableCell>{r.signed_at ? fmtDate(r.signed_at, true) : '—'}</TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                              {/* TUDOMÁSULVÉTEL — a fizetéstől FÜGGETLENÜL. Ez nem
+                                  "hozzájárulok a levonáshoz", hanem a kárigény
+                                  megismerésének igazolása: mi nem vonunk le, a megbízó
+                                  bérszámfejtése dönt. A szöveg ezt mind az 5 nyelven
+                                  kimondja. */}
+                              <Button size="small" variant="outlined" startIcon={<DrawIcon />}
+                                onClick={() => setAlairAblak(r)}>
+                                Tudomásulvétel
+                              </Button>
                               {payable && (
                                 <Button size="small" variant="contained" color="success" startIcon={<OnSiteIcon />}
                                   onClick={() => setOnSiteModal({ open: true, resident: r })}>
@@ -611,6 +623,30 @@ export default function CompensationDetail() {
           )}
         </Box>
       </Paper>
+
+      {alairAblak && (
+
+        <SignatureDialog
+
+          open
+
+          onClose={() => setAlairAblak(null)}
+
+          onSigned={load}
+
+          subjectType="compensation_resident"
+
+          subjectId={alairAblak.id}
+
+          signerRole="resident"
+
+          signerName={alairAblak.resident_name || ''}
+
+          signerEmployeeId={alairAblak.resident_id || null}
+
+        />
+
+      )}
 
       <OnSitePaymentModal
         open={onSiteModal.open}

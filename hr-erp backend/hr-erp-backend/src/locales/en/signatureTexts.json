@@ -1,11 +1,20 @@
 {
-  "version": "2026-09-24.1",
+  "version": "2026-09-24.2",
   "texts": {
     "compensation_resident.resident": "I ACKNOWLEDGE the damage claim above and its amount. I understand that Housing Solutions DOES NOT APPLY ANY DEDUCTION: the report is forwarded to my employer / client, and any deduction is decided by their payroll under their own rules. My signature confirms that I was informed of the claim; it is NOT consent to a deduction.",
     "damage_report.resident": "I have read the damage report above and ACKNOWLEDGE its contents and the assessed amount.",
     "document.resident": "I have read and understood the document above.",
-    "inspection.resident": "I have been informed of the result of the inspection. I understand that in case of a repeated deficiency a penalty may be imposed under the house rules.",
+    "inspection.resident": "I have been informed of the result of the inspection. Result: {{eredmeny}} (hygiene score: {{pontszam}}). I understand that a hygiene score of {{kuszob}} or below counts as a FAILED result, and that after {{alkalom}} consecutive failed inspections a penalty under the house rules — currently {{osszeg}} HUF per person — may be imposed. I understand that my signature confirms that I was INFORMED of the result and of this consequence.",
     "staff": "I presented the report to the person present and reviewed its contents together with them.",
     "witness": "As a witness I confirm that the report was presented to the person above, and that they signed it — or refused to sign it — in my presence."
+  },
+  "grades": {
+    "excellent": "excellent",
+    "good": "good",
+    "acceptable": "acceptable",
+    "poor": "poor",
+    "bad": "bad",
+    "critical": "critical",
+    "ismeretlen": "not determined"
   }
 }

@@ -52,11 +52,11 @@ export default function SignatureDialog({
   useEffect(() => {
     if (!open || !subjectType) return;
     setBetolt(true);
-    signaturesAPI.texts(subjectType, signerRole)
+    signaturesAPI.texts(subjectType, signerRole, subjectId)
       .then((r) => setSzovegek(r?.data?.texts || {}))
       .catch(() => toast.error('A nyilatkozat szövegét nem sikerült betölteni'))
       .finally(() => setBetolt(false));
-  }, [open, subjectType, signerRole]);
+  }, [open, subjectType, subjectId, signerRole]);
 
   // ── rajzvászon ────────────────────────────────────────────────────────────
   const ctx = () => {

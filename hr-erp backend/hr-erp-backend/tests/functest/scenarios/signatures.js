@@ -108,17 +108,24 @@ module.exports = {
       expected: { hianyzo: [], magyarra_esik_vissza: false },
       hint: 'egy magyar jegyzőkönyv ukrán aláírással jogilag értéktelen',
       run: async () => {
+        // Az ellenőrzési nyilatkozat PARAMÉTERES (eredmény, küszöb, összeg), ezért a
+        // feloldáshoz meg kell adni őket. Ez nem a teszt kerülőútja: a paraméter nélküli
+        // hívás SZÁNDÉKOSAN hibát dob (lásd SIGN-12) — itt a szövegek MEGLÉTÉT mérjük.
+        const paramok = {
+          eredmeny_kulcs: 'poor', pontszam: 12, kuszob: 15, alkalom: 2, osszeg: '10 000',
+        };
         const hianyzo = [];
         for (const t of sig.TARGYAK) {
           for (const r of sig.SZEREPEK) {
             for (const n of sig.NYELVEK) {
-              try { sig.nyilatkozat(t, r, n); } catch { hianyzo.push(`${t}/${r}/${n}`); }
+              try { sig.nyilatkozat(t, r, n, paramok); }
+              catch { hianyzo.push(`${t}/${r}/${n}`); }
             }
           }
         }
         // Nem eshet vissza magyarra: az ukrán szöveg legyen TÉNYLEG ukrán.
-        const uk = sig.nyilatkozat('inspection', 'resident', 'uk').text;
-        const hu = sig.nyilatkozat('inspection', 'resident', 'hu').text;
+        const uk = sig.nyilatkozat('inspection', 'resident', 'uk', paramok).text;
+        const hu = sig.nyilatkozat('inspection', 'resident', 'hu', paramok).text;
         return { hianyzo, magyarra_esik_vissza: uk === hu };
       },
     },
@@ -210,6 +217,54 @@ module.exports = {
         const alairasok = await sig.listFor('damage_report', s.jkv.id);
         const lakoi = alairasok.find((x) => x.signer_role === 'resident' && !x.refused_at);
         return { pdf_nyelve: lakoi?.language };
+      },
+    },
+    {
+      id: 'SIGN-11',
+      name: '⚠️ az ELLENŐRZÉSI nyilatkozat kimondja a KÖVETKEZMÉNYT — a saját nyelvén',
+      expected: {
+        van_eredmeny: true, van_kuszob: true, van_alkalom: true, van_osszeg: true,
+        minosites_ukranul: true,
+      },
+      hint: 'a bírság jogalapja az lesz, hogy a lakó TUDTA, mit ír alá',
+      run: async () => {
+        const p = { eredmeny_kulcs: 'poor', pontszam: 12, kuszob: 15, alkalom: 2, osszeg: '10 000' };
+        const uk = sig.nyilatkozat('inspection', 'resident', 'uk', p).text;
+        return {
+          van_eredmeny: uk.includes('12'),
+          van_kuszob: uk.includes('15'),
+          van_alkalom: uk.includes('2'),
+          van_osszeg: uk.includes('10 000'),
+          // A minősítés NE magyarul álljon az ukrán szövegben.
+          minosites_ukranul: uk.includes('слабко') && !uk.includes('gyenge'),
+        };
+      },
+    },
+    {
+      id: 'SIGN-12',
+      name: 'KITÖLTETLEN helyőrzővel NEM írunk alá — inkább hiba, mint félkész jogi szöveg',
+      expected: { dob: true, megnevezi: true },
+      hint: 'egy "{{osszeg}} Ft bírság" szövegű nyilatkozat bizonyítékként értéktelen',
+      run: async () => {
+        try {
+          sig.nyilatkozat('inspection', 'resident', 'hu', { eredmeny_kulcs: 'poor' });
+          return { dob: false, megnevezi: false };
+        } catch (e) {
+          return { dob: true, megnevezi: /osszeg|kuszob|pontszam/.test(e.message) };
+        }
+      },
+    },
+    {
+      id: 'SIGN-13',
+      name: 'a nyilatkozat az ÉLŐ konfigurációt tükrözi, nem beégetett számot',
+      expected: { kovetiAKonfigot: true },
+      hint: 'ha az összeg változik, az aláírt példány azt őrzi, ami AKKOR élt',
+      run: async () => {
+        const a = sig.nyilatkozat('inspection', 'resident', 'hu',
+          { eredmeny_kulcs: 'poor', pontszam: 12, kuszob: 15, alkalom: 2, osszeg: '10 000' }).text;
+        const b = sig.nyilatkozat('inspection', 'resident', 'hu',
+          { eredmeny_kulcs: 'poor', pontszam: 12, kuszob: 20, alkalom: 3, osszeg: '25 000' }).text;
+        return { kovetiAKonfigot: a.includes('10 000') && b.includes('25 000') && a !== b };
       },
     },
   ],

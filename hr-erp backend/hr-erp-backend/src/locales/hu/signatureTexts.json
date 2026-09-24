@@ -1,11 +1,20 @@
 {
-  "version": "2026-09-24.1",
+  "version": "2026-09-24.2",
   "texts": {
     "compensation_resident.resident": "A fenti kárigényt és annak összegét TUDOMÁSUL VETTEM. Tudomásul veszem, hogy a Housing Solutions NEM ÉRVÉNYESÍT LEVONÁST: a jegyzőkönyvet a munkáltatóm / megbízóm felé továbbítja, és az esetleges levonásról az ő bérszámfejtése dönt a rá vonatkozó szabályok szerint. Az aláírásom a kárigény megismerését igazolja, NEM a levonáshoz való hozzájárulást.",
     "damage_report.resident": "A fenti kárjegyzőkönyvet elolvastam, annak tartalmát és a megállapított kárösszeget TUDOMÁSUL VETTEM.",
     "document.resident": "A fenti dokumentumot elolvastam és megismertem.",
-    "inspection.resident": "Az ellenőrzés eredményét megismertem. Tudomásul veszem, hogy ismételt hiányosság esetén a házirend szerinti kötbér megállapítható.",
+    "inspection.resident": "Az ellenőrzés eredményét megismertem. Az ellenőrzés minősítése: {{eredmeny}} (higiéniai pontszám: {{pontszam}}). Tudomásul veszem, hogy a {{kuszob}} vagy annál alacsonyabb higiéniai pontszám NEM MEGFELELŐ eredménynek számít, és hogy {{alkalom}} egymást követő nem megfelelő ellenőrzés esetén a házirend szerinti kötbér — jelenleg {{osszeg}} Ft / fő — megállapítható. Tudomásul veszem, hogy az aláírásom az eredmény és e következmény MEGISMERÉSÉT igazolja.",
     "staff": "A jegyzőkönyvet a jelen lévő féllel ismertettem, tartalmát vele együtt átnéztem.",
     "witness": "Tanúként igazolom, hogy a jegyzőkönyvet a fenti személlyel ismertették, és azt a jelenlétemben írta alá, illetve az aláírást megtagadta."
+  },
+  "grades": {
+    "excellent": "kiváló",
+    "good": "jó",
+    "acceptable": "megfelelő",
+    "poor": "gyenge",
+    "bad": "rossz",
+    "critical": "kritikus",
+    "ismeretlen": "nincs megállapítva"
   }
 }

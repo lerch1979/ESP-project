@@ -12,15 +12,18 @@ import {
   TrendingUp as UpIcon, TrendingDown as DownIcon, TrendingFlat as FlatIcon,
   PictureAsPdf as PdfIcon, Gavel as GavelIcon, Home as HomeIcon, Assessment as AssessmentIcon,
   MonetizationOn as CompIcon, Email as EmailIcon, Send as SendIcon,
+  Draw as DrawIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import { inspectionsAPI } from '../../services/api';
+import { inspectionsAPI , signaturesAPI } from '../../services/api';
 import ScoreGauge from '../../components/inspections/ScoreGauge';
 import GradeBadge from '../../components/inspections/GradeBadge';
 import PhotoGallery from '../../components/inspections/PhotoGallery';
 import InspectionChecklist from '../../components/inspections/InspectionChecklist';
 import PropertyMap from '../../components/inspections/PropertyMap';
 import TaskAssignmentModal from '../../components/inspections/TaskAssignmentModal';
+import SignatureDialog from '../../components/signatures/SignatureDialog';
+import { halkHiba } from '../../utils/nonFatal';
 
 const STATUS_CHIP = {
   scheduled: { label: 'Ütemezett', color: 'info' },
@@ -50,6 +53,8 @@ export default function InspectionDetail() {
   const [completing, setCompleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [alairasok, setAlairasok] = useState([]);
+  const [alairAblak, setAlairAblak] = useState(false);
 
   // Room-level scoring (Day 3 Part A)
   const [roomRows, setRoomRows] = useState([]);
@@ -73,6 +78,18 @@ export default function InspectionDetail() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  }, [id]);
+
+  const betoltAlairasok = useCallback(async () => {
+    if (!id) return;
+    try {
+      const r = await signaturesAPI.list('inspection', id);
+      setAlairasok(r?.data?.signatures || []);
+    } catch (e) {
+      // Nem akadályozhatja az ellenőrzés megnyitását; a blokk ilyenkor "Aláíratás"
+      // gombot mutat, ami legrosszabb esetben egy 409-be fut.
+      halkHiba('InspectionDetail/aláírások', e);
     }
   }, [id]);
 
@@ -133,7 +150,7 @@ export default function InspectionDetail() {
     } finally { setEmailsBusy(false); }
   };
 
-  useEffect(() => { load(); loadCategories(); loadRooms(); loadEmails(); }, [load, loadCategories, loadRooms, loadEmails]);
+  useEffect(() => { load(); betoltAlairasok(); loadCategories(); loadRooms(); loadEmails(); }, [load, loadCategories, loadRooms, loadEmails]);
 
   const openScoreModal = (room) => {
     setScoreModal({
@@ -378,6 +395,34 @@ export default function InspectionDetail() {
         <Box sx={{ p: 3 }}>
           {tab === 0 && (
             <Grid container spacing={3}>
+              {/* LAKÓI TUDOMÁSULVÉTEL.
+                  Az ellenőrzésből BÍRSÁG lehet, ezért az aláírandó szöveg kimondja a
+                  konkrét eredményt, a "nem megfelelő" küszöböt, és hogy hányadik
+                  ismételt bukásnál mekkora kötbér állapítható meg — a lakó saját
+                  nyelvén, az ÉLŐ konfiguráció értékeivel. A bírság ma ki van kapcsolva;
+                  amikor élesítik, ennek az aláírásnak lesz a jogalapja, hogy a lakó
+                  tudta, mit ír alá. */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                  <Box>
+                    <Typography variant="subtitle2">Lakói tudomásulvétel</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {alairasok.length > 0
+                        ? alairasok.map((a) => (a.refused_at
+                            ? `${a.signer_name}: megtagadta`
+                            : `${a.signer_name} · ${a.language.toUpperCase()} · `
+                              + new Date(a.signed_at).toLocaleString('hu-HU'))).join(' | ')
+                        : 'Még nincs aláírás. A szöveg kimondja a bírság következményét is.'}
+                    </Typography>
+                  </Box>
+                  <Button variant="outlined" startIcon={<DrawIcon />}
+                    onClick={() => setAlairAblak(true)}>
+                    Aláíratás
+                  </Button>
+                </Paper>
+              </Grid>
+
               <Grid item xs={12} md={6}>
                 <TextField
                   label="Általános megjegyzések"
@@ -715,6 +760,26 @@ export default function InspectionDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {alairAblak && (
+
+        <SignatureDialog
+
+          open
+
+          onClose={() => setAlairAblak(false)}
+
+          onSigned={betoltAlairasok}
+
+          subjectType="inspection"
+
+          subjectId={id}
+
+          signerRole="resident"
+
+        />
+
+      )}
 
       <TaskAssignmentModal
         open={Boolean(selectedTask)}
