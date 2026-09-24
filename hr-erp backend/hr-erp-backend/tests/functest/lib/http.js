@@ -40,6 +40,10 @@ function tokenFor(userId) {
  */
 async function call(method, p, { token, body, query } = {}) {
   let req = request(app())[method](`/api/v1${p}`);
+  // Minden valódi kliens küld User-Agentet; a supertest alapból nem. Enélkül a
+  // bizonyíték-kötelezettséget ellenőrző végpontok (aláírás) jogosan utasítanának
+  // el — de nem a vizsgált viselkedés, hanem a tesztkörnyezet hiánya miatt.
+  req = req.set('User-Agent', 'HR-ERP-FUNCTEST/1.0');
   if (token) req = req.set('Authorization', `Bearer ${token}`);
   if (query) req = req.query(query);
   if (body !== undefined) req = req.send(body);
@@ -75,6 +79,10 @@ function pack(res) {
  */
 async function raw(method, p, { token, body, query } = {}) {
   let req = request(app())[method](p);
+  // Minden valódi kliens küld User-Agentet; a supertest alapból nem. Enélkül a
+  // bizonyíték-kötelezettséget ellenőrző végpontok (aláírás) jogosan utasítanának
+  // el — de nem a vizsgált viselkedés, hanem a tesztkörnyezet hiánya miatt.
+  req = req.set('User-Agent', 'HR-ERP-FUNCTEST/1.0');
   if (token) req = req.set('Authorization', `Bearer ${token}`);
   if (query) req = req.query(query);
   if (body !== undefined) req = req.send(body);
@@ -121,6 +129,10 @@ function leaks(body, foreignIds) {
  */
 async function upload(p, { token, field = 'file', filename = 'import.xlsx', buffer, ...fields } = {}) {
   let req = request(app()).post(`/api/v1${p}`);
+  // Minden valódi kliens küld User-Agentet; a supertest alapból nem. Enélkül a
+  // bizonyíték-kötelezettséget ellenőrző végpontok (aláírás) jogosan utasítanának
+  // el — de nem a vizsgált viselkedés, hanem a tesztkörnyezet hiánya miatt.
+  req = req.set('User-Agent', 'HR-ERP-FUNCTEST/1.0');
   if (token) req = req.set('Authorization', `Bearer ${token}`);
   // Extra multipart text fields (e.g. mode) travel alongside the file.
   for (const [k, v] of Object.entries(fields)) req = req.field(k, String(v));

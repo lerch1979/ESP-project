@@ -77,6 +77,7 @@ const damageReportRoutes = require('./routes/damageReport.routes');
 const translationRoutes = require('./routes/translation.routes');
 const classificationRulesRoutes = require('./routes/classificationRules.routes');
 const inspectionRoutes = require('./routes/inspection.routes');
+const signatureRoutes = require('./routes/signature.routes');
 const inspectionTemplateRoutes = require('./routes/inspectionTemplate.routes');
 const inspectionScheduleRoutes = require('./routes/inspectionSchedule.routes');
 const inspectionTaskRoutes = require('./routes/inspectionTask.routes');
@@ -440,6 +441,8 @@ app.use(`${API_PREFIX}/damage-reports`, damageReportRoutes);
 app.use(`${API_PREFIX}/translation`, translationRoutes);
 app.use(`${API_PREFIX}/classification-rules`, classificationRulesRoutes);
 app.use(`${API_PREFIX}/inspections`, inspectionRoutes);
+// Egységes aláírás-tár (mig 177) — mind a négy dokumentumtípusra.
+app.use(`${API_PREFIX}/signatures`, signatureRoutes);
 app.use(`${API_PREFIX}/inspection-templates`, inspectionTemplateRoutes);
 app.use(`${API_PREFIX}/expiry-monitor`, expiryMonitorRoutes);
 app.use(`${API_PREFIX}/anonymization`, gdprAnonymizationRoutes);

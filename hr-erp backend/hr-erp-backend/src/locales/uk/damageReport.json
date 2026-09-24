@@ -31,5 +31,7 @@
   "sigName": "Ім'я",
   "sigDate": "Дата",
   "legalText": "Трудовий кодекс §166 (відповідальність) · §177 (макс. 50% вирахування) · Цивільний кодекс §6:142 (повне відшкодування) · §6:143 (спосіб відшкодування)",
-  "generatedBy": "Housing Solutions Kft. — Workforce Stability Platform"
+  "generatedBy": "Housing Solutions Kft. — Workforce Stability Platform",
+  "sigRefused": "Відмовився(лася) підписати",
+  "sigDeclared": "Підписані заяви"
 }

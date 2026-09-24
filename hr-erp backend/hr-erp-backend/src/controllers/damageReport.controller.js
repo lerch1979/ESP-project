@@ -192,7 +192,18 @@ const downloadPDF = async (req, res) => {
     const report = await loadScopedReport(req, res);
     if (!report) return;
 
-    const language = req.query.language || req.query.lang || 'hu';
+    // AZ ALÁÍRÁSOK A PDF-BE. Az egységes tárból (mig 177) jönnek, nem a
+    // damage_reports oszlopaiból — azokat már nem írjuk.
+    const signatures = require('../services/signature.service');
+    report.signatures = await signatures.listFor('damage_report', report.id);
+
+    // A NYELV ELSŐSORBAN AZ ALÁÍRÁSBÓL JÖN, nem a letöltő választásából. Ha a lakó
+    // ukránul olvasta és írta alá, akkor a dokumentum ukránul hiteles; egy magyarul
+    // letöltött példány más szöveget mutatna, mint amit aláírt.
+    const lakoiAlairas = report.signatures.find(
+      (x) => x.signer_role === 'resident' && !x.refused_at);
+    const language = lakoiAlairas?.language
+      || req.query.language || req.query.lang || 'hu';
     const pdfBuffer = await pdfService.generatePDF(report, language);
 
     res.setHeader('Content-Type', 'application/pdf');

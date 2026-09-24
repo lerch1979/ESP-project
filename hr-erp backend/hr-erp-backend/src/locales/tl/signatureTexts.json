@@ -1,0 +1,11 @@
+{
+  "version": "2026-09-24.1",
+  "texts": {
+    "compensation_resident.resident": "KINIKILALA ko ang paghahabol sa pinsala sa itaas at ang halaga nito. Nauunawaan ko na ang Housing Solutions ay WALANG ibinabawas: ipinapasa ang ulat sa aking employer / kliyente, at ang anumang bawas ay pinagpapasyahan ng kanilang payroll ayon sa sarili nilang patakaran. Ang lagda ko ay patunay na naipaalam sa akin ang paghahabol — HINDI ito pahintulot sa bawas.",
+    "damage_report.resident": "Nabasa ko ang ulat ng pinsala sa itaas at KINIKILALA ko ang nilalaman nito at ang natukoy na halaga.",
+    "document.resident": "Nabasa at naunawaan ko ang dokumento sa itaas.",
+    "inspection.resident": "Naipaalam sa akin ang resulta ng inspeksyon. Nauunawaan ko na kung mauulit ang kakulangan ay maaaring magpataw ng multa ayon sa house rules.",
+    "staff": "Ipinakita ko ang ulat sa taong naroroon at sama-sama naming sinuri ang nilalaman nito.",
+    "witness": "Bilang saksi, pinatutunayan ko na ipinakita ang ulat sa taong nabanggit, at nilagdaan niya ito — o tumanggi siyang lumagda — sa harap ko."
+  }
+}

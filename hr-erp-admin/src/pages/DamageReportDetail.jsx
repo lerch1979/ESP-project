@@ -37,10 +37,12 @@ import {
   AttachMoney as MoneyIcon,
   History as HistoryIcon,
   Description as DescIcon,
+  Draw as DrawIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import { damageReportsAPI, usersAPI, accommodationsAPI } from '../services/api';
+import { damageReportsAPI, usersAPI, accommodationsAPI, signaturesAPI } from '../services/api';
 import DamageReportEditModal from '../components/DamageReportEditModal';
+import SignatureDialog from '../components/signatures/SignatureDialog';
 import DamageReportPdfPreviewModal from '../components/DamageReportPdfPreviewModal';
 
 const STATUS_COLORS = {
@@ -66,6 +68,9 @@ export default function DamageReportDetail() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [creating, setCreating] = useState(false);
+  // Az aláírások az EGYSÉGES tárból jönnek (mig 177), nem a damage_reports oszlopaiból.
+  const [alairasok, setAlairasok] = useState([]);
+  const [alairAblak, setAlairAblak] = useState(null);
   const [newForm, setNewForm] = useState({
     employee_id: '',
     incident_date: new Date().toISOString().slice(0, 10),
@@ -91,6 +96,7 @@ export default function DamageReportDetail() {
       loadData();
     } else {
       loadReport();
+      betoltAlairasok();
     }
   }, [id]);
 
@@ -111,6 +117,18 @@ export default function DamageReportDetail() {
       toast.error('Hiba a kárigény létrehozásakor');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const betoltAlairasok = async () => {
+    if (!id || isNew) return;
+    try {
+      const r = await signaturesAPI.list('damage_report', id);
+      setAlairasok(r?.data?.signatures || []);
+    } catch {
+      // Az aláírás-lista hiánya nem akadályozhatja a jegyzőkönyv megnyitását; a blokk
+      // ilyenkor "Aláíratás" gombokat mutat, ami a legrosszabb esetben egy 409.
+      setAlairasok([]);
     }
   };
 
@@ -531,38 +549,66 @@ export default function DamageReportDetail() {
             </Box>
           </Paper>
 
-          {/* Signatures */}
+          {/* ALÁÍRÁSOK — az egységes tárból (mig 177).
+              Korábban ez a blokk a `report.employee_signature` mezőt olvasta, az API
+              viszont `employee_signature_data`-t ad vissza: a chip ezért MINDIG
+              "Nincs"-et mutatott, akkor is, ha valaki aláírta volna. Aláíró felület
+              pedig egyáltalán nem volt — a "három aláírás-blokk" a PDF három üres
+              vonala volt. */}
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Aláírások
-            </Typography>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Aláírások</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2">Munkavállaló</Typography>
-                {report.employee_signature ? (
-                  <Chip label="Aláírva" size="small" color="success" variant="outlined" />
-                ) : (
-                  <Chip label="Nincs" size="small" variant="outlined" />
-                )}
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2">Vezető</Typography>
-                {report.manager_signature ? (
-                  <Chip label="Aláírva" size="small" color="success" variant="outlined" />
-                ) : (
-                  <Chip label="Nincs" size="small" variant="outlined" />
-                )}
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2">Tanú</Typography>
-                {report.witness_signature ? (
-                  <Chip label="Aláírva" size="small" color="success" variant="outlined" />
-                ) : (
-                  <Chip label="Nincs" size="small" variant="outlined" />
-                )}
-              </Box>
+              {[
+                { szerep: 'resident', cimke: 'Lakó / munkavállaló' },
+                { szerep: 'staff', cimke: 'Munkatárs' },
+                { szerep: 'witness', cimke: 'Tanú' },
+              ].map(({ szerep, cimke }) => {
+                const a = alairasok.find((x) => x.signer_role === szerep);
+                return (
+                  <Box key={szerep} sx={{ display: 'flex', justifyContent: 'space-between',
+                    alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2">{cimke}</Typography>
+                      {a && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {a.signer_name} · {a.language.toUpperCase()} ·{' '}
+                          {new Date(a.signed_at).toLocaleString('hu-HU')}
+                        </Typography>
+                      )}
+                    </Box>
+                    {a ? (
+                      a.refused_at
+                        ? <Chip label="Megtagadta" size="small" color="warning" variant="outlined" />
+                        : <Chip label="Aláírva" size="small" color="success" variant="outlined" />
+                    ) : (
+                      <Button size="small" variant="outlined" startIcon={<DrawIcon />}
+                        onClick={() => setAlairAblak({ szerep, cimke })}>
+                        Aláíratás
+                      </Button>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
           </Paper>
+
+          {alairAblak && (
+            <SignatureDialog
+              open
+              onClose={() => setAlairAblak(null)}
+              onSigned={betoltAlairasok}
+              subjectType="damage_report"
+              subjectId={id}
+              signerRole={alairAblak.szerep}
+              signerName={alairAblak.szerep === 'resident'
+                ? [report.responsible_employee_first_name, report.responsible_employee_last_name]
+                    .filter(Boolean).join(' ')
+                : ''}
+              signerEmployeeId={alairAblak.szerep === 'resident'
+                ? (report.responsible_employee_id || null) : null}
+              defaultLanguage={report.language || 'hu'}
+            />
+          )}
 
           {/* Payment Status */}
           {paymentStatus && (

@@ -1,0 +1,11 @@
+{
+  "version": "2026-09-24.1",
+  "texts": {
+    "compensation_resident.resident": "I ACKNOWLEDGE the damage claim above and its amount. I understand that Housing Solutions DOES NOT APPLY ANY DEDUCTION: the report is forwarded to my employer / client, and any deduction is decided by their payroll under their own rules. My signature confirms that I was informed of the claim; it is NOT consent to a deduction.",
+    "damage_report.resident": "I have read the damage report above and ACKNOWLEDGE its contents and the assessed amount.",
+    "document.resident": "I have read and understood the document above.",
+    "inspection.resident": "I have been informed of the result of the inspection. I understand that in case of a repeated deficiency a penalty may be imposed under the house rules.",
+    "staff": "I presented the report to the person present and reviewed its contents together with them.",
+    "witness": "As a witness I confirm that the report was presented to the person above, and that they signed it — or refused to sign it — in my presence."
+  }
+}

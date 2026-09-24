@@ -1270,6 +1270,16 @@ export const chatbotAPI = {
 };
 
 // Users API
+// Egységes aláírás-tár (mig 177) — mind a négy dokumentumtípusra ugyanez.
+export const signaturesAPI = {
+  texts: async (subjectType, signerRole) =>
+    (await api.get('/signatures/texts', { params: { subjectType, signerRole } })).data,
+  list: async (subjectType, subjectId) =>
+    (await api.get(`/signatures/${subjectType}/${subjectId}`)).data,
+  create: async (subjectType, subjectId, body) =>
+    (await api.post(`/signatures/${subjectType}/${subjectId}`, body)).data,
+};
+
 export const usersAPI = {
   // Javasolt ideiglenes jelszó. A generálás a SZERVEREN történik, hogy a szabály
   // (mely karakterek maradnak ki, milyen hosszú) egy helyen éljen — egy böngészőbeli

@@ -31,5 +31,7 @@
   "sigName": "Name",
   "sigDate": "Datum",
   "legalText": "Arbeitsgesetzbuch §166 (Haftung) · §177 (max. 50% Abzug) · BGB §6:142 (Vollentschädigung) · §6:143 (Entschädigungsart)",
-  "generatedBy": "Housing Solutions Kft. — Workforce Stability Platform"
+  "generatedBy": "Housing Solutions Kft. — Workforce Stability Platform",
+  "sigRefused": "Unterschrift verweigert",
+  "sigDeclared": "Unterzeichnete Erklärungen"
 }

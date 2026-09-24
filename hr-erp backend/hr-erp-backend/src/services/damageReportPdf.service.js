@@ -34,6 +34,49 @@ function esc(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ─── Aláírás-blokkok ────────────────────────────────────────────────
+//
+// AZ ALÁÍRÁSKÉP EDDIG NEM KERÜLT BELE A PDF-BE: a sablon egy üres vonalat rajzolt és
+// mellé a dátumot. Vagyis még ha rögzítettük volna is az aláírást, a dokumentumon nem
+// látszott — a "digitálisan aláírt jegyzőkönyv" a gyakorlatban egy kinyomtatandó,
+// kézzel aláírandó papír maradt.
+//
+// A kép az egységes tárból (mig 177) jön, a `report.signatures` tömbben.
+
+function sigBlokk(report, t, szerep, cimke) {
+  const a = (report.signatures || []).find((x) => x.signer_role === szerep);
+  let belso;
+  if (a && a.refused_at) {
+    // A MEGTAGADÁST IS KI KELL ÍRNI. Egy üres vonal azt sugallná, hogy elfelejtették
+    // aláíratni — a megtagadás viszont érdemi tény, és egy vitában ez számít.
+    belso = `<div class="sl refused">${esc(t.sigRefused || 'Az aláírást megtagadta')}</div>`;
+  } else if (a && a.signature_png) {
+    belso = `<div class="sl"><img src="${a.signature_png}" alt="" /></div>`;
+  } else {
+    belso = '<div class="sl"></div>';
+  }
+  const datum = a ? formatDate(a.signed_at) : '____________________';
+  const nev = a ? esc(a.signer_name) : '';
+  return `<div class="sb">${belso}<div class="sn">${esc(cimke)}</div>`
+    + `${nev ? `<div class="sn">${nev}</div>` : ''}`
+    + `<div class="sn">${esc(t.sigDate)}: ${datum}</div></div>`;
+}
+
+/**
+ * A bizonyító erő részletei a lap alján: MIT, MILYEN NYELVEN írt alá, és mikor.
+ * Enélkül a PDF-ből nem derülne ki az, ami egy vitában a leginkább számít.
+ */
+function alairasReszletek(report, t) {
+  const sorok = (report.signatures || []).filter((a) => !a.refused_at);
+  if (sorok.length === 0) return '';
+  const lista = sorok.map((a) => `<div class="sd">
+      <b>${esc(a.signer_name)}</b> · ${esc(a.language.toUpperCase())} ·
+      ${formatDate(a.signed_at)} · ${esc(a.content_sha256.slice(0, 16))}…<br/>
+      <i>${esc(a.signed_text)}</i>
+    </div>`).join('');
+  return `<div class="st">${esc(t.sigDeclared || 'Aláírt nyilatkozatok')}</div>${lista}`;
+}
+
 // ─── HTML Template ──────────────────────────────────────────────────
 
 function buildHTML(report, lang = 'hu') {
@@ -132,7 +175,11 @@ body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 8pt
 .ny { font-size: 6.5pt; color: #333; line-height: 1.25; margin: 3px 0; padding: 3px 5px; background: #f8f9fa; border-left: 2px solid #1E40AF; }
 .sg { display: flex; gap: 12px; margin-top: 5px; }
 .sb { flex: 1; text-align: center; }
-.sl { border-bottom: 1px solid #333; height: 22px; margin-bottom: 1px; }
+.sl { border-bottom: 1px solid #333; height: 30px; margin-bottom: 1px;
+       display: flex; align-items: flex-end; justify-content: center; }
+.sl img { max-height: 30px; max-width: 100%; }
+.sl.refused { font-size: 7pt; color: #a00; align-items: center; }
+.sd { font-size: 6.5pt; color: #333; margin: 2px 0; line-height: 1.25; }
 .sn { font-size: 6.5pt; color: #555; }
 .jog { font-size: 6pt; color: #777; margin-top: 4px; }
 .ft { font-size: 5.5pt; color: #aaa; text-align: center; margin-top: 3px; border-top: 0.5px solid #ddd; padding-top: 2px; }
@@ -189,10 +236,11 @@ ${costSection}
 
 <div class="st">8. ${esc(t.s8)}</div>
 <div class="sg">
-  <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigEmployee)}</div><div class="sn">${esc(t.sigDate)}: ${report.employee_signature_date ? formatDate(report.employee_signature_date) : '____________________'}</div></div>
-  <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigManager)}</div><div class="sn">${esc(t.sigDate)}: ${report.manager_signature_date ? formatDate(report.manager_signature_date) : '____________________'}</div></div>
-  <div class="sb"><div class="sl"></div><div class="sn">${esc(t.sigWitness)}</div><div class="sn">${esc(t.sigName)}: ${esc(report.witness_name) || '____________________'}</div></div>
+  ${sigBlokk(report, t, 'resident', t.sigEmployee)}
+  ${sigBlokk(report, t, 'staff', t.sigManager)}
+  ${sigBlokk(report, t, 'witness', t.sigWitness)}
 </div>
+${alairasReszletek(report, t)}
 
 ${notesBlock}
 <div class="jog"><b>9. ${esc(t.s9)}:</b> ${esc(t.legalText)}</div>
