@@ -64,6 +64,10 @@ const RESIDENT_FILES = [
   // beégetett magyar szöveg maradna, az ukrán vagy filippínó lakó egy érthetetlen
   // képernyőn ragadna be, kiút nélkül.
   'src/screens/more/ChangePasswordScreen.js',
+  // Aláírásra váró dokumentumok. Lakói képernyő, és JOGI tartalmat mutat: ha itt
+  // beégetett magyar szöveg maradna, egy ukrán lakó olyasmit írna alá, amit a
+  // képernyőn sem értett meg.
+  'src/screens/signatures/MySignaturesScreen.js',
 ];
 
 const HU_RE = /['"`][^'"`]*[áéíóöőúüűÁÉÍÓÖŐÚÜŰ][^'"`]*['"`]/;

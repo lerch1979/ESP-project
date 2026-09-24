@@ -129,7 +129,8 @@
     "chatbotHistory": "Mga nakaraang usapan",
     "faq": "FAQ",
     "videos": "Mga Video",
-    "changePassword": "Palitan ang password"
+    "changePassword": "Palitan ang password",
+    "mySignatures": "Naghihintay ng lagda"
   },
   "attach": {
     "photos": "Mga larawan",
@@ -298,7 +299,8 @@
     "high": "Mataas",
     "critical": "Kritikal",
     "searchPlaceholder": "Maghanap...",
-    "noResults": "Walang resulta"
+    "noResults": "Walang resulta",
+    "clear": "Burahin"
   },
   "calendar": {
     "title": "Kalendaryo",
@@ -444,5 +446,15 @@
     "mismatch": "Hindi magkatugma ang dalawang bagong password.",
     "failed": "Hindi naipalit ang password. Subukan ulit.",
     "firstLoginBody": "Nag-sign in ka gamit ang pansamantalang password na natanggap mo sa papel. Gumawa ng sarili mong password bago magpatuloy — ikaw lang ang makakaalam nito."
+  },
+  "signature": {
+    "title": "Naghihintay ng lagda",
+    "empty": "Wala kang dokumentong naghihintay ng lagda.",
+    "drawHere": "Lumagda gamit ang daliri:",
+    "submit": "Ipadala ang lagda",
+    "doneTitle": "Nalagdaan",
+    "doneBody": "Salamat. Naitala na ang iyong lagda.",
+    "failed": "Hindi naipadala ang lagda. Subukan ulit.",
+    "textFailed": "Hindi na-load ang teksto. Hilahin pababa para mag-refresh."
   }
 }

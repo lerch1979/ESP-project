@@ -149,6 +149,19 @@ async function sign(p) {
   if (!SZEREPEK.includes(p.signerRole)) {
     throw Object.assign(new Error(`Ismeretlen aláírói szerep: ${p.signerRole}`), { status: 400 });
   }
+  // AZ ALÁÍRÁSKÉP FORMÁTUMA. Az adminban `<canvas>` → PNG data-URL; a mobilon
+  // `react-native-svg` → SVG data-URL (új natív függőség nélkül, ezért nem kell hozzá
+  // új build). A Chrome mindkettőt megjeleníti `<img>`-ben — ezt a renderelt PDF-en
+  // ellenőriztem, nem feltételeztem.
+  //
+  // Amit NEM engedünk: tetszőleges sztringet. Egy "aláírás", ami nem kép, a
+  // dokumentumon üres helyként jelenne meg — és senki nem venné észre.
+  if (p.signaturePng && !/^data:image\/(png|svg\+xml);base64,/.test(p.signaturePng)) {
+    throw Object.assign(
+      new Error('Az aláírás csak PNG vagy SVG kép lehet (data-URL). '
+        + 'Más formátum a dokumentumon üres helyként jelenne meg.'), { status: 400 });
+  }
+
   const megtagadas = !p.signaturePng;
   if (megtagadas && !p.refusalReason) {
     throw Object.assign(

@@ -9,6 +9,7 @@ import DocumentListScreen from '../screens/more/DocumentListScreen';
 import DocumentDetailScreen from '../screens/more/DocumentDetailScreen';
 import ProfileScreen from '../screens/more/ProfileScreen';
 import ChangePasswordScreen from '../screens/more/ChangePasswordScreen';
+import MySignaturesScreen from '../screens/signatures/MySignaturesScreen';
 import GoogleCalendarScreen from '../screens/more/GoogleCalendarScreen';
 import VideoListScreen from '../screens/more/VideoListScreen';
 import VideoDetailScreen from '../screens/more/VideoDetailScreen';
@@ -64,6 +65,8 @@ export default function MoreStackNavigator() {
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t('menu.profile') }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen}
         options={{ title: t('password.title') }} />
+      <Stack.Screen name="MySignatures" component={MySignaturesScreen}
+        options={{ title: t('signature.title') }} />
       <Stack.Screen name="GoogleCalendar" component={GoogleCalendarScreen} options={{ title: 'Google Naptár' }} />
       <Stack.Screen name="VideoList" component={VideoListScreen} options={{ title: t('menu.videos') }} />
       <Stack.Screen name="VideoDetail" component={VideoDetailScreen} options={{ title: t('screens.video') }} />

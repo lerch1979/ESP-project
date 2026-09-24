@@ -129,7 +129,8 @@
     "chatbotHistory": "Frühere Unterhaltungen",
     "faq": "FAQ",
     "videos": "Videos",
-    "changePassword": "Passwort ändern"
+    "changePassword": "Passwort ändern",
+    "mySignatures": "Wartet auf Unterschrift"
   },
   "attach": {
     "photos": "Fotos",
@@ -298,7 +299,8 @@
     "high": "Hoch",
     "critical": "Kritisch",
     "searchPlaceholder": "Suchen...",
-    "noResults": "Keine Ergebnisse"
+    "noResults": "Keine Ergebnisse",
+    "clear": "Löschen"
   },
   "calendar": {
     "title": "Kalender",
@@ -444,5 +446,15 @@
     "mismatch": "Die beiden neuen Passwörter stimmen nicht überein.",
     "failed": "Das Ändern des Passworts ist fehlgeschlagen. Bitte erneut versuchen.",
     "firstLoginBody": "Du hast dich mit einem vorläufigen Passwort angemeldet, das du auf Papier erhalten hast. Lege ein eigenes Passwort fest, bevor du fortfährst — niemand außer dir wird es kennen."
+  },
+  "signature": {
+    "title": "Wartet auf Unterschrift",
+    "empty": "Es liegen keine Dokumente zur Unterschrift vor.",
+    "drawHere": "Mit dem Finger unterschreiben:",
+    "submit": "Unterschrift senden",
+    "doneTitle": "Unterschrieben",
+    "doneBody": "Danke. Deine Unterschrift wurde erfasst.",
+    "failed": "Das Senden der Unterschrift ist fehlgeschlagen. Bitte erneut versuchen.",
+    "textFailed": "Text konnte nicht geladen werden. Zum Aktualisieren nach unten ziehen."
   }
 }

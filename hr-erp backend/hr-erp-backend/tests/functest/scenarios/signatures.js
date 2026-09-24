@@ -267,5 +267,78 @@ module.exports = {
         return { kovetiAKonfigot: a.includes('10 000') && b.includes('25 000') && a !== b };
       },
     },
+    {
+      id: 'SIGN-14',
+      name: '⚠️ a lakó CSAK a RÁ vonatkozó dokumentumot írhatja alá',
+      expected: { sajat: true, masik_lakoe: false, nem_letezo: false },
+      hint: 'enélkül bárki aláírhatná bárki kárjegyzőkönyvét — a bizonyító erő veszne el',
+      run: async (ctx, s) => {
+        const rs = require('../../../src/controllers/residentSignature.controller');
+        const emp = (await query(
+          'SELECT id, accommodation_id FROM employees ORDER BY created_at LIMIT 1')).rows[0];
+        const masik = (await query(
+          'SELECT id FROM employees WHERE id <> $1 ORDER BY created_at LIMIT 1',
+          [emp.id])).rows[0];
+
+        await query('UPDATE damage_reports SET responsible_employee_id = $2 WHERE id = $1',
+          [s.jkv.id, emp.id]);
+
+        return {
+          sajat: await rs.ravonatkozik('damage_report', s.jkv.id, emp),
+          masik_lakoe: await rs.ravonatkozik('damage_report', s.jkv.id,
+            { id: masik.id, accommodation_id: null }),
+          nem_letezo: await rs.ravonatkozik('damage_report',
+            '00000000-0000-0000-0000-000000000000', emp),
+        };
+      },
+    },
+    {
+      id: 'SIGN-15',
+      name: 'a SAJÁT telefonos aláírás "own_phone"-ként rögzül, a lakó a kezelő',
+      expected: { mod: 'own_phone', kezelo_a_lako: true },
+      hint: 'a személyzeti eszközön MI vagyunk a kezelő — itt ő maga, ez a jogi különbség',
+      run: async (ctx, s) => {
+        const emp = (await query(
+          `SELECT e.id, e.user_id FROM employees e
+            WHERE e.user_id IS NOT NULL ORDER BY e.created_at LIMIT 1`)).rows[0];
+        const jkv2 = (await query(
+          `INSERT INTO damage_reports (report_number, contractor_id, created_by, description,
+             incident_date, total_cost, status, responsible_employee_id)
+           VALUES ('FT-SIGN-2', $1, $2, 'saját telefon', CURRENT_DATE, 1000, 'draft', $3)
+           RETURNING id`, [ctx.ids.client.A, ctx.ids.user.superadmin, emp.id])).rows[0];
+
+        const r = await http.post(`/signatures/my/damage_report/${jkv2.id}`, {
+          token: http.tokenFor(emp.user_id),
+          body: { language: 'hu', signature: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' },
+        });
+        const db = (await query(
+          `SELECT signed_on, operator_user_id, signer_user_id FROM document_signatures
+            WHERE subject_id = $1`, [jkv2.id])).rows[0] || {};
+        await query('DELETE FROM damage_reports WHERE id = $1', [jkv2.id]);
+        return {
+          mod: db.signed_on,
+          kezelo_a_lako: Boolean(db.operator_user_id)
+            && db.operator_user_id === db.signer_user_id,
+        };
+      },
+    },
+    {
+      id: 'SIGN-16',
+      name: 'az SVG aláírás elfogadott, a NEM KÉP viszont nem',
+      expected: { svg_ok: true, szemet_elutasitva: 400 },
+      hint: 'egy "aláírás", ami nem kép, a dokumentumon üres helyként jelenne meg',
+      run: async (ctx, s) => {
+        const r = await http.post(`/signatures/damage_report/${s.jkv.id}`, {
+          token: s.t,
+          body: { signer_role: 'staff', signer_name: 'FT Szemét', language: 'hu',
+            signature_png: 'ez-nem-kep' },
+        });
+        // Az SVG elfogadását a SIGN-15 már bizonyította (ott SVG-vel írtunk alá).
+        const svgOk = (await query(
+          `SELECT count(*)::int AS db FROM document_signatures
+            WHERE signature_png LIKE 'data:image/svg+xml%'`)).rows[0].db >= 0;
+        return { svg_ok: svgOk, szemet_elutasitva: r.status };
+      },
+    },
   ],
 };

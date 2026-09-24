@@ -143,6 +143,17 @@ api.interceptors.response.use(
 );
 
 // Auth API
+// A LAKÓ saját aláírásai. A jogosultságot a szerver tételesen nézi: csak azt adja
+// vissza és csak azt engedi aláírni, ami RÁ vonatkozik.
+export const signaturesAPI = {
+  pending: () => api.get('/signatures/my/pending').then((r) => r.data),
+  myText: (subjectType, subjectId, language) =>
+    api.get(`/signatures/my/${subjectType}/${subjectId}/text`, { params: { language } })
+      .then((r) => r.data),
+  mySign: (subjectType, subjectId, body) =>
+    api.post(`/signatures/my/${subjectType}/${subjectId}`, body).then((r) => r.data),
+};
+
 export const authAPI = {
   // Saját jelszóváltás. A válasz ÚJ token-párt hoz: a szerver a jelszóváltáskor minden
   // korábbi tokent érvénytelenít, tehát enélkül a saját eszközünk is kiesne.

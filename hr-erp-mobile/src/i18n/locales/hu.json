@@ -129,7 +129,8 @@
     "chatbotHistory": "Korábbi beszélgetések",
     "faq": "GYIK",
     "videos": "Videók",
-    "changePassword": "Jelszó módosítása"
+    "changePassword": "Jelszó módosítása",
+    "mySignatures": "Aláírásra vár"
   },
   "attach": {
     "photos": "Fotók",
@@ -298,7 +299,8 @@
     "high": "Magas",
     "critical": "Kritikus",
     "searchPlaceholder": "Keresés...",
-    "noResults": "Nincs találat"
+    "noResults": "Nincs találat",
+    "clear": "Törlés"
   },
   "calendar": {
     "title": "Naptár",
@@ -444,5 +446,15 @@
     "mismatch": "A két új jelszó nem egyezik.",
     "failed": "A jelszó módosítása nem sikerült. Próbáld újra.",
     "firstLoginBody": "Ideiglenes jelszóval léptél be, amit papíron kaptál meg. Adj meg egy saját jelszót, mielőtt folytatod — ezt rajtad kívül senki nem fogja ismerni."
+  },
+  "signature": {
+    "title": "Aláírásra vár",
+    "empty": "Nincs aláírásra váró dokumentumod.",
+    "drawHere": "Írd alá az ujjaddal:",
+    "submit": "Aláírás elküldése",
+    "doneTitle": "Aláírva",
+    "doneBody": "Köszönjük. Az aláírásod rögzítettük.",
+    "failed": "Az aláírás elküldése nem sikerült. Próbáld újra.",
+    "textFailed": "A szöveget nem sikerült betölteni. Húzd le a frissítéshez."
   }
 }

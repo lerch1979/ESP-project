@@ -442,6 +442,9 @@ app.use(`${API_PREFIX}/translation`, translationRoutes);
 app.use(`${API_PREFIX}/classification-rules`, classificationRulesRoutes);
 app.use(`${API_PREFIX}/inspections`, inspectionRoutes);
 // Egységes aláírás-tár (mig 177) — mind a négy dokumentumtípusra.
+// A LAKÓI útvonalak ELŐBB: a `/my/...` minták különben a `/:subjectType/:subjectId`
+// alá esnének, és a lakó a személyzeti (jogosultsághoz kötött) ágra futna.
+app.use(`${API_PREFIX}/signatures`, require('./routes/residentSignature.routes'));
 app.use(`${API_PREFIX}/signatures`, signatureRoutes);
 app.use(`${API_PREFIX}/inspection-templates`, inspectionTemplateRoutes);
 app.use(`${API_PREFIX}/expiry-monitor`, expiryMonitorRoutes);

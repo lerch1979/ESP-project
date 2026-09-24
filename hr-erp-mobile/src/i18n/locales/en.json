@@ -129,7 +129,8 @@
     "chatbotHistory": "Past conversations",
     "faq": "FAQ",
     "videos": "Videos",
-    "changePassword": "Change password"
+    "changePassword": "Change password",
+    "mySignatures": "Awaiting signature"
   },
   "attach": {
     "photos": "Photos",
@@ -298,7 +299,8 @@
     "high": "High",
     "critical": "Critical",
     "searchPlaceholder": "Search...",
-    "noResults": "No results"
+    "noResults": "No results",
+    "clear": "Clear"
   },
   "calendar": {
     "title": "Calendar",
@@ -444,5 +446,15 @@
     "mismatch": "The two new passwords do not match.",
     "failed": "Changing the password failed. Please try again.",
     "firstLoginBody": "You signed in with a temporary password you received on paper. Set your own password before continuing — nobody but you will know it."
+  },
+  "signature": {
+    "title": "Awaiting signature",
+    "empty": "You have no documents awaiting signature.",
+    "drawHere": "Sign with your finger:",
+    "submit": "Submit signature",
+    "doneTitle": "Signed",
+    "doneBody": "Thank you. Your signature has been recorded.",
+    "failed": "Submitting the signature failed. Please try again.",
+    "textFailed": "Could not load the text. Pull down to refresh."
   }
 }
