@@ -27,6 +27,10 @@ const formatFileSize = (bytes) => {
 const INITIAL_FORM = {
   invoice_number: '', vendor_name: '', vendor_tax_number: '', amount: '', vat_amount: '',
   vendor_contractor_id: null,
+  // A beszállítói számlaszám EDDIG HIÁNYZOTT ebből a listából. Emiatt a mező
+  // "kontrollálatlanul" indult, és szerkesztésnél üresen nyílt akkor is, ha a számlán
+  // volt szám — a felhasználó azt hihette, hogy nincs, pedig csak nem töltöttük be.
+  supplier_invoice_number: '', is_landlord_notice: false,
   total_amount: '', currency: 'HUF', invoice_date: '', performance_date: '', due_date: '', payment_date: '',
   payment_status: 'draft', cost_center_id: '', category_id: '', description: '', notes: '',
 };
@@ -83,6 +87,15 @@ export default function InvoiceFormModal({
         description: editData.description || '',
         notes: editData.notes || '',
         vendor_contractor_id: editData.vendor_contractor_id || null,
+        // A MEGLÉVŐ SZÁMLASZÁMOT VISSZA KELL TÖLTENI. Enélkül a szerkesztő űrlap üresen
+        // nyílik, a mező pirosan "kötelező"-t mutat egy olyan számlán, amin már van
+        // szám — és a mentés az üres értéket küldené vissza.
+        supplier_invoice_number: editData.supplier_invoice_number || '',
+        // NEM következtetünk rá a számlaszám hiányából. A jelölés nincs eltárolva
+        // (nem adatbázis-oszlop), és a "nincs száma → bérbeadói jelzés" következtetés
+        // épp a pótlásra váró számlákat minősítené át tévesen. Üresen hagyva a mező
+        // pirosan jelzi, hogy kell bele szám — szerkesztésnél pontosan ezt akarjuk.
+        is_landlord_notice: false,
       });
       // A meglévő besorolást vissza KELL tölteni. Enélkül a szerkesztő űrlap üres célponttal
       // nyílik, és mentéskor üres felosztást küld — vagyis egy fizetési státusz átállítása
@@ -184,7 +197,14 @@ export default function InvoiceFormModal({
       await onSave(data, file);
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Hiba történt');
+      // A szerver üzenete az elsődleges (pl. a 409-es duplikáció-jelzés megmondja,
+      // melyik számlán szerepel már ez a szám). Ha nincs, a dobott hiba szövege jön —
+      // "Hiba történt" csak végső esetben, mert abból a felhasználó nem tud mit kezdeni.
+      toast.error(error.response?.data?.message || error.message || 'Hiba történt',
+        { autoClose: 8000 });
+      // Az ablak nyitva marad (az `onClose` a try-ágon van), tehát a beírt adat
+      // megmarad javításra — a hosszabb megjelenítési idő azért kell, hogy a 409-es
+      // duplikáció-üzenetet el lehessen olvasni.
     } finally {
       setSaving(false);
     }

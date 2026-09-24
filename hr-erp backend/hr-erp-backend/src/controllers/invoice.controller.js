@@ -447,8 +447,26 @@ const update = async (req, res) => {
       vendor_name, vendor_tax_number, amount, currency,
       vat_amount, total_amount, invoice_date, due_date, payment_date,
       payment_status, cost_center_id, category_id, description, notes,
-      line_items, client_name, client_id, contractor_id
+      line_items, client_name, client_id, contractor_id,
+      // HÁROM MEZŐ EDDIG NÉMÁN ELHULLOTT ITT. A felület elküldte, a szerver 200-at
+      // adott, a felület zöld sikert jelzett — és a mentés nem történt meg. A hiba
+      // azért volt észrevehetetlen, mert semmi nem jelezte: ez a kézzel felsorolt
+      // mezőlista csendben eldobott mindent, ami nincs benne.
+      //   • supplier_invoice_number — a beszállítói (jogi) számlaszám, amit a könyvelő
+      //     keres. Meglévő számlán EZÉRT nem lehetett pótolni.
+      //   • performance_date — a teljesítés dátuma, ami devizás számlánál az MNB
+      //     árfolyamot dönti el. Átírni lehetett, hatása nem volt.
+      //   • vendor_contractor_id — a szállító partnerhez kötése.
+      // A belső `invoice_number` SZÁNDÉKOSAN marad kint: az a mi sorszámunk, nem
+      // szerkesztendő adat.
+      supplier_invoice_number, performance_date, vendor_contractor_id
     } = req.body;
+
+    // Üres sztring = "nem adtak meg", nem pedig "töröld". Egy üres számlaszám
+    // elrontaná a "hiányzik" jelzést a listában és kiesne az egyediségi indexből is.
+    const szallitoiSzamUj = typeof supplier_invoice_number === 'string'
+      && supplier_invoice_number.trim() !== ''
+      ? supplier_invoice_number.trim() : null;
 
     const current = await query(
       'SELECT * FROM invoices WHERE id = $1 AND deleted_at IS NULL',
@@ -491,6 +509,28 @@ const update = async (req, res) => {
       }
     }
 
+    // DUPLIKÁCIÓ-ELLENŐRZÉS a mentés előtt. Az adatbázisban van egyedi index
+    // (beszállító + számlaszám), de az nyers Postgres-hibát dobna "23505" kóddal —
+    // a felhasználó abból nem értené meg, hogy ezt a számlát már rögzítették.
+    if (szallitoiSzamUj) {
+      const szallito = vendor_name || current.rows[0].vendor_name || '';
+      const mar = await query(
+        `SELECT id, invoice_number FROM invoices
+          WHERE lower(btrim(vendor_name)) = lower(btrim($1))
+            AND btrim(supplier_invoice_number) = btrim($2)
+            AND id <> $3 AND deleted_at IS NULL LIMIT 1`,
+        [szallito, szallitoiSzamUj, id]);
+      if (mar.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: `Ez a számlaszám már szerepel ennél a szállítónál: `
+            + `${szallito} / ${szallitoiSzamUj} `
+            + `(belső sorszám: ${mar.rows[0].invoice_number}).`,
+          data: { existing: mar.rows[0] },
+        });
+      }
+    }
+
     const result = await query(
       `UPDATE invoices SET
         vendor_name = COALESCE($1, vendor_name),
@@ -510,15 +550,21 @@ const update = async (req, res) => {
         line_items = COALESCE($15, line_items),
         client_name = COALESCE($16, client_name),
         client_id = COALESCE($17, client_id),
-        contractor_id = COALESCE($18, contractor_id)
-       WHERE id = $19 AND deleted_at IS NULL
+        contractor_id = COALESCE($18, contractor_id),
+        supplier_invoice_number = COALESCE($19, supplier_invoice_number),
+        performance_date = COALESCE($20, performance_date),
+        vendor_contractor_id = COALESCE($21, vendor_contractor_id),
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $22 AND deleted_at IS NULL
        RETURNING *`,
       [
         vendor_name, vendor_tax_number, amount, currency,
         vat_amount, total_amount, invoice_date, due_date, payment_date,
         payment_status, cost_center_id, category_id, description, notes,
         line_items ? JSON.stringify(line_items) : null,
-        client_name, client_id, contractor_id, id
+        client_name, client_id, contractor_id,
+        szallitoiSzamUj, performance_date || null, vendor_contractor_id || null,
+        id
       ]
     );
 
@@ -540,8 +586,12 @@ const update = async (req, res) => {
     result.rows[0].expense_sync = await expenseSync.syncFromAllocations(id);
     result.rows[0].allocations = await allocations.getAllocations(id);
 
+    // A beszállítói számlaszám és a teljesítés dátuma IS naplózandó: az egyik a jogi
+    // azonosító, a másik devizás számlánál az árfolyamot dönti el. Ha ezek némán
+    // változnak, egy későbbi vitában nem lesz mire hivatkozni.
     const changes = diffObjects(current.rows[0], result.rows[0], [
-      'vendor_name', 'amount', 'payment_status', 'due_date', 'cost_center_id'
+      'vendor_name', 'amount', 'payment_status', 'due_date', 'cost_center_id',
+      'supplier_invoice_number', 'performance_date'
     ]);
 
     if (changes) {

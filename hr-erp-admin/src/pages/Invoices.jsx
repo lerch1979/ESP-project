@@ -227,18 +227,22 @@ function Invoices() {
 
   const handleSave = async (data, file) => {
     let savedInvoice;
+    // A `success: false` ÁGAT KI KELL MONDANI. Eddig csak a `success` ágon történt
+    // valami: ha a szerver 200-nal, de `success: false`-szal válaszolt, a felület
+    // NEM szólt, viszont bezárta az ablakot — a felhasználó pedig joggal hitte, hogy
+    // mentett. (A dobott hibákat a modal `handleSubmit`-ja amúgy is kiírja.)
+    const kezel = (res) => {
+      if (res?.success) {
+        toast.success(res.message);
+        return res.data;
+      }
+      throw new Error(res?.message || 'A mentés nem sikerült — a szerver elutasította.');
+    };
+
     if (editData) {
-      const res = await costCentersAPI.updateInvoice(editData.id, data);
-      if (res.success) {
-        toast.success(res.message);
-        savedInvoice = res.data;
-      }
+      savedInvoice = kezel(await costCentersAPI.updateInvoice(editData.id, data));
     } else {
-      const res = await costCentersAPI.createInvoice(data);
-      if (res.success) {
-        toast.success(res.message);
-        savedInvoice = res.data;
-      }
+      savedInvoice = kezel(await costCentersAPI.createInvoice(data));
     }
     warnIfNoExpense(savedInvoice);
 

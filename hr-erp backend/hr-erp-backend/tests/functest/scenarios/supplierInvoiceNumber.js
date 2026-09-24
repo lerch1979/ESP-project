@@ -117,5 +117,94 @@ module.exports = {
         return { created: r.status };
       },
     },
+    {
+      id: 'SUPNUM-07',
+      name: '⚠️ a MEGLÉVŐ számlán PÓTOLHATÓ a beszállítói számlaszám',
+      expected: { mentes: 200, visszaolvasva: 'POT-2026/001', listaban: 'POT-2026/001' },
+      hint: 'a szerkesztő végpont kézzel felsorolt mezőlistája eddig NÉMÁN eldobta',
+      run: async (ctx, s) => {
+        // Számlaszám NÉLKÜLI sor — pont, mint az a 8 élesben.
+        const sz = (await query(
+          `INSERT INTO invoices (vendor_name, amount, total_amount, invoice_date,
+             cost_center_id, contractor_id, created_by, payment_status)
+           VALUES ('FT Pótlás Kft', 1000, 1000, CURRENT_DATE, $1, $2, $3, 'draft')
+           RETURNING id`,
+          [s.kh.id, ctx.ids.contractor, ctx.ids.user.superadmin])).rows[0];
+
+        const r = await http.put(`/invoices/${sz.id}`, {
+          token: s.t, body: { supplier_invoice_number: 'POT-2026/001' } });
+
+        const db = (await query(
+          'SELECT supplier_invoice_number FROM invoices WHERE id = $1', [sz.id]))
+          .rows[0].supplier_invoice_number;
+        const lista = await http.get(`/invoices/${sz.id}`, { token: s.t });
+
+        return {
+          mentes: r.status,
+          visszaolvasva: db,
+          listaban: lista.body?.data?.invoice?.supplier_invoice_number
+            || lista.body?.data?.supplier_invoice_number,
+        };
+      },
+    },
+    {
+      id: 'SUPNUM-08',
+      name: 'a pótlás sem hozhat létre DUPLIKÁTUMOT — érthető üzenettel utasítja el',
+      expected: { status: 409, megmondja_melyik: true },
+      hint: 'az adatbázis egyedi indexe nyers 23505-öt dobna, abból senki nem ért semmit',
+      run: async (ctx, s) => {
+        const mk = async (szam) => (await query(
+          `INSERT INTO invoices (vendor_name, supplier_invoice_number, amount, total_amount,
+             invoice_date, cost_center_id, contractor_id, created_by, payment_status)
+           VALUES ('FT Dupla Kft', $4, 1000, 1000, CURRENT_DATE, $1, $2, $3, 'draft')
+           RETURNING id, invoice_number`,
+          [s.kh.id, ctx.ids.contractor, ctx.ids.user.superadmin, szam])).rows[0];
+
+        const elso = await mk('DUP-2026/777');
+        const masodik = await mk(null);
+
+        const r = await http.put(`/invoices/${masodik.id}`, {
+          token: s.t, body: { supplier_invoice_number: 'DUP-2026/777' } });
+        return {
+          status: r.status,
+          megmondja_melyik: String(r.body?.message || '').includes(elso.invoice_number),
+        };
+      },
+    },
+    {
+      id: 'SUPNUM-09',
+      name: '⚠️ a szerkesztő végpont MINDEN űrlapmezőt fogad — nem hullik el némán egy sem',
+      expected: { elhullott: [] },
+      hint: 'ez a hibaosztály háromszor fordult elő: adószám, számlaszám, teljesítés dátuma',
+      run: async (ctx, s) => {
+        const sz = (await query(
+          `INSERT INTO invoices (vendor_name, supplier_invoice_number, amount, total_amount,
+             invoice_date, cost_center_id, contractor_id, created_by, payment_status)
+           VALUES ('FT Körbe Kft','KORBE-1',1000,1000,CURRENT_DATE,$1,$2,$3,'draft')
+           RETURNING id`,
+          [s.kh.id, ctx.ids.contractor, ctx.ids.user.superadmin])).rows[0];
+
+        // Amit a szerkesztő űrlap küld, és aminek meg KELL érkeznie. A belső
+        // `invoice_number` szándékosan nincs a listán: azt mi adjuk, nem szerkesztendő.
+        const kuldott = {
+          vendor_name: 'FT Körbe Kft 2',
+          vendor_tax_number: '12345678-1-42',
+          supplier_invoice_number: 'KORBE-2',
+          performance_date: '2026-03-15',
+          description: 'körbe-teszt',
+          notes: 'körbe-jegyzet',
+        };
+        await http.put(`/invoices/${sz.id}`, { token: s.t, body: kuldott });
+
+        const db = (await query(
+          `SELECT vendor_name, vendor_tax_number, supplier_invoice_number,
+                  performance_date::text AS performance_date, description, notes
+             FROM invoices WHERE id = $1`, [sz.id])).rows[0];
+
+        const elhullott = Object.keys(kuldott)
+          .filter((k) => String(db[k] ?? '') !== String(kuldott[k]));
+        return { elhullott };
+      },
+    },
   ],
 };
