@@ -42,6 +42,7 @@ const OccupancyReports = lazy(() => import('./pages/OccupancyReports'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const ScheduledReports = lazy(() => import('./pages/ScheduledReports'));
 const ConsolidationEngine = lazy(() => import('./pages/ConsolidationEngine'));
+const AgentSettings = lazy(() => import('./pages/admin/AgentSettings'));
 const EmailTemplates = lazy(() => import('./pages/EmailTemplates'));
 const CostCenters = lazy(() => import('./pages/CostCenters'));
 const Invoices = lazy(() => import('./pages/Invoices'));
@@ -273,6 +274,9 @@ function App() {
               <Route path="admin/workplaces" element={<PermissionGuard permission="settings.edit"><WorkplacesAdmin /></PermissionGuard>} />
               <Route path="admin/all-tasks" element={<PermissionGuard permission="settings.edit"><AllTasksAdmin /></PermissionGuard>} />
               <Route path="admin/ai-assistant-logs" element={<PermissionGuard permission="settings.edit"><AIAssistantLogs /></PermissionGuard>} />
+              {/* Triage Agent kapcsoló. A PermissionGuard jogot tud, szerepet nem — a
+                  szuperadmin-ellenőrzés a lapon belül és a szerveren van. */}
+              <Route path="admin/agent/settings" element={<PermissionGuard permission="settings.edit"><AgentSettings /></PermissionGuard>} />
               <Route path="admin/email-assistant" element={<PermissionGuard permission="settings.edit"><EmailAssistantLogs /></PermissionGuard>} />
             </Route>
 

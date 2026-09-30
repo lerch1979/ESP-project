@@ -1094,6 +1094,14 @@ export const scheduledReportsAPI = {
 };
 
 // Room Consolidation Suggestion Engine API
+// Triage Agent kill switch + akció-engedélyek (spec 1.6). Csak szuperadmin — a
+// szerver oldal is ezt kéri, nem csak a felület rejti el.
+export const agentAPI = {
+  getSettings: async () => (await api.get('/agent/settings')).data,
+  setMode: async (mode, reason = null) => (await api.put('/agent/settings', { mode, reason })).data,
+  setPolicy: async (actionType, adat) => (await api.put(`/agent/policy/${actionType}`, adat)).data,
+};
+
 export const consolidationAPI = {
   run: async () => (await api.post('/consolidation/run')).data,
   listRuns: async () => (await api.get('/consolidation/runs')).data,

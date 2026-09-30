@@ -72,6 +72,7 @@ const MODULES = [
   './scenarios/residentTasks',
   './scenarios/supplierInvoiceNumber',
   './scenarios/pushDelivery',
+  './scenarios/agentTriage',
   './scenarios/videoComms',
   './scenarios/automations',
   './scenarios/composed',

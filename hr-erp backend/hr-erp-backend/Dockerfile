@@ -73,6 +73,13 @@ COPY migrations ./migrations
 # Same class of gap as the scripts/ and migrations/ COPY lines above.
 COPY assets ./assets
 
+# Futásidejű KONFIGURÁCIÓ. A Triage Agent szabálymotorja a config/triage_rules.yaml-ból
+# olvas, és a fájl hiánya nem degradálódás, hanem ENOENT: az első bejövő üzenet
+# feldolgozása dobna. Ez ugyanaz a hibaosztály, mint a fenti scripts/, migrations/ és
+# assets/ sorok — ötödször fordult elő, hogy egy funkció azért nem működött volna
+# élesben, mert a futtatásához kellő fájl kimaradt az image-ből.
+COPY config ./config
+
 # Create required directories
 RUN mkdir -p logs uploads
 

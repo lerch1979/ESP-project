@@ -40,6 +40,7 @@ const activityLogRoutes = require('./routes/activity-log.routes');
 const preferencesRoutes = require('./routes/preferences.routes');
 const scheduledReportRoutes = require('./routes/scheduled-report.routes');
 const consolidationRoutes = require('./routes/consolidation.routes');
+const agentSettingsRoutes = require('./routes/agentSettings.routes');
 const partnerRoutes = require('./routes/partner.routes');
 const settlementRoutes = require('./routes/settlement.routes');
 const salesRoutes = require('./routes/sales.routes');
@@ -396,6 +397,8 @@ app.use(`${API_PREFIX}/activity-log`, activityLogRoutes);
 app.use(`${API_PREFIX}/preferences`, preferencesRoutes);
 app.use(`${API_PREFIX}/scheduled-reports`, scheduledReportRoutes);
 app.use(`${API_PREFIX}/consolidation`, consolidationRoutes);
+// Triage Agent kill switch + policy (spec 1.6) — csak szuperadmin, a route-ban
+app.use(`${API_PREFIX}/agent`, agentSettingsRoutes);
 app.use(`${API_PREFIX}/partners`, partnerRoutes);
 app.use(`${API_PREFIX}/settlements`, settlementRoutes.admin);
 // Szállásadói hibajegy-nézet — belépés nélkül, lejáró linken (mig 170). Az EGYESÍTETT

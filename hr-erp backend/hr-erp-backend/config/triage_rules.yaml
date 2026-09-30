@@ -1,0 +1,119 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Triage Agent — determinisztikus szabályok (spec v1, 4. fejezet)
+#
+# MIÉRT KONFIG ÉS NEM KÓD: a szabályok üzleti tudást hordoznak (melyik szó jelent
+# vízhibát öt nyelven), és ezt annak kell tudnia módosítani, aki a szállásokat
+# ismeri — nem annak, aki JavaScriptet ír. Egy kódba égetett kulcsszólista minden
+# módosításnál deployt igényelne.
+#
+# A SZABÁLYMOTOR FUT ELŐSZÖR (spec 2.): amit szabály eldönt, azt nem LLM dönti.
+#
+# Minden szabályhoz KÖTELEZŐ 3 pozitív és 3 negatív teszteset a
+# tests/agent/rules.test.js-ben. Szabály módosítása CI-ban futtatja őket.
+# ─────────────────────────────────────────────────────────────────────────────
+
+- id: R001_water_leak
+  description: Vízhiba — csöpögés, folyás, beázás
+  match:
+    any_keywords: [csöpög, csepeg, folyik, beázás, beazas, elázott, leak, leaking, water,
+                   tumutulo, tumagas, tubig, тече, протікає, вода]
+    lang: any
+  set: { category: maintenance, subcategory: plumbing, urgency: high }
+  weight: 0.9
+
+- id: R002_no_heating
+  description: Fűtés nem megy — télen kritikus
+  match:
+    any_keywords: [fűtés, futes, fűt, radiátor, radiator, hideg, heating, cold, no heat,
+                   malamig, walang init, опалення, холодно, батарея]
+  set: { category: maintenance, subcategory: heating, urgency: high }
+  # A hideg hónapokban ugyanaz a bejelentés súlyosabb: fűtés nélkül egy szálló
+  # januárban lakhatatlan, júliusban kényelmetlen.
+  season_boost: { months: [10, 11, 12, 1, 2, 3], urgency: critical }
+  weight: 0.9
+
+- id: R007_appliance
+  description: Háztartási gép hibája — mosógép, hűtő, tűzhely, mikró, sütő
+  match:
+    any_keywords: [mosógép, mosogep, hűtő, huto, hűtőszekrény, hutoszekreny,
+                   tűzhely, tuzhely, mikró, mikro, mikrohullámú, mikrohullamu, sütő, suto,
+                   washing machine, fridge, refrigerator, stove, microwave, oven,
+                   ref, kalan, kalang,
+                   пральна машина, пральна, холодильник, плита, мікрохвильовка]
+    # HASZNÁLATI KÉRDÉS ≠ HIBA. A "hogyan használom a mosógépet?" a házirendhez
+    # tartozik, nem a karbantartóhoz. A kizáró szavak nélkül minden gép-kérdés
+    # hibajegyet nyitna, és a szerelő üresbe menne ki.
+    none_keywords: [hogyan, how to, paano, як,
+                    # A bojler SZÁNDÉKOSAN kizárva innen: az R008 fűtés-hibaként,
+                    # magasabb sürgősséggel veszi fel. Melegvíz nélkül egy szálló
+                    # nem üzemel; egy néma mikró kellemetlenség.
+                    bojler, boiler, water heater, бойлер]
+  set: { category: maintenance, subcategory: appliance, urgency: normal }
+  weight: 0.85
+
+- id: R008_water_heater
+  description: Bojler / vízmelegítő — a háztartási gép KIVÉTELE, fűtés-hibaként
+  match:
+    any_keywords: [bojler, vízmelegítő, vizmelegito,
+                   boiler, water heater, immersion heater,
+                   heater ng tubig, pampainit ng tubig,
+                   бойлер, водонагрівач]
+    none_keywords: [hogyan, how to, paano, як]
+  # Magasabb súly, mint az R007 — ha egy üzenet mindkettőt említi, a bojler viszi.
+  set: { category: maintenance, subcategory: heating, urgency: high }
+  weight: 0.92
+
+- id: R010_lock_out
+  description: Kizáródás / zárhiba — mindig kritikus
+  match:
+    any_keywords: [kulcs, kulcsom, zár, zar, bezárt, bezaródtam, kizárt, kizáródtam,
+                   key, keys, lock, locked out, locked,
+                   susi, nakakandado, naiwan ang susi, ключ, замок, зачинився]
+  # Kizáródásnál nincs "alacsony sürgősség": aki kint áll, az most áll kint.
+  set: { category: maintenance, subcategory: lock, urgency: critical }
+  weight: 0.95
+
+- id: R020_faq_laundry
+  description: Mosás — használati kérdés, NEM hibabejelentés
+  match:
+    # A ragozott alakokat KÜLÖN fel kell venni, ahol a szótő prefixe nem fedi le őket:
+    # a "moshatok" szóra sem a "mosás", sem a "mosni" nem illeszkedik (a motor szó
+    # elejétől prefixet illeszt, és a "mos" három karakter — az túl rövid ahhoz, hogy
+    # prefixként engedjük, mert a "mosoly" és a "mostan" is illeszkedne rá).
+    any_keywords: [mosás, mosas, mosógép, mosogep, mosni, moshat, mosok, mosoda,
+                   laundry, washing machine,
+                   labahan, labada, прання, пральна, прати]
+    # A kizáró szavak döntik el, hogy KÉRDÉS vagy HIBA. "Mikor moshatok?" → FAQ;
+    # "a mosógép nem működik" → karbantartás. A none_keywords nélkül minden
+    # mosógép-hiba FAQ-ként végezné.
+    none_keywords: [rossz, elromlott, nem működik, nem mukodik, hibás, broken, not working,
+                    sira, не працює, зламал]
+  set: { category: faq, kb_article: laundry_rules, urgency: low }
+  weight: 0.8
+
+- id: R090_money_words
+  description: Pénz-szó — MINDIG ember dönt, függetlenül a confidence-től
+  match:
+    # A SZÓTÖVEKET is fel kell venni, és itt ez nem szépészeti kérdés: ez a szabály
+    # kényszeríti emberre a pénzügyi témát, tehát az ALUL-jelzés a rossz irány. A
+    # "ki fizeti a javítást?" kérdés a `fizetés` alakra NEM illeszkedett (a motor szó
+    # elejétől prefixel, és a "fizetes" nem prefixe a "fizeti"-nek) — ezért `fizet`.
+    # A "ber" három karakter, tehát csak TELJES szóként illeszkedik: a "berendezés"
+    # szándékosan nem pénz-szó.
+    any_keywords: [számla, szamla, fizetés, fizetes, fizet, kifizet, befizet,
+                   bér, ber, bérlap, berlap, levonás, levonas,
+                   előleg, eloleg, kaució, kaucio, tartozás, tartozas,
+                   invoice, salary, payment, wage, deduction, deposit, pay, paid,
+                   sahod, suweldo, bayad, magbayad,
+                   зарплата, оплата, рахунок, аванс, платіж, платити]
+  # A spec 5. küszöbei szerint ez felülír MINDENT: pénzről az agent nem dönt.
+  set: { force_review: true }
+  weight: 1.0
+
+- id: R099_escalation_age
+  description: Régóta nyitott jegy ugyanarra a helyre — eszkaláció
+  match:
+    existing_ticket_open_hours_gt: 48
+    same_location: true
+  set: { escalate: true, urgency_min: high }
+  weight: 0.7

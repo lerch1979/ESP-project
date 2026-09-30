@@ -6,6 +6,193 @@ For long-running context (architecture, dormant systems, overlaps) see `PROJECT_
 
 ---
 
+## SESSION 2026-09-30 (2. rész) — a tulajdonos három döntése végrehajtva, élesítés
+
+Az 1. heti jelentés három döntési pontjára megjött a válasz. Mindhárom végrehajtva.
+
+### (1) Az `agent_audit_log`-ot NEM dobjuk el — ALTER
+
+> „Az agent_audit_log meglévő szerkezetét NE dobd el – ALTER-rel egészítsd ki, a régi
+> sorok maradjanak."
+
+A 184 átírva: **semmit nem dob el, egyetlen sort sem töröl.** A 123-as tábla megmarad
+(uuid kulcs, `agent_name`/`action`, `input`/`output`, `model` + token-számlálók), és
+megkapja a spec oszlopait: `actor`, `event`, `details`, `action_id`, `message_id`. A
+`created_at` játssza a spec `ts` szerepét — nem vezettem be második időbélyeget ugyanarra
+a tényre. A régi NOT NULL-ok lekerültek az `agent_name`/`action`-ról (az új írások nem
+töltik), de egy **CHECK** tiltja a NÉVTELEN sort: valamelyik szókincsnek ki kell lennie
+töltve, mert egy sor, amiről nem tudható, ki és mit tett, nem audit sor. A két szókincs
+viszonya a migrációban és oszlop-kommentekben rögzítve: `actor`/`event` a kanonikus,
+`agent_name`/`action` **befagyasztva**.
+
+**Egy dolgot menet közben kellett megoldani.** Három különböző kiinduló állapotból kell
+ugyanoda érkezni: (a) nincs tábla (friss CI), (b) 123-as alak (**éles**), (c) a 184
+**visszavont** első változatának bigint-kulcsú táblája — ez devben és sandboxban már
+lefutott, tehát a ledger szerint a 184 „applied", és a javított tartalma ott soha nem fut
+le. Enélkül a dev és az éles adatbázis **szerkezete eltérne**, és a tesztek azt mérnék,
+ami élesben nincs — ez a leglassabban kiderülő hibafajta. Ezért a konvergencia egy
+függvény (`agent_audit_log_converge()`), és a **187-es migráció** újra meghívja. A (c)
+ágon a sorok **átmásolódnak**, nem elveszik (a dev egyetlen tesztsora átjött, `actor` és
+`details` érintetlenül); a bigint `entity_id` a `details`-be került `legacy_entity_id`
+néven, mert számot nem lehet uuid-ba tenni, de a kukába se kell.
+
+Az első próbálkozásom elhasalt azon, hogy a 187 a 184 függvényére támaszkodott. **Egy
+migráció nem támaszkodhat arra, hogy egy MÁSIK migráció JELENLEGI tartalma lefutott** — a
+187 ezért saját `CREATE OR REPLACE`-t hordoz.
+
+### (2) R007_appliance — és a bojler mint külön szabály
+
+Felvéve, öt nyelven. A „kivétel: bojler → heating/high" **külön szabály**
+(`R008_water_heater`, súly 0.92 > 0.85), nem az R007 egy ága, mert más kategóriába és más
+sürgősségre megy. A bojler-szavak ezen kívül az **R007 `none_keywords`-ében is** benne
+vannak: nem elég, hogy a nagyobb súly nyer, a gép-szabálynak egyáltalán nem szabad
+illeszkednie — melegvíz nélkül egy szálló nem üzemel, egy néma mikró kellemetlenség.
+
+A `hogyan`/`how to`/`paano`/`як` kizáró szavak választják el a **használati kérdést** a
+hibától: enélkül minden gép-kérdés hibajegyet nyitna, és a szerelő üresbe menne ki.
+
+Egy illesztési részlet, amit szándékosan így hagytam: a tagalog **`ref`** (hűtő) három
+karakter, tehát csak TELJES szóként illeszkedik — különben a „refund" és a „referencia" is
+hűtőhiba lenne.
+
+**Az 1. heti jelentés döntési pontja ezzel megoldva:** a „mosógép elromlott" többé nem
+esik `unclear`-re. Külön teszt őrzi.
+
+**Előretekintő megjegyzés:** az `appliance` alkategória **nincs benne a spec 5. fejezetének
+LLM-enumjában**. Amikor az LLM-szerződés elkészül, oda fel kell venni, különben az LLM
+szerkezetileg nem tud egyetérteni a szabállyal, és minden gép-hiba emberhez kerülne.
+
+### (3) A két HEAD-en bukó teszt — mindkettő JAVÍTVA, egyik sem `test.todo`
+
+| teszt | mi volt a baj | mi lett |
+|---|---|---|
+| `inspectionNotification` | Azt állította, hogy a mockolt `sendMail` lefut. A **`mailGuard`** (2026-07-05) ezt lehetetlenné tette: teszt-futtatóból vagy sandbox adatbázison **megtagadja** a kimenő levelet, és **nem dob**, hanem `{blocked:true}`-val tér vissza — pont azért, hogy egy figyelmetlen hívó ne tudjon néma sikert csinálni belőle. A szolgáltatás ezt **helyesen ellenőrzi** és `failed`-re állítja a sort a guard indokával. A guard jó volt, a szolgáltatás jó volt, **a teszt volt elavult.** | Most az ERŐSEBB invariánst állítja: minden `queued` címzett **terminális** állapotba jut explicit indokkal, egy sem marad `pending`-ben, és egy sem kerül „kiküldve"-ként nyilvántartásba, ha semmi nem hagyta el a folyamatot. Ha a guard blokkolt, az indok NEVEZZE MEG a guardot — különben az üzemeltető nem létező SMTP-hibát keresne. |
+| `analyticsOverview` | `occupancyPct <= 100`-at állított, a sandbox 1033%-ot ad. A szám **aritmetikailag helyes**: több lakó van, mint RÖGZÍTETT ágy. | A 100% feletti érték **legitim és informatív** — így válik láthatóvá a hiányzó ágyszám vagy a valóban túltöltött szállás (Fertőd élesben is túl van töltve). A KPI vágása pont azt a hiányt rejtené el, amit a cég követ, ezért a javítás a tesztben van, nem a szolgáltatásban. Az invariáns, amit most őriz: véges, nem negatív szám, és **0** (nem NaN, nem Infinity), ha nincs rögzített ágy. |
+
+`npm test`: **1621 passed / 0 failed, 88 szvit.** Nem kellett `test.todo`, tehát
+„Ismert bukások" szakasz sem.
+
+### Commit-üzenet, amiben eltértem az utasítástól
+
+A kért (b) üzenet: `"test: align inspectionNotification with mailGuard; mark known
+failure"`. A második fele **nem lett igaz**: a másik teszt javítható volt, tehát nem
+jelöltem meg semmit ismert bukásként. Egy commit-üzenet, ami olyat állít, ami nem
+történt meg, később hazudik a git log-ban — ezért a második felét a ténylegesen elvégzett
+munkára cseréltem (`fix stale occupancy assertion`). Az első fele szó szerint maradt.
+
+---
+
+## SESSION 2026-09-30 — Triage Agent, 1. hét: a váz (migs 180–186), AGENT_MODE=off
+
+A `HR-ERP-Triage-Agent-Spec-v1.md` 10. fejezetének 1. hete. **Nem dolgoz fel semmit, nem
+hív LLM-et, nem hajt végre akciót, a számlázáshoz nem nyúlt.** Ami elkészült, az a
+váz: adatbázis, szabálymotor, policy kapu, kill switch, backfill, tesztek.
+
+### Amit menet közben találtam, és fontosabb, mint a megírt kód
+
+**1. Az `agent_audit_log` már létezett — más szerkezettel.** A 123-as migráció
+"schema-only scaffolding"-ként létrehozta (uuid kulcs, `agent_name`/`action`), és azóta
+üresen áll: **egyetlen kódsor sem hivatkozik rá** a backendben, adminban, mobilban, és
+0 sor van benne devben ÉS élesben. Az eredeti 184-esem `CREATE TABLE IF NOT EXISTS`-t
+használt, ami ilyenkor **néma no-op**: a tábla megmarad a régi szerkezettel, az agent
+pedig nem létező oszlopokba (`actor`, `event`) írt volna. A `GRANT ... ON SEQUENCE
+agent_audit_log_id_seq` pedig egyenesen hibára futott volna, mert a 123-as tábla uuid
+kulcsú. Vagyis a migráció **eltört volna minden olyan adatbázison, ahol a 123 lefutott —
+tehát mindenhol.** Nem második táblát írtam: a 184 lecseréli az üres vázat, megtartva
+belőle a `model`/`tokens_*` oszlopokat (a spec 7.5 napi költség-riportot kér, azt
+oszlopból lehet összegezni), és **inkább megáll, mint hogy adatot semmisítsen meg**, ha
+mégis lenne sor benne. Az `agent_suggestions`-hez nem nyúltam: azt a szoba-konszolidáció
+aktívan használja.
+
+**2. A `config/` könyvtár nem volt benne a Docker image-ben.** A Dockerfile a `src`,
+`scripts`, `migrations` és `assets` könyvtárat viszi — a `config`-ot nem. A szabálymotor
+a `config/triage_rules.yaml`-ból olvas, aminek a hiánya nem degradálódás, hanem ENOENT:
+az első bejövő üzenet feldolgozása dobott volna. **Ötödik alkalom** ugyanabból a
+hibaosztályból, amiért a CLAUDE.md szabálya készült. Javítva (`COPY config ./config`), és
+a bizonyítás nem a fejlesztői gépen történt: **megépítettem az image-et, és a konténerben
+töltöttem be a szabálymotort** — 6 szabály, egy próbaosztályozás lefutott.
+
+**3. A szó-szintű hasonlítás elhasal a magyar ragozáson.** A dedup először szó-halmaz
+Jaccardot használt. A "Csöpög a csap a 4-esben" és az "a 4-es szobában folyik a víz a
+csapból" **0.17-et** kapott, mert a `csap` és a `csapból` szó szinten két külön token —
+a valódi duplikátum a zaj alá esett. Trigramon ugyanez **0.43**, miközben két különböző
+hiba 0.05 alatt marad. (A Postgres `pg_trgm` ugyanezért trigramozik.)
+
+**4. A nyelvfelismerő a rövid magyar bejelentéseket nem ismerte fel.** A backfill
+próbafutásán 56 üzenetből 40 lett `unknown`, köztük a "Csöpög a csap" és a "Mosógép
+meghibásodott". Csak az `ő`/`ű` betűt figyeltem; az `ö/ü/á/é/í/ó/ú` más nyelvekben is
+van, DE a triage négy nyelve közül (hu/en/tl/uk) egyikben sem — ebben a mezőben tehát
+bizonyíték. Javítva, 34-re csökkent az `unknown` (a maradék valódi teszt-szemét:
+"Integration Test Ticket", "teszt1 tesztelek"). A funkciószó nélküli angol szókapcsolat
+**szándékosan** `unknown` marad: a rossz nyelvű válasz rosszabb, mint ha megkérdezzük.
+
+**5. Két kulcsszólista alul-jelzett, és az egyik a legkényesebb.** A pénz-szó szabály
+(R090) a "ki fizeti a javítást?" kérdést **nem fogta**, mert csak a `fizetés` alak volt
+benne. Ez a szabály kényszeríti emberre a pénzügyi témát, tehát itt az alul-jelzés a
+rossz irány — felvéve a `fizet`/`kifizet`/`befizet` szótövet. A `mosás` szabály a
+"moshatok" alakot nem fogta. A tesztek fogták meg mindkettőt.
+
+**6. A szobaszám-kiemelés nem működött ragozott alakon.** A magyarban a tőhangzó
+megnyúlik: a "szoba" ragozva "szobában", amiben a `szoba` betűsor **nincs is benne**
+(szob+á+ban). A szótőre illesztek.
+
+**7. Néma siker a SAJÁT ma írt kódomban — és a saját tesztem nem fogta meg.** A záró
+ellenőrzésen kiderült, hogy a sandboxban nincs sor az `agent_triage_config`-ban: az
+`updated_by` a `users`-re hivatkozik, a FUNCTEST fixture pedig katalógus-alapon törli
+mindent, ami a `users.id`-re mutat. A `setMode` `UPDATE`-je **nulla soron nem hibázik** —
+a felület elmentettnek jelezte volna az üzemmódot, miközben semmi nem tárolódott. Ugyanaz
+az osztály, mint szeptemberben a beszállítói számlaszám és a kárjegyzőkönyv-szerkesztés.
+A rosszabbik fele: az **AGENT-03 tesztem átment**, mert a `PUT` válaszát vizsgálta (ami a
+kódból jött), nem a visszaolvasást. Javítva: `setMode` pótolja a sort és `RETURNING`-gel
+ellenőrzi, hogy pontosan egy sort írt (különben **kivételt dob**); a beállítás-olvasás is
+pótolja; AGENT-03 mostantól visszaolvas és a DB sorszámát is számolja; új **AGENT-12**
+törli a sort, ment, visszaolvas.
+
+### A döntések, amiket a spec fölött hoztam — és miért
+
+| döntés | miért |
+|---|---|
+| **`.js`, nem a spec `.ts`-e** | A backend 100% CommonJS JS, a Dockerfile a forrást másolja és `node src/server.js`-t futtat. Fordítási lépés nincs; egy `.ts` fájl élesben el sem indulna. TypeScript bevezetése a deploy-láncot érinti — külön döntés, nem 1. heti mellékhatás. |
+| **append-only TRIGGERREL, nem csak REVOKE-kal** | Az alkalmazás `postgres` SUPERUSER-ként kapcsolódik. A superuser minden jogosultság-ellenőrzést megkerül, tehát a spec szerinti REVOKE **önmagában dekoratív**: a napló szerkeszthető maradna, miközben a dokumentum azt állítaná, hogy append-only. A trigger a superuserre is érvényes. A REVOKE-réteg is bent van, a nem-superuser átállás utánra. |
+| **186-os migráció a spec 3. fejezete fölött** | A spec 1.6 "env + admin UI kapcsoló"-t kér. Az env-hez nem kell tábla, a kapcsolóhoz igen: egy kapcsoló, ami újraindításig él, nem kapcsoló. A házi `*_config` konvenciót követi. |
+| **az env a PLAFON, a felület a pedál** | Incidensnél a deployból le kell tudni fogni az agentet úgy, hogy azt egy admin-kattintás **ne engedje vissza**. Fordítva működik: env=live mellett a felületről shadow-ra húzható. A felület kimondja, ha a beállítás le van fogva. |
+| **a confidence-küszöb a felületről csak SZIGORÍTHATÓ** | A küszöböt a spec szerint a golden seten **mérni** kell, nem felületen csavarni. A leengedés pont azt a védelmet szedné le, amiért a küszöb létezik. |
+| **örök-L1 zóna KÉT helyen** | DB CHECK (mig 183) + kódbeli lista (`policy.js`). Két független helyen kell hibázni ahhoz, hogy `close_ticket`, `terminate` vagy `change_room` autonóm legyen. |
+| **backfill `status='ignored'`** | Ezek régi üzenetek. `new` státusszal az agent egy hónapokkal ezelőtti "elhagytam a kulcsomat" bejelentésre MA nyitna jegyet és értesítené a szállásfelelőst. |
+
+### Tesztek
+
+- **Jest: 96 új** (`tests/agent/`) — 6 szabályhoz 3+3 minta, dedup, policy kapu,
+  idempotencia, nyelvfelismerés. A negatív mintákat a **közeli tévedésekből** válogattam:
+  a `berendezés` ne legyen pénz-szó, a `hűtőszekrény` ne legyen fűtés-hiba, a törött
+  mosógép ne legyen FAQ.
+- **FUNCTEST: 386 → 398 passed / 0 failed** — 12 AGENT eset a teljes HTTP-láncon: még az
+  **admin** sem éri el a kapcsolót; az env plafonja lefogja a felületi váltást és ezt a
+  válasz kimondja; az audit napló UPDATE/DELETE-re elutasít; `close_ticket` nem emelhető
+  L2-re; L1-es akciót az agent nem hajthat végre; ugyanaz az `idempotency_key` másodszor
+  nem megy be.
+- **`npm test`: 1597/1600.** A 2 bukás **öröklött**: `analyticsOverview` és
+  `inspectionNotification` a módosításaim nélkül, HEAD-en is ugyanígy bukik (kipróbáltam
+  `git stash`-sel). Az `inspectionNotification` oka feltárva: a `mailGuard`
+  (2026-07-05) blokkolja a kimenő levelet teszt-futtatóból, a teszt viszont még azt
+  állítja, hogy `sendMail` lefut — **a teszt elavult a védelemhez képest**, nem a termék
+  hibás. Nem írtam át, mert nem lazítani kell egy állítást, hanem eldönteni, mi a helyes
+  elvárás: ez döntési pont.
+
+### Ami NINCS meg (kimondva)
+
+- **Feldolgozó sor nincs.** Bejövő üzenetet semmi nem hív be, nem osztályoz, nem tervez
+  akciót. A kapcsoló bármelyik állásban hatástalan — a felület ezt ki is írja.
+- **Golden set 56/200.** A meglévő jegyek és chat elfogytak; a maradék 144 az
+  email-csatornából és az új forgalomból jön. Mérés nélkül nincs élesítés (spec 7.1).
+- **Élesben nincs alkalmazva.** A 180–186 migrációk devben és sandboxban futottak, prodon
+  nem. A deploy külön jóváhagyás.
+- **A "mosógép elromlott" `unclear`-re esik.** A FAQ-szabály kizárja (helyesen), de
+  karbantartás-szabály nincs rá a spec 6 szabálya közt. Emberhez kerül — biztonságos, de
+  nem ideális. Hetedik szabály kérdése: döntési pont.
+
+---
+
 ## SESSION 2026-09-05 — Phase 4 (1. rész): a szerepkör-modell alapjai, éles
 
 migs 153–154. A cél: mindenki csak azt lássa, ami hozzá tartozik.
