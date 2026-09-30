@@ -72,6 +72,45 @@ szerkezetileg nem tud egyetérteni a szabállyal, és minden gép-hiba emberhez 
 `npm test`: **1621 passed / 0 failed, 88 szvit.** Nem kellett `test.todo`, tehát
 „Ismert bukások" szakasz sem.
 
+### Élesítés — mentés, migráció, ellenőrzés
+
+**Mentés ELŐBB, ahogy kérted.** `pg_dump -Fc` az éles adatbázisról, a fájlnév dátumot és
+git HEAD hash-t hordoz:
+`backups/hr_erp_pre-agent-migration_2026-09-30_1741_a4b0bcc5.dump` (4,5 MB).
+`pg_restore --list`: **1923 tétel, olvasható**; a `users`, `employees`, `accommodations`,
+`tickets`, `invoices`, `agent_audit_log`, `agent_suggestions` tábla-adat mind benne. A
+SHA256 a VM-en és a letöltött példányon **azonos**, tehát a másolat nem sérült.
+
+**Az offsite másolat NEM készült el, és ezt ki kell mondani:** a Hetzner Storage Box
+**nincs provisionálva**. A `backup.env` a VM-en üres placeholdereket tartalmaz
+(`u123456.your-storagebox.de`), és maga a fájl írja le, hogy „STATUS: NOT ACTIVE" — ez a
+2026-07-06 óta nyitott tulajdonosi tétel (Storage Box megrendelése + kulcs feltöltése). A
+mentés tehát két helyen van: a Hetzner gépen és a Macen — ez két külön gép, de nem az a
+3-2-1 láb, amit a Storage Box adna.
+
+**Migráció:** 180–187 a runnerrel, mind a nyolc `applied`. Az éles `agent_audit_log`
+**mind a 13 eredeti oszlopát megtartotta, az eredeti sorrendben**, és 5-tel bővült
+(`actor`, `event`, `details`, `action_id`, `message_id`). Semmit nem dobtunk el, sor nem
+veszett el (élesben 0 sor volt).
+
+**Éles ellenőrzés a három kért ponton:**
+
+| ellenőrzés | eredmény |
+|---|---|
+| `/admin/agent/settings` betölt | a **deployolt** admin bundle grepje találja az `agent/settings` útvonalat és a „Triage Agent" menüpontot; a `GET /agent/settings` **200** valódi szuperadminként (a bundle a bizonyíték, nem a forráskód) |
+| a kapcsoló `off`-ot mutat | `effective: off`, `env: off`, 16 policy sor, **0 engedélyezett**, `pipeline_wired: false` |
+| `agent_audit_log`-ban van `mode_change` | **2 sor**, a tényleges kódúton keletkezve |
+
+A `mode_change` sorokat nem kézzel írtam be: **végigpróbáltam a kapcsolót élesben.** A
+`PUT {mode:'shadow'}` eltárolta a szándékot, de `effective: off`-ot és `capped: true`-t
+adott vissza a magyarázó üzenettel — vagyis **az env-plafon élesben is fog**, nem csak a
+tesztben. Utána visszaállítottam `off`-ra.
+
+**A backfill élesben csak PRÓBAFUTÁS volt** (adatírás, és erre nem kaptam utasítást ebben
+a körben): 27 valódi üzenet, **22 hu / 2 en / 3 unknown** — a valós adaton a
+nyelvfelismerés jóval jobb, mint a dev teszt-szemetén. Az éles golden set tehát **0/200**,
+és a 27 minta behozása a te jóváhagyásodra vár.
+
 ### Commit-üzenet, amiben eltértem az utasítástól
 
 A kért (b) üzenet: `"test: align inspectionNotification with mailGuard; mark known
