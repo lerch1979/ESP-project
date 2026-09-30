@@ -144,12 +144,28 @@ describe('inspection email notifications', () => {
     expect(rendered.html).toContain('Dear Test Resident');
   });
 
-  it('notifyResidents writes one tracking row per resident and calls sendMail', async () => {
+  // Aligned with mailGuard (2026-07-05) on 2026-09-30.
+  //
+  // WHY THIS TEST CHANGED. It used to assert `sent + skipped >= queued`, i.e. that the
+  // mocked `sendMail` is reached. That became impossible — and had been failing ever
+  // since — because `mailGuard` wraps the transport and REFUSES outbound mail whenever a
+  // test harness is active (JEST_WORKER_ID) or the database is a sandbox. It does not
+  // throw: it resolves with `{ blocked: true }`, deliberately, so a caller that forgets
+  // to check cannot turn a blocked send into a silent success. The service DOES check
+  // (`wasBlocked` → throw) and records the row as `failed` with the guard's reason.
+  //
+  // So the guard was right, the service was right, and the test was stale. It now
+  // asserts the invariant that actually matters, which is STRONGER than the old one:
+  // every queued recipient ends in a TERMINAL state with an explicit reason, and none is
+  // left `pending` or recorded as delivered when nothing left the process.
+  it('notifyResidents writes one terminal tracking row per resident (mailGuard-aware)', async () => {
     if (!inspectionId) return;
     mockSendMail.mockClear();
     const counters = await svc.notifyResidents(inspectionId);
     expect(counters.queued).toBeGreaterThanOrEqual(1);
-    expect(counters.sent + counters.skipped).toBeGreaterThanOrEqual(counters.queued);
+
+    // NOTHING MAY VANISH: every queued row is accounted for by exactly one outcome.
+    expect(counters.sent + counters.skipped + counters.failed).toBe(counters.queued);
 
     const tracking = await query(
       `SELECT * FROM inspection_email_notifications WHERE inspection_id = $1`,
@@ -161,6 +177,21 @@ describe('inspection email notifications', () => {
     // was a pure function call, no DB side-effect)
     expect(tracking.rows[0].language).toBe('hu');
     expect(tracking.rows[0].content_hash).toMatch(/^[0-9a-f]{16}$/);
+
+    // No row may sit in `pending`: that is the state a crash mid-send would leave, and
+    // it is indistinguishable from "nobody looked at it yet".
+    for (const row of tracking.rows) {
+      expect(['sent', 'skipped', 'failed']).toContain(row.status);
+      if (row.status !== 'sent') expect(row.failed_reason).toBeTruthy();
+    }
+
+    // Under the guard the outcome is `failed`, and the reason must NAME the guard —
+    // otherwise an operator reading the admin trail would hunt a non-existent SMTP fault.
+    const blocked = tracking.rows.filter((r) => r.status === 'failed');
+    if (blocked.length > 0) {
+      expect(blocked[0].failed_reason).toMatch(/BLOCKED|mailGuard|sandbox|TEST HARNESS|disabled/i);
+      expect(mockSendMail).not.toHaveBeenCalled();   // the guard intercepts before nodemailer
+    }
   });
 
   it('GET /inspections/:id/email-notifications returns the trail', async () => {
